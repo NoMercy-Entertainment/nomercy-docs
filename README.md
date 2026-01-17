@@ -1,49 +1,132 @@
-# Starlight Starter Kit: Basics
+# NoMercy Documentation Site
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+A modern, markdown-based documentation site for NoMercy applications and mediaserver, built with Astro and featuring semantic search.
 
-```
-npm create astro@latest -- --template starlight
-```
+## Architecture
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro + Starlight project, you'll see the following folders and files:
+This site follows the same architecture as [Playful Programming](https://playfulprogramming.com/posts/orama-search):
 
 ```
-.
-├── public/
+Content (Markdown) → Build Search Index → Search API → Frontend Search UI
+```
+
+### Key Components
+
+1. **Markdown Source**: All documentation lives in the `content/` directory
+   - `content/apps/` - Application documentation
+   - `content/mediaserver/` - MediaServer documentation
+
+2. **Search Index Builder**: `scripts/build-search-index.js`
+   - Runs during build process
+   - Generates `searchIndex.json` from all markdown files
+   - Extracts frontmatter metadata (title, description, tags, author, date)
+
+3. **Search API**: `src/pages/api/search.js`
+   - Full-text search endpoint
+   - Supports pagination and filtering
+   - Returns JSON results
+
+4. **Search UI**: `src/components/SearchComponent.jsx`
+   - Preact component with real-time search
+   - Pagination support
+   - Category and tag filtering
+   - Responsive design
+
+## Getting Started
+
+### Installation
+
+```bash
+npm install
+```
+
+### Development
+
+```bash
+npm run dev
+```
+
+The site will be available at `http://localhost:3000` or `http://localhost:4321`
+
+### Building
+
+```bash
+npm run build
+```
+
+This will:
+1. Generate `searchIndex.json` from all markdown files
+2. Build the static site with Astro
+
+## Project Structure
+
+```
+├── content/
+│   ├── apps/                    # App documentation
+│   └── mediaserver/             # MediaServer documentation
 ├── src/
-│   ├── assets/
-│   ├── content/
-│   │   └── docs/
-│   └── content.config.ts
+│   ├── pages/
+│   │   ├── api/
+│   │   │   └── search.js        # Search API endpoint
+│   │   └── search.astro         # Search page
+│   └── components/
+│       └── SearchComponent.jsx  # Search UI component
+├── scripts/
+│   └── build-search-index.js    # Search index builder
 ├── astro.config.mjs
-├── package.json
-└── tsconfig.json
+└── package.json
 ```
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+## Adding Documentation
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+1. Create a new markdown file in the appropriate directory:
+   ```
+   content/apps/my-guide.md
+   content/mediaserver/my-guide.md
+   ```
 
-Static assets, like favicons, can be placed in the `public/` directory.
+2. Add frontmatter with metadata:
+   ```yaml
+   ---
+   title: My Guide
+   description: A brief description
+   tags: ['tag1', 'tag2']
+   author: Your Name
+   date: 2025-01-17
+   ---
+   ```
 
-## 🧞 Commands
+3. Write your documentation in Markdown
 
-All commands are run from the root of the project, from a terminal:
+4. During build, the search index will automatically include your new page
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+## Search Features
 
-## 👀 Want to learn more?
+The search system provides:
 
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+- **Full-text search**: Searches title, description, content, and tags
+- **Pagination**: Navigate through large result sets
+- **Categories**: Results filtered by category (apps/mediaserver)
+- **Tags**: Filter by tags added to frontmatter
+- **Real-time**: Debounced search as you type
+
+## Future Enhancements
+
+To upgrade to Orama Cloud for production:
+
+1. Sign up at [Orama Cloud](https://orama.com/)
+2. Create a new database
+3. Point it to your `searchIndex.json` endpoint
+4. Replace the search endpoint with Orama's SDK
+5. Get benefits of:
+   - Semantic/vector search
+   - Better relevance ranking
+   - Unlimited queries (free for open-source)
+   - Automatic embedding generation
+
+## Technologies Used
+
+- **Astro**: Static site generation
+- **Preact**: Lightweight UI component framework
+- **Markdown**: Content source format
+- **Gray Matter**: Frontmatter parsing
