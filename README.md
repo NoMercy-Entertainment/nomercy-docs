@@ -1,38 +1,63 @@
 # NoMercy Documentation Site
 
-A modern, markdown-based documentation site for NoMercy applications and mediaserver, built with Astro and featuring semantic search.
+A modern, professional documentation site built with Astro and Tailwind CSS v4. Featuring a responsive design, dark mode support, and full-text search functionality.
 
-## Architecture
+## 🎨 Design System
 
-This site follows the same architecture as [Playful Programming](https://playfulprogramming.com/posts/orama-search):
+The documentation site implements a professional design system with:
+
+- **Color Palette**: Emerald (primary), Zinc (neutral), with full dark mode
+- **Layout**: Fixed left sidebar (responsive), mobile hamburger menu
+- **Typography**: Professional font scaling with code highlighting
+- **Responsive**: Mobile-first design that scales to desktop
+
+## 🏗️ Architecture
+
+### Project Structure
 
 ```
-Content (Markdown) → Build Search Index → Search API → Frontend Search UI
+src/
+├── components/          # Reusable UI components
+│   ├── Header.astro     # Navigation bar with theme toggle
+│   ├── Navigation.jsx   # Sidebar menu (Preact)
+│   ├── Logo.astro       # Brand logo
+│   └── ...
+├── layouts/
+│   ├── RootLayout.astro      # Main app shell with sidebar
+│   └── MarkdownLayout.astro  # Documentation page wrapper
+├── pages/
+│   ├── index.astro      # Homepage
+│   ├── search.astro     # Search interface
+│   ├── [...slug].astro  # Dynamic markdown routes
+│   └── api/search.js    # Search API endpoint
+├── content/docs/        # Markdown documentation
+│   ├── apps/
+│   ├── mediaserver/
+│   └── ...
+└── styles/global.css    # Tailwind imports
 ```
 
-### Key Components
+### Technology Stack
 
-1. **Markdown Source**: All documentation lives in the `content/` directory
-   - `content/apps/` - Application documentation
-   - `content/mediaserver/` - MediaServer documentation
+- **Astro 5.6.1** - Static site generator
+- **Tailwind CSS 4.1.15** - Utility-first CSS framework
+- **Preact 10.22.1** - Lightweight UI framework
+- **Markdown** - Content format with YAML frontmatter
 
-2. **Search Index Builder**: `scripts/build-search-index.js`
-   - Runs during build process
-   - Generates `searchIndex.json` from all markdown files
-   - Extracts frontmatter metadata (title, description, tags, author, date)
+## ✨ Features
 
-3. **Search API**: `src/pages/api/search.js`
-   - Full-text search endpoint
-   - Supports pagination and filtering
-   - Returns JSON results
+- ✅ Responsive design (mobile, tablet, desktop)
+- ✅ Dark mode with localStorage persistence
+- ✅ Full-text search with pagination
+- ✅ Markdown-based content system
+- ✅ Code syntax highlighting
+- ✅ Mobile hamburger navigation
+- ✅ Active link highlighting
+- ✅ Static generation (no server needed)
+- ✅ ~10KB gzipped JavaScript
+- ✅ SEO-friendly structure
 
-4. **Search UI**: `src/components/SearchComponent.jsx`
-   - Preact component with real-time search
-   - Pagination support
-   - Category and tag filtering
-   - Responsive design
-
-## Getting Started
+## 🚀 Getting Started
 
 ### Installation
 
@@ -46,87 +71,134 @@ npm install
 npm run dev
 ```
 
-The site will be available at `http://localhost:3000` or `http://localhost:4321`
+The site will be available at `http://localhost:4321`
 
-### Building
+### Production Build
 
 ```bash
 npm run build
 ```
 
-This will:
-1. Generate `searchIndex.json` from all markdown files
-2. Build the static site with Astro
+Static files are generated in `dist/` directory.
 
-## Project Structure
+## 📝 Adding Documentation
 
-```
-├── content/
-│   ├── apps/                    # App documentation
-│   └── mediaserver/             # MediaServer documentation
-├── src/
-│   ├── pages/
-│   │   ├── api/
-│   │   │   └── search.js        # Search API endpoint
-│   │   └── search.astro         # Search page
-│   └── components/
-│       └── SearchComponent.jsx  # Search UI component
-├── scripts/
-│   └── build-search-index.js    # Search index builder
-├── astro.config.mjs
-└── package.json
+Create a new markdown file in `src/content/docs/`:
+
+```markdown
+---
+title: Your Page Title
+description: Brief description of the page
+---
+
+# Your Content
+
+Your documentation content here...
+
+## Section 2
+
+More content...
 ```
 
-## Adding Documentation
+The page will automatically:
+- Be added to the search index
+- Get a URL matching its file path
+- Use consistent styling with MarkdownLayout
+- Be listed in search results
 
-1. Create a new markdown file in the appropriate directory:
-   ```
-   content/apps/my-guide.md
-   content/mediaserver/my-guide.md
-   ```
+## 🎯 Navigation
 
-2. Add frontmatter with metadata:
-   ```yaml
-   ---
-   title: My Guide
-   description: A brief description
-   tags: ['tag1', 'tag2']
-   author: Your Name
-   date: 2025-01-17
-   ---
-   ```
+Edit `src/components/Navigation.jsx` to add new sections to the sidebar:
 
-3. Write your documentation in Markdown
+```javascript
+const navigationGroups = [
+  {
+    title: 'Section Name',
+    links: [
+      { title: 'Page Title', href: '/path/to/page' },
+    ],
+  },
+];
+```
 
-4. During build, the search index will automatically include your new page
+## 🌙 Dark Mode
 
-## Search Features
+The site includes a dark mode toggle in the header that:
+- Automatically switches between light and dark themes
+- Persists the user's preference in localStorage
+- Applies consistent styling across all components
 
-The search system provides:
+## 🔍 Search System
 
-- **Full-text search**: Searches title, description, content, and tags
-- **Pagination**: Navigate through large result sets
-- **Categories**: Results filtered by category (apps/mediaserver)
-- **Tags**: Filter by tags added to frontmatter
-- **Real-time**: Debounced search as you type
+Full-text search with:
+- Real-time search as you type
+- Result pagination
+- Category and tag support
+- Pre-built search index for fast lookups
 
-## Future Enhancements
+## 📊 Build Output
 
-To upgrade to Orama Cloud for production:
+- 8 static HTML pages generated
+- ~10KB gzipped JavaScript (interactive components only)
+- Pre-built search index (JSON)
+- Optimized for production deployment
 
-1. Sign up at [Orama Cloud](https://orama.com/)
-2. Create a new database
-3. Point it to your `searchIndex.json` endpoint
-4. Replace the search endpoint with Orama's SDK
-5. Get benefits of:
-   - Semantic/vector search
-   - Better relevance ranking
-   - Unlimited queries (free for open-source)
-   - Automatic embedding generation
+## 🧪 Testing
 
-## Technologies Used
+```bash
+# Development server with hot reload
+npm run dev
 
-- **Astro**: Static site generation
-- **Preact**: Lightweight UI component framework
-- **Markdown**: Content source format
-- **Gray Matter**: Frontmatter parsing
+# Production build
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+## 🎨 Customization
+
+### Change Brand Colors
+
+1. Edit `tailwind.config.ts` color definitions
+2. Update component color classes
+3. Modify `src/components/Logo.astro`
+
+### Modify Layout
+
+Edit `src/layouts/RootLayout.astro`:
+- Sidebar width: `lg:ml-72 xl:ml-80`
+- Header positioning: `fixed top-0`
+- Content padding: `px-4 sm:px-6 lg:px-8`
+
+## 📦 Dependencies
+
+### Core
+- `astro` - Static site generator
+- `tailwindcss` - Styling framework
+- `preact` - UI framework
+
+### Utilities
+- `clsx` - Class name utility
+- `gray-matter` - Frontmatter parsing
+- `sharp` - Image optimization
+- `glob` - File pattern matching
+
+## 🚢 Deployment
+
+The `dist/` folder can be deployed to:
+- Vercel
+- Netlify
+- GitHub Pages
+- AWS S3 + CloudFront
+- Any static hosting service
+
+## 📄 License
+
+Part of the NoMercy project.
+
+---
+
+**Last Updated**: 2025
+**Astro Version**: 5.6.1
+**Tailwind CSS Version**: 4.1.15
