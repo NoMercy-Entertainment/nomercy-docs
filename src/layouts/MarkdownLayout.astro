@@ -1,28 +1,75 @@
 ---
-import RootLayout from './RootLayout.astro';
+import '../styles/global.css'
+import { Providers } from '../components/Providers'
+import { Layout } from '../components/protocol/Layout'
+import { HeroPattern } from '../components/protocol/HeroPattern'
+import { CodeHighlighter } from '../components/protocol/CodeHighlighter'
+import { getNavigation } from '../lib/navigation'
 
 interface Props {
   title: string;
   description?: string;
+  sections?: Array<{ id: string; title: string; tag?: string }>;
 }
 
-const { title, description } = Astro.props;
+const { title, description, sections = [] } = Astro.props;
+const pathname = Astro.url.pathname;
+
+// Fetch navigation from all collections
+const { sections: navigation, apiGroups } = await getNavigation();
+
+// Build allSections object with current page sections
+// Handle both with and without trailing slash, and empty pathname
+const normalizedPathname = pathname || '/'
+// Ensure sections are properly serialized
+const serializedSections = sections.map(s => ({
+  id: s.id,
+  title: s.title,
+  ...(s.tag && { tag: s.tag })
+}));
+
+const allSections: Record<string, Array<{ id: string; title: string; tag?: string }>> = {
+  [normalizedPathname]: serializedSections,
+  [normalizedPathname.replace(/\/$/, '') || '/']: serializedSections,
+  '/': serializedSections, // Also include root path for index page
+};
 ---
 
-<RootLayout title={title}>
-  <article class="prose prose-sm sm:prose-base dark:prose-invert max-w-none">
-    <header class="mb-8 pb-8 border-b border-zinc-200 dark:border-zinc-800">
-      <h1 class="text-4xl font-bold tracking-tight text-zinc-900 dark:text-white mt-0">
-        {title}
-      </h1>
-      {description && (
-        <p class="text-lg text-zinc-600 dark:text-zinc-400 mt-4 leading-relaxed">
-          {description}
-        </p>
-      )}
-    </header>
-    <div class="prose prose-sm sm:prose-base dark:prose-invert max-w-none">
-      <slot />
-    </div>
-  </article>
-</RootLayout>
+<!DOCTYPE html>
+<html lang="en" class="h-full" suppressHydrationWarning>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <title>{title ? `${title} - NoMercy Docs` : 'NoMercy Documentation'}</title>
+    <script is:inline>
+      (function() {
+        try {
+          if (typeof window === 'undefined') return;
+          const theme = localStorage.getItem('theme');
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          
+          // Apply theme immediately to prevent flash
+          if (theme === 'dark' || (theme === 'system' && prefersDark) || (!theme && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {
+          // Ignore errors
+        }
+      })();
+    </script>
+  </head>
+  <body class="flex min-h-full bg-white antialiased dark:bg-zinc-900" suppressHydrationWarning>
+    <Providers client:load>
+      <div class="w-full">
+        <HeroPattern client:load />
+        <Layout allSections={allSections} navigation={navigation} apiGroups={apiGroups} initialPathname={normalizedPathname} client:load>
+          <slot />
+        </Layout>
+      </div>
+      <CodeHighlighter client:load />
+    </Providers>
+  </body>
+</html>

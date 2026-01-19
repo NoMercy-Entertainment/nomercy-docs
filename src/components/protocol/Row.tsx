@@ -1,0 +1,22 @@
+/**
+ * Two-column responsive grid layout
+ * 
+ * Directive: ::row
+ * 
+ * Usage:
+ * ```mdx
+ * ::row
+ * ::col
+ * Left column content
+ * ::col sticky
+ * Right column content (sticky on desktop)
+ * ::
+ * ```
+ */
+export function Row({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 items-start gap-x-16 gap-y-10 xl:max-w-none xl:grid-cols-2">
+      {children}
+    </div>
+  )
+}

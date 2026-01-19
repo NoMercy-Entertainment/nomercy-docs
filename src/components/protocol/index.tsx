@@ -1,0 +1,55 @@
+/**
+ * MDX Components
+ * 
+ * Central export for all MDX components used in documentation.
+ * Import as: import * as mdxComponents from '@/components/protocol'
+ */
+
+import { Feedback } from './Feedback';
+import { Heading } from './Heading';
+import { Prose } from './Prose';
+
+// =============================================================================
+// MDX Element Overrides
+// =============================================================================
+
+/** Custom anchor - standard link behavior */
+export const a = ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+  <a href={href} {...props}>{children}</a>
+);
+
+/** Custom h2 - adds anchor links and proper styling */
+export const h2 = (props: Omit<React.ComponentPropsWithoutRef<typeof Heading>, 'level'>) => (
+  <Heading level={2} {...props} />
+);
+
+/** Article wrapper with prose styling and feedback footer */
+export function wrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <article className="flex h-full flex-col pt-16 pb-10">
+      <Prose className="flex-auto">{children}</Prose>
+      <footer className="mx-auto mt-16 w-full max-w-2xl lg:max-w-5xl">
+        <Feedback />
+      </footer>
+    </article>
+  );
+}
+
+// =============================================================================
+// Re-exports
+// =============================================================================
+
+// Code components
+export { Code as code, CodeGroup, Pre as pre } from './Code';
+
+// Button component
+export { Button } from './Button';
+
+// Content components (used by directives)
+export { Note } from './Note';
+export { Row } from './Row';
+export { Col } from './Col';
+export { Properties, Property } from './Properties';
+
+// Home page components
+export { DocSections } from './DocSections';

@@ -6,6 +6,9 @@ const docs = defineCollection({
     description: z.string().optional(),
     published: z.date().optional(),
     updated: z.date().optional(),
+    draft: z.boolean().optional(),
+    order: z.number().optional(),
+    category: z.string().optional(),
   }),
 });
 
