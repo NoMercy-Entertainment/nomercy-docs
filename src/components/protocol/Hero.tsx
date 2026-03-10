@@ -1,6 +1,6 @@
 import { GridPattern } from './GridPattern'
 
-export function HeroPattern() {
+export function Hero() {
   return (
     <div className="absolute inset-0 -z-10 mx-0 max-w-none overflow-hidden">
       <div className="absolute top-0 left-1/2 -ml-152 h-100 w-325 dark:mask-[linear-gradient(white,transparent)]">

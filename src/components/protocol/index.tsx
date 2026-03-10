@@ -6,7 +6,7 @@
  */
 
 import { Feedback } from './Feedback';
-import { Heading } from './Heading';
+import { Heading } from '../Heading';
 import { Prose } from './Prose';
 
 // =============================================================================
@@ -24,7 +24,7 @@ export const h2 = (props: Omit<React.ComponentPropsWithoutRef<typeof Heading>, '
 );
 
 /** Article wrapper with prose styling and feedback footer */
-export function wrapper({ children }: { children: React.ReactNode }) {
+export function wrapper({ children }: { children: React.ReactNode; }) {
   return (
     <article className="flex h-full flex-col pt-16 pb-10">
       <Prose className="flex-auto">{children}</Prose>
@@ -46,10 +46,12 @@ export { Code as code, CodeGroup, Pre as pre } from './Code';
 export { Button } from './Button';
 
 // Content components (used by directives)
-export { Note } from './Note';
+export { Callout } from './Callout';
 export { Row } from './Row';
 export { Col } from './Col';
 export { Properties, Property } from './Properties';
 
 // Home page components
-export { DocSections } from './DocSections';
+export { IconCards, IconCard } from './IconCards';
+export { Hero } from './Hero';
+export { LogoCards, LogoCard } from './LogoCards';

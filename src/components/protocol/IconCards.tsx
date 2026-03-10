@@ -6,6 +6,7 @@ import {
   useMotionValue,
   type MotionValue,
 } from 'framer-motion'
+import { useMemo } from 'react'
 
 import { GridPattern } from './GridPattern'
 import { Heading } from './Heading'
@@ -35,6 +36,13 @@ function ApiIcon({ className }: { className?: string }) {
   )
 }
 
+// Icon registry
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+  app: AppIcon,
+  server: ServerIcon,
+  api: ApiIcon,
+}
+
 // Simple Link component
 const Link = ({ href, className, children, ...props }: { href: string; className?: string; children: React.ReactNode } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
   <a href={href} className={className} {...props}>
@@ -42,63 +50,28 @@ const Link = ({ href, className, children, ...props }: { href: string; className
   </a>
 )
 
-interface DocSection {
-  href: string
-  name: string
-  description: string
-  icon: React.ComponentType<{ className?: string }>
-  pattern: Omit<
-    React.ComponentPropsWithoutRef<typeof GridPattern>,
-    'width' | 'height' | 'x'
-  >
+// Generate random pattern for grid
+function generateRandomPattern(): { y: number; squares: [number, number][] } {
+  const y = Math.floor(Math.random() * 60) - 20
+  const numSquares = Math.floor(Math.random() * 3) + 2
+  const squares: [number, number][] = []
+
+  for (let i = 0; i < numSquares; i++) {
+    const x = Math.floor(Math.random() * 5) - 2
+    const ySquare = Math.floor(Math.random() * 6) + 1
+    squares.push([x, ySquare])
+  }
+
+  return { y, squares }
 }
 
-const docSections: Array<DocSection> = [
-  {
-    href: '/app',
-    name: 'App Documentation',
-    description:
-      'Get started with the NoMercy app. Learn about installation, configuration, and how to use all the features.',
-    icon: AppIcon,
-    pattern: {
-      y: 16,
-      squares: [
-        [0, 1],
-        [1, 3],
-      ],
-    },
-  },
-  {
-    href: '/mediaserver',
-    name: 'Media Server',
-    description:
-      'Set up and configure the NoMercy Media Server. Manage your media library, transcoding, and streaming settings.',
-    icon: ServerIcon,
-    pattern: {
-      y: -6,
-      squares: [
-        [-1, 2],
-        [1, 3],
-      ],
-    },
-  },
-  {
-    href: '/quickstart',
-    name: 'API Reference',
-    description:
-      'Integrate with the NoMercy API. Access contacts, conversations, messages, and more programmatically.',
-    icon: ApiIcon,
-    pattern: {
-      y: 32,
-      squares: [
-        [0, 2],
-        [1, 4],
-      ],
-    },
-  },
-]
+interface SectionPattern {
+  y: number
+  squares: [number, number][]
+}
 
-function SectionIcon({ icon: Icon }: { icon: DocSection['icon'] }) {
+function SectionIcon({ icon }: { icon: React.ComponentType<{ className?: string }> }) {
+  const Icon = icon
   return (
     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-900/5 ring-1 ring-zinc-900/25 backdrop-blur-[2px] transition duration-300 group-hover:bg-white/50 group-hover:ring-zinc-900/25 dark:bg-white/7.5 dark:ring-white/15 dark:group-hover:bg-emerald-300/10 dark:group-hover:ring-emerald-400">
       <Icon className="h-6 w-6 fill-zinc-700/10 stroke-zinc-700 transition-colors duration-300 group-hover:stroke-zinc-900 dark:fill-white/10 dark:stroke-zinc-400 dark:group-hover:fill-emerald-300/10 dark:group-hover:stroke-emerald-400" />
@@ -110,7 +83,7 @@ function SectionPattern({
   mouseX,
   mouseY,
   ...gridProps
-}: DocSection['pattern'] & {
+}: SectionPattern & {
   mouseX: MotionValue<number>
   mouseY: MotionValue<number>
 }) {
@@ -148,54 +121,76 @@ function SectionPattern({
   )
 }
 
-function Section({ section }: { section: DocSection }) {
-  let mouseX = useMotionValue(0)
-  let mouseY = useMotionValue(0)
+// Props for individual IconCard
+export interface IconCardProps {
+  href: string
+  name: string
+  description: string
+  icon?: string
+}
+
+// Individual icon card component
+export function IconCard({ href, name, description, icon = 'api' }: IconCardProps) {
+  const mouseX = useMotionValue(0)
+  const mouseY = useMotionValue(0)
+
+  // Generate random pattern once per component mount
+  const pattern = useMemo(() => generateRandomPattern(), [])
+
+  const IconComponent = iconMap[icon] || ApiIcon
 
   function onMouseMove({
     currentTarget,
     clientX,
     clientY,
   }: React.MouseEvent<HTMLDivElement>) {
-    let { left, top } = currentTarget.getBoundingClientRect()
+    const { left, top } = currentTarget.getBoundingClientRect()
     mouseX.set(clientX - left)
     mouseY.set(clientY - top)
   }
 
   return (
     <div
-      key={section.href}
       onMouseMove={onMouseMove}
       className="group relative flex rounded-2xl bg-zinc-50 transition-shadow hover:shadow-md hover:shadow-zinc-900/5 dark:bg-white/2.5 dark:hover:shadow-black/5"
     >
-      <SectionPattern {...section.pattern} mouseX={mouseX} mouseY={mouseY} />
+      <SectionPattern {...pattern} mouseX={mouseX} mouseY={mouseY} />
       <div className="absolute inset-0 rounded-2xl ring-1 ring-zinc-900/7.5 ring-inset group-hover:ring-zinc-900/10 dark:ring-white/10 dark:group-hover:ring-white/20" />
       <div className="relative rounded-2xl px-4 pt-12 pb-6">
-        <SectionIcon icon={section.icon} />
+        <SectionIcon icon={IconComponent} />
         <h3 className="mt-4 text-base/7 font-semibold text-zinc-900 dark:text-white">
-          <Link href={section.href}>
+          <Link href={href}>
             <span className="absolute inset-0 rounded-2xl" />
-            {section.name}
+            {name}
           </Link>
         </h3>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          {section.description}
+          {description}
         </p>
       </div>
     </div>
   )
 }
 
-export function DocSections() {
+// Helper to generate id from heading text
+function headingToId(heading: string): string {
+  return heading
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+// Container component that renders children
+export function IconCards({ children, heading = 'Documentation' }: { children?: React.ReactNode; heading?: string }) {
+  const id = headingToId(heading)
+
   return (
     <div className="my-16 xl:max-w-none">
-      <Heading level={2} id="documentation">
-        Documentation
+      <Heading level={2} id={id}>
+        {heading}
       </Heading>
       <div className="not-prose mt-4 grid grid-cols-1 gap-8 border-t border-zinc-900/5 pt-10 sm:grid-cols-2 xl:grid-cols-3 dark:border-white/5">
-        {docSections.map((section) => (
-          <Section key={section.href} section={section} />
-        ))}
+        {children}
       </div>
     </div>
   )

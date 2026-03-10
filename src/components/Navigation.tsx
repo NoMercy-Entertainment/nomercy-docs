@@ -1,72 +1,72 @@
-'use client'
+'use client';
 
-import clsx from 'clsx'
-import { AnimatePresence, motion, useIsPresent } from 'framer-motion'
-import { useRef, useState, useEffect } from 'react'
+import clsx from 'clsx';
+import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
+import { useRef, useState, useEffect } from 'react';
 
-import { Button } from './Button'
-import { useIsInsideMobileNavigation } from './MobileNavigation'
-import { useSectionStore } from './SectionProvider'
-import { Tag } from './Tag'
-import { remToPx } from '@/lib/remToPx'
-import { CloseButton } from '@headlessui/react'
+import { Button } from './protocol/Button';
+import { useIsInsideMobileNavigation } from './MobileNavigation';
+import { useSectionStore } from './SectionProvider';
+import { Tag } from './protocol/Tag';
+import { remToPx } from '@/lib/remToPx';
+import { CloseButton } from '@headlessui/react';
 
 // Simple Link component to replace next/link
-const Link = ({ href, className, children, ...props }: { href: string; className?: string; children: React.ReactNode } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+const Link = ({ href, className, children, ...props }: { href: string; className?: string; children: React.ReactNode; } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
   <a href={href} className={className} {...props}>
     {children}
   </a>
-)
+);
 
 // Hook to get current pathname (client-side only)
 // Uses initialPathname from server to prevent flash of wrong content
 function usePathname(initialPathname?: string) {
   const [pathname, setPathname] = useState(() => {
     // Use initial pathname if provided (from server)
-    if (initialPathname) return initialPathname
+    if (initialPathname) return initialPathname;
     // Try to get from window if available (client-side)
-    if (typeof window !== 'undefined') return window.location.pathname
-    return '/'
-  })
+    if (typeof window !== 'undefined') return window.location.pathname;
+    return '/';
+  });
 
   useEffect(() => {
-    setPathname(window.location.pathname)
-  }, [])
+    setPathname(window.location.pathname);
+  }, []);
 
-  return pathname
+  return pathname;
 }
 
 // Navigation types
 interface NavLink {
-  title: string
-  href: string
-  order?: number
+  title: string;
+  href: string;
+  order?: number;
 }
 
 interface NavGroup {
-  title: string
-  links: NavLink[]
-  order?: number
+  title: string;
+  links: NavLink[];
+  order?: number;
 }
 
 interface NavSection {
-  title: string
-  href: string
-  groups: NavGroup[]
-  order?: number
+  title: string;
+  href: string;
+  groups: NavGroup[];
+  order?: number;
 }
 
 function useInitialValue<T>(value: T, condition = true) {
-  let initialValue = useRef(value).current
-  return condition ? initialValue : value
+  let initialValue = useRef(value).current;
+  return condition ? initialValue : value;
 }
 
 function TopLevelNavItem({
   href,
   children,
 }: {
-  href: string
-  children: React.ReactNode
+  href: string;
+  children: React.ReactNode;
 }) {
   return (
     <li className="md:hidden">
@@ -78,7 +78,7 @@ function TopLevelNavItem({
         {children}
       </CloseButton>
     </li>
-  )
+  );
 }
 
 function NavLinkItem({
@@ -88,11 +88,11 @@ function NavLinkItem({
   active = false,
   isAnchorLink = false,
 }: {
-  href: string
-  children: React.ReactNode
-  tag?: string
-  active?: boolean
-  isAnchorLink?: boolean
+  href: string;
+  children: React.ReactNode;
+  tag?: string;
+  active?: boolean;
+  isAnchorLink?: boolean;
 }) {
   return (
     <CloseButton
@@ -114,15 +114,15 @@ function NavLinkItem({
         </Tag>
       )}
     </CloseButton>
-  )
+  );
 }
 
 function VisibleSectionHighlight({
   group,
   pathname,
 }: {
-  group: NavGroup
-  pathname: string
+  group: NavGroup;
+  pathname: string;
 }) {
   let [sections, visibleSections] = useInitialValue(
     [
@@ -130,22 +130,22 @@ function VisibleSectionHighlight({
       useSectionStore((s) => s.visibleSections),
     ],
     useIsInsideMobileNavigation(),
-  )
+  );
 
-  let isPresent = useIsPresent()
+  let isPresent = useIsPresent();
   let firstVisibleSectionIndex = Math.max(
     0,
     [{ id: '_top' }, ...sections].findIndex(
       (section) => section.id === visibleSections[0],
     ),
-  )
-  let itemHeight = remToPx(2)
+  );
+  let itemHeight = remToPx(2);
   let height = isPresent
     ? Math.max(1, visibleSections.length) * itemHeight
-    : itemHeight
+    : itemHeight;
   let top =
     group.links.findIndex((link) => link.href === pathname) * itemHeight +
-    firstVisibleSectionIndex * itemHeight
+    firstVisibleSectionIndex * itemHeight;
 
   return (
     <motion.div
@@ -156,20 +156,20 @@ function VisibleSectionHighlight({
       className="absolute inset-x-0 top-0 bg-zinc-800/2.5 will-change-transform dark:bg-white/2.5"
       style={{ borderRadius: 8, height, top }}
     />
-  )
+  );
 }
 
 function ActivePageMarker({
   group,
   pathname,
 }: {
-  group: NavGroup
-  pathname: string
+  group: NavGroup;
+  pathname: string;
 }) {
-  let itemHeight = remToPx(2)
-  let offset = remToPx(0.25)
-  let activePageIndex = group.links.findIndex((link) => link.href === pathname)
-  let top = offset + activePageIndex * itemHeight
+  let itemHeight = remToPx(2);
+  let offset = remToPx(0.25);
+  let activePageIndex = group.links.findIndex((link) => link.href === pathname);
+  let top = offset + activePageIndex * itemHeight;
 
   return (
     <motion.div
@@ -180,27 +180,27 @@ function ActivePageMarker({
       exit={{ opacity: 0 }}
       style={{ top }}
     />
-  )
+  );
 }
 
 function NavigationGroup({
   group,
   className,
 }: {
-  group: NavGroup
-  className?: string
+  group: NavGroup;
+  className?: string;
 }) {
   // If this is the mobile navigation then we always render the initial
   // state, so that the state does not change during the close animation.
   // The state will still update when we re-open (re-render) the navigation.
-  let isInsideMobileNavigation = useIsInsideMobileNavigation()
+  let isInsideMobileNavigation = useIsInsideMobileNavigation();
   let [pathname, sections] = useInitialValue(
     [usePathname(), useSectionStore((s) => s.sections)],
     isInsideMobileNavigation,
-  )
+  );
 
   let isActiveGroup =
-    group.links.findIndex((link) => link.href === pathname) !== -1
+    group.links.findIndex((link) => link.href === pathname) !== -1;
 
   return (
     <li className={clsx('relative mt-6', className)}>
@@ -264,21 +264,21 @@ function NavigationGroup({
         </ul>
       </div>
     </li>
-  )
+  );
 }
 
 function NavigationSection({
   section,
   isFirst = false,
 }: {
-  section: NavSection
-  isFirst?: boolean
+  section: NavSection;
+  isFirst?: boolean;
 }) {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   // Check if current page is in this section
   const isActiveSection = pathname.startsWith(section.href) ||
-    (section.href === '/' && !pathname.startsWith('/app') && !pathname.startsWith('/mediaserver'))
+    (section.href === '/' && !pathname.startsWith('/app') && !pathname.startsWith('/mediaserver'));
 
   return (
     <li className={clsx('relative', isFirst ? 'mt-0' : 'mt-8')}>
@@ -305,7 +305,7 @@ function NavigationSection({
         </ul>
       )}
     </li>
-  )
+  );
 }
 
 // Fallback API groups for when no dynamic navigation is provided
@@ -332,7 +332,7 @@ const fallbackApiGroups: NavGroup[] = [
       { title: 'Attachments', href: '/attachments' },
     ],
   },
-]
+];
 
 // Fallback navigation for when no dynamic navigation is provided
 const fallbackNavigation: NavSection[] = [
@@ -346,14 +346,14 @@ const fallbackNavigation: NavSection[] = [
     href: '/mediaserver',
     groups: [],
   },
-]
+];
 
 function SectionLink({
   section,
   isActive,
 }: {
-  section: NavSection
-  isActive: boolean
+  section: NavSection;
+  isActive: boolean;
 }) {
   return (
     <li>
@@ -370,10 +370,10 @@ function SectionLink({
         {section.title}
       </CloseButton>
     </li>
-  )
+  );
 }
 
-function ApiSectionLink({ isActive }: { isActive: boolean }) {
+function ApiSectionLink({ isActive }: { isActive: boolean; }) {
   return (
     <li>
       <CloseButton
@@ -389,7 +389,7 @@ function ApiSectionLink({ isActive }: { isActive: boolean }) {
         API
       </CloseButton>
     </li>
-  )
+  );
 }
 
 export function Navigation({
@@ -398,23 +398,23 @@ export function Navigation({
   apiGroups = [],
   initialPathname,
   ...props
-}: React.ComponentPropsWithoutRef<'nav'> & { navigation?: NavSection[]; apiGroups?: NavGroup[]; initialPathname?: string }) {
-  const pathname = usePathname(initialPathname)
+}: React.ComponentPropsWithoutRef<'nav'> & { navigation?: NavSection[]; apiGroups?: NavGroup[]; initialPathname?: string; }) {
+  const pathname = usePathname(initialPathname);
 
   // Use provided navigation or fallback
-  const navSections = navigation.length > 0 ? navigation : fallbackNavigation
+  const navSections = navigation.length > 0 ? navigation : fallbackNavigation;
 
   // Determine which section we're in
-  const isOnAppPage = pathname.startsWith('/app')
-  const isOnMediaServerPage = pathname.startsWith('/mediaserver')
-  const isOnApiPage = !isOnAppPage && !isOnMediaServerPage
+  const isOnAppPage = pathname.startsWith('/app');
+  const isOnMediaServerPage = pathname.startsWith('/mediaserver');
+  const isOnApiPage = !isOnAppPage && !isOnMediaServerPage;
 
   // Use provided API groups or fallback
-  const apiNavGroups = apiGroups.length > 0 ? apiGroups : fallbackApiGroups
+  const apiNavGroups = apiGroups.length > 0 ? apiGroups : fallbackApiGroups;
 
   // Find the current section's groups
-  const currentSection = navSections.find((section) => pathname.startsWith(section.href))
-  const currentGroups = currentSection?.groups || []
+  const currentSection = navSections.find((section) => pathname.startsWith(section.href));
+  const currentGroups = currentSection?.groups || [];
 
   return (
     <nav className={className} {...props}>
@@ -456,8 +456,8 @@ export function Navigation({
         </li>
       </ul>
     </nav>
-  )
+  );
 }
 
 // Export for backward compatibility
-export { fallbackNavigation as navigation, fallbackApiGroups }
+export { fallbackNavigation as navigation, fallbackApiGroups };

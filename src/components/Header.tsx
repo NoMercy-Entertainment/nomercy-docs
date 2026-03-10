@@ -4,7 +4,7 @@ import clsx from 'clsx';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { forwardRef } from 'react';
 
-import { Button } from './Button';
+import { Button } from './protocol/Button';
 import { Logo } from './Logo';
 import {
   MobileNavigation,

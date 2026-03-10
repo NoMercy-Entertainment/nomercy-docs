@@ -6,6 +6,10 @@ import { remarkButton } from './remark-button';
 import { remarkRowCol } from './remark-row-col';
 import { remarkProperties } from './remark-properties';
 import { remarkCodeGroup } from './remark-code-group';
+import { remarkIconCards } from './remark-icon-cards';
+import { remarkHero } from './remark-hero';
+import { remarkCallout } from './remark-callout';
+import { remarkLogoCards } from './remark-logo-cards';
 
 // Plugin to extract title from code fence meta and store it for rehype
 function remarkExtractCodeTitle() {
@@ -30,6 +34,10 @@ export const remarkPlugins = [
   remarkButton, // transform ::button {{ ... }} to Button
   remarkProperties, // transform ::properties / ::property to Properties/Property
   remarkCodeGroup, // transform ::code-group to CodeGroup
+  remarkIconCards, // transform ::IconCards to IconCards component
+  remarkHero, // transform ::Hero to Hero component
+  remarkCallout, // transform ::Callout to Callout component
+  remarkLogoCards, // transform ::LogoCards to LogoCards component
   remarkRowCol, // transform ::row / ::col / ::col sticky / :: to Row/Col
   remarkExtractCodeTitle,
   remarkGfm,

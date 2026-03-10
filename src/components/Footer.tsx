@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-import { Button } from './Button';
+import { Button } from './protocol/Button';
 import { navigation as fallbackNavigation, fallbackApiGroups } from './Navigation';
 
 // Simple Link component to replace next/link
