@@ -1,150 +1,111 @@
 ---
 title: MediaServer Configuration
-description: Detailed guide for configuring NoMercy MediaServer.
+description: How to configure NoMercy MediaServer using startup flags, environment variables, and the in-app web UI.
 category: "Configuration"
 order: 1
 ---
 
-## Configuration Overview
+## There Is No Config File
 
-MediaServer configuration involves setting up media paths, database connections, streaming parameters, and monitoring options.
+NoMercy MediaServer has no configuration file. There is no `.conf`, `.ini`, `.yaml`, or `.json` file to edit. Settings are controlled in two places:
 
-## Configuration Files
+- **Startup flags** (or environment variables) — port, IP address, log level, and a few launch-time options
+- **Web UI** — everything else: libraries, users, encoder settings, and general preferences
 
-MediaServer uses a configuration file typically located at:
+Open `http://<your-server-ip>:7626` after the server starts to reach the dashboard.
 
-```
-/etc/nomercy/mediaserver.conf (Linux/macOS)
-C:\ProgramData\NoMercy\mediaserver.conf (Windows)
-```
+---
 
-## Basic Configuration
+## Startup Flags
 
-### 1. Media Paths
+Pass flags directly when launching the server binary. Flags are processed by `NoMercyMediaServer` (the service binary), not by the `nomercy` CLI wrapper.
 
-Define the directories where your media files are stored:
+| Flag | Short | Default | Description |
+|:--|:--|:--|:--|
+| `--internal-port` | `-i` | `7626` | Port the server listens on for all client traffic |
+| `--external-port` | `-x` | `7626` | Port reported to the NoMercy API for external access (set this if your router NATs to a different port) |
+| `--internal-ip` | | auto-detected | LAN IP address override — overrides the address the server advertises on your local network |
+| `--external-ip` | | auto-detected | Public IP override — overrides the externally reported address |
+| `--loglevel` | `-l` | `Information` | Log verbosity. Valid values: `Verbose`, `Debug`, `Information`, `Warning`, `Error`, `Fatal` |
+| `--service` | | off | Run as a platform service (Windows SCM, Linux systemd, macOS launchd). Sets working directory to the executable's location. |
+| `--pipe-name` | | platform default | Named pipe (Windows) or Unix socket filename used for the `nomercy` CLI IPC channel |
+| `--dev` | `-d` | off | Development mode — points the server at `api-dev.nomercy.tv` and `auth-dev.nomercy.tv` instead of production |
+| `--seed` | | off | Seeds the database with sample data on first start |
 
-```conf
-[media]
-movie_path = /media/movies
-tv_path = /media/tv
-music_path = /media/music
-images_path = /media/images
-```
+**Example:**
 
-### 2. Database Connection
+```bash
+# Linux — run on a non-default port with verbose logging
+./NoMercyMediaServer --internal-port 8080 --loglevel Debug
 
-Configure the database connection for storing media metadata:
-
-```conf
-[database]
-type = postgresql
-host = localhost
-port = 5432
-name = nomercy_media
-user = mediauser
-password = secure_password
+# Windows — run as a Windows service
+NoMercyMediaServer.exe --service
 ```
 
-### 3. Indexing Settings
+---
 
-Control how MediaServer indexes your content:
+## Environment Variables
 
-```conf
-[indexing]
-auto_scan = true
-scan_interval = 3600
-deep_scan = false
-follow_symlinks = true
+Every flag has a matching environment variable. Environment variables are applied when the corresponding flag is not passed. This is the primary way to configure Docker deployments.
+
+| Variable | Equivalent Flag | Example |
+|:--|:--|:--|
+| `NOMERCY_INTERNAL_PORT` | `--internal-port` | `7626` |
+| `NOMERCY_EXTERNAL_PORT` | `--external-port` | `7626` |
+| `NOMERCY_INTERNAL_IP` | `--internal-ip` | `192.168.1.100` |
+| `NOMERCY_EXTERNAL_IP` | `--external-ip` | `1.2.3.4` |
+| `NOMERCY_LOG_LEVEL` | `--loglevel` | `Debug` |
+| `NOMERCY_DEV` | `--dev` | `true` |
+| `NOMERCY_SEED` | `--seed` | `true` |
+| `NOMERCY_PIPE_NAME` | `--pipe-name` | `nomercy-ipc` |
+
+---
+
+## Docker: The HOST_IP Requirement
+
+When running in Docker, the container cannot auto-detect your host machine's LAN IP. You must supply it via the `NOMERCY_INTERNAL_IP` environment variable, which the provided compose files map from a `HOST_IP` shell variable.
+
+```bash
+# Set HOST_IP to your machine's LAN IP before running compose
+export HOST_IP=$(hostname -I | awk '{print $1}')
+
+docker compose up -d
 ```
 
-### 4. Streaming Configuration
+The compose file contains:
 
-Set up streaming parameters:
-
-```conf
-[streaming]
-max_connections = 10
-default_bitrate = 5000
-enable_transcoding = true
-cache_enabled = true
-cache_size = 5GB
+```yaml
+environment:
+  - NOMERCY_INTERNAL_IP=${HOST_IP}
 ```
 
-## Advanced Configuration
+If you skip this step, the server starts but clients on other devices may not be able to discover or connect to it. You can also hard-code the value directly in the compose file instead of using the shell variable.
 
-### Performance Tuning
+For GPU-accelerated transcoding, use the matching compose variant:
 
-Optimize MediaServer performance:
-
-```conf
-[performance]
-worker_threads = 4
-connection_pool_size = 20
-cache_ttl = 3600
+```bash
+docker compose -f docker-compose.nvidia.yml up -d   # NVIDIA
+docker compose -f docker-compose.intel.yml up -d    # Intel Quick Sync
+docker compose -f docker-compose.amd.yml up -d      # AMD
 ```
 
-### Monitoring & Logging
+---
 
-Enable monitoring and logging:
+## Adding Libraries via the Web UI
 
-```conf
-[monitoring]
-enable_monitoring = true
-log_level = info
-log_path = /var/log/nomercy/mediaserver.log
-health_check_interval = 300
-```
+After first login, add your media libraries through the web dashboard. Navigate to **Settings > Libraries**, then click **Add Library**. Choose the library type (Movies, TV Shows, or Music), give it a name, and select the folder path where your media files live. The server will begin scanning immediately.
 
-## Configuration Best Practices
+Library paths must be accessible to the server process. For Docker, this means the folder must be mounted as a volume in your compose file. The provided compose template includes commented-out volume entries under `/media/movies`, `/media/tv`, and `/media/music` — uncomment and adjust those paths to match your actual media locations before starting the container.
 
-1. **Security**
-   - Use strong database passwords
-   - Restrict file permissions on configuration files
-   - Keep credentials out of version control
+---
 
-2. **Performance**
-   - Adjust worker threads based on CPU cores
-   - Configure appropriate cache sizes
-   - Monitor system resources during initial setup
+## Port Forwarding
 
-3. **Backup**
-   - Regularly backup your media metadata database
-   - Create snapshots of your configuration
-   - Test restore procedures periodically
+To access your server from outside your home network, forward port `7626` (or whichever port you configured) on your router to your server's LAN IP. Once a certificate is issued during first-run setup, the server uses HTTPS automatically.
 
-4. **Updates**
-   - Review configuration after updates
-   - Test changes in development before production
-   - Maintain version history of configurations
-
-## Troubleshooting
-
-### High CPU Usage
-- Reduce worker threads
-- Disable deep scanning
-- Check for indexing issues
-
-### Slow Streaming
-- Increase cache size
-- Reduce maximum concurrent connections
-- Enable transcoding optimization
-
-### Missing Media Files
-- Verify media paths are correct
-- Check file permissions
-- Run a full scan of media directories
+---
 
 ## Next Steps
 
 - [MediaServer Overview](/mediaserver/overview) - Return to overview
-- [Getting Started](/apps/getting-started) - Back to main guide
 - [Installation Guide](/apps/installation) - Installation reference
-
-## Need Help?
-
-For configuration issues:
-- Check the system logs for error messages
-- Verify directory permissions and accessibility
-- Consult the troubleshooting section above
-- Contact support or open an issue on GitHub
