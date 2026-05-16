@@ -1,0 +1,167 @@
+---
+title: "Crossfade and Gapless"
+description: "Music crossfade tuning, gapless transition strategy, choosing between them, and timing pitfalls."
+category: "Recipes"
+order: 55
+---
+
+# Crossfade and Gapless
+
+Read this when you need smooth music transitions — either a volume-faded crossfade or a sample-accurate gapless handoff. This applies to the music player only.
+
+**Prerequisites:** [Music Quick Start](/player/music/quickstart). For the full crossfade API see [Crossfade](/player/music/crossfade).
+
+---
+
+## Crossfade vs gapless — when to choose which
+
+| Feature | Crossfade | Gapless |
+|---------|-----------|---------|
+| Overlap | Yes — both tracks play simultaneously | No — tracks play sequentially |
+| Volume | Outgoing fades down, incoming fades up | Constant |
+| Use case | Album transitions, radio, DJ-style mixes | Albums with tracks that are meant to be continuous (e.g. prog rock, live albums) |
+| Backend required | `WebAudioBackend` | Either backend |
+| Config | `crossfadeEnabled: true` | `gaplessEnabled: true` (or `crossfadeEnabled: false`) |
+
+Most music apps want **crossfade** for a polished feel. Use **gapless** when the music itself is continuous and adding a volume dip would break the listening experience.
+
+---
+
+## Enabling crossfade
+
+```ts
+import { nmMPlayer, AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player';
+
+const player = nmMPlayer('main').setup({
+  crossfadeEnabled: true,
+  crossfadeDefaults: {
+    durationMs: 4000,           // fade length in milliseconds
+    curve: 'equal-power',       // 'equal-power' or 'linear' (see below)
+    startAt: 4,                 // seconds before track end to trigger automatic crossfade
+  },
+  queue: [track1, track2, track3],
+});
+
+player.addPlugin(AutoAdvancePlugin, {
+  crossfadeOnEnd: true, // use crossfade instead of hard cut when a track ends
+});
+
+await player.ready();
+await player.play();
+```
+
+`equal-power` keeps perceived loudness stable — the sum of both gain curves is constant throughout the fade. Use `linear` only when your audio already handles its own loudness management.
+
+---
+
+## Crossfade curve comparison
+
+```
+equal-power:
+  outgoing gain: cos(t * π/2)
+  incoming gain: sin(t * π/2)
+  sum: always 1.0 (no dip)
+
+linear:
+  outgoing gain: 1 - t
+  incoming gain: t
+  sum: 1.0 at 0 and 1.0 at 1, but dips to ~0.71 at t=0.5
+```
+
+Use `equal-power` for all standard music. `linear` is only useful if you need a clear midpoint silence (unusual).
+
+---
+
+## Manual crossfade trigger
+
+To crossfade on user action (next button, playlist skip):
+
+```ts
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+async function playNext(nextTrack: MusicPlaylistItem): Promise<void> {
+  if (player.backend() === 'webaudio') {
+    // Crossfade to the specific track
+    await player.crossfadeTo(nextTrack, {
+      durationMs: 2000,
+      curve: 'equal-power',
+    });
+  } else {
+    // Fallback for AudioElementBackend (e.g. iOS where WebAudio context may be suspended)
+    player.current(nextTrack);
+    await player.play();
+  }
+}
+```
+
+---
+
+## Monitoring crossfade progress
+
+```ts
+player.on('crossfadeStart', ({ from, to, duration }) => {
+  console.log(`Fading from "${from.name}" to "${to.name}" over ${duration}ms`);
+  showTransitionAnimation();
+});
+
+player.on('crossfadeComplete', ({ track }) => {
+  console.log(`Now playing: ${track.name}`);
+  hideTransitionAnimation();
+});
+
+// Check in-progress state:
+if (player.isTransitioning()) {
+  // a crossfade is active right now
+}
+```
+
+---
+
+## Gapless playback
+
+Gapless is the simpler of the two — the player preloads the next track and begins playback at the exact sample where the current track ends, with no silence gap.
+
+```ts
+const player = nmMPlayer('main').setup({
+  crossfadeEnabled: false, // ensure crossfade is off
+  gaplessEnabled: true,    // preload and stitch tracks back-to-back
+  queue: [track1, track2, track3],
+});
+
+player.addPlugin(AutoAdvancePlugin);
+```
+
+Gapless works with both `WebAudioBackend` and `AudioElementBackend`. On `AudioElementBackend`, gapless accuracy depends on the browser — Safari and Chrome handle it well; Firefox may have a small gap.
+
+---
+
+## Timing pitfalls
+
+**Preload lead time.** The incoming track must be buffered before the crossfade starts. The player begins preloading at `preloadLeadSeconds` before the end (default: 30s). On slow connections, ensure this margin is generous:
+
+```ts
+player.setup({
+  preloadLeadSeconds: 45, // start preloading 45 seconds before end
+  crossfadeDefaults: {
+    startAt: 6, // begin the actual fade 6 seconds before end
+  },
+});
+```
+
+**Crossfade start timing.** `startAt` is in seconds before track end. `durationMs` is the fade length. Ensure `startAt >= durationMs / 1000` — otherwise the fade starts after the track ends, which means no crossfade actually happens.
+
+```ts
+// Correct: fade starts 4 seconds before end, lasts 4 seconds
+crossfadeDefaults: { durationMs: 4000, startAt: 4 }
+
+// Wrong: fade is 6 seconds but starts only 2 seconds before end
+crossfadeDefaults: { durationMs: 6000, startAt: 2 }
+```
+
+---
+
+## What to read next
+
+- [Crossfade](/player/music/crossfade) — full crossfade API, server-triggered crossfade, cancellation
+- [Recipes: Playlist and Queue](/player/recipes/playlist-and-queue) — `peekNext()` for preloading artwork before a crossfade
+- [Recipes: Lyrics and Equalizer](/player/recipes/lyrics-and-equalizer) — EQ applies to both audio paths during a crossfade

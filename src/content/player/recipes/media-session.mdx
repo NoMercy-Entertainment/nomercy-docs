@@ -1,0 +1,150 @@
+---
+title: "Media Session"
+description: "System MediaSession integration via MediaSessionPlugin — lock-screen controls, notification metadata, and album artwork."
+category: "Recipes"
+order: 57
+---
+
+# Media Session
+
+Read this when you want lock-screen controls, browser media notification widgets, or hardware media key support. Both the video and music players support this via `MediaSessionPlugin`.
+
+The [Media Session API](https://developer.mozilla.org/en-US/docs/Web/API/Media_Session_API) is a browser standard that exposes playback controls to the OS — Android lock screen, iOS Control Center, Windows system tray, desktop browser toolbars, and hardware media keys (keyboards, headsets, remotes).
+
+---
+
+## Basic setup
+
+```ts
+import {
+  nmMPlayer,
+  MediaSessionPlugin,
+} from '@nomercy-entertainment/nomercy-music-player';
+
+const player = nmMPlayer('main').setup({
+  queue: [
+    {
+      id: '1',
+      name: 'Track One',
+      artist: 'Artist Name',
+      album: 'Album Name',
+      url: 'https://cdn.example.com/track1.m3u8',
+      artwork: 'https://cdn.example.com/artwork/1.jpg', // used for lock screen
+    },
+  ],
+});
+
+// MediaSessionPlugin wires all transport actions and metadata automatically
+player.addPlugin(MediaSessionPlugin);
+
+await player.ready();
+await player.play();
+```
+
+That is all that is needed. The plugin reads `name`, `artist`, `album`, and `artwork` from the current queue item and writes them to `navigator.mediaSession.metadata`. It wires `play`, `pause`, `previoustrack`, `nexttrack`, `seekbackward`, `seekforward`, and `stop` action handlers.
+
+---
+
+## Video player
+
+The setup is identical for the video player:
+
+```ts
+import {
+  nmplayer,
+  MediaSessionPlugin,
+} from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('main').setup({
+  container: document.getElementById('player')!,
+  queue: [
+    {
+      id: '1',
+      title: 'Episode 1',
+      url: '...ep1.m3u8',
+      // Artwork for the lock screen / notification:
+      poster: 'https://cdn.example.com/posters/ep1.jpg',
+    },
+  ],
+});
+
+player.addPlugin(MediaSessionPlugin);
+```
+
+For video, the plugin reads `title` and `poster` from the item.
+
+---
+
+## Multiple artwork sizes
+
+Browsers prefer the largest artwork that fits the display. Provide multiple sizes for the best result:
+
+```ts
+{
+  id: '1',
+  name: 'Track One',
+  artwork: [
+    { src: '/art/1-96.jpg',  sizes: '96x96',   type: 'image/jpeg' },
+    { src: '/art/1-256.jpg', sizes: '256x256', type: 'image/jpeg' },
+    { src: '/art/1-512.jpg', sizes: '512x512', type: 'image/jpeg' },
+  ],
+}
+```
+
+When `artwork` is a string (single URL), the plugin wraps it in a single-entry array with `sizes: '512x512'`.
+
+---
+
+## Customizing metadata
+
+Override how the plugin builds `MediaMetadata` by subclassing:
+
+```ts
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+class MyMediaSession extends MediaSessionPlugin {
+  static readonly id = 'media-session'; // same id = replaces built-in
+
+  protected getMetadata(item: MusicPlaylistItem): MediaMetadata {
+    return new MediaMetadata({
+      title: item.name,
+      artist: item.artist ?? 'Unknown Artist',
+      // Add the year to the album field
+      album: item.album ? `${item.album} (${item.year ?? ''})` : '',
+      artwork: Array.isArray(item.artwork)
+        ? item.artwork
+        : [{ src: item.artwork ?? '', sizes: '512x512', type: 'image/jpeg' }],
+    });
+  }
+}
+
+player.addPlugin(MyMediaSession);
+```
+
+---
+
+## Observing media key actions
+
+If you need to respond to media key presses independently (e.g. for analytics):
+
+```ts
+player.on(MediaSessionPlugin, 'action', ({ action }) => {
+  // action is 'play' | 'pause' | 'previoustrack' | 'nexttrack' | etc.
+  analytics.track('media-key', { action });
+});
+```
+
+---
+
+## Browser support
+
+The Media Session API is available in Chrome 73+, Firefox 82+, Safari 15+, and Edge 79+. On unsupported browsers, `MediaSessionPlugin` detects the absence of `navigator.mediaSession` at `use()` time and self-disables gracefully — no errors thrown.
+
+---
+
+## What to read next
+
+- [Recipes: Keyboard Shortcuts](/player/recipes/keyboard-shortcuts) — pairing media key handling with custom keyboard bindings
+- [Recipes: Persistence](/player/recipes/persistence) — saving playback position so resuming from lock screen continues from the right point
+- [Music — API Methods](/player/music/api-methods) — `current()`, `peekNext()`, `artwork` field reference

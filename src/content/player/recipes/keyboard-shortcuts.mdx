@@ -1,0 +1,141 @@
+---
+title: "Keyboard Shortcuts"
+description: "Using KeyHandlerPlugin for custom key bindings, adding bindings to DesktopUiPlugin's defaults, and resolving conflicts with page-level handlers."
+category: "Recipes"
+order: 56
+---
+
+# Keyboard Shortcuts
+
+Read this when you need custom keyboard bindings — adding a shortcut the default set doesn't cover, replacing an existing binding, or wiring keyboard input in a custom UI without `DesktopUiPlugin`.
+
+**Prerequisites:** [Video Quick Start](/player/video/quickstart).
+
+---
+
+## Default bindings
+
+`DesktopUiPlugin` includes `KeyHandlerPlugin` and registers these bindings by default:
+
+| Key | Action |
+|-----|--------|
+| Space / `k` | Toggle playback |
+| `f` | Toggle fullscreen |
+| `m` | Toggle mute |
+| `←` / `→` | Seek ±10 seconds |
+| `↑` / `↓` | Volume ±10% |
+| `c` | Cycle subtitle tracks |
+
+---
+
+## Adding custom bindings on top of DesktopUiPlugin
+
+Subclass `DesktopUiPlugin` and override `addPlaybackKeys`:
+
+```ts
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+class MyDesktopUi extends DesktopUiPlugin {
+  // Same id as the built-in — replaces it
+  static readonly id = 'desktop-ui';
+
+  protected addPlaybackKeys(): void {
+    super.addPlaybackKeys(); // keep all the default bindings
+
+    // Add custom bindings using this.bind(key, handler):
+    this.bind('n', (player) => player.next());    // 'n' for next
+    this.bind('p', (player) => player.previous()); // 'p' for previous
+    this.bind('t', (player) => {
+      // 't' toggles theater mode — requires a theater state on your container
+      player.container.classList.toggle('nm-theater');
+    });
+  }
+}
+
+player.addPlugin(MyDesktopUi);
+```
+
+---
+
+## Standalone KeyHandlerPlugin (no DesktopUiPlugin)
+
+For custom UIs that don't use `DesktopUiPlugin`, register `KeyHandlerPlugin` directly:
+
+```ts
+import { nmplayer, KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('main').setup({
+  container: document.getElementById('player')!,
+  queue: [{ id: '1', url: '...m3u8' }],
+});
+
+player.addPlugin(KeyHandlerPlugin);
+
+// Bind keys via the plugin after registration:
+const keyHandler = player.getPlugin(KeyHandlerPlugin);
+
+keyHandler.bind(' ', (p) => p.togglePlayback()); // Space = toggle
+keyHandler.bind('f', (p) => p.fullscreenState(!p.fullscreenState())); // f = fullscreen
+keyHandler.bind('ArrowLeft', (p) => p.rewind(10)); // ← = seek back 10s
+keyHandler.bind('ArrowRight', (p) => p.forward(10)); // → = seek forward 10s
+```
+
+---
+
+## Key name format
+
+Key names follow the `KeyboardEvent.key` standard. Common values:
+
+| Key | `.key` value |
+|-----|-------------|
+| Space | `' '` (a single space) |
+| Arrow keys | `'ArrowLeft'`, `'ArrowRight'`, `'ArrowUp'`, `'ArrowDown'` |
+| Letters | `'a'`...`'z'` (lowercase) |
+| F keys | `'F1'`...`'F12'` |
+| Escape | `'Escape'` |
+| Enter | `'Enter'` |
+
+---
+
+## Conflict resolution
+
+`KeyHandlerPlugin` captures keyboard events on the player container. If you have page-level key handlers (e.g. a search input), the player should not steal those events.
+
+By default, the plugin ignores key events when focus is on an `<input>`, `<textarea>`, or `[contenteditable]` element. To add more exclusions:
+
+```ts
+player.addPlugin(KeyHandlerPlugin, {
+  // Selector string — key events are ignored when this element has focus
+  ignoreWhenFocused: 'input, textarea, [contenteditable], .my-modal',
+});
+```
+
+To temporarily pause all key handling (e.g. while a modal is open):
+
+```ts
+const keyHandler = player.getPlugin(KeyHandlerPlugin);
+keyHandler.pause();   // all bindings suspended
+keyHandler.resume();  // restore
+```
+
+---
+
+## Removing a binding
+
+```ts
+const keyHandler = player.getPlugin(KeyHandlerPlugin);
+
+// Remove a specific key:
+keyHandler.unbind('c');
+
+// Remove all bindings:
+keyHandler.unbindAll();
+```
+
+---
+
+## What to read next
+
+- [Desktop UI](/player/video/desktop-ui) — full list of default bindings and how DesktopUiPlugin manages them
+- [Plugin Authoring](/player/plugin-authoring) — writing a plugin that hooks into the key handler event stream
+- [Recipes: Media Session](/player/recipes/media-session) — pairing keyboard shortcuts with system media keys

@@ -1,0 +1,151 @@
+---
+title: "Chapters"
+description: "VTT chapter source, chapter UI overlay via DesktopUiPlugin, and programmatic chapter seek."
+category: "Recipes"
+order: 52
+---
+
+# Chapters
+
+Read this when you want named chapters in your video — displayed on the seek bar and usable for programmatic navigation. Chapters are provided per-item and loaded by an `IChapterSource` adapter.
+
+**Prerequisites:** [Video Quick Start](/player/video/quickstart). For the full chapter API see [Chapters](/player/video/chapters).
+
+---
+
+## Inline chapter data
+
+The simplest approach is to embed chapter data directly in each queue item:
+
+```ts
+const player = nmplayer('main').setup({
+  container: document.getElementById('player')!,
+  queue: [
+    {
+      id: '1',
+      url: 'https://cdn.example.com/ep1.m3u8',
+      chapters: [
+        // Times are in seconds
+        { id: 'cold-open', startTime: 0,    endTime: 90,   title: 'Cold Open' },
+        { id: 'act-1',     startTime: 90,   endTime: 900,  title: 'Act 1' },
+        { id: 'act-2',     startTime: 900,  endTime: 1800, title: 'Act 2' },
+        { id: 'credits',   startTime: 1800, endTime: 2700, title: 'Credits' },
+      ],
+    },
+  ],
+});
+```
+
+`DesktopUiPlugin` reads chapter data automatically and renders chapter markers on the seek bar. No extra configuration is needed.
+
+---
+
+## VTT chapter file
+
+Reference a WebVTT chapter file via the `tracks` sidecar:
+
+```ts
+{
+  id: '1',
+  url: 'https://cdn.example.com/ep1.m3u8',
+  tracks: [
+    // kind: 'chapters' tells the adapter to load this as chapter data
+    { kind: 'chapters', file: 'https://cdn.example.com/ep1.chapters.vtt' },
+  ],
+}
+```
+
+A valid WebVTT chapters file:
+
+```
+WEBVTT
+
+cold-open
+00:00:00.000 --> 00:01:30.000
+Cold Open
+
+act-1
+00:01:30.000 --> 00:15:00.000
+Act 1
+
+credits
+00:45:00.000 --> 00:47:00.000
+Credits
+```
+
+---
+
+## Chapter events and API
+
+```ts
+// Fires when currentTime() enters a new chapter range:
+player.on('chapter', ({ index, title }) => {
+  console.log(`Now in chapter ${index}: ${title}`);
+});
+
+// Read all chapters for the current item:
+const chapters = player.chapters();
+// [{ id, startTime, endTime, title }, ...]
+
+// Read the currently active chapter:
+const current = player.currentChapter();
+// { id, startTime, endTime, title } | undefined
+```
+
+---
+
+## Programmatic chapter seek
+
+Jump to a chapter by index or by its start time:
+
+```ts
+// Seek to the start of chapter at index 2:
+const chapters = player.chapters();
+if (chapters[2]) {
+  player.currentTime(chapters[2].startTime);
+}
+
+// Build a chapter menu:
+chapters.forEach((chapter, index) => {
+  const button = document.createElement('button');
+  button.textContent = chapter.title;
+  button.addEventListener('click', () => player.currentTime(chapter.startTime));
+  chapterMenu.appendChild(button);
+});
+```
+
+---
+
+## Custom chapter source
+
+Load chapters from a database or API instead of a VTT file:
+
+```ts
+import type { IChapterSource, Chapter, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+class ApiChapterSource implements IChapterSource {
+  async load(item: VideoPlaylistItem): Promise<Chapter[]> {
+    // item.id is the queue item id passed to the server
+    const response = await fetch(`/api/chapters/${item.id}`);
+    const data: Array<{ id: number; start_ms: number; end_ms: number; name: string }> = await response.json();
+    return data.map(ch => ({
+      id: String(ch.id),
+      startTime: ch.start_ms / 1000, // convert ms to seconds
+      endTime: ch.end_ms / 1000,
+      title: ch.name,
+    }));
+  }
+}
+
+player.setup({
+  chapterSource: new ApiChapterSource(),
+});
+```
+
+---
+
+## What to read next
+
+- [Chapters](/player/video/chapters) — full IChapterSource interface and Chapter type reference
+- [Desktop UI](/player/video/desktop-ui) — chapter markers on the seek bar are automatic with DesktopUiPlugin
+- [Recipes: Subtitles](/player/recipes/subtitles) — combining chapter markers with subtitle tracks

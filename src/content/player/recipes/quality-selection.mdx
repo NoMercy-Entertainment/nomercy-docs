@@ -1,0 +1,167 @@
+---
+title: "Quality Selection"
+description: "Manual ABR override, HDR-aware constraints, and building a quality menu that reflects actual playback state."
+category: "Recipes"
+order: 53
+---
+
+# Quality Selection
+
+Read this when you need explicit quality control beyond ABR auto-selection — a manual quality menu, HDR-aware constraints, or locking a specific resolution. Built on the video player's HLS layer.
+
+**Prerequisites:** [Video Quick Start](/player/video/quickstart). For HLS internals see [HLS](/player/video/hls).
+
+---
+
+## Reading available quality levels
+
+Quality levels become available after the HLS manifest is parsed:
+
+```ts
+player.on('levels', ({ levels }) => {
+  // levels is QualityLevel[] — ordered low to high by bitrate
+  levels.forEach((level, index) => {
+    console.log(`Level ${index}: ${level.width}x${level.height} @ ${level.bitrate} bps`);
+  });
+});
+
+// Or read synchronously after ready():
+await player.ready();
+const levels = player.qualityLevels();
+```
+
+`QualityLevel` shape:
+
+```ts
+interface QualityLevel {
+  id: number;
+  width: number;
+  height: number;
+  bitrate: number;
+  label?: string;       // e.g. '1080p' if provided by the manifest
+  hdr?: boolean;        // true when the level uses HDR color range
+  frameRate?: number;
+  videoCodec?: string;
+  audioCodec?: string;
+}
+```
+
+---
+
+## Manual quality lock
+
+```ts
+// Lock to a specific level by index (ABR is suspended):
+player.currentQuality(2);
+
+// Return to automatic ABR:
+player.currentQuality(-1);
+
+// Read current level index (-1 = auto):
+const current = player.currentQuality();
+```
+
+Listen for automatic level switches:
+
+```ts
+player.on('level-switched', ({ level }) => {
+  // level is the index hls.js switched to
+  updateQualityIndicator(level);
+});
+```
+
+---
+
+## Building a quality menu
+
+A complete, reactive quality menu:
+
+```ts
+let levels: QualityLevel[] = [];
+
+// Populate menu when levels arrive:
+player.on('levels', ({ levels: newLevels }) => {
+  levels = newLevels;
+  renderQualityMenu(levels, player.currentQuality());
+});
+
+// Update active state when ABR switches automatically:
+player.on('level-switched', ({ level }) => {
+  updateActiveLevel(level);
+});
+
+function renderQualityMenu(levels: QualityLevel[], currentIndex: number): void {
+  const menu = document.getElementById('quality-menu')!;
+  menu.innerHTML = '';
+
+  // "Auto" option — re-enables ABR
+  const autoOption = document.createElement('button');
+  autoOption.textContent = 'Auto';
+  autoOption.classList.toggle('active', currentIndex === -1);
+  autoOption.addEventListener('click', () => player.currentQuality(-1));
+  menu.appendChild(autoOption);
+
+  // One button per level
+  levels.forEach((level, index) => {
+    const option = document.createElement('button');
+    option.textContent = level.label ?? `${level.height}p`;
+    if (level.hdr) option.textContent += ' HDR';
+    option.classList.toggle('active', index === currentIndex);
+    option.addEventListener('click', () => player.currentQuality(index));
+    menu.appendChild(option);
+  });
+}
+```
+
+---
+
+## HDR-aware constraints
+
+HDR levels are automatically excluded from ABR selection on SDR displays. Detection uses `MediaCapabilities.decodingInfo()` and runs once at setup. On multi-monitor setups, the player re-evaluates when the window moves between displays.
+
+You do not need to configure this — it is automatic. To surface HDR availability to your UI:
+
+```ts
+player.on('levels', ({ levels }) => {
+  const hasHdr = levels.some(level => level.hdr);
+  hdrBadge.hidden = !hasHdr;
+});
+```
+
+To force-exclude HDR levels regardless of display capability (e.g. for battery-saving mode):
+
+```ts
+player.on('levels', ({ levels }) => {
+  const sdrLevels = levels.filter(level => !level.hdr);
+  if (sdrLevels.length > 0) {
+    // Lock to the highest SDR level
+    player.currentQuality(levels.indexOf(sdrLevels[sdrLevels.length - 1]));
+  }
+});
+```
+
+---
+
+## Pairing quality with audio language
+
+When switching quality levels in a multi-audio-track stream, hls.js preserves the active audio rendition. No extra handling is needed.
+
+To pair a quality change with a subtitle language switch in your UI:
+
+```ts
+player.on('level-switched', ({ level }) => {
+  const resolvedLevel = player.qualityLevels()[level];
+  if (resolvedLevel?.hdr) {
+    // HDR content — disable subtitles that have poor readability on HDR
+    player.currentSubtitle(null);
+  }
+});
+```
+
+---
+
+## What to read next
+
+- [HLS](/player/video/hls) — ABR internals, multi-monitor handling, custom backend
+- [Recipes: Subtitles](/player/recipes/subtitles) — pairing quality with subtitle language
+- [Advanced: Custom Backend](/player/advanced/custom-backend) — replacing hls.js with Shaka Player or dash.js

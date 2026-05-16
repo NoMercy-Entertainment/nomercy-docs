@@ -1,0 +1,213 @@
+---
+title: "Subtitles"
+description: "VTT default rendering, ASS/SSA via OctopusPlugin with dynamic load, multi-language switching, and style customization."
+category: "Recipes"
+order: 51
+---
+
+# Subtitles
+
+Read this when you need subtitle rendering beyond the bare minimum in the quickstart. It covers the two rendering paths (VTT and ASS/SSA), multi-language switching, and user style preferences.
+
+**Prerequisites:** [Video Quick Start](/player/video/quickstart). For the full subtitle API see [Subtitle Overlay](/player/video/subtitle-overlay).
+
+---
+
+## VTT subtitles — default path
+
+`SubtitleOverlayPlugin` renders WebVTT cues as styled DOM text over the video. It is the lightest option and works without any extra dependencies.
+
+```ts
+import {
+  nmplayer,
+  SubtitleOverlayPlugin,
+} from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('main').setup({
+  container: document.getElementById('player')!,
+  defaultSubtitleLanguage: 'en', // auto-activates this language on load
+  queue: [
+    {
+      id: '1',
+      url: 'https://cdn.example.com/ep1.m3u8',
+      subtitles: [
+        // Each track needs an id, language code, label, and file URL
+        { id: 'en', language: 'en', label: 'English', file: '/subs/ep1.en.vtt', kind: 'subtitles' },
+        { id: 'nl', language: 'nl', label: 'Dutch',   file: '/subs/ep1.nl.vtt', kind: 'subtitles' },
+        { id: 'de', language: 'de', label: 'German',  file: '/subs/ep1.de.vtt', kind: 'subtitles' },
+      ],
+    },
+  ],
+});
+
+player.addPlugin(SubtitleOverlayPlugin);
+await player.ready();
+await player.play();
+```
+
+Switch languages at runtime:
+
+```ts
+// List available tracks:
+const tracks = player.subtitles();
+// [{ id: 'en', language: 'en', label: 'English' }, ...]
+
+// Activate by index:
+player.currentSubtitle(0); // English
+player.currentSubtitle(1); // Dutch
+
+// Disable subtitles:
+player.currentSubtitle(null);
+
+// Read which is active (null = off):
+const active = player.currentSubtitle();
+```
+
+Listen for changes:
+
+```ts
+player.on('subtitle', ({ index }) => {
+  // index is null when subtitles are off
+  updateSubtitleMenu(index);
+});
+```
+
+---
+
+## ASS/SSA subtitles — OctopusPlugin
+
+Use `OctopusPlugin` when you need full ASS/SSA typesetting — custom fonts, karaoke effects, complex positioning, motion. It loads `@nomercy-entertainment/nomercy-subtitle-octopus` at runtime via a dynamic import.
+
+**Install the optional dependency:**
+
+```
+npm install @nomercy-entertainment/nomercy-subtitle-octopus
+```
+
+**Copy worker files to your public directory** (Vite example):
+
+```ts
+// vite.config.ts
+import { viteStaticCopy } from 'vite-plugin-static-copy';
+
+export default {
+  plugins: [
+    viteStaticCopy({
+      targets: [
+        {
+          // Worker JS files from the octopus package go into your public/static folder
+          src: 'node_modules/@nomercy-entertainment/nomercy-subtitle-octopus/dist/*.js',
+          dest: 'static',
+        },
+      ],
+    }),
+  ],
+};
+```
+
+**Register the plugin:**
+
+```ts
+import {
+  nmplayer,
+  OctopusPlugin,
+} from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('main').setup({
+  container: document.getElementById('player')!,
+  defaultSubtitleLanguage: 'en',
+  queue: [
+    {
+      id: '1',
+      url: 'https://cdn.example.com/ep1.m3u8',
+      subtitles: [
+        // Use kind: 'ass' for ASS/SSA tracks
+        { id: 'en', language: 'en', label: 'English', file: '/subs/ep1.en.ass', kind: 'ass' },
+        { id: 'nl', language: 'nl', label: 'Dutch',   file: '/subs/ep1.nl.ass', kind: 'ass' },
+      ],
+      // Font manifest — embed font names referenced by the ASS file
+      tracks: [
+        { kind: 'fonts', file: '/fonts/ep1-fonts.json' },
+      ],
+    },
+  ],
+});
+
+player.addPlugin(OctopusPlugin, {
+  workerUrl: '/static/subtitles-octopus-worker.js',         // WASM worker (modern browsers)
+  legacyWorkerUrl: '/static/subtitles-octopus-worker-legacy.js', // asm.js fallback
+  fallbackFont: '/static/fonts/Roboto.ttf',                 // font used when ASS font is missing
+  targetFps: 24,                                            // rendering frame rate
+});
+```
+
+If `@nomercy-entertainment/nomercy-subtitle-octopus` is not installed, the plugin falls back to no rendering (no error thrown). Enable `logLevel: 'debug'` on the player to confirm the fallback path.
+
+---
+
+## Font manifest format
+
+The font manifest is a JSON array. The plugin fetches each font before first render:
+
+```json
+[
+  { "file": "https://cdn.example.com/fonts/NotoSans.ttf", "mimeType": "font/ttf" },
+  { "file": "https://cdn.example.com/fonts/ScriptBold.otf", "mimeType": "font/otf" }
+]
+```
+
+---
+
+## Multi-language switching with VTT and ASS mixed
+
+You can mix VTT and ASS tracks on the same item. The player selects the renderer based on the `kind` field:
+
+```ts
+subtitles: [
+  // VTT tracks — rendered by SubtitleOverlayPlugin
+  { id: 'en-vtt', language: 'en', label: 'English (VTT)', file: '/subs/ep1.en.vtt', kind: 'subtitles' },
+  // ASS tracks — rendered by OctopusPlugin
+  { id: 'en-ass', language: 'en', label: 'English (Styled)', file: '/subs/ep1.en.ass', kind: 'ass' },
+],
+```
+
+Register both plugins. The correct one activates for each track.
+
+---
+
+## Subtitle style customization
+
+`SubtitleOverlayPlugin` persists user preferences (font size, color, background opacity) via the `ISubtitleStyleStore` adapter. The default store writes to `localStorage` under the player's namespace.
+
+Override the store to use a different backend:
+
+```ts
+import type { ISubtitleStyleStore, SubtitleStyle } from '@nomercy-entertainment/nomercy-video-player';
+
+class RemoteSubtitleStyleStore implements ISubtitleStyleStore {
+  async get(): Promise<SubtitleStyle | null> {
+    const response = await fetch('/api/user/subtitle-style');
+    return response.ok ? response.json() : null;
+  }
+
+  async set(style: SubtitleStyle): Promise<void> {
+    await fetch('/api/user/subtitle-style', {
+      method: 'PUT',
+      body: JSON.stringify(style),
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+player.setup({
+  subtitleStyleStore: new RemoteSubtitleStyleStore(),
+});
+```
+
+---
+
+## What to read next
+
+- [Subtitle Overlay](/player/video/subtitle-overlay) — full API reference for both plugins
+- [Recipes: Quality Selection](/player/recipes/quality-selection) — pairing subtitle language with audio language selection
+- [Advanced: Custom Adapter](/player/advanced/custom-adapter) — writing a custom subtitle style store backed by IndexedDB
