@@ -130,8 +130,8 @@ this.timeout(fn, 1000);
 this.interval(fn, 5000);
 this.frame(fn);        // requestAnimationFrame loop
 
-// DOM observers:
-this.observe(element, 'resize', handler);
+// DOM / browser observers — wrap via lifecycle registry:
+this.lifecycle.observe(new ResizeObserver(handler));
 ```
 
 Direct `player.on(...)` outside `this.on(...)` is not auto-disposed. Always use `this.on(...)` inside plugins.
@@ -148,8 +148,8 @@ plugin.enabled()          // boolean
 plugin.enable()           // re-activate
 plugin.disable()          // deactivate (listeners stay subscribed)
 plugin.state()            // { id, enabled, opts, runtime }
-plugin.setOptions(patch)  // runtime options update — emits 'opts:changed'
-plugin.getOptions()       // current options (readonly)
+plugin.options()          // current options (readonly)
+plugin.options(patch)     // shallow-merge patch — emits 'opts:changed'
 ```
 
 If you have runtime state to expose via `state()`, override `protected getRuntimeState()`:
@@ -283,14 +283,14 @@ player.addPlugin(MyPlugin, {
 Runtime update:
 
 ```ts
-player.getPlugin(MyPlugin).setOptions({ endpoint: 'https://new-endpoint.com' });
+player.getPlugin(MyPlugin).options({ endpoint: 'https://new-endpoint.com' });
 ```
 
-Override `setOptions` if you need to react to specific option changes:
+Override `options` if you need to react to specific option changes:
 
 ```ts
-setOptions(patch: Partial<MyPluginOptions>) {
-  super.setOptions(patch); // apply + emit opts:changed
+options(patch: Partial<MyPluginOptions>) {
+  super.options(patch); // apply + emit opts:changed
   if ('endpoint' in patch) {
     this.reconnect(); // react to endpoint change
   }

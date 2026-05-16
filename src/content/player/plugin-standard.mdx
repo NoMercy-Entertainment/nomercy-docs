@@ -51,19 +51,19 @@ enabled(): boolean           // is the plugin active?
 enable(): void               // re-activate. Idempotent.
 disable(): void              // deactivate without unloading. Idempotent.
 state(): PluginState<O>      // { id, enabled, opts, runtime }
-setOptions(partial): void    // runtime options update
-getOptions(): Readonly<O>    // current options
+options(): Readonly<O>       // current options (read)
+options(partial): void       // shallow-merge patch (write) — emits opts:changed
 ```
 
 Override `protected getRuntimeState()` to expose plugin-specific runtime fields in `state()`.
 
 ### 1.4 Options handling
 
-Options arrive via `addPlugin(Class, opts)`. Default `setOptions` shallow-merges and emits `opts:changed`. Override when you need to react to specific changes:
+Options arrive via `addPlugin(Class, opts)`. Default `options(patch)` shallow-merges and emits `opts:changed`. Override when you need to react to specific changes:
 
 ```ts
-setOptions(patch: Partial<O>) {
-  super.setOptions(patch);
+options(patch: Partial<O>) {
+  super.options(patch);
   if ('endpoint' in patch) this.reconnect();
 }
 ```
@@ -98,7 +98,7 @@ Standard events fired automatically by the base class for every plugin:
 | `plugin:<id>:installed` | `{ id, version }` | After `use()` resolves |
 | `plugin:<id>:enabled` | `{ id }` | After `enable()` |
 | `plugin:<id>:disabled` | `{ id, reason }` | After `disable()` |
-| `plugin:<id>:opts:changed` | `{ id, opts }` | After `setOptions` |
+| `plugin:<id>:opts:changed` | `{ id, opts }` | After `options(patch)` |
 | `plugin:<id>:disposed` | `{ id }` | After `dispose()` |
 | `plugin:<id>:failed` | `{ id, error }` | When `use()` rejects |
 
