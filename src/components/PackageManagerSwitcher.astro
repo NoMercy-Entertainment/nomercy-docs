@@ -6,6 +6,10 @@
 //
 // Preference persists in localStorage so the user's choice survives
 // navigation and reload.
+//
+// KNOWN ISSUE: the rewrite races CodeHighlighter — works in unit
+// tests but the visible swap is unreliable in dev mode. The UI
+// dropdown is real; the swap-loop needs another pass. Tracked.
 ---
 
 <div class="package-manager-switcher" data-pm-switcher>
@@ -110,7 +114,19 @@
     function applyToPre(el, target) {
       var original = el.getAttribute('data-pm-original');
       if (original === null) {
+        // Prefer the `code` attribute (Astro's MDX code-block component sets
+        // it to the raw source). Fall back to `data-highlighted` decoded as
+        // HTML→text, then textContent.
         var raw = el.getAttribute('code');
+        if (!raw) {
+          var dh = el.getAttribute('data-highlighted');
+          if (dh) {
+            // data-highlighted is HTML-encoded shiki output; strip tags.
+            var div = document.createElement('div');
+            div.innerHTML = dh;
+            raw = div.textContent || '';
+          }
+        }
         if (!raw) raw = el.textContent || '';
         if (!/\b(npm|npx)\b/.test(raw)) return;
         el.setAttribute('data-pm-original', raw);
@@ -118,13 +134,14 @@
       }
       var next = translate(original, target);
       var code = el.querySelector('code');
-      // Write to the deepest text container. CodeHighlighter wraps content
-      // in <code><span class="line">...</span></code>; replacing innerHTML
-      // with a flat string discards the highlighting (acceptable — npm
-      // commands are usually bash and render monochrome anyway).
-      var target_el = code || el;
-      if (target_el.textContent !== next) {
-        target_el.textContent = next;
+      var targetEl = code || el;
+      if (targetEl.textContent !== next) {
+        // Replace text content. Loses syntax highlighting on the line
+        // (shell snippets are monochrome anyway). Also clear the
+        // pre's data-highlighted attribute so CodeHighlighter (if it
+        // hasn't run yet) doesn't undo our rewrite.
+        targetEl.textContent = next;
+        el.removeAttribute('data-highlighted');
       }
     }
 
