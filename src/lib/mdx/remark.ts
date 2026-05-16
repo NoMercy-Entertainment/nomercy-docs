@@ -10,6 +10,7 @@ import { remarkIconCards } from './remark-icon-cards';
 import { remarkHero } from './remark-hero';
 import { remarkCallout } from './remark-callout';
 import { remarkLogoCards } from './remark-logo-cards';
+import { remarkCleanup } from './remark-cleanup';
 
 // Plugin to extract title from code fence meta and store it for rehype
 function remarkExtractCodeTitle() {
@@ -39,6 +40,7 @@ export const remarkPlugins = [
   remarkCallout, // transform ::Callout to Callout component
   remarkLogoCards, // transform ::LogoCards to LogoCards component
   remarkRowCol, // transform ::row / ::col / ::col sticky / :: to Row/Col
+  remarkCleanup, // strip orphaned ::/::end closers left over from directive plugins
   remarkExtractCodeTitle,
   remarkGfm,
 ];
