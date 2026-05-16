@@ -1,0 +1,191 @@
+---
+// Sticky dropdown that rewrites every visible `npm install` / `npm i`
+// command on the current page to yarn / pnpm / bun. Pure DOM rewriter —
+// no MDX component changes needed; works on every code block already
+// rendered.
+//
+// Preference persists in localStorage so the user's choice survives
+// navigation and reload.
+---
+
+<div class="package-manager-switcher" data-pm-switcher>
+  <label class="pm-label" for="pm-select">Package manager</label>
+  <select id="pm-select" class="pm-select" aria-label="Package manager">
+    <option value="npm">npm</option>
+    <option value="yarn">yarn</option>
+    <option value="pnpm">pnpm</option>
+    <option value="bun">bun</option>
+  </select>
+</div>
+
+<style>
+  .package-manager-switcher {
+    position: sticky;
+    top: 72px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    margin-bottom: 16px;
+    background: rgb(255 255 255 / 0.9);
+    border: 1px solid rgb(228 228 231 / 1);
+    border-radius: 8px;
+    z-index: 20;
+    backdrop-filter: blur(8px);
+    font-size: 0.75rem;
+  }
+  :global(.dark) .package-manager-switcher {
+    background: rgb(39 39 42 / 0.9);
+    border-color: rgb(63 63 70 / 1);
+  }
+  .pm-label {
+    color: rgb(82 82 91);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+  :global(.dark) .pm-label {
+    color: rgb(161 161 170);
+  }
+  .pm-select {
+    appearance: none;
+    background: transparent;
+    border: 1px solid rgb(228 228 231);
+    border-radius: 6px;
+    padding: 2px 24px 2px 8px;
+    font-family: 'Cascadia Code', 'Fira Code', ui-monospace, monospace;
+    color: inherit;
+    cursor: pointer;
+    background-image:
+      linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: right 9px top 50%, right 5px top 50%;
+    background-size: 4px 4px, 4px 4px;
+    background-repeat: no-repeat;
+  }
+  :global(.dark) .pm-select {
+    border-color: rgb(63 63 70);
+  }
+</style>
+
+<script is:inline>
+  // Rewrites every visible `npm install / npm i / npm run / npx` command on
+  // the page to the user's preferred manager (yarn / pnpm / bun). Pure DOM
+  // pass — no MDX changes needed. Runs after CodeHighlighter has had a
+  // chance to render, then re-runs whenever the dropdown changes.
+
+  (function () {
+    var STORAGE_KEY = 'docs-pm';
+
+    function translate(text, target) {
+      if (target === 'npm') return text;
+      var out = text;
+      out = out.replace(/\bnpm\s+(install|i)\b((?:\s+--?[A-Za-z-]+)*)/g, function (m, _verb, flags) {
+        var f = flags || '';
+        if (target === 'yarn') {
+          var fy = f.replace(/-D/g, '--dev').replace(/--save-dev/g, '--dev');
+          return 'yarn add' + fy;
+        }
+        if (target === 'pnpm') return 'pnpm add' + f;
+        if (target === 'bun')  return 'bun add' + f;
+        return m;
+      });
+      out = out.replace(/\bnpm\s+install\b(?!\s+\S)/g,
+        target === 'yarn' ? 'yarn install' :
+        target === 'pnpm' ? 'pnpm install' :
+        target === 'bun'  ? 'bun install' : 'npm install');
+      out = out.replace(/\bnpm\s+run\s+/g,
+        target === 'yarn' ? 'yarn ' :
+        target === 'pnpm' ? 'pnpm ' :
+        target === 'bun'  ? 'bun run ' : 'npm run ');
+      out = out.replace(/\bnpx\s+/g,
+        target === 'yarn' ? 'yarn dlx ' :
+        target === 'pnpm' ? 'pnpm dlx ' :
+        target === 'bun'  ? 'bunx ' : 'npx ');
+      return out;
+    }
+
+    var currentTarget = 'npm';
+
+    function applyToPre(el, target) {
+      var original = el.getAttribute('data-pm-original');
+      if (original === null) {
+        var raw = el.getAttribute('code');
+        if (!raw) raw = el.textContent || '';
+        if (!/\b(npm|npx)\b/.test(raw)) return;
+        el.setAttribute('data-pm-original', raw);
+        original = raw;
+      }
+      var next = translate(original, target);
+      var code = el.querySelector('code');
+      // Write to the deepest text container. CodeHighlighter wraps content
+      // in <code><span class="line">...</span></code>; replacing innerHTML
+      // with a flat string discards the highlighting (acceptable — npm
+      // commands are usually bash and render monochrome anyway).
+      var target_el = code || el;
+      if (target_el.textContent !== next) {
+        target_el.textContent = next;
+      }
+    }
+
+    function applyAll(target) {
+      currentTarget = target;
+      var pres = document.querySelectorAll('pre');
+      for (var i = 0; i < pres.length; i++) applyToPre(pres[i], target);
+    }
+
+    // CodeHighlighter wraps + rewrites pre elements after mount. A simple
+    // one-shot apply gets stomped. MutationObserver re-applies whenever
+    // any pre is added/modified, keeping the user's PM choice sticky.
+    function watch() {
+      var obs = new MutationObserver(function (records) {
+        for (var i = 0; i < records.length; i++) {
+          var rec = records[i];
+          var added = rec.addedNodes || [];
+          for (var j = 0; j < added.length; j++) {
+            var n = added[j];
+            if (n.nodeType !== 1) continue;
+            if (n.tagName === 'PRE') applyToPre(n, currentTarget);
+            else if (n.querySelectorAll) {
+              var inner = n.querySelectorAll('pre');
+              for (var k = 0; k < inner.length; k++) applyToPre(inner[k], currentTarget);
+            }
+          }
+          // If a pre's text was changed externally (CodeHighlighter
+          // rewriting the code child), re-apply on the target pre.
+          if (rec.target && rec.target.closest) {
+            var pre = rec.target.closest('pre');
+            if (pre && pre.getAttribute('data-pm-original')) {
+              applyToPre(pre, currentTarget);
+            }
+          }
+        }
+      });
+      obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+    }
+
+    function init() {
+      var select = document.getElementById('pm-select');
+      if (!select) return;
+      var saved = localStorage.getItem(STORAGE_KEY) || 'npm';
+      select.value = saved;
+      currentTarget = saved;
+      applyAll(saved);
+      setTimeout(function () { applyAll(saved); }, 200);   // catch CodeHighlighter's late render
+      setTimeout(function () { applyAll(saved); }, 800);
+      select.addEventListener('change', function () {
+        var target = select.value;
+        localStorage.setItem(STORAGE_KEY, target);
+        applyAll(target);
+      });
+      watch();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+    document.addEventListener('astro:after-swap', init);
+  })();
+</script>

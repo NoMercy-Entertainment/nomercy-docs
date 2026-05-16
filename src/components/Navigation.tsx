@@ -6,7 +6,7 @@ import { useRef, useState, useEffect } from 'react';
 
 import { Button } from './protocol/Button';
 import { useIsInsideMobileNavigation } from './MobileNavigation';
-import { useSectionStore } from './SectionProvider';
+import { useSectionStore, type Section } from './SectionProvider';
 import { Tag } from './protocol/Tag';
 import { remToPx } from '@/lib/remToPx';
 import { CloseButton } from '@headlessui/react';
@@ -114,6 +114,43 @@ function NavLinkItem({
         </Tag>
       )}
     </CloseButton>
+  );
+}
+
+// Sub-item active-on-scroll: subscribes to visibleSections from the
+// SectionProvider so the currently-most-visible h2 in the article gets
+// the active style. Kept as a child component so the subscription only
+// fires when the parent page is the active nav link.
+function AnchorSectionList({
+  link,
+  sections,
+}: {
+  link: NavLink;
+  sections: Array<Section>;
+}) {
+  const visibleSections = useSectionStore((state) => state.visibleSections);
+  const activeSection = visibleSections[0];
+
+  return (
+    <motion.ul
+      role="list"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1, transition: { delay: 0.1 } }}
+      exit={{ opacity: 0, transition: { duration: 0.15 } }}
+    >
+      {sections.map((section) => (
+        <li key={section.id}>
+          <NavLinkItem
+            href={`${link.href}#${section.id}`}
+            tag={section.tag}
+            isAnchorLink
+            active={section.id === activeSection}
+          >
+            {section.title}
+          </NavLinkItem>
+        </li>
+      ))}
+    </motion.ul>
   );
 }
 
@@ -233,30 +270,7 @@ function NavigationGroup({
               </NavLinkItem>
               <AnimatePresence mode="popLayout" initial={false}>
                 {link.href === pathname && sections.length > 0 && (
-                  <motion.ul
-                    role="list"
-                    initial={{ opacity: 0 }}
-                    animate={{
-                      opacity: 1,
-                      transition: { delay: 0.1 },
-                    }}
-                    exit={{
-                      opacity: 0,
-                      transition: { duration: 0.15 },
-                    }}
-                  >
-                    {sections.map((section) => (
-                      <li key={section.id}>
-                        <NavLinkItem
-                          href={`${link.href}#${section.id}`}
-                          tag={section.tag}
-                          isAnchorLink
-                        >
-                          {section.title}
-                        </NavLinkItem>
-                      </li>
-                    ))}
-                  </motion.ul>
+                  <AnchorSectionList link={link} sections={sections} />
                 )}
               </AnimatePresence>
             </motion.li>
