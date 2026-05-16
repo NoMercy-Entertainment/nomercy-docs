@@ -17,10 +17,10 @@ Read this if you are setting up the video player for the first time. You should 
 
 ```
 npm install @nomercy-entertainment/nomercy-video-player@beta
-npm install hls.js
+npm install hls.js@beta
 ```
 
-`hls.js` is a peer dependency. It must be installed separately.
+`hls.js` is an optional peer dependency — required for HLS sources (`.m3u8`). Not needed for progressive MP4.
 
 ---
 
@@ -29,14 +29,23 @@ npm install hls.js
 ```ts
 import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
 
+// Example uses CC-licensed Sintel from nomercy-media. Swap for your own content.
+const NM_MEDIA = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films';
+
 const player = nmplayer('main').setup({
   container: document.getElementById('player')!,
+  baseUrl: NM_MEDIA,
   queue: [
     {
-      id: '1',
-      title: 'Episode 1',
-      url: 'https://cdn.example.com/episode1.m3u8',
-      duration: 2700,
+      id: 'sintel',
+      title: 'Sintel',
+      file: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+      duration: 888,
+      tracks: [
+        { id: 0, label: 'English', file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt', language: 'eng', kind: 'subtitles' },
+        { id: 4, file: '/Sintel.(2010)/chapters.vtt', kind: 'chapters' },
+      ],
     },
   ],
 });
