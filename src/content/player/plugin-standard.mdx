@@ -32,12 +32,15 @@ Id conventions:
 ### 1.2 Lifecycle methods
 
 ```ts
-initialize(player, opts, lifecycle): void  // base class; rarely override
+// Author-overridable hooks:
 use(): void | Promise<void>                // wire listeners, mount DOM, fetch resources
 dispose(): void                            // explicit teardown
+
+// Internal (base class — never override, never call from your plugin):
+initialize(player, opts, lifecycle): void  // kit calls this before use() to inject player + opts + lifecycle
 ```
 
-`player.setup()` awaits all plugins' `use()` promises before emitting `ready`. A plugin whose `use()` rejects is marked failed — it does not bring down the player. Other plugins continue.
+`player.setup()` awaits every plugin's `use()` promise before emitting `ready`. A plugin whose `use()` rejects is marked failed — it does not bring down the player. Other plugins continue.
 
 ### 1.3 State surface
 
@@ -317,7 +320,7 @@ this.logger.debug('something'); // outputs [nmplayer][my-plugin] something
 | Boolean query | `isLeader()`, `isMuted()`, `hasListeners()` |
 | Collection mutators | `queueAppend`, `queueClear`, `queueRemove` |
 | Override hooks | `protected addX()` for groups, `protected getX()` for defaults |
-| Lifecycle | `initialize`, `use`, `dispose` |
+| Lifecycle (author) | `use()` to set up, `dispose()` to tear down (kit calls `initialize()` first — base class; do not override) |
 
 ### Event naming
 

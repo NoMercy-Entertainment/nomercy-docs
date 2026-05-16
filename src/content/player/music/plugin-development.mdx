@@ -101,12 +101,15 @@ Id conventions:
 ## Lifecycle
 
 ```
+// Author-overridable hooks
 constructor()                    // no args; do not access player or opts here
-initialize(player, opts, lc)    // base class assigns fields; rarely override
 use(): void | Promise<void>      // wire listeners, mount DOM, fetch resources
 enable() / disable()             // runtime toggle; listeners stay subscribed
 setOptions(partial)              // runtime options update
 dispose()                        // explicit teardown for things lifecycle doesn't handle
+
+// Internal (base class — never override, never call directly)
+initialize(player, opts, lc)     // kit calls this before use() to inject player + opts + lifecycle
 ```
 
 `player.setup()` awaits all plugins' `use()` promises before emitting `ready`. A plugin whose `use()` rejects is marked failed (`enabled() === false`) but does not bring down the player.
