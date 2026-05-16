@@ -43,15 +43,16 @@ export default {
           '--tw-prose-invert-th-borders': theme('colors.zinc.600'),
           '--tw-prose-invert-td-borders': theme('colors.zinc.700'),
 
-          // Base
+          // Base — bumped from sm (14px/28px) to base (16px/28px) for
+          // comfortable docs reading. Pre-existing scale was too tight.
           color: 'var(--tw-prose-body)',
-          fontSize: theme('fontSize.sm')[0],
+          fontSize: theme('fontSize.base')[0],
           lineHeight: theme('lineHeight.7'),
 
           // Text
           p: {
-            marginTop: theme('spacing.6'),
-            marginBottom: theme('spacing.6'),
+            marginTop: theme('spacing.5'),
+            marginBottom: theme('spacing.5'),
           },
           '[class~="lead"]': {
             fontSize: theme('fontSize.base')[0],
@@ -171,29 +172,49 @@ export default {
             content: 'close-quote',
           },
 
-          // Headings
+          // Headings — sized for hierarchy + breathing room. Previously
+          // h1=24px, h2=18px, h3=16px were too close to body text and
+          // their bottom-margin was only 8px, jamming into the next block.
           h1: {
             color: 'var(--tw-prose-headings)',
             fontWeight: '700',
-            fontSize: theme('fontSize.2xl')[0],
-            ...theme('fontSize.2xl')[1],
-            marginBottom: theme('spacing.2'),
+            fontSize: theme('fontSize.3xl')[0],     // 30px
+            ...theme('fontSize.3xl')[1],
+            letterSpacing: '-0.015em',
+            marginBottom: theme('spacing.6'),       // 24px
           },
           h2: {
             color: 'var(--tw-prose-headings)',
             fontWeight: '600',
-            fontSize: theme('fontSize.lg')[0],
-            ...theme('fontSize.lg')[1],
-            marginTop: theme('spacing.16'),
-            marginBottom: theme('spacing.2'),
+            fontSize: theme('fontSize.2xl')[0],     // 24px
+            ...theme('fontSize.2xl')[1],
+            letterSpacing: '-0.01em',
+            marginTop: theme('spacing.14'),         // 56px (was 64px)
+            marginBottom: theme('spacing.4'),       // 16px (was 8px)
           },
           h3: {
             color: 'var(--tw-prose-headings)',
-            fontSize: theme('fontSize.base')[0],
-            ...theme('fontSize.base')[1],
+            fontSize: theme('fontSize.xl')[0],      // 20px
+            ...theme('fontSize.xl')[1],
             fontWeight: '600',
             marginTop: theme('spacing.10'),
-            marginBottom: theme('spacing.2'),
+            marginBottom: theme('spacing.3'),       // 12px (was 8px)
+          },
+          h4: {
+            color: 'var(--tw-prose-headings)',
+            fontSize: theme('fontSize.lg')[0],      // 18px
+            ...theme('fontSize.lg')[1],
+            fontWeight: '600',
+            marginTop: theme('spacing.8'),
+            marginBottom: theme('spacing.3'),
+          },
+
+          // Code blocks need breathing room around them. The prose default
+          // omits these and inherits 0, which jams pre against the para
+          // above + below.
+          pre: {
+            marginTop: theme('spacing.6'),
+            marginBottom: theme('spacing.6'),
           },
 
           // Media
@@ -316,7 +337,12 @@ export default {
           },
 
           // Overrides
-          ':is(h1, h2, h3) + *': {
+          // Previously this rule killed the top margin of whatever
+          // followed any heading, leaving heading mb (24/16/12px) as
+          // the only gap. That was too tight. Leave the heading mb
+          // alone and only nuke the next-child mt when the next child
+          // is a paragraph (its 20px mt would double the gap).
+          ':is(h1, h2, h3, h4) + p': {
             marginTop: '0',
           },
           '> :first-child': {
