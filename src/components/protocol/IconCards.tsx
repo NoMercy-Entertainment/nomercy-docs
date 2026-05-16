@@ -9,7 +9,7 @@ import {
 import { useMemo } from 'react'
 
 import { GridPattern } from './GridPattern'
-import { Heading } from './Heading'
+import { Heading } from '../Heading'
 
 // Icons for each section
 function AppIcon({ className }: { className?: string }) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from './Button';
-import { Heading } from './Heading';
+import { Heading } from '../Heading';
 
 const guides = [
   {

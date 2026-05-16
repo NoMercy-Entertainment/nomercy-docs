@@ -8,7 +8,7 @@ import {
 } from 'framer-motion'
 
 import { GridPattern } from './GridPattern'
-import { Heading } from './Heading'
+import { Heading } from '../Heading'
 import { ChatBubbleIcon } from '../icons/ChatBubbleIcon'
 import { EnvelopeIcon } from '../icons/EnvelopeIcon'
 import { UserIcon } from '../icons/UserIcon'
