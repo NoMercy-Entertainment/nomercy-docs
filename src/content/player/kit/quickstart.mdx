@@ -24,8 +24,8 @@ npm install @nomercy-entertainment/nomercy-player-core@beta
 A kit-level plugin works with any player built on the kit — video, music, or a custom library you write. Type the `P` generic broadly:
 
 ```ts
-import { Plugin } from '@nomercy-entertainment/nomercy-player-core@beta';
-import type { IPlayer, BaseEventMap } from '@nomercy-entertainment/nomercy-player-core@beta';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { IPlayer, BaseEventMap } from '@nomercy-entertainment/nomercy-player-core';
 
 interface AnalyticsOptions {
   endpoint: string;
@@ -71,8 +71,8 @@ export class AnalyticsPlugin extends Plugin<
 Register it on any player:
 
 ```ts
-import { nmplayer } from '@nomercy-entertainment/nomercy-video-player@beta';
-import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player@beta';
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player';
 
 nmplayer('video').setup({ ... }).addPlugin(AnalyticsPlugin, { endpoint: '/api/v1/analytics' });
 nmMPlayer('music').setup({ ... }).addPlugin(AnalyticsPlugin, { endpoint: '/api/v1/analytics' });
@@ -85,9 +85,9 @@ nmMPlayer('music').setup({ ... }).addPlugin(AnalyticsPlugin, { endpoint: '/api/v
 Kit adapters are available from the kit's subpath exports:
 
 ```ts
-import { LocalStorageBackend, MemoryStorageBackend } from '@nomercy-entertainment/nomercy-player-core@beta';
-import { browserPlatform } from '@nomercy-entertainment/nomercy-player-core@beta';
-import { DefaultRetryPolicy } from '@nomercy-entertainment/nomercy-player-core@beta';
+import { LocalStorageBackend, MemoryStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
+import { browserPlatform } from '@nomercy-entertainment/nomercy-player-core';
+import { DefaultRetryPolicy } from '@nomercy-entertainment/nomercy-player-core';
 ```
 
 See [Kit — Adapters](/player/kit/adapters) for the full catalog.
@@ -97,8 +97,8 @@ See [Kit — Adapters](/player/kit/adapters) for the full catalog.
 ## Testing kit-level plugins
 
 ```ts
-import { describePlugin } from '@nomercy-entertainment/nomercy-player-core@beta/testing';
-import { assertNoListenerLeak } from '@nomercy-entertainment/nomercy-player-core@beta/testing';
+import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
+import { assertNoListenerLeak } from '@nomercy-entertainment/nomercy-player-core/testing';
 
 describePlugin(AnalyticsPlugin, ({ player, plugin }) => {
   test('no listener leak', () => {
@@ -108,3 +108,20 @@ describePlugin(AnalyticsPlugin, ({ player, plugin }) => {
 ```
 
 The testing stub provides a minimal IPlayer implementation that satisfies the kit contracts without any browser APIs.
+
+---
+
+## What success looks like
+
+A kit-level plugin registers without errors, `use()` is called during `setup()`, and `assertNoListenerLeak` passes after dispose. The plugin emits its typed events, and `player.on(AnalyticsPlugin, 'session:reported', ...)` receives them.
+
+---
+
+## What to read next
+
+- [Kit — Adapters](/player/kit/adapters) — the 28 infrastructure ports your plugin can swap
+- [Kit — Event System](/player/kit/event-system) — typed events, cross-plugin listening
+- [Kit — Lifecycle](/player/kit/lifecycle) — phase model and plugin ordering
+- [Kit — Testing](/player/kit/testing) — full `describePlugin` and assertion API
+- [Plugin Authoring](/player/plugin-authoring) — complete plugin contract reference
+- [Advanced: Custom Plugin](/player/advanced/custom-plugin) — production-grade plugin patterns
