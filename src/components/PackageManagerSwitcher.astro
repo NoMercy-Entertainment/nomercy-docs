@@ -9,6 +9,11 @@
 // CodeHighlighter wraps/clones the pre, the id survives, so the swap
 // can always re-find the original text via the snapshot map.
 //
+// `color-scheme: light dark` on the <select> tells Chrome / Firefox /
+// Safari to theme the native popup to match — so the open list reads
+// the same as the chip on both themes without rebuilding the popup
+// ourselves.
+//
 // Preference persists in localStorage so the user's choice survives
 // navigation and reload.
 ---
@@ -61,6 +66,9 @@
     font-family: 'Cascadia Code', 'Fira Code', ui-monospace, monospace;
     color: inherit;
     cursor: pointer;
+    /* color-scheme tells the browser to render the NATIVE popup
+       (which we cannot style otherwise) in the appropriate theme. */
+    color-scheme: light;
     background-image:
       linear-gradient(45deg, transparent 50%, currentColor 50%),
       linear-gradient(135deg, currentColor 50%, transparent 50%);
@@ -70,6 +78,7 @@
   }
   :global(.dark) .pm-select {
     border-color: rgb(63 63 70);
+    color-scheme: dark;
   }
 </style>
 
@@ -109,9 +118,6 @@
       return out;
     }
 
-    // Pull the raw source from whichever attribute the renderer left it on.
-    // Astro's MDX writes `code=`; shiki writes `data-highlighted=` (HTML-encoded);
-    // CodePanel writes the highlighted HTML directly into the code child.
     function extractOriginal(pre) {
       var raw = pre.getAttribute('code');
       if (raw) return raw;
@@ -124,8 +130,6 @@
       return pre.textContent || '';
     }
 
-    // Snapshot every untagged pre on the page. Run as early as possible
-    // (parse time inline) AND on every mutation so cloned pres get tagged.
     function snapshotAll() {
       var pres = document.querySelectorAll('pre:not([data-pm-id])');
       for (var i = 0; i < pres.length; i++) {
@@ -138,22 +142,6 @@
         var id = String(++nextId);
         pre.setAttribute('data-pm-id', id);
         snapshots.set(id, raw);
-      }
-      // Tag clones (CodeHighlighter clones the pre into a wrapper after
-      // initial highlight). The clone inherits the id but the original
-      // is detached. Re-tagging clones is idempotent.
-      var tagged = document.querySelectorAll('pre[data-pm-id]:not([data-pm-id="skip"])');
-      for (var j = 0; j < tagged.length; j++) {
-        var cl = tagged[j];
-        if (!snapshots.has(cl.getAttribute('data-pm-id'))) {
-          // Orphan id (clone of a now-detached pre). Re-extract.
-          var rawCl = extractOriginal(cl);
-          if (/\b(npm|npx)\b/.test(rawCl)) {
-            var newId = String(++nextId);
-            cl.setAttribute('data-pm-id', newId);
-            snapshots.set(newId, rawCl);
-          }
-        }
       }
     }
 
@@ -177,8 +165,11 @@
       for (var i = 0; i < pres.length; i++) applyToPre(pres[i], target);
     }
 
-    // Re-apply on any DOM mutation, with rAF coalescing so the loop
-    // doesn't fight CodeHighlighter on every single innerHTML write.
+    function syncSelect() {
+      var select = document.getElementById('pm-select');
+      if (select && select.value !== currentTarget) select.value = currentTarget;
+    }
+
     var rafPending = false;
     function scheduleApply() {
       if (rafPending) return;
@@ -189,14 +180,8 @@
       });
     }
 
-    function syncSelect() {
-      var select = document.getElementById('pm-select');
-      if (select && select.value !== currentTarget) select.value = currentTarget;
-    }
-
     function watch() {
       var obs = new MutationObserver(function (records) {
-        // Cheap filter — only schedule when something interesting changed.
         for (var i = 0; i < records.length; i++) {
           var rec = records[i];
           if (rec.type === 'childList' && (rec.addedNodes.length || rec.removedNodes.length)) {
@@ -234,18 +219,11 @@
     });
 
     function init() {
-      var select = document.getElementById('pm-select');
-      if (!select) return;
-      var saved;
-      try { saved = localStorage.getItem(STORAGE_KEY) || 'npm'; } catch (_) { saved = 'npm'; }
-      select.value = saved;
-      currentTarget = saved;
-      applyAll(saved);
+      syncSelect();
+      applyAll(currentTarget);
       watch();
     }
 
-    // Take snapshots as early as possible so we capture the raw `code`
-    // attribute before CodeHighlighter strips it on mount.
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', function () {
         snapshotAll();
@@ -256,7 +234,6 @@
       init();
     }
     document.addEventListener('astro:after-swap', function () {
-      // SPA-style navigation: snapshots reset because DOM rebuilt.
       snapshots = new Map();
       nextId = 0;
       snapshotAll();

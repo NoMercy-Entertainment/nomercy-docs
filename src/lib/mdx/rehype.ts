@@ -70,7 +70,7 @@ function rehypeShiki() {
           node.properties.code = textNode.value
 
           // Replace the default classes with our custom ones
-          node.properties.className = ['overflow-x-auto', 'p-4', 'text-xs', 'text-white']
+          node.properties.className = ['overflow-x-auto', 'p-4', 'text-xs', 'text-zinc-900', 'dark:text-white']
           
           // Remove any inline styles (especially background-color)
           delete node.properties.style
@@ -142,7 +142,7 @@ function rehypeWrapCodeBlocks() {
         type: 'element',
         tagName: 'div',
         properties: {
-          className: ['my-6', 'overflow-hidden', 'rounded-2xl', 'bg-zinc-900', 'shadow-md', 'dark:ring-1', 'dark:ring-white/10'],
+          className: ['my-6', 'overflow-hidden', 'rounded-2xl', 'bg-zinc-50', 'ring-1', 'ring-zinc-200', 'shadow-md', 'dark:bg-zinc-900', 'dark:ring-white/10'],
         },
         children: [{
           type: 'element',
@@ -160,12 +160,12 @@ function rehypeWrapCodeBlocks() {
           type: 'element',
           tagName: 'div',
           properties: {
-            className: ['flex', 'min-h-[calc(--spacing(12)+1px)]', 'flex-wrap', 'items-start', 'gap-x-4', 'border-b', 'border-zinc-700', 'bg-zinc-800', 'px-4', 'dark:border-zinc-800', 'dark:bg-transparent'],
+            className: ['flex', 'min-h-[calc(--spacing(12)+1px)]', 'flex-wrap', 'items-start', 'gap-x-4', 'border-b', 'border-zinc-200', 'bg-zinc-100', 'px-4', 'dark:border-zinc-800', 'dark:bg-transparent'],
           },
           children: [{
             type: 'element',
             tagName: 'h3',
-            properties: { className: ['mr-auto', 'pt-3', 'text-xs', 'font-semibold', 'text-white'] },
+            properties: { className: ['mr-auto', 'pt-3', 'text-xs', 'font-semibold', 'text-zinc-700', 'dark:text-white'] },
             children: [{ type: 'text', value: dataTitle }]
           }]
         })
@@ -192,7 +192,7 @@ function rehypeWrapCodeBlocks() {
               tagName: 'button',
               properties: {
                 type: 'button',
-                className: ['group/button', 'absolute', 'top-3.5', 'right-4', 'overflow-hidden', 'rounded-full', 'py-1', 'pl-2', 'pr-3', 'text-2xs', 'font-medium', 'opacity-0', 'backdrop-blur', 'transition', 'focus:opacity-100', 'group-hover:opacity-100', 'bg-white/5', 'hover:bg-white/7.5', 'dark:bg-white/2.5', 'dark:hover:bg-white/5'],
+                className: ['group/button', 'absolute', 'top-3.5', 'right-4', 'overflow-hidden', 'rounded-full', 'py-1', 'pl-2', 'pr-3', 'text-2xs', 'font-medium', 'opacity-0', 'backdrop-blur', 'transition', 'focus:opacity-100', 'group-hover:opacity-100', 'bg-zinc-900/5', 'hover:bg-zinc-900/10', 'dark:bg-white/5', 'dark:hover:bg-white/10'],
                 'data-code': code || '',
               },
               children: [{
