@@ -116,14 +116,18 @@ function groupByCategory(
   // Define category order (customize as needed)
   const categoryOrder: Record<string, number> = {
     'Getting Started': 1,
-    'Guides': 2,
-    'General': 3,
-    'Configuration': 4,
-    'Adapters': 5,
-    'Plugins': 6,
-    'Resources': 7,
-    'Reference': 8,
-    'Migration': 9,
+    'Overview': 2,
+    'Guides': 3,
+    'General': 4,
+    'Kit': 10,
+    'Video Player': 20,
+    'Music Player': 30,
+    'Configuration': 40,
+    'Adapters': 41,
+    'Plugins': 42,
+    'Resources': 50,
+    'Reference': 60,
+    'Migration': 70,
     'Other': 999,
   };
 

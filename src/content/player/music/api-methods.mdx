@@ -622,12 +622,22 @@ Cycle to the next available audio track.
 
 ## Subtitles and chapters
 
-The music player gains these from the kit for completeness (streaming audio with embedded cues).
-
 ### `subtitles()`
 
 ```ts
-subtitles(): SubtitleTrack[]
+subtitles(): never  // throws NotImplementedError
+```
+
+Audio backends do not expose subtitle tracks. Calling `subtitles()` on the music player always throws `NotImplementedError` (code: `core:not-implemented/subtitles`). Catch by type if you share code between video and music players:
+
+```ts
+try {
+  const tracks = player.subtitles();
+} catch (e) {
+  if (e instanceof NotImplementedError) {
+    // expected on music player — audio backends don't have subtitle tracks
+  }
+}
 ```
 
 ### `currentSubtitle()`
@@ -783,10 +793,10 @@ Current play state enum: `PlayState.Idle | PlayState.Playing | PlayState.Paused 
 ### `metrics()`
 
 ```ts
-metrics(): PlayerMetrics
+metrics(): PlaybackMetrics
 ```
 
-Playback metrics snapshot.
+Playback metrics snapshot. Always returns a `PlaybackMetrics` object. Individual counters unavailable from the audio backend — `ttfb`, `avgBitrate`, `droppedFrames`, `decoderStalls` — are `null`. Guard before use: `if (metrics.droppedFrames !== null) { ... }`. See [Kit — Metrics](/player/kit/metrics) for the full counter matrix.
 
 ### `recordMetric(name, value)`
 
