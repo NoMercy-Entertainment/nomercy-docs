@@ -4,12 +4,13 @@
 // no MDX component changes needed; works on every code block already
 // rendered.
 //
+// Race-proof approach: tag each pre with a stable id and snapshot the
+// raw command BEFORE CodeHighlighter (React useEffect) runs. After
+// CodeHighlighter wraps/clones the pre, the id survives, so the swap
+// can always re-find the original text via the snapshot map.
+//
 // Preference persists in localStorage so the user's choice survives
 // navigation and reload.
-//
-// KNOWN ISSUE: the rewrite races CodeHighlighter — works in unit
-// tests but the visible swap is unreliable in dev mode. The UI
-// dropdown is real; the swap-loop needs another pass. Tracked.
 ---
 
 <div class="package-manager-switcher" data-pm-switcher>
@@ -73,13 +74,12 @@
 </style>
 
 <script is:inline>
-  // Rewrites every visible `npm install / npm i / npm run / npx` command on
-  // the page to the user's preferred manager (yarn / pnpm / bun). Pure DOM
-  // pass — no MDX changes needed. Runs after CodeHighlighter has had a
-  // chance to render, then re-runs whenever the dropdown changes.
-
   (function () {
     var STORAGE_KEY = 'docs-pm';
+    var snapshots = new Map(); // pmId -> originalText
+    var nextId = 0;
+    var currentTarget = 'npm';
+    try { currentTarget = localStorage.getItem(STORAGE_KEY) || 'npm'; } catch (_) {}
 
     function translate(text, target) {
       if (target === 'npm') return text;
@@ -109,100 +109,158 @@
       return out;
     }
 
-    var currentTarget = 'npm';
+    // Pull the raw source from whichever attribute the renderer left it on.
+    // Astro's MDX writes `code=`; shiki writes `data-highlighted=` (HTML-encoded);
+    // CodePanel writes the highlighted HTML directly into the code child.
+    function extractOriginal(pre) {
+      var raw = pre.getAttribute('code');
+      if (raw) return raw;
+      var dh = pre.getAttribute('data-highlighted');
+      if (dh) {
+        var div = document.createElement('div');
+        div.innerHTML = dh;
+        return div.textContent || '';
+      }
+      return pre.textContent || '';
+    }
 
-    function applyToPre(el, target) {
-      var original = el.getAttribute('data-pm-original');
-      if (original === null) {
-        // Prefer the `code` attribute (Astro's MDX code-block component sets
-        // it to the raw source). Fall back to `data-highlighted` decoded as
-        // HTML→text, then textContent.
-        var raw = el.getAttribute('code');
-        if (!raw) {
-          var dh = el.getAttribute('data-highlighted');
-          if (dh) {
-            // data-highlighted is HTML-encoded shiki output; strip tags.
-            var div = document.createElement('div');
-            div.innerHTML = dh;
-            raw = div.textContent || '';
+    // Snapshot every untagged pre on the page. Run as early as possible
+    // (parse time inline) AND on every mutation so cloned pres get tagged.
+    function snapshotAll() {
+      var pres = document.querySelectorAll('pre:not([data-pm-id])');
+      for (var i = 0; i < pres.length; i++) {
+        var pre = pres[i];
+        var raw = extractOriginal(pre);
+        if (!/\b(npm|npx)\b/.test(raw)) {
+          pre.setAttribute('data-pm-id', 'skip');
+          continue;
+        }
+        var id = String(++nextId);
+        pre.setAttribute('data-pm-id', id);
+        snapshots.set(id, raw);
+      }
+      // Tag clones (CodeHighlighter clones the pre into a wrapper after
+      // initial highlight). The clone inherits the id but the original
+      // is detached. Re-tagging clones is idempotent.
+      var tagged = document.querySelectorAll('pre[data-pm-id]:not([data-pm-id="skip"])');
+      for (var j = 0; j < tagged.length; j++) {
+        var cl = tagged[j];
+        if (!snapshots.has(cl.getAttribute('data-pm-id'))) {
+          // Orphan id (clone of a now-detached pre). Re-extract.
+          var rawCl = extractOriginal(cl);
+          if (/\b(npm|npx)\b/.test(rawCl)) {
+            var newId = String(++nextId);
+            cl.setAttribute('data-pm-id', newId);
+            snapshots.set(newId, rawCl);
           }
         }
-        if (!raw) raw = el.textContent || '';
-        if (!/\b(npm|npx)\b/.test(raw)) return;
-        el.setAttribute('data-pm-original', raw);
-        original = raw;
       }
+    }
+
+    function applyToPre(pre, target) {
+      var id = pre.getAttribute('data-pm-id');
+      if (!id || id === 'skip') return;
+      var original = snapshots.get(id);
+      if (!original) return;
       var next = translate(original, target);
-      var code = el.querySelector('code');
-      var targetEl = code || el;
+      var code = pre.querySelector('code');
+      var targetEl = code || pre;
       if (targetEl.textContent !== next) {
-        // Replace text content. Loses syntax highlighting on the line
-        // (shell snippets are monochrome anyway). Also clear the
-        // pre's data-highlighted attribute so CodeHighlighter (if it
-        // hasn't run yet) doesn't undo our rewrite.
         targetEl.textContent = next;
-        el.removeAttribute('data-highlighted');
       }
     }
 
     function applyAll(target) {
       currentTarget = target;
-      var pres = document.querySelectorAll('pre');
+      snapshotAll();
+      var pres = document.querySelectorAll('pre[data-pm-id]:not([data-pm-id="skip"])');
       for (var i = 0; i < pres.length; i++) applyToPre(pres[i], target);
     }
 
-    // CodeHighlighter wraps + rewrites pre elements after mount. A simple
-    // one-shot apply gets stomped. MutationObserver re-applies whenever
-    // any pre is added/modified, keeping the user's PM choice sticky.
+    // Re-apply on any DOM mutation, with rAF coalescing so the loop
+    // doesn't fight CodeHighlighter on every single innerHTML write.
+    var rafPending = false;
+    function scheduleApply() {
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(function () {
+        rafPending = false;
+        applyAll(currentTarget);
+      });
+    }
+
+    function syncSelect() {
+      var select = document.getElementById('pm-select');
+      if (select && select.value !== currentTarget) select.value = currentTarget;
+    }
+
     function watch() {
       var obs = new MutationObserver(function (records) {
+        // Cheap filter — only schedule when something interesting changed.
         for (var i = 0; i < records.length; i++) {
           var rec = records[i];
-          var added = rec.addedNodes || [];
-          for (var j = 0; j < added.length; j++) {
-            var n = added[j];
-            if (n.nodeType !== 1) continue;
-            if (n.tagName === 'PRE') applyToPre(n, currentTarget);
-            else if (n.querySelectorAll) {
-              var inner = n.querySelectorAll('pre');
-              for (var k = 0; k < inner.length; k++) applyToPre(inner[k], currentTarget);
-            }
+          if (rec.type === 'childList' && (rec.addedNodes.length || rec.removedNodes.length)) {
+            syncSelect();
+            scheduleApply();
+            return;
           }
-          // If a pre's text was changed externally (CodeHighlighter
-          // rewriting the code child), re-apply on the target pre.
-          if (rec.target && rec.target.closest) {
-            var pre = rec.target.closest('pre');
-            if (pre && pre.getAttribute('data-pm-original')) {
-              applyToPre(pre, currentTarget);
-            }
+          if (rec.type === 'characterData') {
+            scheduleApply();
+            return;
+          }
+          if (rec.type === 'attributes' && rec.attributeName === 'data-highlighted') {
+            scheduleApply();
+            return;
           }
         }
       });
-      obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+      obs.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ['data-highlighted'],
+      });
     }
+
+    // Document-level delegation so the listener survives any React
+    // hydration / re-render that tears down and rebuilds the select.
+    document.addEventListener('change', function (e) {
+      var t = e.target;
+      if (!t || t.id !== 'pm-select') return;
+      var target = t.value;
+      try { localStorage.setItem(STORAGE_KEY, target); } catch (_) {}
+      applyAll(target);
+    });
 
     function init() {
       var select = document.getElementById('pm-select');
       if (!select) return;
-      var saved = localStorage.getItem(STORAGE_KEY) || 'npm';
+      var saved;
+      try { saved = localStorage.getItem(STORAGE_KEY) || 'npm'; } catch (_) { saved = 'npm'; }
       select.value = saved;
       currentTarget = saved;
       applyAll(saved);
-      setTimeout(function () { applyAll(saved); }, 200);   // catch CodeHighlighter's late render
-      setTimeout(function () { applyAll(saved); }, 800);
-      select.addEventListener('change', function () {
-        var target = select.value;
-        localStorage.setItem(STORAGE_KEY, target);
-        applyAll(target);
-      });
       watch();
     }
 
+    // Take snapshots as early as possible so we capture the raw `code`
+    // attribute before CodeHighlighter strips it on mount.
     if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
+      document.addEventListener('DOMContentLoaded', function () {
+        snapshotAll();
+        init();
+      });
     } else {
+      snapshotAll();
       init();
     }
-    document.addEventListener('astro:after-swap', init);
+    document.addEventListener('astro:after-swap', function () {
+      // SPA-style navigation: snapshots reset because DOM rebuilt.
+      snapshots = new Map();
+      nextId = 0;
+      snapshotAll();
+      init();
+    });
   })();
 </script>
