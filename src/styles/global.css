@@ -95,18 +95,27 @@
     opacity: 1 !important;
   }
 
-  /* Inline code inside tables (and prose generally) must not break on
-     hyphens — package names like @nomercy-entertainment/nomercy-player-core
-     wrap mid-word otherwise and the table cells render unreadable. Keep
-     code identifiers on a single line; the cell can grow / scroll. */
-  .prose code,
-  table code {
+  /* INLINE code only — keep identifiers like @nomercy-entertainment/nomercy-player-core
+     on a single line so they don't break mid-hyphen in table cells or paragraphs.
+     IMPORTANT: scope to NOT block-code; inline code is `<code>` outside <pre>,
+     block code is `<pre><code>` which must wrap or scroll on its own terms. */
+  .prose :not(pre) > code,
+  table :not(pre) > code {
     white-space: nowrap;
     word-break: keep-all;
     overflow-wrap: normal;
   }
 
-  /* Cell may need horizontal scroll on very narrow viewports where a long
+  /* Block code (<pre><code>) keeps newlines AND wraps long lines so they
+     never run off the page. Better than horizontal scroll for prose-reading. */
+  .prose pre,
+  .prose pre code {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  /* Cells may need horizontal scroll on very narrow viewports where a long
      identifier exceeds the column. Better than mid-word break. */
   .prose table td,
   .prose table th {
