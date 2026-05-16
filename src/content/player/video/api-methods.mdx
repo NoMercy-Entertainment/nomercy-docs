@@ -1,0 +1,491 @@
+---
+title: "API Methods"
+description: "All public methods on NMVideoPlayer. Signatures, overloaded getter/setter pattern, and examples."
+category: "Video Player"
+order: 4
+---
+
+# API Methods Reference
+
+All public methods on `NMVideoPlayer<T>`. Methods follow the overloaded getter/setter pattern: `method()` reads, `method(value)` writes.
+
+---
+
+## Factory
+
+### `nmplayer(id)`
+
+```ts
+nmplayer(id: string | number): NMVideoPlayer<VideoPlaylistItem>
+nmplayer<T extends VideoPlaylistItem>(id: string | number): NMVideoPlayer<T>
+```
+
+Creates or retrieves a named player instance. Two calls with the same `id` return the same instance. Instances persist until `dispose()` is called.
+
+---
+
+## Setup
+
+### `setup(opts)`
+
+```ts
+setup(opts: VideoPlayerConfig<T>): NMVideoPlayer<T>
+```
+
+Initialize the player. Returns the player for chaining. See [Configuration](/player/video/configuration) for all options.
+
+### `ready()`
+
+```ts
+ready(): Promise<void>
+```
+
+Resolves when setup is complete and all plugins' `use()` promises have resolved.
+
+### `dispose()`
+
+```ts
+dispose(): void
+```
+
+Tears down the player: stops playback, disposes all plugins, removes event listeners. The instance is removed from the internal registry.
+
+---
+
+## Transport
+
+### `play(opts?)`, `pause(opts?)`, `stop(opts?)`, `restart(opts?)`
+
+```ts
+play(opts?: ActionOptions): Promise<void>
+pause(opts?: ActionOptions): Promise<void>
+stop(opts?: ActionOptions): Promise<void>
+restart(opts?: ActionOptions): Promise<void>
+togglePlayback(opts?: ActionOptions): Promise<void>
+```
+
+`stop()` resets position to 0. `restart()` seeks to 0 and plays. `togglePlayback()` switches between play and pause.
+
+`ActionOptions` carries `source: 'user' | 'auto' | 'remote'` — pass `{ source: 'user' }` when triggered by user input.
+
+---
+
+## Queue navigation
+
+### `next(opts?)`, `previous(opts?)`
+
+```ts
+next(opts?: ActionOptions): Promise<void>
+previous(opts?: ActionOptions): Promise<void>
+```
+
+### `seekToIndex(index, opts?)`
+
+```ts
+seekToIndex(index: number, opts?: ActionOptions): void
+```
+
+Jump to a queue position by index.
+
+### `peekNext()`, `peekPrevious()`
+
+```ts
+peekNext(): T | undefined
+peekPrevious(): T | undefined
+```
+
+---
+
+## Current item
+
+### `current()`
+
+```ts
+current(): T | undefined
+```
+
+Return the currently loaded item.
+
+### `current(item, opts?)`
+
+```ts
+current(item: T, opts?: ActionOptions): void
+```
+
+Set the current item. The item must be in the queue.
+
+### `currentIndex()`
+
+```ts
+currentIndex(): number
+```
+
+Index of the current item. Returns `-1` if nothing is loaded.
+
+### `load(item, opts?)`
+
+```ts
+load(item: T, opts?: LoadOptions): Promise<void>
+```
+
+Load a single item without requiring it to be in the queue.
+
+---
+
+## Time
+
+### `currentTime()` / `currentTime(t, opts?)`
+
+```ts
+currentTime(): number
+currentTime(t: number, opts?: ActionOptions): void
+```
+
+Get or set the playback position in seconds.
+
+### `duration()`
+
+```ts
+duration(): number
+```
+
+### `buffered()`, `bufferedRanges()`
+
+```ts
+buffered(): number
+bufferedRanges(): TimeRanges
+```
+
+### `seekable()`
+
+```ts
+seekable(): TimeRanges
+```
+
+### `forward(s?, opts?)`, `rewind(s?, opts?)`
+
+```ts
+forward(s?: number, opts?: ActionOptions): Promise<void>
+rewind(s?: number, opts?: ActionOptions): Promise<void>
+```
+
+Skip forward/backward by `s` seconds. Default: 10.
+
+### `seekByPercentage(pct, opts?)`
+
+```ts
+seekByPercentage(pct: number, opts?: ActionOptions): void
+```
+
+Seek to a percentage (0–1) of total duration.
+
+### `timeData()`
+
+```ts
+timeData(): { time: number; duration: number; buffered: number; seekable: TimeRanges; playbackRate: number }
+```
+
+---
+
+## Volume
+
+### `volume()` / `volume(v)`
+
+```ts
+volume(): number
+volume(v: number): void
+```
+
+Get or set volume (0–1).
+
+### `mute()`, `unmute()`, `toggleMute()`
+
+```ts
+mute(): void
+unmute(): void
+toggleMute(): void
+volumeUp(step?: number): void    // step default: 0.1
+volumeDown(step?: number): void
+```
+
+### `volumeState()`
+
+```ts
+volumeState(): VolumeState  // 'muted' | 'unmuted'
+```
+
+---
+
+## Playback rate
+
+### `playbackRate()` / `playbackRate(r)`
+
+```ts
+playbackRate(): number
+playbackRate(r: number): void
+playbackRates(): number[]
+```
+
+---
+
+## Quality levels
+
+### `qualityLevels()`
+
+```ts
+qualityLevels(): QualityLevel[]
+```
+
+All available quality levels (from HLS.js after manifest parse).
+
+### `currentQuality()` / `currentQuality(idx)`
+
+```ts
+currentQuality(): number     // -1 = auto
+currentQuality(idx: number): void  // -1 to re-enable auto
+```
+
+### `qualityState()`
+
+```ts
+qualityState(): QualityState
+```
+
+---
+
+## Audio tracks
+
+### `audioTracks()`
+
+```ts
+audioTracks(): AudioTrack[]
+```
+
+### `currentAudioTrack()` / `currentAudioTrack(index)`
+
+```ts
+currentAudioTrack(): number
+currentAudioTrack(index: number): void
+cycleAudioTracks(): void
+```
+
+---
+
+## Subtitles
+
+### `subtitles()`
+
+```ts
+subtitles(): SubtitleTrack[]
+```
+
+### `currentSubtitle()` / `currentSubtitle(index)`
+
+```ts
+currentSubtitle(): number | null   // null = off
+currentSubtitle(index: number | null): void
+subtitleState(): SubtitleState    // 'on' | 'off'
+```
+
+---
+
+## Chapters
+
+### `chapters()`
+
+```ts
+chapters(): Chapter[]
+```
+
+### `currentChapter()`
+
+```ts
+currentChapter(): Chapter | undefined
+```
+
+Chapter active at `currentTime()`.
+
+---
+
+## Fullscreen / PiP / Theater
+
+### `fullscreenState()` / `fullscreenState(active)`
+
+```ts
+fullscreenState(): FullscreenState   // 'on' | 'off'
+fullscreenState(active: boolean): void
+toggleFullscreen(): void
+```
+
+### `pipState()` / `pipState(active)`
+
+```ts
+pipState(): PipState    // 'on' | 'off'
+pipState(active: boolean): void
+togglePip(): void
+```
+
+### `theaterState()` / `theaterState(active)`
+
+```ts
+theaterState(): TheaterState  // 'on' | 'off'
+theaterState(active: boolean): void
+toggleTheater(): void
+```
+
+---
+
+## Aspect ratio and stretching
+
+### `aspectRatio()` / `aspectRatio(value)`
+
+```ts
+aspectRatio(): Stretching
+aspectRatio(value: Stretching): void
+```
+
+`Stretching` is `'uniform' | 'fill' | 'exactfit' | 'none'`.
+
+---
+
+## Shuffle and repeat
+
+### `shuffleState()` / `shuffleState(state)`
+
+```ts
+shuffleState(): ShuffleState
+shuffleState(state: ShuffleState): void
+```
+
+### `repeatState()` / `repeatState(state)`
+
+```ts
+repeatState(): RepeatState
+repeatState(state: RepeatState): void
+```
+
+---
+
+## Queue management
+
+All queue methods mirror the music player. See [Music — API Methods](/player/music/api-methods) for the full queue method signatures — `queue`, `queueAppend`, `queuePrepend`, `queueInsert`, `queueRemove`, `queueRemoveAt`, `queueMove`, `queueClear`, `queueShuffle`, `queueSort`, `queueIndexOf`, `queueLength`.
+
+### `loadQueue(url, parser?)`
+
+```ts
+loadQueue(url: string, parser?: (response: Response) => Promise<T[]>): Promise<void>
+```
+
+Fetch a URL and replace the queue. Uses the player's auth pipeline. Optionally supply a custom parser if the response is not a raw JSON array.
+
+---
+
+## Plugins
+
+```ts
+addPlugin<P>(Cls: PluginClass<P>, opts?: PluginOptions<P>): NMVideoPlayer<T>
+getPlugin<P>(Cls: PluginClass<P>): P | undefined
+getPluginById(id: string): Plugin | undefined
+removePlugin<P>(Cls: PluginClass<P>, opts?: { cascade?: boolean }): void
+plugins(): Plugin[]
+enabledPlugins(): Plugin[]
+```
+
+---
+
+## Phase and diagnostics
+
+### `phase()`
+
+```ts
+phase(): PlayerPhase
+```
+
+Current phase: `'idle' | 'setup' | 'ready' | 'loading' | 'starting' | 'playing' | 'paused' | 'buffering' | 'seeking' | 'ended' | 'stopped' | 'disposing' | 'disposed'`.
+
+### `playState()`
+
+```ts
+playState(): PlayState  // 'idle' | 'loading' | 'playing' | 'paused' | 'stopped' | 'error'
+```
+
+### `metrics()`
+
+```ts
+metrics(): PlaybackMetrics
+```
+
+Snapshot of playback metrics. `ttfb`, `avgBitrate`, and `decoderStalls` are `null` on the html5 backend — they are not currently wired. `droppedFrames` is `number` (from `getVideoPlaybackQuality()`). Guard nullable fields before use.
+
+### `bandwidth()`
+
+```ts
+bandwidth(): number
+```
+
+Current estimated bandwidth in bits/sec (from hls.js).
+
+### `now()`
+
+```ts
+now(): number
+```
+
+Monotonic clock. Uses `options.clockSource()` if configured, else `Date.now()`.
+
+---
+
+## Auth
+
+```ts
+auth(): AuthConfig | undefined
+auth(config: Partial<AuthConfig>): void
+```
+
+---
+
+## URL
+
+```ts
+baseUrl(): string | undefined
+baseUrl(url: string): void
+resolveUrl(url: string, category?: UrlCategory): Promise<ResolvedUrl>
+```
+
+---
+
+## i18n
+
+```ts
+t(key: string, vars?: Record<string, string | number>): string
+language(): string
+setLanguage(lang: string): Promise<void>
+```
+
+---
+
+## Cast
+
+```ts
+castState(): CastState
+transferTo(target: CastTarget): Promise<void>
+```
+
+---
+
+## Accessibility
+
+```ts
+announce(text: string, level?: 'polite' | 'assertive'): void
+```
+
+---
+
+## Event API
+
+```ts
+on<K extends keyof VideoEventMap>(event: K, handler: (payload: VideoEventMap[K]) => void): void
+off<K extends keyof VideoEventMap>(event: K, handler: (payload: VideoEventMap[K]) => void): void
+once<K extends keyof VideoEventMap>(event: K, handler: (payload: VideoEventMap[K]) => void): void
+on<P extends Plugin, K extends keyof P['__events__']>(Cls: PluginClass<P>, event: K, handler: ...): void
+```

@@ -1,0 +1,169 @@
+---
+title: "Quick Start"
+description: "Install nomercy-video-player, create a working HLS player with auto-advance and basic transport controls."
+category: "Video Player"
+order: 2
+---
+
+# Video Player — Quick Start
+
+---
+
+## Install
+
+```
+npm install @nomercy-entertainment/nomercy-video-player@beta
+npm install hls.js
+```
+
+`hls.js` is a peer dependency. It must be installed separately.
+
+---
+
+## Minimal working player
+
+```ts
+import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player@beta';
+
+const player = nmplayer('main').setup({
+  container: document.getElementById('player')!,
+  queue: [
+    {
+      id: '1',
+      title: 'Episode 1',
+      url: 'https://cdn.example.com/episode1.m3u8',
+      duration: 2700,
+    },
+  ],
+});
+
+player.addPlugin(DesktopUiPlugin);
+
+await player.ready();
+await player.play();
+```
+
+The `DesktopUiPlugin` mounts the full built-in UI — play/pause, seek bar, volume, fullscreen, subtitle and quality menus. Remove it if you are building a custom UI.
+
+---
+
+## Auto-advance
+
+```ts
+import { nmplayer, DesktopUiPlugin, AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player@beta';
+
+const player = nmplayer('main').setup({
+  container: document.getElementById('player')!,
+  queue: [
+    { id: '1', title: 'Episode 1', url: '...ep1.m3u8' },
+    { id: '2', title: 'Episode 2', url: '...ep2.m3u8' },
+    { id: '3', title: 'Episode 3', url: '...ep3.m3u8' },
+  ],
+});
+
+player
+  .addPlugin(DesktopUiPlugin)
+  .addPlugin(AutoAdvancePlugin);
+
+await player.ready();
+await player.play();
+```
+
+When episode 1 ends, `AutoAdvancePlugin` calls `player.next()` automatically.
+
+---
+
+## Basic transport controls
+
+```ts
+player.play();
+player.pause();
+player.stop();
+player.next();
+player.previous();
+player.seekToIndex(2);       // jump to episode 3 (index 2)
+player.currentTime(120);     // seek to 2:00
+player.volume(0.6);          // set volume to 60%
+player.mute();
+player.unmute();
+player.toggleMute();
+player.fullscreenState(true);
+player.pipState(true);
+```
+
+---
+
+## Auth-protected HLS
+
+```ts
+nmplayer('main').setup({
+  container: document.getElementById('player')!,
+  queue: [{ id: '1', url: 'https://protected.cdn.example.com/stream.m3u8' }],
+  auth: {
+    bearerToken: () => myAuth.getAccessToken(),
+    refreshOnUnauthenticated: async () => {
+      await myAuth.refresh();
+      return myAuth.getAccessToken();
+    },
+  },
+});
+```
+
+The player injects `Authorization: Bearer <token>` on every HLS manifest and segment request. On 401, `refreshOnUnauthenticated` fires once and the request is retried. 403 propagates — the player never retries a 403.
+
+---
+
+## Subtitles and multi-language audio
+
+Pass subtitle tracks and audio tracks with each playlist item:
+
+```ts
+const player = nmplayer('main').setup({
+  container: document.getElementById('player')!,
+  defaultSubtitleLanguage: 'en',
+  defaultAudioLanguage: 'en',
+  queue: [
+    {
+      id: '1',
+      url: '...ep1.m3u8',
+      subtitles: [
+        { id: 'en', language: 'en', label: 'English', file: 'ep1.en.vtt', kind: 'subtitles' },
+        { id: 'nl', language: 'nl', label: 'Dutch',   file: 'ep1.nl.vtt', kind: 'subtitles' },
+      ],
+    },
+  ],
+});
+```
+
+For ASS/SSA subtitles with full typesetting, add `OctopusPlugin` — see [Subtitle Overlay](/player/video/subtitle-overlay).
+
+---
+
+## CDN embed (no bundler)
+
+```html
+<div id="player" style="width:100%;aspect-ratio:16/9;background:#000"></div>
+<script src="https://cdn.nomercy.tv/player/video/2.0.0-beta.0/nomercy-video-player.iife.js"></script>
+<script>
+  const { nmplayer, DesktopUiPlugin, AutoAdvancePlugin } = NMVideoPlayer;
+
+  const player = nmplayer('main').setup({
+    container: document.getElementById('player'),
+    queue: [{ id: '1', url: 'https://cdn.example.com/stream.m3u8', title: 'Demo' }],
+  });
+
+  player.addPlugin(DesktopUiPlugin).addPlugin(AutoAdvancePlugin);
+  player.ready().then(() => player.play());
+</script>
+```
+
+---
+
+## What to read next
+
+- [Configuration](/player/video/configuration) — every config option and default
+- [API Methods](/player/video/api-methods) — full method reference
+- [Events](/player/video/events) — all events and payload shapes
+- [HLS](/player/video/hls) — ABR, HDR-aware quality levels, multi-monitor
+- [Subtitle Overlay](/player/video/subtitle-overlay) — VTT + ASS/SSA rendering
+- [Desktop UI](/player/video/desktop-ui) — built-in UI plugin details
