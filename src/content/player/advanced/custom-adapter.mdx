@@ -1,0 +1,291 @@
+---
+title: "Custom Adapter"
+description: "Full walkthrough writing a custom IStorage backend backed by IndexedDB Workers, and a custom ITranslator from a CMS. Includes lifecycle hooks, error handling, and the testing pattern."
+category: "Advanced"
+order: 71
+---
+
+# Custom Adapter
+
+Read this when the default adapter implementations don't fit your use case — you need async persistence (IndexedDB Workers), translations from a CMS, or any other infrastructure replacement.
+
+**Prerequisites:** [Kit — Adapters](/player/kit/adapters) for the port catalog. [Kit — Testing](/player/kit/testing) for the test harness.
+
+---
+
+## What an adapter is
+
+An adapter is a class that implements a typed interface from the kit. You inject it at `setup()` time and the player and its plugins use your implementation instead of the default.
+
+There are 28 kit-level ports plus 4 video-specific and 6 music-specific ones. This guide walks through two of the most commonly replaced ones:
+
+1. `IStorage` — persistence backend (synchronous interface, but you can build async internally)
+2. `ITranslator` — translation backend (load strings from a CMS or i18n service)
+
+---
+
+## IStorage — custom persistence backend
+
+### The interface
+
+```ts
+interface IStorage {
+  get(key: string): string | null;
+  set(key: string, value: string): void;
+  remove(key: string): void;
+  clear(): void;
+}
+```
+
+The interface is synchronous. For async backends (IndexedDB, remote API), you need to either:
+- Use a write-through cache that flushes asynchronously
+- Use `IndexedDBBackend` (ships with the kit) if standard IndexedDB fits
+
+### Custom backend backed by IndexedDB Workers
+
+This pattern uses a local synchronous cache (for immediate reads) with an async IndexedDB writer via a Web Worker:
+
+```ts
+import type { IStorage } from '@nomercy-entertainment/nomercy-player-core';
+
+export class IndexedDBWorkerBackend implements IStorage {
+  private cache: Map<string, string> = new Map();
+  private worker: Worker;
+  private dbName: string;
+
+  constructor(dbName: string) {
+    this.dbName = dbName;
+    // The worker handles actual IndexedDB reads/writes off the main thread
+    this.worker = new Worker(new URL('./idb-storage-worker.js', import.meta.url), {
+      type: 'module',
+    });
+
+    // Sync the cache from IndexedDB on construction:
+    this.init();
+  }
+
+  private async init(): Promise<void> {
+    const allValues = await this.workerRequest<Record<string, string>>({
+      type: 'get-all',
+      dbName: this.dbName,
+    });
+    for (const [key, value] of Object.entries(allValues)) {
+      this.cache.set(key, value);
+    }
+  }
+
+  get(key: string): string | null {
+    // Reads from the in-memory cache — always fast and synchronous
+    return this.cache.get(key) ?? null;
+  }
+
+  set(key: string, value: string): void {
+    // Write to cache immediately (synchronous read is consistent)
+    this.cache.set(key, value);
+    // Flush to IndexedDB asynchronously via the worker
+    this.worker.postMessage({ type: 'set', dbName: this.dbName, key, value });
+  }
+
+  remove(key: string): void {
+    this.cache.delete(key);
+    this.worker.postMessage({ type: 'remove', dbName: this.dbName, key });
+  }
+
+  clear(): void {
+    this.cache.clear();
+    this.worker.postMessage({ type: 'clear', dbName: this.dbName });
+  }
+
+  private workerRequest<T>(message: object): Promise<T> {
+    return new Promise((resolve) => {
+      const id = Math.random().toString(36).slice(2);
+      const handler = (event: MessageEvent) => {
+        if (event.data.id === id) {
+          this.worker.removeEventListener('message', handler);
+          resolve(event.data.result as T);
+        }
+      };
+      this.worker.addEventListener('message', handler);
+      this.worker.postMessage({ ...message, id });
+    });
+  }
+
+  // Call this when the player is disposed to terminate the worker:
+  dispose(): void {
+    this.worker.terminate();
+  }
+}
+```
+
+Use it:
+
+```ts
+const storage = new IndexedDBWorkerBackend('my-player-db');
+
+player.setup({
+  storage,
+});
+
+// Terminate the worker when the player is disposed:
+player.on('dispose', () => storage.dispose());
+```
+
+### Error handling in adapters
+
+If your adapter can fail (network error, worker crash), do not throw — return `null` from `get` and silently fail on `set`. The player is resilient to storage failures:
+
+```ts
+get(key: string): string | null {
+  try {
+    return this.cache.get(key) ?? null;
+  } catch {
+    return null; // never throw — storage is non-critical
+  }
+}
+```
+
+---
+
+## ITranslator — custom translation backend
+
+### The interface
+
+```ts
+interface ITranslator {
+  translate(key: string, locale: string, params?: Record<string, string>): string;
+  hasKey(key: string, locale: string): boolean;
+}
+```
+
+### CMS-backed translator
+
+Load translation strings from a CMS (e.g. Contentful, Sanity, or your own API) and cache them:
+
+```ts
+import type { ITranslator } from '@nomercy-entertainment/nomercy-player-core';
+
+export class CmsTranslator implements ITranslator {
+  private strings: Record<string, Record<string, string>> = {};
+  private ready = false;
+
+  constructor(private cmsUrl: string) {}
+
+  // Load all strings for the given locale. Call this before player.setup():
+  async load(locale: string): Promise<void> {
+    const response = await fetch(`${this.cmsUrl}/player-strings/${locale}`);
+    if (!response.ok) throw new Error(`Failed to load translations for ${locale}`);
+    this.strings[locale] = await response.json();
+    this.ready = true;
+  }
+
+  translate(key: string, locale: string, params?: Record<string, string>): string {
+    const base = this.strings[locale]?.[key] ?? key;
+    if (!params) return base;
+
+    // Simple {{variable}} interpolation:
+    return base.replace(/\{\{(\w+)\}\}/g, (_, name) => params[name] ?? `{{${name}}}`);
+  }
+
+  hasKey(key: string, locale: string): boolean {
+    return key in (this.strings[locale] ?? {});
+  }
+}
+```
+
+Wire it up — load before `setup()`:
+
+```ts
+const translator = new CmsTranslator('https://cms.example.com/api');
+
+// Load the strings before setting up the player:
+await translator.load('en');
+
+player.setup({
+  translations: translator,
+});
+```
+
+---
+
+## Lifecycle hooks
+
+Some adapter interfaces include lifecycle callbacks. For example, `IRealtimeChannel` has `open()` / `close()` methods called by the player's lifecycle. Always implement them even if your adapter does not need them — the player calls them unconditionally.
+
+```ts
+interface IRealtimeChannel {
+  open(): Promise<void>;
+  close(): void;
+  send(event: string, data: unknown): void;
+  on(event: string, handler: (data: unknown) => void): () => void;
+}
+```
+
+---
+
+## Testing your adapter
+
+Use `MemoryStorageBackend` as the baseline in tests — it satisfies `IStorage` without any browser APIs. Test your custom backend in isolation:
+
+```ts
+import { describe, it, expect, beforeEach } from 'vitest';
+import { IndexedDBWorkerBackend } from './idb-worker-backend';
+
+describe('IndexedDBWorkerBackend', () => {
+  let backend: IndexedDBWorkerBackend;
+
+  beforeEach(() => {
+    backend = new IndexedDBWorkerBackend('test-db');
+  });
+
+  afterEach(() => {
+    backend.dispose();
+  });
+
+  it('returns null for missing keys', () => {
+    expect(backend.get('missing')).toBeNull();
+  });
+
+  it('stores and retrieves values from cache', () => {
+    backend.set('volume', '0.8');
+    expect(backend.get('volume')).toBe('0.8');
+  });
+
+  it('removes keys', () => {
+    backend.set('volume', '0.8');
+    backend.remove('volume');
+    expect(backend.get('volume')).toBeNull();
+  });
+
+  it('clears all keys', () => {
+    backend.set('a', '1');
+    backend.set('b', '2');
+    backend.clear();
+    expect(backend.get('a')).toBeNull();
+    expect(backend.get('b')).toBeNull();
+  });
+});
+```
+
+For testing a plugin that uses your adapter, inject `MemoryStorageBackend` into the kit test harness:
+
+```ts
+import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
+import { MemoryStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
+import { MyPlugin } from './my-plugin';
+
+describePlugin(MyPlugin, ({ player }) => {
+  // The test player already uses MemoryStorageBackend by default
+  it('reads from storage', () => {
+    player.storage.set('my-key', 'my-value');
+    // ...test behavior that depends on storage
+  });
+});
+```
+
+---
+
+## What to read next
+
+- [Kit — Adapters](/player/kit/adapters) — full port catalog with all 28 interfaces
+- [Kit — Testing](/player/kit/testing) — `describePlugin`, `assertNoListenerLeak`, and the full test harness
+- [Advanced: Custom Plugin](/player/advanced/custom-plugin) — writing a plugin that uses your custom adapter

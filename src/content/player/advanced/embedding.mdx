@@ -1,0 +1,207 @@
+---
+title: "Embedding"
+description: "iframe embed mode, postMessage control protocol, parent-frame key handling, and autoplay-allow directive."
+category: "Advanced"
+order: 76
+---
+
+# Embedding
+
+Read this when you want to embed the player in an `<iframe>` on a third-party page, or when you are the host page controlling an embedded player. This covers the postMessage protocol for cross-frame communication and browser permission requirements.
+
+---
+
+## Why iframes
+
+Embedding a player in an iframe isolates it from the host page's JavaScript, CSS, and security context. It is the standard model for embed codes (YouTube, Vimeo, Spotify).
+
+The player itself does not require iframe embedding — you can drop it directly in any page. The iframe model is for cases where you are distributing an embed to third-party sites that cannot or should not install the SDK.
+
+---
+
+## Setting up the embed page
+
+Create a dedicated embed page that sets up the player and listens for postMessage commands:
+
+```html
+<!-- embed.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; overflow: hidden; }
+    #player { width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="player"></div>
+
+  <script type="module">
+    import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+    const player = nmplayer('embed').setup({
+      container: document.getElementById('player'),
+      queue: [], // populated via postMessage from the parent
+    });
+
+    player.addPlugin(DesktopUiPlugin);
+    await player.ready();
+
+    // Listen for commands from the parent frame:
+    window.addEventListener('message', (event) => {
+      // In production, validate event.origin against an allowlist
+      if (!isAllowedOrigin(event.origin)) return;
+
+      const { command, payload } = event.data;
+
+      switch (command) {
+        case 'load':
+          player.queue(payload.queue);
+          player.play();
+          break;
+        case 'play':
+          player.play();
+          break;
+        case 'pause':
+          player.pause();
+          break;
+        case 'seek':
+          player.currentTime(payload.time);
+          break;
+        case 'volume':
+          player.volume(payload.value);
+          break;
+        case 'mute':
+          player.mute();
+          break;
+        case 'unmute':
+          player.unmute();
+          break;
+      }
+    });
+
+    // Forward player events back to the parent:
+    player.on('play',  () => postToParent({ event: 'play' }));
+    player.on('pause', () => postToParent({ event: 'pause' }));
+    player.on('ended', () => postToParent({ event: 'ended' }));
+    player.on('time',  ({ time }) => postToParent({ event: 'time', payload: { time } }));
+    player.on('current', ({ item }) => postToParent({ event: 'current', payload: { item } }));
+
+    function postToParent(message) {
+      // '*' — lock to your domain in production
+      window.parent.postMessage(message, '*');
+    }
+
+    function isAllowedOrigin(origin) {
+      const allowList = ['https://yoursite.com', 'https://partner.example.com'];
+      return allowList.includes(origin);
+    }
+  </script>
+</body>
+</html>
+```
+
+---
+
+## Host page integration
+
+```html
+<!-- Host page on a third-party site -->
+<iframe
+  id="nomercy-player"
+  src="https://player.yoursite.com/embed.html"
+  allow="autoplay; fullscreen; picture-in-picture"
+  allowfullscreen
+  style="width: 100%; aspect-ratio: 16/9; border: none;"
+></iframe>
+
+<script>
+  const iframe = document.getElementById('nomercy-player');
+
+  // Wait for the iframe to load before sending commands:
+  iframe.addEventListener('load', () => {
+    // Load content:
+    iframe.contentWindow.postMessage({
+      command: 'load',
+      payload: {
+        queue: [{ id: '1', url: 'https://cdn.example.com/stream.m3u8', title: 'My Video' }],
+      },
+    }, 'https://player.yoursite.com');
+  });
+
+  // Control the player:
+  function play()  { sendCommand('play'); }
+  function pause() { sendCommand('pause'); }
+  function seek(t) { sendCommand('seek', { time: t }); }
+
+  function sendCommand(command, payload = {}) {
+    iframe.contentWindow.postMessage({ command, payload }, 'https://player.yoursite.com');
+  }
+
+  // Listen to player events from the iframe:
+  window.addEventListener('message', (event) => {
+    if (event.origin !== 'https://player.yoursite.com') return;
+
+    const { event: playerEvent, payload } = event.data;
+
+    if (playerEvent === 'ended') {
+      showNextVideoSuggestions();
+    }
+    if (playerEvent === 'time') {
+      updateProgressBar(payload.time);
+    }
+  });
+</script>
+```
+
+---
+
+## Autoplay and the allow directive
+
+Browsers block autoplay with audio unless the user has interacted with the page. The `allow` attribute on the `<iframe>` grants the embedded player the same autoplay permission as the host:
+
+```html
+<iframe
+  allow="autoplay; fullscreen; picture-in-picture"
+  ...
+></iframe>
+```
+
+Without `allow="autoplay"`, the player can only autoplay muted. If your use case requires autoplay with sound, the user must interact with the host page first (not just the iframe).
+
+---
+
+## Fullscreen
+
+Fullscreen requires `allow="fullscreen"` on the iframe and `allowfullscreen` attribute. When fullscreen is triggered inside the iframe, the `<video>` element expands to fill the screen — not the iframe. This is browser-correct behavior.
+
+```html
+<iframe allow="autoplay; fullscreen; picture-in-picture" allowfullscreen ...></iframe>
+```
+
+---
+
+## Origin security
+
+Always validate `event.origin` in your `message` handler. Never use `'*'` as the target origin for sensitive commands (like loading authenticated content):
+
+```ts
+const ALLOWED_ORIGINS = new Set([
+  'https://yoursite.com',
+  'https://app.yoursite.com',
+]);
+
+window.addEventListener('message', (event) => {
+  if (!ALLOWED_ORIGINS.has(event.origin)) return; // drop unknown origins
+  // process command
+});
+```
+
+---
+
+## What to read next
+
+- [Advanced: Multi-Instance](/player/advanced/multi-instance) — multiple players in one non-iframe page
+- [Advanced: Distributed Playback](/player/advanced/distributed-playback) — syncing across frames and devices
+- [Recipes: Auth and Tokens](/player/recipes/auth-and-tokens) — securing embed streams with bearer tokens

@@ -1,0 +1,212 @@
+---
+title: "Distributed Playback"
+description: "Group listening, tab-leader coordination, clock synchronization, and drift-correction strategies for synchronized multi-client playback."
+category: "Advanced"
+order: 77
+---
+
+# Distributed Playback
+
+Read this when you are building synchronized playback across multiple clients — watch parties, group listening, or any scenario where multiple users or devices must play the same content in lockstep.
+
+**Status note:** The NoMercy Player SDK's first-class group listening feature (planned for v2.1) is not yet released. This guide covers the architectural patterns you can implement today using existing kit primitives. The v2.1 `GroupListeningPlugin` will replace the manual setup here.
+
+---
+
+## The core problem
+
+Two clients playing the same HLS stream independently will drift apart. Sources of drift:
+
+- Network buffering differences (one client buffers, the other doesn't)
+- Clock skew between devices (system clocks are rarely identical)
+- Seek latency (seeking takes different amounts of time on different hardware)
+- Tab visibility and OS throttling (background tabs get fewer CPU cycles)
+
+A robust sync system must measure drift continuously and apply small corrections.
+
+---
+
+## Architecture: leader + followers
+
+The simplest distributed playback model is a single leader that broadcasts state, and N followers that apply it:
+
+```
+Leader:                   Followers:
+  - owns the clock           - receive state from leader
+  - emits play/pause/seek    - apply corrections
+  - measures own position    - report their own position (optional)
+  - sends periodic sync      - detect significant drift
+```
+
+---
+
+## Implementing with SignalR (or WebSocket)
+
+Wire the player to a realtime channel via the kit's realtime adapter:
+
+```ts
+import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('main').setup({
+  container: document.getElementById('player')!,
+  queue: [{ id: '1', url: 'https://cdn.example.com/stream.m3u8' }],
+  websocketFactory: (url) => new WebSocket(url),
+});
+
+player.addPlugin(DesktopUiPlugin);
+await player.ready();
+```
+
+Connect to the sync channel and apply state:
+
+```ts
+const ws = new WebSocket('wss://api.example.com/watch-party/room-42');
+
+ws.onmessage = (event) => {
+  const msg: SyncMessage = JSON.parse(event.data);
+
+  if (msg.type === 'play') {
+    // Sync position before playing to account for message latency:
+    player.currentTime(msg.serverPosition + estimateLatencySeconds());
+    player.play();
+  }
+
+  if (msg.type === 'pause') {
+    player.currentTime(msg.serverPosition);
+    player.pause();
+  }
+
+  if (msg.type === 'seek') {
+    player.currentTime(msg.serverPosition);
+  }
+
+  if (msg.type === 'sync-tick') {
+    // Periodic correction — if drift exceeds threshold, correct:
+    const localPosition = player.currentTime();
+    const drift = localPosition - msg.serverPosition;
+    if (Math.abs(drift) > DRIFT_CORRECTION_THRESHOLD_SECONDS) {
+      player.currentTime(msg.serverPosition);
+    }
+  }
+};
+```
+
+---
+
+## Drift correction
+
+Continuous correction without visible seeks:
+
+```ts
+const DRIFT_THRESHOLD = 0.5; // seconds — correct if drift > 500ms
+const MAX_RATE_CORRECTION = 0.1; // slow/speed up by 10% max
+
+function applyDriftCorrection(localTime: number, serverTime: number): void {
+  const drift = localTime - serverTime;
+
+  if (Math.abs(drift) > 2.0) {
+    // Drift too large — hard seek:
+    player.currentTime(serverTime);
+    return;
+  }
+
+  if (Math.abs(drift) > DRIFT_THRESHOLD) {
+    // Small drift — adjust playback rate to catch up gradually:
+    const correction = Math.max(-MAX_RATE_CORRECTION, Math.min(MAX_RATE_CORRECTION, -drift * 0.5));
+    player.playbackRate(1.0 + correction);
+  } else {
+    // Within tolerance — restore normal rate:
+    player.playbackRate(1.0);
+  }
+}
+```
+
+Trigger correction on periodic sync ticks from the server (every 2–5 seconds is typical).
+
+---
+
+## Clock synchronization
+
+System clocks differ between clients. Measure the offset before using server timestamps:
+
+```ts
+async function measureClockOffset(serverUrl: string): Promise<number> {
+  const t0 = Date.now();
+  const response = await fetch(`${serverUrl}/clock`);
+  const t1 = Date.now();
+  const serverTime: number = await response.json(); // server's Unix timestamp in ms
+
+  // RTT / 2 is the one-way latency estimate:
+  const latency = (t1 - t0) / 2;
+  const clockOffset = serverTime + latency - t1;
+  return clockOffset; // add this to Date.now() to get estimated server time
+}
+
+const clockOffset = await measureClockOffset('https://api.example.com');
+
+function serverNow(): number {
+  return Date.now() + clockOffset;
+}
+```
+
+---
+
+## Tab leader coordination
+
+When a single user has the same player open in multiple tabs (e.g. they navigated away and opened a new tab), elect a leader so only one tab is "canonical":
+
+```ts
+const LEADER_CHANNEL = new BroadcastChannel('player-leader-election');
+let isLeader = false;
+let leaderHeartbeatTimer: ReturnType<typeof setInterval>;
+
+function claimLeadership(): void {
+  LEADER_CHANNEL.postMessage({ type: 'i-am-leader', tabId: TAB_ID });
+  isLeader = true;
+
+  // Broadcast a heartbeat so followers know the leader is alive:
+  leaderHeartbeatTimer = setInterval(() => {
+    LEADER_CHANNEL.postMessage({ type: 'leader-heartbeat', tabId: TAB_ID });
+  }, 1000);
+}
+
+LEADER_CHANNEL.onmessage = (event) => {
+  if (event.data.type === 'i-am-leader' && event.data.tabId !== TAB_ID) {
+    // Another tab claimed leadership first — we become a follower:
+    isLeader = false;
+    clearInterval(leaderHeartbeatTimer);
+  }
+};
+
+// Attempt to claim leadership on load:
+claimLeadership();
+```
+
+---
+
+## v2.1 GroupListeningPlugin (planned)
+
+When released, the `GroupListeningPlugin` will replace the manual setup above:
+
+```ts
+// Future API — not yet available:
+import { GroupListeningPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+player.addPlugin(GroupListeningPlugin, {
+  roomId: 'watch-party-42',
+  role: 'auto', // auto-elects leader
+  serverUrl: 'wss://sync.example.com',
+  driftThresholdSeconds: 0.5,
+  correctionMode: 'rate-adjust', // or 'hard-seek'
+});
+```
+
+The existing manual patterns in this guide will remain valid alongside the plugin.
+
+---
+
+## What to read next
+
+- [Advanced: Custom Plugin](/player/advanced/custom-plugin) — watch-party-lite plugin for same-device sync
+- [Advanced: Multi-Instance](/player/advanced/multi-instance) — multiple players on one page
+- [Kit — Auth & Fetch](/player/kit/auth-fetch) — securing WebSocket connections with bearer tokens

@@ -1,0 +1,270 @@
+---
+title: "Custom Backend"
+description: "Replacing the html5 video backend with Shaka Player, dash.js, or a custom MSE pipeline. The IVideoBackend contract, kit call points, and required events."
+category: "Advanced"
+order: 73
+---
+
+# Custom Backend
+
+Read this when you need to replace the built-in HLS/html5 video backend — for DASH playback via Shaka Player or dash.js, a custom MSE pipeline, or a non-standard streaming protocol.
+
+**Prerequisites:** [HLS](/player/video/hls) covers the default backend's capabilities. Read it first — many needs (custom hls.js config, low-latency HLS) can be addressed without replacing the backend.
+
+---
+
+## The IVideoBackend interface
+
+```ts
+interface IVideoBackend {
+  // Lifecycle:
+  load(src: string): void;
+  destroy(): void;
+
+  // Transport:
+  play(): Promise<void>;
+  pause(): void;
+  seek(time: number): void;
+
+  // State readers:
+  getCurrentTime(): number;
+  getDuration(): number;
+  getVolume(): number;
+  getPlaybackRate(): number;
+  isPaused(): boolean;
+  isEnded(): boolean;
+  isStalled(): boolean;
+
+  // State writers:
+  setVolume(value: number): void;
+  setMuted(value: boolean): void;
+  setPlaybackRate(rate: number): void;
+  setCurrentTime(time: number): void;
+
+  // Quality / ABR:
+  getQualityLevels(): QualityLevel[];
+  getCurrentQualityLevel(): number;
+  setQualityLevel(index: number): void;
+
+  // Events — your backend must emit these on the provided emitter:
+  attachEmitter(emitter: IBackendEmitter): void;
+}
+```
+
+---
+
+## IBackendEmitter — events your backend must fire
+
+The kit injects an `IBackendEmitter` via `attachEmitter()`. Your backend calls these methods when the underlying player fires its native events:
+
+```ts
+interface IBackendEmitter {
+  onPlay(): void;
+  onPause(): void;
+  onEnded(): void;
+  onError(error: BackendError): void;
+  onTimeUpdate(time: number): void;
+  onDurationChange(duration: number): void;
+  onLevels(levels: QualityLevel[]): void;
+  onLevelSwitched(index: number): void;
+  onBufferingStart(): void;
+  onBufferingEnd(): void;
+  onCanPlay(): void;
+  onCanPlayThrough(): void;
+  onWaiting(): void;
+  onSeeked(): void;
+  onVolumeChange(volume: number, muted: boolean): void;
+}
+```
+
+Every event the kit surface exposes (e.g. `player.on('play', ...)`) is triggered by these emitter calls. If your backend misses one, the corresponding player event never fires.
+
+---
+
+## Minimal custom backend
+
+A skeleton that wraps a generic `<video>` element (equivalent to the built-in `NativeBackend`):
+
+```ts
+import type {
+  IVideoBackend,
+  IBackendEmitter,
+  QualityLevel,
+} from '@nomercy-entertainment/nomercy-video-player';
+
+export class MyNativeBackend implements IVideoBackend {
+  private video: HTMLVideoElement;
+  private emitter: IBackendEmitter | null = null;
+
+  constructor(container: HTMLElement) {
+    this.video = document.createElement('video');
+    this.video.style.width = '100%';
+    this.video.style.height = '100%';
+    container.appendChild(this.video);
+  }
+
+  attachEmitter(emitter: IBackendEmitter): void {
+    this.emitter = emitter;
+    // Wire native <video> events to the kit emitter:
+    this.video.addEventListener('play',     () => emitter.onPlay());
+    this.video.addEventListener('pause',    () => emitter.onPause());
+    this.video.addEventListener('ended',    () => emitter.onEnded());
+    this.video.addEventListener('timeupdate', () => emitter.onTimeUpdate(this.video.currentTime));
+    this.video.addEventListener('durationchange', () => emitter.onDurationChange(this.video.duration));
+    this.video.addEventListener('canplay',  () => emitter.onCanPlay());
+    this.video.addEventListener('waiting',  () => emitter.onBufferingStart());
+    this.video.addEventListener('playing',  () => emitter.onBufferingEnd());
+    this.video.addEventListener('seeked',   () => emitter.onSeeked());
+    this.video.addEventListener('volumechange', () =>
+      emitter.onVolumeChange(this.video.volume, this.video.muted),
+    );
+    this.video.addEventListener('error', () => {
+      emitter.onError({ code: 'MEDIA_ERR', message: this.video.error?.message ?? 'Unknown error' });
+    });
+  }
+
+  load(src: string): void   { this.video.src = src; }
+  destroy(): void           { this.video.src = ''; this.video.remove(); }
+  play(): Promise<void>     { return this.video.play(); }
+  pause(): void             { this.video.pause(); }
+  seek(time: number): void  { this.video.currentTime = time; }
+
+  getCurrentTime(): number  { return this.video.currentTime; }
+  getDuration(): number     { return this.video.duration; }
+  getVolume(): number       { return this.video.volume; }
+  getPlaybackRate(): number { return this.video.playbackRate; }
+  isPaused(): boolean       { return this.video.paused; }
+  isEnded(): boolean        { return this.video.ended; }
+  isStalled(): boolean      { return this.video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA; }
+
+  setVolume(value: number): void        { this.video.volume = value; }
+  setMuted(value: boolean): void        { this.video.muted = value; }
+  setPlaybackRate(rate: number): void   { this.video.playbackRate = rate; }
+  setCurrentTime(time: number): void    { this.video.currentTime = time; }
+
+  // No ABR levels for native backend:
+  getQualityLevels(): QualityLevel[]    { return []; }
+  getCurrentQualityLevel(): number      { return -1; }
+  setQualityLevel(_index: number): void { /* no-op */ }
+}
+```
+
+Register it:
+
+```ts
+player.setup({
+  backendFactory: (kind, config) => new MyNativeBackend(config.container),
+});
+```
+
+---
+
+## Shaka Player backend example
+
+Shaka Player is a DASH/HLS player from Google. Wrapping it:
+
+```ts
+import shaka from 'shaka-player';
+import type {
+  IVideoBackend,
+  IBackendEmitter,
+  QualityLevel,
+} from '@nomercy-entertainment/nomercy-video-player';
+
+export class ShakaBackend implements IVideoBackend {
+  private shakaPlayer: shaka.Player;
+  private video: HTMLVideoElement;
+  private emitter: IBackendEmitter | null = null;
+
+  constructor(container: HTMLElement) {
+    this.video = document.createElement('video');
+    container.appendChild(this.video);
+    this.shakaPlayer = new shaka.Player();
+    this.shakaPlayer.attach(this.video);
+  }
+
+  attachEmitter(emitter: IBackendEmitter): void {
+    this.emitter = emitter;
+
+    // Wire native <video> events:
+    this.video.addEventListener('play',         () => emitter.onPlay());
+    this.video.addEventListener('pause',        () => emitter.onPause());
+    this.video.addEventListener('ended',        () => emitter.onEnded());
+    this.video.addEventListener('timeupdate',   () => emitter.onTimeUpdate(this.video.currentTime));
+    this.video.addEventListener('durationchange', () => emitter.onDurationChange(this.video.duration));
+    this.video.addEventListener('canplay',      () => emitter.onCanPlay());
+    this.video.addEventListener('waiting',      () => emitter.onBufferingStart());
+    this.video.addEventListener('playing',      () => emitter.onBufferingEnd());
+    this.video.addEventListener('seeked',       () => emitter.onSeeked());
+
+    // Shaka-specific events:
+    this.shakaPlayer.addEventListener('variantchanged', () => {
+      const variant = this.shakaPlayer.getVariantTracks().find(t => t.active);
+      if (variant) emitter.onLevelSwitched(variant.id);
+    });
+
+    this.shakaPlayer.addEventListener('error', (event: Event) => {
+      const shakaEvent = event as shaka.util.Error;
+      emitter.onError({ code: String(shakaEvent.code), message: shakaEvent.message });
+    });
+  }
+
+  load(src: string): void {
+    // After attaching, load the manifest:
+    this.shakaPlayer.load(src).then(() => {
+      const levels = this.getQualityLevels();
+      this.emitter?.onLevels(levels);
+    });
+  }
+
+  getQualityLevels(): QualityLevel[] {
+    return this.shakaPlayer.getVariantTracks().map(track => ({
+      id: track.id,
+      width: track.width ?? 0,
+      height: track.height ?? 0,
+      bitrate: track.bandwidth,
+      label: track.label ?? undefined,
+    }));
+  }
+
+  getCurrentQualityLevel(): number {
+    const active = this.shakaPlayer.getVariantTracks().find(t => t.active);
+    return active?.id ?? -1;
+  }
+
+  setQualityLevel(id: number): void {
+    const tracks = this.shakaPlayer.getVariantTracks();
+    const target = tracks.find(t => t.id === id);
+    if (target) this.shakaPlayer.selectVariantTrack(target, true);
+  }
+
+  async destroy(): Promise<void> {
+    await this.shakaPlayer.destroy();
+    this.video.remove();
+  }
+
+  // Delegate remaining methods to <video>:
+  play(): Promise<void>     { return this.video.play(); }
+  pause(): void             { this.video.pause(); }
+  seek(time: number): void  { this.video.currentTime = time; }
+  getCurrentTime(): number  { return this.video.currentTime; }
+  getDuration(): number     { return this.video.duration; }
+  getVolume(): number       { return this.video.volume; }
+  getPlaybackRate(): number { return this.video.playbackRate; }
+  isPaused(): boolean       { return this.video.paused; }
+  isEnded(): boolean        { return this.video.ended; }
+  isStalled(): boolean      { return this.video.readyState < 3; }
+  setVolume(v: number): void          { this.video.volume = v; }
+  setMuted(v: boolean): void          { this.video.muted = v; }
+  setPlaybackRate(r: number): void    { this.video.playbackRate = r; }
+  setCurrentTime(t: number): void     { this.video.currentTime = t; }
+}
+```
+
+---
+
+## What to read next
+
+- [HLS](/player/video/hls) — before replacing the backend, check if custom hls.js config covers your need
+- [Kit — Adapters](/player/kit/adapters) — the full `IVideoBackend` port entry
+- [Advanced: Custom Plugin](/player/advanced/custom-plugin) — if you need to add behavior on top of the backend without replacing it

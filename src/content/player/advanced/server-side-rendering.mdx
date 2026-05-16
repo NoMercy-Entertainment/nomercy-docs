@@ -1,0 +1,232 @@
+---
+title: "Server-Side Rendering"
+description: "SSR caveats, hydration patterns, deferred client-only mounting, and framework-specific guidance for Next.js, Astro, and Nuxt."
+category: "Advanced"
+order: 74
+---
+
+# Server-Side Rendering
+
+Read this when you are running Next.js, Nuxt, Astro, or any other framework that server-renders HTML before sending it to the browser. The player is browser-only — it requires `document`, `window`, `HTMLVideoElement`, and the Web Audio API. None of these exist on the server.
+
+**Prerequisites:** familiarity with your framework's hydration model. For framework integration basics see [Vue](/player/video/framework-vue) and [React](/player/video/framework-react).
+
+---
+
+## The core rule
+
+**Never call `nmplayer()`, `nmMPlayer()`, or `setup()` during server execution.** These APIs access browser globals immediately. Calling them on the server throws or produces `undefined` reference errors.
+
+All player initialization must be deferred to the client, after the first render.
+
+---
+
+## Next.js (App Router)
+
+Mark the player component `'use client'` and wrap `setup()` in a `useEffect`:
+
+```tsx
+// components/VideoPlayer.tsx
+'use client';
+
+import { useEffect, useRef } from 'react';
+import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+interface VideoPlayerProps {
+  src: string;
+  title: string;
+}
+
+export function VideoPlayer({ src, title }: VideoPlayerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<NMVideoPlayer | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Safe — runs only in the browser:
+    const player = nmplayer('main').setup({
+      container: containerRef.current,
+      queue: [{ id: '1', url: src, title }],
+    });
+
+    player.addPlugin(DesktopUiPlugin);
+    playerRef.current = player;
+
+    return () => {
+      // Cleanup on unmount:
+      player.dispose();
+      playerRef.current = null;
+    };
+  }, []); // empty deps — run once on mount
+
+  return <div ref={containerRef} style={{ width: '100%', aspectRatio: '16/9' }} />;
+}
+```
+
+Use it in a server component page — the `'use client'` boundary handles the split:
+
+```tsx
+// app/watch/page.tsx
+import { VideoPlayer } from '@/components/VideoPlayer';
+
+export default function WatchPage() {
+  return (
+    <main>
+      <VideoPlayer src="https://cdn.example.com/stream.m3u8" title="My Video" />
+    </main>
+  );
+}
+```
+
+---
+
+## Next.js (Pages Router)
+
+Use `dynamic` import with `ssr: false`:
+
+```tsx
+// pages/watch.tsx
+import dynamic from 'next/dynamic';
+
+// Player is not imported or rendered on the server:
+const VideoPlayer = dynamic(() => import('@/components/VideoPlayer'), {
+  ssr: false,
+  loading: () => <div style={{ aspectRatio: '16/9', background: '#000' }} />,
+});
+
+export default function WatchPage() {
+  return <VideoPlayer src="https://cdn.example.com/stream.m3u8" title="My Video" />;
+}
+```
+
+---
+
+## Nuxt 3
+
+Use `<ClientOnly>` to prevent server rendering:
+
+```vue
+<!-- pages/watch.vue -->
+<template>
+  <main>
+    <ClientOnly>
+      <!-- Player component only renders in the browser -->
+      <VideoPlayer :src="streamUrl" :title="videoTitle" />
+
+      <!-- Placeholder shown during SSR and hydration -->
+      <template #fallback>
+        <div class="player-placeholder" />
+      </template>
+    </ClientOnly>
+  </main>
+</template>
+```
+
+Inside your player component, initialize in `onMounted`:
+
+```vue
+<!-- components/VideoPlayer.vue -->
+<script setup lang="ts">
+import { ref, onMounted, onBeforeUnmount, shallowRef } from 'vue';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+const props = defineProps<{ src: string; title: string }>();
+const container = ref<HTMLElement | null>(null);
+const player = shallowRef<NMVideoPlayer | null>(null);
+
+onMounted(async () => {
+  // Import inside onMounted to avoid SSR import-time side effects:
+  const { nmplayer, DesktopUiPlugin } = await import('@nomercy-entertainment/nomercy-video-player');
+
+  if (!container.value) return;
+
+  player.value = nmplayer('main').setup({
+    container: container.value,
+    queue: [{ id: '1', url: props.src, title: props.title }],
+  });
+
+  player.value.addPlugin(DesktopUiPlugin);
+  await player.value.ready();
+});
+
+onBeforeUnmount(() => {
+  player.value?.dispose();
+});
+</script>
+
+<template>
+  <div ref="container" style="width: 100%; aspect-ratio: 16/9" />
+</template>
+```
+
+---
+
+## Astro
+
+Astro renders components on the server by default. Use a `client:only` directive:
+
+```astro
+---
+// pages/watch.astro
+---
+<!-- client:only prevents any server rendering of this component -->
+<VideoPlayer
+  src="https://cdn.example.com/stream.m3u8"
+  title="My Video"
+  client:only="vue"
+/>
+```
+
+For React:
+
+```astro
+<VideoPlayer
+  src="..."
+  title="..."
+  client:only="react"
+/>
+```
+
+Inside the component, initialize in `onMounted` (Vue) or `useEffect` (React) exactly as shown above.
+
+---
+
+## Storage on the server
+
+The default `LocalStorageBackend` accesses `window.localStorage`. On the server, substitute `MemoryStorageBackend`:
+
+```ts
+import { MemoryStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
+
+// server.ts or any server-side init code:
+const storage = typeof window !== 'undefined'
+  ? undefined // let player use LocalStorageBackend default
+  : new MemoryStorageBackend();
+
+player.setup({ storage });
+```
+
+In practice, `setup()` should never run on the server if you follow the patterns above — but this guard prevents crashes if it does.
+
+---
+
+## Hydration mismatch
+
+If your framework complains about hydration mismatches for the player container:
+
+1. Ensure the server renders a blank `<div>` (no player markup).
+2. The player writes to the container after mount — this is fine.
+3. Do not pre-render `<video>` elements with `src` attributes server-side.
+
+A blank container element with a fixed size is the correct server-rendered output.
+
+---
+
+## What to read next
+
+- [Advanced: Multi-Instance](/player/advanced/multi-instance) — managing multiple players after SSR hydration
+- [Video — Vue Integration](/player/video/framework-vue) — Vue composable patterns
+- [Video — React Integration](/player/video/framework-react) — React hook patterns
+- [Advanced: Performance](/player/advanced/performance) — reducing JS size for SSR-heavy apps

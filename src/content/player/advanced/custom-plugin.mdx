@@ -1,0 +1,311 @@
+---
+title: "Custom Plugin"
+description: "Production-grade plugin development — state management, event listening, multi-instance safety, dispose contract, advisories, and a watch-party-lite worked example."
+category: "Advanced"
+order: 72
+---
+
+# Custom Plugin
+
+Read this when you are building a production plugin — something that will ship to users, run in multiple player instances, or coordinate across components. The [Plugin Authoring](/player/plugin-authoring) page covers the basics. This page covers the hard parts.
+
+---
+
+## The dispose contract
+
+Every resource you acquire in `use()` must be released in `dispose()` — or through a managed helper. The kit provides helpers that auto-dispose so you don't have to track them manually:
+
+| Resource | Managed helper | Manual alternative |
+|---------|---------------|-------------------|
+| Event listeners | `this.on(...)` | `this.off(...)` in `dispose()` |
+| Timers | `this.timeout(ms, fn)` | `clearTimeout(id)` in `dispose()` |
+| Intervals | `this.interval(ms, fn)` | `clearInterval(id)` in `dispose()` |
+| Animation frames | `this.frame(fn)` | `cancelAnimationFrame(id)` in `dispose()` |
+| DOM nodes | `this.mount(className)` | `el.remove()` in `dispose()` |
+| External resources | None — you must clean up manually | WebSocket, Worker, etc. |
+
+If you create a `WebSocket` or `Worker` inside a plugin, close/terminate it in `dispose()`:
+
+```ts
+export class MyPlugin extends Plugin<NMVideoPlayer, MyOptions, {}> {
+  static readonly id = 'myapp:my-plugin';
+  static readonly version = '1.0.0';
+  static readonly description = 'Example plugin';
+
+  private ws: WebSocket | null = null;
+
+  async use(): Promise<void> {
+    this.ws = new WebSocket(this.opts.wsUrl);
+    this.ws.onmessage = (event) => this.handleMessage(event);
+    // Register player events with this.on — auto-disposes:
+    this.on('current', ({ item }) => this.onTrackChange(item));
+  }
+
+  dispose(): void {
+    // Close the WebSocket manually — not tracked by the kit:
+    this.ws?.close();
+    this.ws = null;
+    // this.on listeners are auto-disposed — no manual cleanup needed
+  }
+}
+```
+
+---
+
+## State management
+
+Keep plugin state private and expose only what consumers need:
+
+```ts
+export class PlaybackRatePlugin extends Plugin<NMVideoPlayer, PlaybackRateOptions, PlaybackRateEvents> {
+  static readonly id = 'myapp:playback-rate';
+  static readonly version = '1.0.0';
+  static readonly description = 'Variable playback speed';
+
+  // Private state:
+  private currentRate = 1.0;
+
+  use(): void {
+    // Restore saved rate from storage:
+    const saved = this.storage.get('playback-rate');
+    if (saved) {
+      this.setRate(parseFloat(saved));
+    }
+  }
+
+  dispose(): void {}
+
+  // Public API — getter/setter pattern mirrors the kit:
+  rate(): number;
+  rate(value: number): this;
+  rate(value?: number): number | this {
+    if (value === undefined) return this.currentRate;
+    this.setRate(value);
+    return this;
+  }
+
+  private setRate(rate: number): void {
+    this.currentRate = Math.max(0.25, Math.min(4.0, rate)); // clamp to safe range
+    this.player.container.querySelector('video')?.setAttribute('playbackRate', String(this.currentRate));
+    this.storage.set('playback-rate', String(this.currentRate));
+    this.emit('rateChanged', { rate: this.currentRate });
+  }
+}
+
+interface PlaybackRateEvents {
+  rateChanged: { rate: number };
+}
+```
+
+---
+
+## Multi-instance safety
+
+When multiple player instances exist on the same page, each plugin instance is isolated — `this.storage`, `this.on`, `this.emit`, and `this.player` are all scoped to their own player. There is no shared mutable state between instances unless you introduce it.
+
+Be careful with singletons:
+
+```ts
+// Bad — global mutable singleton shared across all instances:
+const globalState = { activePlayer: null as NMVideoPlayer | null };
+
+// Good — state is per-instance via this:
+class MyPlugin extends Plugin<...> {
+  private localState = { active: false };
+}
+```
+
+If you need cross-instance coordination (e.g. pause all others when one starts), use the realtime channel adapter or a shared event bus:
+
+```ts
+// Simplified tab-broadcast example using BroadcastChannel:
+class ExclusivePlayPlugin extends Plugin<NMVideoPlayer, {}, {}> {
+  static readonly id = 'myapp:exclusive-play';
+  static readonly version = '1.0.0';
+  static readonly description = 'Pause other instances when this one starts';
+
+  private channel: BroadcastChannel | null = null;
+
+  use(): void {
+    this.channel = new BroadcastChannel('nomercy-exclusive-play');
+
+    // When this player starts, broadcast to others:
+    this.on('play', () => {
+      this.channel?.postMessage({ playerId: this.player.id() });
+    });
+
+    // When another player starts, pause this one:
+    this.channel.onmessage = (event) => {
+      if (event.data.playerId !== this.player.id()) {
+        this.player.pause();
+      }
+    };
+  }
+
+  dispose(): void {
+    this.channel?.close();
+    this.channel = null;
+  }
+}
+```
+
+---
+
+## Phase advisories
+
+Advisories let the kit warn in development when a method is called at the wrong lifecycle phase:
+
+```ts
+static readonly advisories: PluginAdvisory[] = [
+  {
+    method: 'rate',           // name of the method
+    duringPhase: ['idle'],    // phases where this call is a mistake
+    severity: 'warning',
+    reason: 'no-item-loaded',
+    message: 'Setting playback rate before any item is loaded has no effect.',
+  },
+];
+```
+
+In `NODE_ENV=development`, the kit emits a console warning. In production, advisories are silent.
+
+---
+
+## Static onError recovery
+
+Declare what happens when specific error codes are emitted by the player or a dependency:
+
+```ts
+static readonly onError: Record<string, PluginRecoveryAction> = {
+  'core:auth/unauthenticated': 'disable',     // disable plugin if auth fails
+  'core:stream/segment-load-error': 'ignore', // don't propagate segment errors
+};
+```
+
+Options: `'retry-once'` | `'fallback'` | `'disable'` | `'ignore'`.
+
+---
+
+## Worked example: watch-party-lite plugin
+
+A plugin that syncs play/pause and seek position across browser tabs using `BroadcastChannel`:
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+interface WatchPartyOptions {
+  roomId: string;    // unique room identifier — all tabs with the same roomId sync
+  role?: 'leader' | 'follower'; // 'leader' emits, 'follower' obeys. Default: 'leader'
+}
+
+interface WatchPartyEvents {
+  synced: { action: 'play' | 'pause' | 'seek'; time: number };
+  roleChanged: { role: 'leader' | 'follower' };
+}
+
+export class WatchPartyLitePlugin extends Plugin<NMVideoPlayer, WatchPartyOptions, WatchPartyEvents> {
+  static readonly id = 'myapp:watch-party-lite';
+  static readonly version = '1.0.0';
+  static readonly description = 'Sync play/pause/seek across browser tabs';
+
+  private channel: BroadcastChannel | null = null;
+  private ignoreNextEvent = false; // prevents echo loops
+
+  use(): void {
+    const role = this.opts.role ?? 'leader';
+    this.channel = new BroadcastChannel(`watch-party-${this.opts.roomId}`);
+
+    if (role === 'leader') {
+      // Leader broadcasts state changes to the channel:
+      this.on('play', () => this.broadcast('play'));
+      this.on('pause', () => this.broadcast('pause'));
+      this.on('seeked', () => this.broadcast('seek'));
+    }
+
+    // All instances (including leader) receive and apply remote events:
+    this.channel.onmessage = (event) => {
+      if (role === 'follower') {
+        this.applyRemoteEvent(event.data);
+      }
+    };
+  }
+
+  dispose(): void {
+    this.channel?.close();
+    this.channel = null;
+  }
+
+  private broadcast(action: 'play' | 'pause' | 'seek'): void {
+    if (this.ignoreNextEvent) {
+      this.ignoreNextEvent = false;
+      return;
+    }
+    const time = this.player.currentTime();
+    this.channel?.postMessage({ action, time });
+    this.emit('synced', { action, time });
+  }
+
+  private applyRemoteEvent(data: { action: 'play' | 'pause' | 'seek'; time: number }): void {
+    // Set flag to prevent echo: applying a remote event will fire local events
+    this.ignoreNextEvent = true;
+
+    if (data.action === 'play') {
+      this.player.currentTime(data.time); // sync position first
+      this.player.play();
+    } else if (data.action === 'pause') {
+      this.player.currentTime(data.time);
+      this.player.pause();
+    } else if (data.action === 'seek') {
+      this.player.currentTime(data.time);
+    }
+
+    this.emit('synced', { action: data.action, time: data.time });
+  }
+}
+```
+
+Usage:
+
+```ts
+// Tab 1 (leader):
+player.addPlugin(WatchPartyLitePlugin, { roomId: 'movie-night-42', role: 'leader' });
+
+// Tab 2 (follower):
+player.addPlugin(WatchPartyLitePlugin, { roomId: 'movie-night-42', role: 'follower' });
+```
+
+---
+
+## Testing a complex plugin
+
+```ts
+import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
+import { assertNoListenerLeak } from '@nomercy-entertainment/nomercy-player-core/testing';
+import { WatchPartyLitePlugin } from './watch-party-lite';
+
+describePlugin(WatchPartyLitePlugin, { roomId: 'test-room', role: 'leader' }, ({ player, plugin }) => {
+  test('broadcasts play events', () => {
+    const synced: unknown[] = [];
+    player.on(WatchPartyLitePlugin, 'synced', (e) => synced.push(e));
+
+    player.emit('play');
+
+    expect(synced).toHaveLength(1);
+    expect(synced[0]).toMatchObject({ action: 'play' });
+  });
+
+  test('no listener leak', () => {
+    assertNoListenerLeak(player, WatchPartyLitePlugin);
+  });
+});
+```
+
+---
+
+## What to read next
+
+- [Plugin Authoring](/player/plugin-authoring) — the complete plugin contract reference
+- [Plugin Standard](/player/plugin-standard) — the locked conformance rules
+- [Advanced: Multi-Instance](/player/advanced/multi-instance) — coordinating multiple player instances at the page level
+- [Kit — Testing](/player/kit/testing) — full test harness reference

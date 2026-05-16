@@ -1,0 +1,210 @@
+---
+title: "Multi-Instance"
+description: "Running multiple players on one page — PiP + main player, watch-party tile grid, tab-leader pattern, and event-bus isolation between instances."
+category: "Advanced"
+order: 75
+---
+
+# Multi-Instance
+
+Read this when you need more than one player active on the same page — a mini-player or PiP alongside a main player, a grid of synchronized tiles, or a podcast player running in the background while a video plays.
+
+---
+
+## How instances are isolated
+
+Each call to `nmplayer(id)` or `nmMPlayer(id)` returns a scoped player singleton keyed by `id`. Two players with different ids are completely independent:
+
+- Separate event buses
+- Separate storage namespaces (`nmplayer-<id>-*`)
+- Separate plugin registries
+- Separate queue state
+
+There is no shared mutable global between two player instances unless you introduce it explicitly (e.g. a `BroadcastChannel` or a shared module-level variable).
+
+---
+
+## Two players on one page
+
+```ts
+import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { nmMPlayer, AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player';
+
+// Main video player:
+const videoPlayer = nmplayer('video').setup({
+  container: document.getElementById('video-player')!,
+  queue: [{ id: '1', url: 'https://cdn.example.com/movie.m3u8', title: 'Movie' }],
+});
+videoPlayer.addPlugin(DesktopUiPlugin);
+
+// Background music player (no UI plugin needed):
+const musicPlayer = nmMPlayer('music').setup({
+  queue: [{ id: '1', url: 'https://cdn.example.com/ambient.m3u8', name: 'Ambient Track' }],
+});
+musicPlayer.addPlugin(AutoAdvancePlugin);
+
+await Promise.all([videoPlayer.ready(), musicPlayer.ready()]);
+
+// Pause music when video plays:
+videoPlayer.on('play', () => musicPlayer.pause());
+videoPlayer.on('pause', () => musicPlayer.play());
+```
+
+---
+
+## PiP + main player pattern
+
+The browser's native Picture-in-Picture API keeps one `<video>` element in a floating window. The player exposes PiP control:
+
+```ts
+// Main player:
+const mainPlayer = nmplayer('main').setup({ ... });
+
+// When the user activates PiP on the main player:
+mainPlayer.on('pip', ({ active }) => {
+  if (active) {
+    // Mini player (e.g. a compact transport bar) takes over the primary content area
+    miniTransport.show();
+  } else {
+    miniTransport.hide();
+  }
+});
+
+// Toggle PiP:
+mainPlayer.pipState(true);  // enter PiP
+mainPlayer.pipState(false); // exit PiP
+```
+
+No second player instance is needed for native PiP — the single player's `<video>` element moves to the PiP window.
+
+---
+
+## Watch-party tile grid
+
+For a grid of synchronized tiles (each playing the same content):
+
+```ts
+const tileCount = 4;
+const players = Array.from({ length: tileCount }, (_, index) => {
+  const container = document.getElementById(`tile-${index}`)!;
+  return nmplayer(`tile-${index}`).setup({
+    container,
+    queue: [{ id: '1', url: 'https://cdn.example.com/stream.m3u8' }],
+  });
+});
+
+await Promise.all(players.map(player => player.ready()));
+
+// Sync: when the first tile plays, play all others at the same position:
+players[0].on('play', () => {
+  const time = players[0].currentTime();
+  players.slice(1).forEach(p => {
+    p.currentTime(time); // sync position
+    p.play();
+  });
+});
+
+players[0].on('pause', () => {
+  players.slice(1).forEach(p => p.pause());
+});
+```
+
+---
+
+## Tab-leader pattern
+
+When multiple browser tabs have the same player open (e.g. a podcast player that persists across navigation), elect a leader tab that owns playback. Other tabs follow.
+
+Use `BroadcastChannel` for cross-tab communication:
+
+```ts
+const CHANNEL_NAME = 'player-leader';
+
+function electLeader(playerId: string): 'leader' | 'follower' {
+  const channel = new BroadcastChannel(CHANNEL_NAME);
+
+  // Announce to other tabs:
+  channel.postMessage({ type: 'leader-claim', playerId });
+
+  let role: 'leader' | 'follower' = 'leader';
+
+  // If another tab already claimed leadership before us:
+  channel.onmessage = (event) => {
+    if (event.data.type === 'leader-exists' && event.data.playerId !== playerId) {
+      role = 'follower';
+    }
+  };
+
+  // Respond to new tabs asking who is leader:
+  channel.onmessage = (event) => {
+    if (event.data.type === 'leader-claim') {
+      channel.postMessage({ type: 'leader-exists', playerId });
+    }
+  };
+
+  return role;
+}
+```
+
+In practice, use the [WatchPartyLitePlugin](/player/advanced/custom-plugin#watch-party-lite) worked example as a starting point and extend it with a leader election algorithm.
+
+---
+
+## Event-bus isolation
+
+Two player instances never share an event bus. If you need a player to react to another player's events, wire them explicitly:
+
+```ts
+// Correct — explicit cross-player wiring:
+playerA.on('play', () => playerB.pause());
+
+// Incorrect — trying to listen to playerA's events from playerB:
+playerB.on('play', ...) // only fires for playerB's own events
+```
+
+For more complex cross-instance protocols, write a coordinator object outside both players:
+
+```ts
+class PlayerCoordinator {
+  constructor(
+    private primary: NMVideoPlayer,
+    private secondary: NMMusicPlayer,
+  ) {
+    primary.on('play',  () => secondary.pause());
+    primary.on('pause', () => secondary.play());
+  }
+
+  dispose(): void {
+    // Event listeners are on the player instances — they dispose with the player
+  }
+}
+```
+
+---
+
+## Storage namespace isolation
+
+Each player's storage is namespaced by its `id`. Two players with ids `'main'` and `'pip'` write to different storage keys:
+
+- `nmplayer-main-volume`
+- `nmplayer-pip-volume`
+
+If you want two players to share a storage state (e.g. the same volume preference), inject the same `IStorage` backend instance and use a shared key namespace:
+
+```ts
+import { LocalStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
+
+const sharedStorage = new LocalStorageBackend();
+
+// Both players share the same storage instance:
+nmplayer('main').setup({ storage: sharedStorage });
+nmplayer('pip').setup({ storage: sharedStorage });
+```
+
+---
+
+## What to read next
+
+- [Advanced: Custom Plugin](/player/advanced/custom-plugin) — the watch-party-lite plugin for cross-instance sync
+- [Advanced: Embedding](/player/advanced/embedding) — cross-frame (iframe) player control
+- [Advanced: Performance](/player/advanced/performance) — memory budget when running multiple instances
