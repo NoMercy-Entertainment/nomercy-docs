@@ -1,0 +1,229 @@
+---
+title: "Quick Start"
+description: "Get a working video or music player running in minutes. Three integration styles: ESM bundler, CDN embed, and framework."
+category: "Getting Started"
+order: 1
+---
+
+# Quick Start
+
+Three ways to integrate the player. Pick the one that matches your setup.
+
+---
+
+## ESM bundler (Vite, webpack, etc.)
+
+Install the package:
+
+```
+npm install @nomercy-entertainment/nomercy-video-player
+```
+
+Minimal working video player:
+
+```ts
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player-1').setup({
+  container: document.getElementById('player')!,
+  queue: [
+    {
+      id: '1',
+      url: 'https://cdn.example.com/video.m3u8',
+      title: 'My Video',
+    },
+  ],
+});
+
+player.addPlugin(DesktopUiPlugin);
+
+await player.ready();
+await player.play();
+```
+
+Minimal working music player:
+
+```ts
+import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player';
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player';
+
+const player = nmMPlayer('player-1').setup({
+  queue: [
+    {
+      id: '1',
+      url: 'https://cdn.example.com/track.m3u8',
+      name: 'My Track',
+    },
+  ],
+});
+
+player.addPlugin(AutoAdvancePlugin);
+
+await player.ready();
+await player.play();
+```
+
+---
+
+## CDN embed (no bundler) {#cdn-embed}
+
+For landing pages, simple sites, or anywhere you cannot use a build step.
+
+Video player:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Player</title>
+  <style>
+    #player { width: 100%; max-width: 900px; aspect-ratio: 16/9; background: #000; }
+  </style>
+</head>
+<body>
+  <div id="player"></div>
+
+  <script src="https://cdn.nomercy.tv/player/video/2.0.0/nomercy-video-player.iife.js"></script>
+  <script>
+    const { nmplayer, DesktopUiPlugin } = NMVideoPlayer;
+
+    const player = nmplayer('player-1').setup({
+      container: document.getElementById('player'),
+      queue: [
+        {
+          id: '1',
+          url: 'https://cdn.example.com/video.m3u8',
+          title: 'My Video',
+        },
+      ],
+    });
+
+    player.addPlugin(DesktopUiPlugin);
+    player.ready().then(() => player.play());
+  </script>
+</body>
+</html>
+```
+
+Music player:
+
+```html
+<script src="https://cdn.nomercy.tv/player/music/2.0.0/nomercy-music-player.iife.js"></script>
+<script>
+  const { nmMPlayer, AutoAdvancePlugin } = NMMusicPlayer;
+
+  const player = nmMPlayer('player-1').setup({
+    queue: [{ id: '1', url: 'https://cdn.example.com/track.m3u8', name: 'My Track' }],
+  });
+
+  player.addPlugin(AutoAdvancePlugin);
+  player.ready().then(() => player.play());
+</script>
+```
+
+---
+
+## Framework integration
+
+### Vue 3
+
+```ts
+// composables/useVideoPlayer.ts
+import { shallowRef } from 'vue';
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+
+export const player = shallowRef(
+  nmplayer('main').setup({
+    container: document.getElementById('player')!,
+    queue: [],
+  })
+);
+```
+
+```vue
+<!-- VideoPlayer.vue -->
+<script setup lang="ts">
+import { ref } from 'vue';
+import { player } from '@/composables/useVideoPlayer';
+
+const isPlaying = ref(false);
+player.value.on('play', () => { isPlaying.value = true; });
+player.value.on('pause', () => { isPlaying.value = false; });
+</script>
+
+<template>
+  <div>
+    <div id="player" />
+    <button @click="isPlaying ? player.value.pause() : player.value.play()">
+      {{ isPlaying ? 'Pause' : 'Play' }}
+    </button>
+  </div>
+</template>
+```
+
+### React
+
+```tsx
+// lib/player.ts
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+export const player = nmplayer('main').setup({ queue: [] });
+
+// components/VideoPlayer.tsx
+import { useState, useEffect } from 'react';
+import { player } from '@/lib/player';
+
+export function VideoPlayer() {
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  useEffect(() => {
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    player.on('play', onPlay);
+    player.on('pause', onPause);
+    return () => {
+      player.off('play', onPlay);
+      player.off('pause', onPause);
+    };
+  }, []);
+
+  return (
+    <div>
+      <div id="player" />
+      <button onClick={() => isPlaying ? player.pause() : player.play()}>
+        {isPlaying ? 'Pause' : 'Play'}
+      </button>
+    </div>
+  );
+}
+```
+
+---
+
+## Authentication
+
+If your media sources require authorization:
+
+```ts
+player.setup({
+  auth: {
+    bearerToken: () => myAuth.getAccessToken(),
+    refreshOnUnauthenticated: async () => {
+      await myAuth.refresh();
+      return myAuth.getAccessToken();
+    },
+  },
+});
+```
+
+The player injects `Authorization: Bearer <token>` on every HLS manifest and segment request. On 401, `refreshOnUnauthenticated` is called once and the request is retried. On 403, the error propagates — the player never retries a 403.
+
+---
+
+## What to read next
+
+- [Plugin Standard](/player/plugin-standard) — extend the player with custom behavior
+- [Migration Guide (v1 → v2)](/player/migration-v1-v2) — upgrading from the previous version
+- Video player [wiki](https://github.com/NoMercy-Entertainment/nomercy-video-player/wiki) — full API reference, events, framework guides
+- Music player [wiki](https://github.com/NoMercy-Entertainment/nomercy-music-player/wiki) — full API reference, crossfade, EQ, lyrics
+- [examples.nomercy.tv](https://examples.nomercy.tv) — live code examples

@@ -1,0 +1,183 @@
+---
+title: "Migration Guide — v1 to v2"
+description: "Upgrading from nomercy-video-player or nomercy-music-player v1. What changed, what broke, and how to fix it."
+category: "Migration"
+order: 1
+---
+
+# Migration Guide — v1 to v2
+
+This page is the high-level overview. For the full breaking-change tables, go to the per-package guides:
+
+- **Video player:** [`packages/nomercy-video-player-v2/MIGRATION.md`](https://github.com/NoMercy-Entertainment/nomercy-video-player/blob/master/MIGRATION.md)
+- **Music player:** [`packages/nomercy-music-player-v2/MIGRATION.md`](https://github.com/NoMercy-Entertainment/nomercy-music-player/blob/master/MIGRATION.md)
+- **Kit (adapter ports + subpath imports):** [`packages/nomercy-player-kit/MIGRATION.md`](https://github.com/NoMercy-Entertainment/nomercy-player-kit/blob/master/MIGRATION.md)
+
+---
+
+## Is my import broken?
+
+The npm package names are the same. `^1.x` ranges will not automatically resolve to v2 — you must opt in with `^2.0.0`.
+
+```
+npm install @nomercy-entertainment/nomercy-video-player@^2.0.0
+npm install @nomercy-entertainment/nomercy-music-player@^2.0.0
+```
+
+The import names `nmplayer`, `NMVideoPlayer`, `nmMPlayer`, `NMMusicPlayer` resolve identically. **Your code will still break** because event payload shapes, method names, and playlist item field names changed significantly.
+
+---
+
+## Why the API changed
+
+v2 is a ground-up rewrite on a shared kit (`nomercy-player-core`). The design goals drove the breaking changes:
+
+- **Event payload extensibility** — v1 events carried raw `HTMLElement` objects and multi-field flat structs. v2 wraps everything: `{ time: number }` instead of raw `number`, `{ item, index }` instead of the item alone. Adding a field to a v2 event is non-breaking; it was breaking in v1.
+- **Overloaded getter/setter pattern** — `method()` reads, `method(value)` writes. Eliminates `getX()` / `setX()` pairs.
+- **Plugin system replacement** — v1 used `registerPlugin(name, instance)`. v2 uses `addPlugin(Class, opts)`. Class-based plugins enable TypeScript inference, tree-shaking, and typed cross-plugin events.
+- **Opt-in features** — EQ, Spectrum, MediaSession, auto-advance were always-on in v1. In v2, they are opt-in plugins. Zero cost if you don't add them.
+
+---
+
+## The top five breaks
+
+These affect every v1 consumer:
+
+### 1. All event payloads changed
+
+Every `player.on(...)` call needs updating. Examples:
+
+```ts
+// v1
+player.on('song', (track) => console.log(track.name));
+
+// v2
+player.on('current', ({ item }) => console.log(item?.name));
+```
+
+```ts
+// v1
+player.on('time', (timeData) => console.log(timeData.currentTime));
+
+// v2
+player.on('time', ({ time }) => console.log(time));
+```
+
+### 2. `item.path` / `item.file` → `item.url`
+
+> This is the silent-break risk. The player will load without error but fail to play anything.
+
+Music player: `item.path` → `item.url`
+Video player: `item.file` → `item.url`
+
+Map the field in your adapter layer:
+
+```ts
+// Music
+player.queue(serverTracks.map(t => ({ ...t, url: t.url ?? t.path })));
+
+// Video
+player.queue(serverItems.map(item => ({ ...item, url: item.url ?? item.file })));
+```
+
+The server API should be updated to emit `url` directly. The field mapping is a bridge until then.
+
+### 3. Plugin API replaced
+
+```ts
+// v1
+player.registerPlugin('octopus', new OctopusPlugin({ ... }));
+
+// v2
+player.addPlugin(OctopusPlugin, { /* options */ });
+const plugin = player.getPlugin(OctopusPlugin); // typed
+```
+
+### 4. Methods renamed
+
+| v1 | v2 |
+|----|-----|
+| `seek(t)` | `currentTime(t)` |
+| `speed(v)` | `playbackRate(v)` |
+| `quality(idx)` | `currentQuality(idx)` |
+| `subtitle(idx)` | `currentSubtitle(idx)` |
+| `audioTrack(idx)` | `currentAudioTrack(idx)` |
+| `playlist()` | `queue()` |
+| `playVideo(idx)` | `seekToIndex(idx)` |
+| `song` event | `current` event |
+| `item` event (video) | `current` event |
+
+### 5. Always-on features are now opt-in plugins
+
+```ts
+// v1 — EQ, Spectrum, MediaSession wired automatically
+
+// v2 — explicit registration required:
+import { AudioGraphPlugin, EqualizerPlugin, SpectrumPlugin, MediaSessionPlugin } from '...';
+
+player
+  .addPlugin(AudioGraphPlugin)
+  .addPlugin(EqualizerPlugin)
+  .addPlugin(SpectrumPlugin)
+  .addPlugin(MediaSessionPlugin);
+```
+
+---
+
+## `duration` string → number (video)
+
+v1 `PlaylistItem.duration` was a formatted string like `"1:24:36"`. v2 `VideoPlaylistItem.duration` is a number in seconds. Formatters that expected a string will produce `NaN`.
+
+Update any component that displays or compares duration:
+
+```ts
+// v1
+display(item.duration); // already formatted: "1:24:36"
+
+// v2
+function formatDuration(secs: number) {
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = Math.floor(secs % 60);
+  return h > 0
+    ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+    : `${m}:${s.toString().padStart(2, '0')}`;
+}
+display(formatDuration(item.duration));
+```
+
+---
+
+## `ready` event timing
+
+v1 music player fired `ready` after a hardcoded delay. v2 fires `ready` after setup and all plugins resolve. Do not rely on timing — always `await player.ready()`.
+
+---
+
+## What's new in v2
+
+v2 ships features that did not exist in v1:
+
+- Cancellable `before*` events — `player.on('beforePlay', event => event.preventDefault())`
+- Auth pipeline with 401/403 separation and token refresh
+- Pluggable storage backend — swap `localStorage` for IndexedDB or a remote API
+- Platform abstraction — native-shell support (Capacitor, Tauri, Electron)
+- Phase machine — `player.phase()` returns a typed phase string
+- Metrics API — `player.metrics()`, throttled `progress` event
+- HDR-aware ABR (video) — constrains HLS.js to SDR on SDR displays
+- `LyricsPlugin` — synced LRC lyrics
+- `GroupListeningPlugin` — multi-user synchronized playback
+- `TabLeaderPlugin` — single-tab coordination
+- `DrmPlugin` — Widevine EME
+- `CastSenderPlugin` — Chromecast handoff
+- Queue operations: `queueMove`, `queueInsert`, `queueRemoveAt`, `queueSort`, `queueShuffle`, `queueClear`
+
+---
+
+## Full change tables
+
+The per-package MIGRATION.md files contain complete tables for every renamed method, every changed event payload, every removed API, and every configuration field change:
+
+- [nomercy-video-player MIGRATION.md](https://github.com/NoMercy-Entertainment/nomercy-video-player/blob/master/MIGRATION.md)
+- [nomercy-music-player MIGRATION.md](https://github.com/NoMercy-Entertainment/nomercy-music-player/blob/master/MIGRATION.md)
+- [nomercy-player-kit MIGRATION.md](https://github.com/NoMercy-Entertainment/nomercy-player-kit/blob/master/MIGRATION.md)

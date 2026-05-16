@@ -33,9 +33,10 @@ export interface NavigationResult {
  */
 export async function getNavigation(): Promise<NavigationResult> {
   // Fetch all collections in parallel
-  const [appDocs, mediaserverDocs, docs] = await Promise.all([
+  const [appDocs, mediaserverDocs, playerDocs, docs] = await Promise.all([
     getCollection('app', ({ data }) => data.draft !== true).catch(() => []),
     getCollection('mediaserver', ({ data }) => data.draft !== true).catch(() => []),
+    getCollection('player', ({ data }) => data.draft !== true).catch(() => []),
     getCollection('docs', ({ data }) => data.draft !== true).catch(() => []),
   ]);
 
@@ -60,6 +61,17 @@ export async function getNavigation(): Promise<NavigationResult> {
       href: '/mediaserver',
       groups: serverGroups,
       order: 2,
+    });
+  }
+
+  // Player SDK Documentation Section
+  if (playerDocs.length > 0) {
+    const playerGroups = groupByCategory(playerDocs, '/player');
+    sections.push({
+      title: 'Player SDK',
+      href: '/player',
+      groups: playerGroups,
+      order: 3,
     });
   }
 
@@ -107,8 +119,11 @@ function groupByCategory(
     'Guides': 2,
     'General': 3,
     'Configuration': 4,
-    'Resources': 5,
-    'Reference': 6,
+    'Adapters': 5,
+    'Plugins': 6,
+    'Resources': 7,
+    'Reference': 8,
+    'Migration': 9,
     'Other': 999,
   };
 
@@ -127,7 +142,7 @@ function groupByCategory(
 /**
  * Get navigation for a specific section (for sidebar context)
  */
-export async function getNavigationForSection(section: 'app' | 'mediaserver' | 'docs'): Promise<NavGroup[]> {
+export async function getNavigationForSection(section: 'app' | 'mediaserver' | 'player' | 'docs'): Promise<NavGroup[]> {
   const collectionName = section;
   const baseHref = section === 'docs' ? '' : `/${section}`;
 
