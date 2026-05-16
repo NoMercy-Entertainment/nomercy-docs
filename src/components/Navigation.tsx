@@ -404,10 +404,15 @@ export function Navigation({
   // Use provided navigation or fallback
   const navSections = navigation.length > 0 ? navigation : fallbackNavigation;
 
-  // Determine which section we're in
+  // Determine which section we're in. `isOnApiPage` is the fallback bucket
+  // for the legacy API docs section — every content collection that has its
+  // own nav (app, mediaserver, player, ...) must be excluded here, otherwise
+  // the sidebar falls back to the API boilerplate instead of showing the
+  // collection's own groups.
   const isOnAppPage = pathname.startsWith('/app');
   const isOnMediaServerPage = pathname.startsWith('/mediaserver');
-  const isOnApiPage = !isOnAppPage && !isOnMediaServerPage;
+  const isOnPlayerPage = pathname.startsWith('/player');
+  const isOnApiPage = !isOnAppPage && !isOnMediaServerPage && !isOnPlayerPage;
 
   // Use provided API groups or fallback
   const apiNavGroups = apiGroups.length > 0 ? apiGroups : fallbackApiGroups;
