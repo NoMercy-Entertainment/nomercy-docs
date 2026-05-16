@@ -30,4 +30,5 @@ export const collections = {
   docs: docsCollection,
   app: docsCollection,
   mediaserver: docsCollection,
+  player: docsCollection,
 };

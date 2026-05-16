@@ -125,9 +125,12 @@ function groupByCategory(
     'Configuration': 40,
     'Adapters': 41,
     'Plugins': 42,
-    'Resources': 50,
-    'Reference': 60,
-    'Migration': 70,
+    'Recipes': 50,
+    'Advanced': 60,
+    'Resources': 70,
+    'Reference': 80,
+    'Plugin Standard': 85,
+    'Migration': 90,
     'Other': 999,
   };
 
