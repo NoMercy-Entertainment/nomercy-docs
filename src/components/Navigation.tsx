@@ -94,16 +94,36 @@ function NavLinkItem({
   active?: boolean;
   isAnchorLink?: boolean;
 }) {
+  // Scroll the active page link into view inside the sidebar on mount.
+  // Without this, deep pages in long sections can have their nav entry
+  // far off-screen when the sidebar first renders. Only scroll on the
+  // top-level active link (not anchor sub-links — those would chase the
+  // cursor while reading).
+  const ref = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    if (active && !isAnchorLink && ref.current) {
+      const el = ref.current;
+      const rect = el.getBoundingClientRect();
+      const inView = rect.top >= 0 && rect.bottom <= window.innerHeight;
+      if (!inView) {
+        el.scrollIntoView({ block: 'center', behavior: 'auto' });
+      }
+    }
+  }, [active, isAnchorLink]);
+
   return (
     <CloseButton
       as={Link}
+      ref={ref}
       href={href}
       aria-current={active ? 'page' : undefined}
       className={clsx(
         'flex justify-between gap-2 py-1 pr-3 text-sm transition',
         isAnchorLink ? 'pl-7' : 'pl-4',
         active
-          ? 'text-zinc-900 dark:text-white'
+          ? isAnchorLink
+            ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+            : 'text-zinc-900 dark:text-white'
           : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
       )}
     >
