@@ -21,7 +21,9 @@ The player itself does not require iframe embedding — you can drop it directly
 
 ## Setting up the embed page
 
-Create a dedicated embed page that sets up the player and listens for postMessage commands:
+Use `EmbedPlugin` — it handles the full postMessage protocol (inbound commands, outbound events, origin validation) without boilerplate. The manual `window.addEventListener` approach in the example below is what `EmbedPlugin` replaces.
+
+### With EmbedPlugin (recommended)
 
 ```html
 <!-- embed.html -->
@@ -38,68 +40,59 @@ Create a dedicated embed page that sets up the player and listens for postMessag
   <div id="player"></div>
 
   <script type="module">
-    import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+    import { nmplayer, DesktopUiPlugin, EmbedPlugin } from '@nomercy-entertainment/nomercy-video-player';
 
     const player = nmplayer('embed').setup({
       container: document.getElementById('player'),
-      queue: [], // populated via postMessage from the parent
+      queue: [],
     });
 
-    player.addPlugin(DesktopUiPlugin);
+    player
+      .addPlugin(DesktopUiPlugin)
+      .addPlugin(EmbedPlugin, {
+        allowedOrigins: ['https://yoursite.com', 'https://partner.example.com'],
+        // forwardEvents defaults to: ['ready','play','pause','ended','time','volume','mute']
+      });
+
     await player.ready();
-
-    // Listen for commands from the parent frame:
-    window.addEventListener('message', (event) => {
-      // In production, validate event.origin against an allowlist
-      if (!isAllowedOrigin(event.origin)) return;
-
-      const { command, payload } = event.data;
-
-      switch (command) {
-        case 'load':
-          player.queue(payload.queue);
-          player.play();
-          break;
-        case 'play':
-          player.play();
-          break;
-        case 'pause':
-          player.pause();
-          break;
-        case 'seek':
-          player.currentTime(payload.time);
-          break;
-        case 'volume':
-          player.volume(payload.value);
-          break;
-        case 'mute':
-          player.mute();
-          break;
-        case 'unmute':
-          player.unmute();
-          break;
-      }
-    });
-
-    // Forward player events back to the parent:
-    player.on('play',  () => postToParent({ event: 'play' }));
-    player.on('pause', () => postToParent({ event: 'pause' }));
-    player.on('ended', () => postToParent({ event: 'ended' }));
-    player.on('time',  ({ time }) => postToParent({ event: 'time', payload: { time } }));
-    player.on('current', ({ item }) => postToParent({ event: 'current', payload: { item } }));
-
-    function postToParent(message) {
-      // '*' — lock to your domain in production
-      window.parent.postMessage(message, '*');
-    }
-
-    function isAllowedOrigin(origin) {
-      const allowList = ['https://yoursite.com', 'https://partner.example.com'];
-      return allowList.includes(origin);
-    }
   </script>
 </body>
 </html>
+```
+
+`EmbedPlugin` listens for `nm:command` messages from allowed origins and dispatches them to the player. It forwards player events as `nm:event` messages to the host page.
+
+### postMessage protocol
+
+**Inbound commands (host → embed):**
+
+| `action` | Effect |
+|---------|--------|
+| `'play'` | `player.play()` |
+| `'pause'` | `player.pause()` |
+| `'stop'` | `player.stop()` |
+| `'seek'` | `player.currentTime(time)` |
+| `'volume'` | `player.volume(level)` — 0–100 scale |
+| `'mute'` | `player.mute()` |
+| `'unmute'` | `player.unmute()` |
+| `'next'` | `player.next()` |
+| `'previous'` | `player.previous()` |
+
+Message shape: `{ type: 'nm:command', action: '...', ...payload }`.
+
+**Outbound events (embed → host):**
+
+Message shape: `{ type: 'nm:event', name: '...', data: { ... } }`.
+
+```ts
+window.addEventListener('message', (event) => {
+  if (event.origin !== 'https://player.yoursite.com') return;
+  const { type, name, data } = event.data;
+  if (type !== 'nm:event') return;
+  // name: 'ready' | 'play' | 'pause' | 'ended' | 'time' | 'volume' | 'mute'
+  if (name === 'ended') showNextVideoSuggestions();
+  if (name === 'time') updateProgressBar(data.time);
+});
 ```
 
 ---

@@ -13,14 +13,26 @@ All public methods on `NMMusicPlayer<T>`. Methods follow the overloaded getter/s
 
 ## Factory
 
-### `nmMPlayer(id)`
+### `nmMPlayer(id?)`
 
 ```ts
-nmMPlayer(id: string): NMMusicPlayer<MusicPlaylistItem>
-nmMPlayer<T extends MusicPlaylistItem>(id: string): NMMusicPlayer<T>
+nmMPlayer(id?: string | number): NMMusicPlayer<MusicPlaylistItem>
+nmMPlayer<T extends MusicPlaylistItem>(id?: string | number): NMMusicPlayer<T>
 ```
 
-Creates or retrieves a named player instance. Two calls with the same `id` return the same instance. Instances persist until `dispose()` is called.
+Creates or retrieves a named player instance.
+
+- `id` is optional. When omitted, the kit generates a unique id.
+- Two calls with the same `id` return the **same** instance — no re-initialization.
+- The factory is the only entry point. Do not call `new NMMusicPlayer()` directly.
+- Instances persist until `dispose()` is called. After dispose, the same `id` creates a fresh instance.
+- When `setup({ expose: true })` is called, `window.nmMPlayer` is set to the factory for console access.
+
+```ts
+const player = nmMPlayer('main');   // creates or retrieves 'main'
+const same   = nmMPlayer('main');   // same instance
+player === same; // true
+```
 
 ---
 
@@ -117,7 +129,7 @@ Return to the previous track.
 ### `seekToIndex(index, opts?)`
 
 ```ts
-seekToIndex(index: number, opts?: ActionOptions): Promise<void>
+seekToIndex(index: number, opts?: ActionOptions): void
 ```
 
 Jump to a specific position in the queue by index.
@@ -189,7 +201,7 @@ Return the current playback position in seconds.
 ### `currentTime(t, opts?)`
 
 ```ts
-currentTime(t: number, opts?: SeekOptions): void
+currentTime(t: number, opts?: ActionOptions): Promise<void>
 ```
 
 Seek to a position in seconds.
@@ -229,7 +241,7 @@ Seekable time ranges.
 ### `forward(s?, opts?)`
 
 ```ts
-forward(s?: number, opts?: SeekOptions): void
+forward(s?: number, opts?: ActionOptions): Promise<void>
 ```
 
 Skip forward by `s` seconds (default: 10).
@@ -237,7 +249,7 @@ Skip forward by `s` seconds (default: 10).
 ### `rewind(s?, opts?)`
 
 ```ts
-rewind(s?: number, opts?: SeekOptions): void
+rewind(s?: number, opts?: ActionOptions): Promise<void>
 ```
 
 Skip backward by `s` seconds (default: 10).
@@ -245,10 +257,10 @@ Skip backward by `s` seconds (default: 10).
 ### `seekByPercentage(pct, opts?)`
 
 ```ts
-seekByPercentage(pct: number, opts?: SeekOptions): void
+seekByPercentage(pct: number, opts?: ActionOptions): void
 ```
 
-Seek to a percentage of the total duration (0–1).
+Seek to a percentage of the total duration (0–100).
 
 ### `timeData()`
 
@@ -262,13 +274,15 @@ Full time snapshot: `{ time, duration, buffered, seekable, playbackRate }`.
 
 ## Volume
 
+**Volume scale: 0–100, not 0–1.** The kit normalized this in v2 — v1 callers who used 0–1 must multiply by 100.
+
 ### `volume()`
 
 ```ts
 volume(): number
 ```
 
-Return the current volume (0–1).
+Return the current volume (0–100). Returns 0 when muted regardless of the stored pre-mute level.
 
 ### `volume(v)`
 
@@ -276,7 +290,12 @@ Return the current volume (0–1).
 volume(v: number): void
 ```
 
-Set the volume (0–1).
+Set the volume. Clamped to [0, 100]. Emits `volume`. No-op if cancelled by `beforeMutation`.
+
+```ts
+player.volume(80);          // 80%
+const level = player.volume(); // 80
+```
 
 ### `mute()`
 
@@ -284,7 +303,7 @@ Set the volume (0–1).
 mute(): void
 ```
 
-Mute the player.
+Silence output. Persists the current level so `unmute()` can restore it. Emits `mute` with `{ muted: true }`. No-op when already muted.
 
 ### `unmute()`
 
@@ -292,7 +311,7 @@ Mute the player.
 unmute(): void
 ```
 
-Unmute the player.
+Restore the pre-mute volume. Emits `mute` with `{ muted: false }`. No-op when already unmuted.
 
 ### `toggleMute()`
 
@@ -300,7 +319,7 @@ Unmute the player.
 toggleMute(): void
 ```
 
-Toggle mute state.
+Toggle between muted and unmuted.
 
 ### `volumeUp(step?)`
 
@@ -308,7 +327,7 @@ Toggle mute state.
 volumeUp(step?: number): void
 ```
 
-Increase volume by `step` (default: 0.1).
+Increase volume by `step` percentage points. Default: 5.
 
 ### `volumeDown(step?)`
 
@@ -316,7 +335,7 @@ Increase volume by `step` (default: 0.1).
 volumeDown(step?: number): void
 ```
 
-Decrease volume by `step` (default: 0.1).
+Decrease volume by `step` percentage points. Default: 5.
 
 ### `volumeState()`
 
@@ -665,8 +684,10 @@ chapters(): Chapter[]
 ### `backend()`
 
 ```ts
-backend(): 'webaudio' | 'audio-element'
+backend(): IAudioBackend
 ```
+
+Return the active audio backend instance. Instantiates `WebAudioBackend` or `AudioElementBackend` on first call (based on `setup({ backend })` option).
 
 ### `backend(kind)`
 
@@ -674,7 +695,7 @@ backend(): 'webaudio' | 'audio-element'
 backend(kind: 'webaudio' | 'audio-element'): Promise<void>
 ```
 
-Switch backends at runtime.
+Switch backends at runtime. Disposes the current backend, creates the new one, and re-wires events. The player remains in its current playback state (paused).
 
 ### `audioContext()`
 
@@ -688,43 +709,51 @@ The underlying `AudioContext`. Only available when using `WebAudioBackend`.
 
 ## Auth
 
-### `auth()`
+### `auth()` / `auth(config)`
 
 ```ts
-auth(): AuthConfig | undefined
+auth(): Readonly<AuthConfig> | undefined
+auth(config: AuthConfig): void
+auth(partial: Partial<AuthConfig>): void
 ```
 
-### `auth(config)`
+Read or merge auth config at runtime. Pass a full `AuthConfig` to replace, or a `Partial<AuthConfig>` to update only specified fields.
+
+### `refreshAuth()`
 
 ```ts
-auth(config: Partial<AuthConfig>): void
+refreshAuth(): Promise<void>
 ```
 
-Update auth config at runtime (e.g. to refresh a static bearer token).
+Trigger a manual auth refresh via `auth.refreshOnUnauthenticated()`.
 
 ---
 
 ## URL
 
-### `baseUrl()`
+### `baseUrl()` / `baseUrl(url)`
 
 ```ts
 baseUrl(): string | undefined
-```
-
-### `baseUrl(url)`
-
-```ts
 baseUrl(url: string): void
 ```
+
+Get or set the base URL prepended to relative audio source URLs.
 
 ### `resolveUrl(url, category?)`
 
 ```ts
-resolveUrl(url: string, category?: string): string
+resolveUrl(url: string, category?: UrlCategory): Promise<ResolvedUrl>
 ```
 
-Resolve a relative URL against the player's base URL.
+Resolve a URL through the configured `urlResolver`. Use for URLs that cannot carry `Authorization` headers. `UrlCategory` values: `'media' | 'subtitle' | 'poster' | 'thumbnail' | 'chapter' | 'license' | 'cast'`.
+
+### `urlResolver()` / `urlResolver(fn)`
+
+```ts
+urlResolver(): UrlResolver | undefined
+urlResolver(resolver: UrlResolver | undefined): void
+```
 
 ---
 
@@ -829,45 +858,42 @@ Monotonic clock value from the configured `IClock`. Use for distributed time syn
 ### `t(key, vars?)`
 
 ```ts
-t(key: string, vars?: Record<string, string | number>): string
+t(key: string, vars?: Record<string, string>): string
 ```
 
-Translate a key using the configured `ITranslator`.
+Translate a key using the configured translator. Missing keys fall back to the key itself.
 
-### `language()`
+### `language()` / `language(lang)`
 
 ```ts
 language(): string
+language(lang: string): Promise<void>
 ```
 
-### `setLanguage(lang)`
+Get or set the active language (BCP-47).
+
+### `addTranslations(bundle)`
 
 ```ts
-setLanguage(lang: string): Promise<void>
+addTranslations(bundle: Translations): void
+```
+
+### `removeTranslations(prefix, lang?)`
+
+```ts
+removeTranslations(prefix: string, lang?: string): void
 ```
 
 ---
 
-## Capabilities
+## Device capabilities
 
-### `canPlay(profile)`
-
-```ts
-canPlay(profile: MediaCapabilityProfile): Promise<boolean>
-```
-
-Check `MediaCapabilities` for a given format profile.
-
-### `isMobile()`
-
-```ts
-isMobile(): boolean
-```
-
-### `isTv()`
+### `isTv()`, `isMobile()`, `isDesktop()`
 
 ```ts
 isTv(): boolean
+isMobile(): boolean
+isDesktop(): boolean
 ```
 
 ### `device()`
@@ -876,7 +902,178 @@ isTv(): boolean
 device(): DeviceCapabilities
 ```
 
-Device capability snapshot.
+Full device capability snapshot.
+
+### `canPlay(profile)`
+
+```ts
+canPlay(profile: {
+  contentType: string;
+  width?: number;
+  height?: number;
+  bitrate?: number;
+  framerate?: number;
+}): Promise<MediaCapabilitiesDecodingInfo>
+```
+
+Query `MediaCapabilities.decodingInfo()`. Used internally to probe format support before loading.
+
+## Bandwidth estimation
+
+### `bandwidth()`
+
+```ts
+bandwidth(): number
+```
+
+Estimated bandwidth in bits/sec.
+
+### `bandwidthEstimator()` / `bandwidthEstimator(fn)`
+
+```ts
+bandwidthEstimator(): (() => number) | undefined
+bandwidthEstimator(fn: () => number): void
+```
+
+## Stream registration
+
+### `registerStream(factory, prepend?)`
+
+```ts
+registerStream(factory: StreamFactory, prepend?: boolean): this
+```
+
+### `unregisterStream(id)`
+
+```ts
+unregisterStream(id: string): this
+```
+
+### `streams()`
+
+```ts
+streams(): ReadonlyArray<string>
+```
+
+### `getStreamFactory(id)`
+
+```ts
+getStreamFactory(id: string): StreamFactory | undefined
+```
+
+## Cue parsers
+
+### `registerCueParser(parser, prepend?)`
+
+```ts
+registerCueParser(parser: CueParser, prepend?: boolean): void
+```
+
+Register a custom cue parser (LRC, VTT, or custom subtitle format).
+
+### `unregisterCueParser(id)`
+
+```ts
+unregisterCueParser(id: string): void
+```
+
+### `resolveCueParser(url)`
+
+```ts
+resolveCueParser(url: string): CueParser | undefined
+```
+
+## Preload and transition strategies
+
+### `setPreloadStrategy(strategy)`
+
+```ts
+setPreloadStrategy(strategy: PreloadStrategy): void
+```
+
+Default: `MusicPreloadStrategy` (preloads 10 s before end).
+
+### `preloadStrategy()`
+
+```ts
+preloadStrategy(): PreloadStrategy
+```
+
+### `setTransitionStrategy(strategy)`
+
+```ts
+setTransitionStrategy(strategy: TransitionStrategy): void
+```
+
+Default: `CrossfadeTransitionStrategy` (3 s crossfade, equal-power curve).
+
+### `transitionStrategy()`
+
+```ts
+transitionStrategy(): TransitionStrategy
+```
+
+## Phase and diagnostics
+
+### `phase()`
+
+```ts
+phase(): PlayerPhase
+```
+
+Current phase: `'idle' | 'setup' | 'ready' | 'loading' | 'starting' | 'playing' | 'paused' | 'buffering' | 'seeking' | 'ended' | 'stopped' | 'disposing' | 'disposed'`.
+
+### `setupState()`
+
+```ts
+setupState(): SetupState
+```
+
+### `dispatching()`
+
+```ts
+dispatching(): ReadonlyArray<string>
+```
+
+Names of all active `before*` events in flight.
+
+### `bufferState()`
+
+```ts
+bufferState(): BufferState
+```
+
+### `networkState()`
+
+```ts
+networkState(): NetworkState
+```
+
+### `visibilityState()`
+
+```ts
+visibilityState(): VisibilityState  // 'visible' | 'hidden'
+```
+
+### `streamState()`
+
+```ts
+streamState(): string
+```
+
+### `qualityState()` / `qualityState(target)`
+
+```ts
+qualityState(): QualityState
+qualityState(target: number | 'auto'): void
+```
+
+### `audioTrackState()` / `audioTrackState(idx)`
+
+```ts
+audioTrackState(): AudioTrackState
+audioTrackState(idx: number): void
+```
 
 ---
 

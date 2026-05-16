@@ -112,20 +112,20 @@ const player2 = nmplayer('pip-player');
 
 ---
 
-## Volume resets to 1 on every page load
+## Volume resets to 100 on every page load
 
 **Symptom:** The player ignores the user's saved volume preference.
 
 **Cause:** The default `LocalStorageBackend` persists state, but nothing in the player applies stored volume during setup. Volume persistence is the responsibility of a plugin or consumer code.
 
-**Fix:** Read from storage and set volume after `ready()`:
+**Fix:** Read from storage and set volume after `ready()`. Remember the kit scale is 0–100.
 
 ```ts
 await player.ready();
-const savedVolume = parseFloat(localStorage.getItem('player-volume') ?? '1');
-player.volume(savedVolume);
+const savedVolume = parseInt(localStorage.getItem('player-volume') ?? '100', 10);
+player.volume(savedVolume);                              // 0–100
 player.on('volume', ({ level }) => {
-  localStorage.setItem('player-volume', String(level));
+  localStorage.setItem('player-volume', String(level)); // level is 0–100
 });
 ```
 
