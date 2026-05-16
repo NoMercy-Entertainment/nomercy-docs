@@ -8,6 +8,7 @@ const contentDirs = [
   { dir: './src/content/docs', baseUrl: '' },
   { dir: './src/content/app', baseUrl: '/app' },
   { dir: './src/content/mediaserver', baseUrl: '/mediaserver' },
+  { dir: './src/content/player', baseUrl: '/player' },
 ];
 
 const outputPath = './public/searchIndex.json';

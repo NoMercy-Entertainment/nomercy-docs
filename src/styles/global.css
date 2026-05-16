@@ -95,15 +95,19 @@
     opacity: 1 !important;
   }
 
-  /* INLINE code only — keep identifiers like @nomercy-entertainment/nomercy-player-core
-     on a single line so they don't break mid-hyphen in table cells or paragraphs.
-     IMPORTANT: scope to NOT block-code; inline code is `<code>` outside <pre>,
-     block code is `<pre><code>` which must wrap or scroll on its own terms. */
+  /* INLINE code — keep package names like @nomercy-entertainment/nomercy-player-core
+     intact (no mid-hyphen breaks), but allow natural wrapping on whitespace
+     so TypeScript unions like `'a' | 'b' | 'c'` can break at the spaces
+     around the pipe. `overflow-wrap: anywhere` is the safety net for very
+     long single-token identifiers that would otherwise overflow narrow
+     viewports.
+     IMPORTANT: scope to NOT block-code; block code (<pre><code>) is handled
+     separately below. */
   .prose :not(pre) > code,
   table :not(pre) > code {
-    white-space: nowrap;
+    white-space: normal;
     word-break: keep-all;
-    overflow-wrap: normal;
+    overflow-wrap: anywhere;
   }
 
   /* Block code (<pre><code>) keeps newlines AND wraps long lines so they
