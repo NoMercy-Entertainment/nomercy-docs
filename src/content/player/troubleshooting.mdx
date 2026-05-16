@@ -1,0 +1,188 @@
+---
+title: "Troubleshooting"
+description: "Common setup and runtime problems with the NoMercy Player SDK. Symptoms, causes, and fixes."
+category: "Overview"
+order: 5
+---
+
+# Troubleshooting
+
+---
+
+## hls.js peer dependency not found
+
+**Symptom:** Import error at runtime — `Cannot find module 'hls.js'` or similar.
+
+**Cause:** `nomercy-video-player` lists `hls.js` as a peer dependency, not a bundled dependency. It is not automatically installed.
+
+**Fix:**
+```
+npm install hls.js
+```
+
+---
+
+## Octopus subtitle overlay does not render
+
+**Symptom:** ASS/SSA subtitles are enabled and selected, but nothing appears on screen. No errors in the console.
+
+**Cause:** `@nomercy-entertainment/nomercy-subtitle-octopus` is an optional dependency. If it is not installed, the `OctopusPlugin` falls back to a degraded mode and skips rendering without throwing.
+
+**Fix:**
+```
+npm install @nomercy-entertainment/nomercy-subtitle-octopus
+```
+
+The plugin uses a dynamic `import('@nomercy-entertainment/nomercy-subtitle-octopus')` at runtime — the package must be present in `node_modules`. The plugin does not fail if the package is absent; it simply renders nothing.
+
+**Verify the fallback is not masking an error:** Enable debug logging with `setup({ logLevel: 'debug' })` and look for `[nmplayer][octopus]` lines. A degraded-mode log line confirms the package is missing.
+
+---
+
+## Player never reaches `ready`
+
+**Symptom:** `await player.ready()` hangs indefinitely. The `ready` event never fires.
+
+**Causes and fixes:**
+
+1. A plugin's `use()` returned a `Promise` that never resolves or rejects. Check each registered plugin for async operations that may stall — network requests without timeouts, missing `await` chains.
+2. The player's container element does not exist in the DOM when `setup()` is called. Ensure `document.getElementById('player')` returns a non-null element.
+3. A `beforeSetup` listener called `event.preventDefault()`. The setup pipeline aborts without error if the before-setup event is prevented.
+
+---
+
+## `file://` dev mode — HLS manifest fails to load
+
+**Symptom:** Locally served M3U8 files fail to load when opening the HTML directly in the browser via `file://` protocol.
+
+**Cause:** Browser security policy blocks cross-origin requests from `file://` origins. HLS segment fetches from any other origin (including `localhost`) are blocked.
+
+**Fix:** Serve files through a local dev server:
+```
+npx serve .
+```
+
+Or configure Vite, webpack-dev-server, or similar to serve your development build over `http://localhost`.
+
+---
+
+## Framework SSR — player crashes during server-side render
+
+**Symptom:** Build or render crashes with `document is not defined` or `window is not defined` during SSR (Next.js, Nuxt, SvelteKit, Astro).
+
+**Cause:** The player depends on browser APIs (`document`, `window`, `HTMLVideoElement`, `AudioContext`). These do not exist in a Node.js server environment.
+
+**Fix:** Lazy-load the player on the client only.
+
+In Next.js:
+```ts
+import dynamic from 'next/dynamic';
+const VideoPlayer = dynamic(() => import('@/components/VideoPlayer'), { ssr: false });
+```
+
+In Nuxt / Vue:
+```ts
+const player = shallowRef<NMVideoPlayer | null>(null);
+
+onMounted(() => {
+  import('@nomercy-entertainment/nomercy-video-player@beta').then(({ nmplayer }) => {
+    player.value = nmplayer('main').setup({ ... });
+  });
+});
+```
+
+In Astro:
+```astro
+<VideoPlayer client:only="vue" />
+```
+
+---
+
+## Two players on the same page conflict
+
+**Symptom:** Two players share state — controlling one affects the other.
+
+**Cause:** `nmplayer('id')` and `nmMPlayer('id')` return the same instance for the same id. If two components use the same id, they share the instance.
+
+**Fix:** Use unique ids per player instance:
+```ts
+const player1 = nmplayer('main-player');
+const player2 = nmplayer('pip-player');
+```
+
+---
+
+## Volume resets to 1 on every page load
+
+**Symptom:** The player ignores the user's saved volume preference.
+
+**Cause:** The default `LocalStorageBackend` persists state, but nothing in the player applies stored volume during setup. Volume persistence is the responsibility of a plugin or consumer code.
+
+**Fix:** Read from storage and set volume after `ready()`:
+
+```ts
+await player.ready();
+const savedVolume = parseFloat(localStorage.getItem('player-volume') ?? '1');
+player.volume(savedVolume);
+player.on('volume', ({ level }) => {
+  localStorage.setItem('player-volume', String(level));
+});
+```
+
+Or use the kit's `storage` adapter which is pre-scoped per player id.
+
+---
+
+## `NotImplementedError` thrown by music player method
+
+**Symptom:** Calling `player.subtitles()` on a music player throws `NotImplementedError` with code `core:not-implemented/subtitles`.
+
+**Cause:** Audio backends do not have subtitle tracks. `subtitles()` is intentionally not implemented on `NMMusicPlayer`.
+
+**Fix:** Catch by type and handle gracefully, or simply do not call `subtitles()` on music players.
+
+```ts
+try {
+  const tracks = player.subtitles();
+} catch (e) {
+  if (e instanceof NotImplementedError) {
+    // expected — skip subtitle UI for music players
+  } else {
+    throw e;
+  }
+}
+```
+
+---
+
+## `GroupListeningPlugin`, `DrmPlugin`, or `LiveTranscodingPlugin` throws on `use()`
+
+**Symptom:** These plugins are added to a music player but throw `NotImplementedError` when the player reaches `ready`, and `plugin:<id>:failed` fires.
+
+**Cause:** These three music-player plugins are stubbed in v2.0 and always throw `NotImplementedError`. Full implementations are planned for v2.1.
+
+**Fix:** Do not register these plugins in v2.0. Check [Versioning](/player/versioning) for the roadmap.
+
+---
+
+## Auth token not applied to HLS segments
+
+**Symptom:** HLS manifest loads but segment requests return 401.
+
+**Cause:** The `auth.bearerToken` was set as a static string, not a factory function. If the token expires between manifest load and segment fetch, the static value is stale.
+
+**Fix:** Pass a factory function that returns the current token:
+
+```ts
+player.setup({
+  auth: {
+    bearerToken: () => myAuth.getAccessToken(),
+    refreshOnUnauthenticated: async () => {
+      await myAuth.refresh();
+      return myAuth.getAccessToken();
+    },
+  },
+});
+```
+
+The player calls the factory on every authenticated request. On a 401 response, `refreshOnUnauthenticated` is called once and the request is retried automatically. A 403 propagates and is never retried — check the server's access policy, not the player.

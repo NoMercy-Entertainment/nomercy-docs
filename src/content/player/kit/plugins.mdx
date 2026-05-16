@@ -1,0 +1,280 @@
+---
+title: "Built-in Plugins"
+description: "Plugins shipped with nomercy-player-core and the library packages. What each one does, how to add it, and its key options."
+category: "Kit"
+order: 4
+---
+
+# Built-in Plugins
+
+These plugins ship inside the kit and library packages. All are opt-in — none are registered automatically.
+
+---
+
+## Kit plugins (nomercy-player-core)
+
+Import from `@nomercy-entertainment/nomercy-player-core@beta`:
+
+### AudioGraphPlugin
+
+Builds a Web Audio graph routed through the player's audio context. Required by `EqualizerPlugin` and `SpectrumPlugin`.
+
+```ts
+player.addPlugin(AudioGraphPlugin);
+```
+
+### EqualizerPlugin
+
+10-band parametric equalizer. Requires `AudioGraphPlugin`.
+
+```ts
+player.addPlugin(AudioGraphPlugin);
+player.addPlugin(EqualizerPlugin, { bands: 10 });
+
+const eq = player.getPlugin(EqualizerPlugin);
+eq.setBand(0, 3.0);   // band index 0, +3 dB
+eq.getBand(0);        // 3.0
+eq.loadPreset('bass-boost');
+```
+
+Key events: `bandChanged`, `presetLoaded`, `beforeSetBand`.
+
+### SpectrumPlugin
+
+Real-time frequency spectrum analysis via `AnalyserNode`. Requires `AudioGraphPlugin`.
+
+```ts
+player.addPlugin(AudioGraphPlugin);
+player.addPlugin(SpectrumPlugin, { fftSize: 2048, smoothingTimeConstant: 0.85 });
+
+const spectrum = player.getPlugin(SpectrumPlugin);
+spectrum.getFloatFrequencyData(floatArray);
+spectrum.getByteFrequencyData(byteArray);
+```
+
+### MixerPlugin
+
+Per-track gain control. Requires `AudioGraphPlugin`.
+
+```ts
+player.addPlugin(AudioGraphPlugin);
+player.addPlugin(MixerPlugin);
+
+const mixer = player.getPlugin(MixerPlugin);
+mixer.gain(0.8);        // set master gain
+mixer.gain();           // read master gain
+```
+
+### MediaSessionPlugin
+
+Wires the browser Media Session API — lock screen controls, notification artwork, and chapter markers.
+
+```ts
+player.addPlugin(MediaSessionPlugin);
+```
+
+Reads `item.title`, `item.artist` / `item.name`, `item.poster` / `item.image` automatically. Override `getMetadata()` via subclass.
+
+### KeyHandlerPlugin
+
+Keyboard shortcut handler. Default bindings: space (play/pause), arrow keys (seek), `m` (mute), `f` (fullscreen — video only).
+
+```ts
+player.addPlugin(KeyHandlerPlugin);
+```
+
+Customize bindings by subclassing and overriding `addPlaybackKeys()`.
+
+### MessagePlugin
+
+In-player toast notification overlay. Requires a container element.
+
+```ts
+player.addPlugin(MessagePlugin);
+
+const msg = player.getPlugin(MessagePlugin);
+msg.show('Subtitle track loaded');
+msg.show('Buffering…', { duration: 0 });  // duration: 0 = stays until dismissed
+msg.dismiss();
+```
+
+### TabLeaderPlugin
+
+Single-tab coordination — designates one tab as leader for shared state. Used by `GroupListeningPlugin`.
+
+```ts
+player.addPlugin(TabLeaderPlugin);
+
+const leader = player.getPlugin(TabLeaderPlugin);
+leader.isLeader();     // boolean
+```
+
+### EmbedPlugin
+
+Manages the player inside an iframe embed context — postMessage bridge between the embedded player and a host page.
+
+```ts
+player.addPlugin(EmbedPlugin);
+```
+
+### CanvasPlugin
+
+Provides a managed `<canvas>` overlay on the player container. Used by visualization plugins.
+
+```ts
+player.addPlugin(CanvasPlugin);
+```
+
+### VisualizationPlugin
+
+Base class for canvas visualizations. Extend to create custom visualizers.
+
+### CastSenderPlugin (kit)
+
+Chromecast sender logic. The video-player package ships a video-aware subclass.
+
+---
+
+## Video player plugins (nomercy-video-player)
+
+Import from `@nomercy-entertainment/nomercy-video-player@beta`:
+
+### DesktopUiPlugin
+
+The full built-in player UI — play/pause, seek bar, volume, fullscreen, subtitle and audio track menus, quality selector, chapter display, and keyboard/pointer interactions.
+
+```ts
+player.addPlugin(DesktopUiPlugin);
+```
+
+UI state is controlled via CSS class on `.nomercyplayer`. Do not add `nm-` or `nmplayer-` prefixed classes to child elements — the UI plugin manages its own DOM.
+
+### AutoAdvancePlugin (video)
+
+Advances the queue when a video ends.
+
+```ts
+player.addPlugin(AutoAdvancePlugin);
+```
+
+### SubtitleOverlayPlugin
+
+VTT subtitle rendering overlay. Styles subtitles via CSS; persists user style choices via the `subtitleStyleStore` adapter.
+
+```ts
+player.addPlugin(SubtitleOverlayPlugin);
+```
+
+### OctopusPlugin
+
+ASS/SSA subtitle rendering via `@nomercy-entertainment/nomercy-subtitle-octopus` (optional dependency — must be installed separately). Uses a dynamic import and falls back to degraded mode if the package is absent.
+
+```ts
+player.addPlugin(OctopusPlugin, {
+  workerUrl: '/static/subtitles-octopus-worker.js',
+  legacyWorkerUrl: '/static/subtitles-octopus-worker-legacy.js',
+});
+```
+
+### SkipperPlugin
+
+Intro and credits skip markers. Reads `item.skippers: { intro?, recap?, credits? }` from the playlist item.
+
+```ts
+player.addPlugin(SkipperPlugin);
+
+const skipper = player.getPlugin(SkipperPlugin);
+skipper.skip('intro');    // skip the current intro segment
+skipper.skip('credits');  // skip credits
+skipper.skippers();       // all defined skip ranges for the current item
+```
+
+### CastSenderPlugin (video)
+
+Chromecast sender — hands off playback to a Cast receiver.
+
+```ts
+player.addPlugin(CastSenderPlugin, {
+  receiverApplicationId: 'ABCD1234',
+});
+
+player.transferTo({ type: 'chromecast', deviceId: castDevice.sessionId });
+```
+
+### DrmPlugin (video)
+
+Widevine/PlayReady/FairPlay EME. Currently a v2.1 target — the stub is present but throws `NotImplementedError` on `use()` in v2.0.
+
+### LiveTranscodingPlugin (video)
+
+Real-time transcoder session management. v2.1 target — throws `NotImplementedError` in v2.0.
+
+### TouchZonesPlugin
+
+Touch gesture handling — tap zones, double-tap seek, swipe volume.
+
+```ts
+player.addPlugin(TouchZonesPlugin);
+```
+
+### TvUiPlugin
+
+10-foot UI optimized for TV/remote navigation. Alternative to `DesktopUiPlugin` for TV contexts.
+
+```ts
+player.addPlugin(TvUiPlugin);
+```
+
+### EmbedPlugin (video subclass)
+
+Extends the kit `EmbedPlugin` with video-specific postMessage events.
+
+---
+
+## Music player plugins (nomercy-music-player)
+
+Import from `@nomercy-entertainment/nomercy-music-player@beta`:
+
+### AutoAdvancePlugin (music)
+
+Advances the queue when a track ends. When crossfade is enabled, triggers `crossfadeTo()` instead of a hard cut.
+
+```ts
+player.addPlugin(AutoAdvancePlugin);
+```
+
+### LyricsPlugin
+
+Synced LRC lyrics display. Reads from the `lyricSource` adapter.
+
+```ts
+player.addPlugin(LyricsPlugin);
+
+const lyrics = player.getPlugin(LyricsPlugin);
+lyrics.currentLine();   // current synced line
+lyrics.lines();         // all lines
+```
+
+### MusicUiPlugin
+
+Built-in music player UI — track info, progress bar, volume, shuffle, repeat, and album art.
+
+### GroupListeningPlugin (music)
+
+Multi-user synchronized playback. Throws `NotImplementedError` in v2.0. Planned for v2.1.
+
+### DrmPlugin (music)
+
+Music DRM via EME. Throws `NotImplementedError` in v2.0. Planned for v2.1.
+
+### LiveTranscodingPlugin (music)
+
+Live transcoding session management for music. Throws `NotImplementedError` in v2.0. Planned for v2.1.
+
+### CastSenderPlugin (music)
+
+Chromecast sender for music. Adapter for the kit's `CastSenderPlugin`.
+
+### EmbedPlugin (music)
+
+Extends the kit `EmbedPlugin` with music-specific postMessage events.

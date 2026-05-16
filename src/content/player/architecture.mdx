@@ -1,0 +1,115 @@
+---
+title: "Architecture"
+description: "The five-layer model that separates generic player infrastructure from your application code. How kit, libraries, and plugins relate to each other."
+category: "Overview"
+order: 2
+---
+
+# Architecture
+
+The Player SDK is built on a strict five-layer model. Every piece of code has a designated layer, and no layer may reach "down" into a layer below it or "up" into a layer above it without going through a defined port.
+
+---
+
+## The five layers
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 5 — Consumer plugin                                  │
+│  Your app: NoMercy server endpoints, SignalR hubs,          │
+│  watch-party logic, anything product-specific               │
+├─────────────────────────────────────────────────────────────┤
+│  Layer 4 — Built-in plugin                                  │
+│  Shipped inside the kit or library packages.                │
+│  Generic domain behavior — EQ, Lyrics, AutoAdvance, UI.     │
+│  Zero knowledge of any server API.                          │
+├─────────────────────────────────────────────────────────────┤
+│  Layer 3 — Per-library                                      │
+│  nomercy-video-player / nomercy-music-player                │
+│  Video-specific or music-specific logic and types.          │
+│  Builds on the kit's generic engine.                        │
+├─────────────────────────────────────────────────────────────┤
+│  Layer 2 — Kit (nomercy-player-core)                        │
+│  Generic contracts: lifecycle, queue, auth pipeline,        │
+│  plugin system, event bus, i18n, storage, 28 adapter ports  │
+├─────────────────────────────────────────────────────────────┤
+│  Layer 1 — Backend                                          │
+│  IVideoBackend / IAudioBackend implementations              │
+│  Browser APIs: <video>, <audio>, MediaSource, AudioContext  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## What each layer knows
+
+| Layer | Package | Knows about |
+|-------|---------|-------------|
+| 1. Backend | `Html5VideoBackend`, `WebAudioBackend`, etc. | Browser media APIs only |
+| 2. Kit | `nomercy-player-core` | Generic contracts — nothing video- or music-specific |
+| 3. Per-library | `nomercy-video-player`, `nomercy-music-player` | Domain types (`VideoPlaylistItem`, `MusicPlaylistItem`) and domain methods |
+| 4. Built-in plugin | Plugins shipped inside packages | Generic behavior (UI, EQ, AutoAdvance). No server endpoints. |
+| 5. Consumer plugin | Your app code | Everything — server endpoints, SignalR, auth tokens, business rules |
+
+---
+
+## Why this matters
+
+The boundary between layer 4 and layer 5 is the enforcement point. Anything NoMercy-specific lives at layer 5. Built-in plugins (layer 4) must work for any consumer, with any backend, without any knowledge of the NoMercy infrastructure.
+
+The practical consequence: when you add a built-in plugin from the package, it does not import from your app. When you write a consumer plugin, it can import from anywhere, but it should not modify kit internals.
+
+---
+
+## Adapter ports
+
+Layer 2 (kit) exposes 28 named adapter ports. Each port has a typed interface and a default implementation. You replace a port only when you need different behavior — for example, swapping `LocalStorageBackend` for `IndexedDBBackend`, or replacing the browser network monitor with a Capacitor native adapter.
+
+The video and music library layers each add 4 additional ports (video: backend, chapter source, thumbnail source, subtitle style store; music: audio backend, playlist generator, scrobbler, lyric source, similarity engine, now-playing art).
+
+See [Kit — Adapters](/player/kit/adapters) for the full port catalog.
+
+---
+
+## Plugin layering in practice
+
+A typical app setup:
+
+```ts
+import { nmplayer, DesktopUiPlugin, OctopusPlugin } from '@nomercy-entertainment/nomercy-video-player@beta';
+// DesktopUiPlugin → layer 4 (built-in, generic UI)
+// OctopusPlugin   → layer 4 (built-in, generic subtitle renderer)
+
+import { MyNoMercyPlugin } from '@/player/plugins/nomercy-connect';
+// MyNoMercyPlugin → layer 5 (consumer, knows about SignalR hub URLs)
+
+const player = nmplayer('main').setup({ ... });
+
+player
+  .addPlugin(DesktopUiPlugin)            // layer 4
+  .addPlugin(OctopusPlugin, { ... })     // layer 4
+  .addPlugin(MyNoMercyPlugin, { ... });  // layer 5
+```
+
+Layer-5 plugins can listen to events from layer-4 plugins using the typed class-form:
+
+```ts
+import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core@beta';
+
+// Inside MyNoMercyPlugin.use():
+this.on(EqualizerPlugin, 'bandChanged', ({ index, gain }) => {
+  this.syncEqToServer(index, gain);
+});
+```
+
+---
+
+## Three-package layout
+
+| npm package | Layer | Consumers |
+|-------------|-------|-----------|
+| `@nomercy-entertainment/nomercy-player-core@beta` | 2 (kit) + 4 (built-in plugins) | Library authors, advanced consumers writing plugins directly against the kit |
+| `@nomercy-entertainment/nomercy-video-player@beta` | 3 + 4 | Anyone building a video player |
+| `@nomercy-entertainment/nomercy-music-player@beta` | 3 + 4 | Anyone building a music player |
+
+Both library packages re-export everything from the kit, so consumers of the video or music player do not need to install the kit separately unless they are writing kit-level plugins.

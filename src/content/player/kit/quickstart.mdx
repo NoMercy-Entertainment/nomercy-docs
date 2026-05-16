@@ -1,0 +1,110 @@
+---
+title: "Kit Quick Start"
+description: "Get started writing against the nomercy-player-core kit directly — for library authors and plugin authors who need kit-level access."
+category: "Kit"
+order: 2
+---
+
+# Kit Quick Start
+
+This page is for library authors and plugin developers who need to work against `nomercy-player-core` directly. If you are building a video or music player, use the [Video Quick Start](/player/video/quickstart) or [Music Quick Start](/player/music/quickstart) instead — both library packages include everything from the kit.
+
+---
+
+## Install
+
+```
+npm install @nomercy-entertainment/nomercy-player-core@beta
+```
+
+---
+
+## Writing a kit-level plugin
+
+A kit-level plugin works with any player built on the kit — video, music, or a custom library you write. Type the `P` generic broadly:
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core@beta';
+import type { IPlayer, BaseEventMap } from '@nomercy-entertainment/nomercy-player-core@beta';
+
+interface AnalyticsOptions {
+  endpoint: string;
+  sampleRateMs?: number;
+}
+
+interface AnalyticsEvents {
+  'session:reported': { duration: number; rebufferRatio: number };
+}
+
+export class AnalyticsPlugin extends Plugin<
+  IPlayer<BaseEventMap>,
+  AnalyticsOptions,
+  AnalyticsEvents
+> {
+  static readonly id = 'nomercy:analytics';
+  static readonly version = '1.0.0';
+  static readonly description = 'Reports session metrics to an analytics endpoint';
+
+  use(): void {
+    this.on('dispose', () => this.report());
+  }
+
+  dispose(): void {}
+
+  private async report(): Promise<void> {
+    const metrics = this.player.metrics();
+    await this.fetch(this.opts.endpoint, (r) => r.json(), {
+      method: 'POST',
+      body: JSON.stringify({
+        duration: metrics.sessionDurationMs,
+        rebufferRatio: metrics.rebufferRatio,
+      }),
+    });
+    this.emit('session:reported', {
+      duration: metrics.sessionDurationMs,
+      rebufferRatio: metrics.rebufferRatio,
+    });
+  }
+}
+```
+
+Register it on any player:
+
+```ts
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player@beta';
+import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player@beta';
+
+nmplayer('video').setup({ ... }).addPlugin(AnalyticsPlugin, { endpoint: '/api/v1/analytics' });
+nmMPlayer('music').setup({ ... }).addPlugin(AnalyticsPlugin, { endpoint: '/api/v1/analytics' });
+```
+
+---
+
+## Accessing adapter ports
+
+Kit adapters are available from the kit's subpath exports:
+
+```ts
+import { LocalStorageBackend, MemoryStorageBackend } from '@nomercy-entertainment/nomercy-player-core@beta';
+import { browserPlatform } from '@nomercy-entertainment/nomercy-player-core@beta';
+import { DefaultRetryPolicy } from '@nomercy-entertainment/nomercy-player-core@beta';
+```
+
+See [Kit — Adapters](/player/kit/adapters) for the full catalog.
+
+---
+
+## Testing kit-level plugins
+
+```ts
+import { describePlugin } from '@nomercy-entertainment/nomercy-player-core@beta/testing';
+import { assertNoListenerLeak } from '@nomercy-entertainment/nomercy-player-core@beta/testing';
+
+describePlugin(AnalyticsPlugin, ({ player, plugin }) => {
+  test('no listener leak', () => {
+    assertNoListenerLeak(player, AnalyticsPlugin);
+  });
+});
+```
+
+The testing stub provides a minimal IPlayer implementation that satisfies the kit contracts without any browser APIs.

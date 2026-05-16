@@ -1,0 +1,182 @@
+---
+title: "Errors"
+description: "Error codes, the NotImplementedError class, severity tiers, and structured catch patterns."
+category: "Kit"
+order: 9
+---
+
+# Errors
+
+The player uses a structured error hierarchy. All errors carry a string code, a severity, and a human-readable message. Catching by code or by class is always preferred over catching raw `Error`.
+
+---
+
+## Error classes
+
+| Class | Code prefix | When |
+|-------|------------|------|
+| `PlayerError` | `core:*` | Base class. General player errors. |
+| `NotImplementedError` | `core:not-implemented/*` | Method exists in the contract but is not implemented by the current backend or library |
+| `NetworkError` | `core:network/*` | HTTP or connectivity failures |
+| `AuthError` | `core:auth/*` | Authentication and authorization failures |
+| `MediaFormatError` | `core:format/*` | Unsupported or malformed media format |
+| `StreamError` | `core:stream/*` | HLS/DASH stream errors |
+| `ResourceError` | `core:resource/*` | Missing or inaccessible resources |
+| `DrmError` | `core:drm/*` | DRM/EME failures |
+| `BrowserPolicyError` | `core:policy/*` | Browser autoplay or permissions policy blocks |
+| `PluginError` | `plugin:*` | Errors originating inside a plugin |
+
+All classes are exported from `@nomercy-entertainment/nomercy-player-core@beta`.
+
+---
+
+## Error codes
+
+Code format: `<vendor>:<category>/<detail>`.
+
+Kit codes always start with `core:`. Plugin codes are namespaced with the plugin id, e.g. `equalizer:band/out-of-range`.
+
+### Common kit codes
+
+| Code | When |
+|------|------|
+| `core:not-implemented/<feature>` | Structural API stub — not available in this backend |
+| `core:auth/forbidden` | 403 response — access denied |
+| `core:auth/unauthenticated` | 401 with failed or missing refresh |
+| `core:auth/refresh-failed` | `refreshOnUnauthenticated` threw or returned no token |
+| `core:network/timeout` | Request timed out |
+| `core:network/fetch-error` | General fetch failure |
+| `core:stream/hls-error` | hls.js media error |
+| `core:stream/manifest-load-failed` | M3U8 manifest could not be loaded |
+| `core:stream/segment-load-failed` | A segment failed to download |
+| `core:format/unsupported` | Media format not supported by the browser |
+| `core:policy/autoplay-blocked` | Browser blocked autoplay |
+| `core:playlist/fetch-error` | URL-based playlist fetch failed |
+| `core:playlist/parse-error` | Playlist response is not a valid JSON array |
+| `core:plugin/missing-dep` | Required plugin dependency not registered |
+| `core:plugin/version-mismatch` | Dependency plugin version is below `minVersion` |
+
+---
+
+## Severity tiers
+
+| Severity | Meaning |
+|---------|---------|
+| `'fatal'` | Playback cannot continue. Player stops and emits `fatal`. Plugin marks itself failed. |
+| `'error'` | Operation failed. Plugin keeps running. `error` event fires. |
+| `'warning'` | Degraded behavior. Plugin survives and emits `warning`. |
+| `'info'` | Observability — no impact on behavior. |
+
+---
+
+## Listening to errors
+
+```ts
+player.on('error', (err) => {
+  console.error(`Error ${err.code}: ${err.message}`);
+});
+
+player.on('fatal', (err) => {
+  showUserMessage('Playback failed. Please reload.');
+});
+
+player.on('warning', (err) => {
+  console.warn(`Warning ${err.code}: ${err.message}`);
+});
+```
+
+`PlayerErrorEvent` shape:
+
+```ts
+interface PlayerErrorEvent {
+  code: string;
+  message: string;
+  severity: 'error' | 'fatal' | 'warning' | 'info';
+  cause?: unknown;
+  context?: Record<string, unknown>;
+}
+```
+
+---
+
+## NotImplementedError
+
+`NotImplementedError` is thrown when a method exists in the public contract but the current backend or library does not support it.
+
+Known cases in v2.0:
+- `player.subtitles()` on `NMMusicPlayer` — audio backends have no subtitle tracks
+- `GroupListeningPlugin`, `DrmPlugin`, `LiveTranscodingPlugin` on `NMMusicPlayer` — these throw `NotImplementedError` in their `use()` (planned for v2.1)
+
+Catch by class, not by message:
+
+```ts
+import { NotImplementedError } from '@nomercy-entertainment/nomercy-player-core@beta';
+
+try {
+  const tracks = player.subtitles();
+} catch (e) {
+  if (e instanceof NotImplementedError) {
+    // expected — audio player doesn't have subtitle tracks
+  } else {
+    throw e;  // re-throw unexpected errors
+  }
+}
+```
+
+Code always follows `core:not-implemented/<feature>`.
+
+---
+
+## Static recovery policy
+
+Plugins declare how they respond to specific error codes:
+
+```ts
+class MyPlugin extends Plugin {
+  static readonly onError: Record<string, PluginRecoveryAction> = {
+    'core:stream/segment-load-failed': 'retry-once',
+    'core:auth/forbidden': 'disable',
+    'core:network/timeout': 'ignore',
+  };
+}
+```
+
+| Action | Behavior |
+|--------|---------|
+| `'retry-once'` | Retry the failing operation once |
+| `'fallback'` | Activate the plugin's fallback behavior (plugin must implement `onFallback()`) |
+| `'disable'` | Disable the plugin gracefully |
+| `'ignore'` | Log and continue — no action taken |
+
+Consumer code can override the policy per-plugin at setup time via `setup({ errorPolicy })`.
+
+---
+
+## Inside plugins: `this.throw` and `this.report`
+
+Never throw raw errors or emit `error` events directly from a plugin. Always use the plugin's methods:
+
+```ts
+// Fatal — plugin fails. Player and other plugins continue.
+this.throw({
+  severity: 'fatal',
+  code: 'nomercy:sync/connection-lost',
+  message: 'Lost connection to sync server',
+});
+
+// Non-fatal — operation fails. Plugin keeps running.
+this.throw({
+  severity: 'error',
+  code: 'nomercy:sync/fetch-failed',
+  message: 'Sync fetch returned an error',
+});
+
+// Warning / info — observability. No action needed.
+this.report({
+  severity: 'warning',
+  code: 'nomercy:sync/rate-limited',
+  message: 'Sync endpoint rate-limited — will retry in 30s',
+});
+```
+
+Errors thrown with `this.throw` are caught, wrapped in `PluginError`, emitted via the player's event bus, and — if severity is `'fatal'` — the plugin is marked failed. Other plugins always continue.

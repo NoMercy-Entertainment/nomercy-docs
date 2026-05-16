@@ -1,0 +1,135 @@
+---
+title: "Testing"
+description: "Using the testing subpath stub player for plugin unit tests. describePlugin, assertNoListenerLeak, and the stub backend."
+category: "Kit"
+order: 11
+---
+
+# Testing
+
+The kit ships a `testing` subpath with utilities for writing unit tests against plugins without a real browser.
+
+---
+
+## Install
+
+The testing utilities are included with the kit package. No additional install is needed:
+
+```
+npm install @nomercy-entertainment/nomercy-player-core@beta
+```
+
+Import from the testing subpath:
+
+```ts
+import { describePlugin, assertNoListenerLeak } from '@nomercy-entertainment/nomercy-player-core@beta/testing';
+```
+
+---
+
+## `describePlugin`
+
+Wraps a test suite with a fresh player and registered plugin per test. Auto-disposes in `afterEach`.
+
+```ts
+import { describePlugin, assertNoListenerLeak } from '@nomercy-entertainment/nomercy-player-core@beta/testing';
+import { MyPlugin } from '../src/plugins/my-plugin';
+
+describePlugin(MyPlugin, ({ player, plugin }) => {
+  test('emits dataFetched after time threshold', async () => {
+    const events: unknown[] = [];
+    player.on(MyPlugin, 'dataFetched', (e) => events.push(e));
+
+    // Simulate a player event the plugin listens to
+    player.emit('time', { time: 30 });
+
+    await vi.waitFor(() => events.length > 0);
+    expect(events[0]).toMatchObject({ count: expect.any(Number) });
+  });
+});
+```
+
+`describePlugin` arguments:
+
+```ts
+describePlugin(
+  PluginClass: PluginConstructor,
+  fn: (ctx: { player: IPlayer; plugin: Plugin }) => void,
+  opts?: {
+    pluginOpts?: object;       // options passed to addPlugin
+    playerOpts?: object;       // options passed to player.setup
+  }
+): void
+```
+
+---
+
+## `assertNoListenerLeak`
+
+Verifies that a plugin's `dispose()` cleans up all event listeners. This is a required test for all plugins.
+
+```ts
+describePlugin(MyPlugin, ({ player }) => {
+  test('no listener leak on dispose', () => {
+    assertNoListenerLeak(player, MyPlugin);
+  });
+});
+```
+
+`assertNoListenerLeak` disposes the plugin and checks that all `this.on(...)` listeners registered during `use()` are removed. If any listeners remain, the test fails with a description of the leaked events.
+
+---
+
+## Stub player
+
+The stub player is a minimal `IPlayer` implementation with no browser dependencies. It:
+
+- Supports the full event bus (`on`, `off`, `once`, `emit`)
+- Supports `phase()`, `playState()`, `metrics()`, `queue()`, `current()`, and all transport stubs
+- Does not start actual media playback
+- Works in Node.js without a DOM (Vitest, Jest)
+
+You can use the stub player directly for lower-level testing:
+
+```ts
+import { createStubPlayer } from '@nomercy-entertainment/nomercy-player-core@beta/testing';
+
+const player = createStubPlayer();
+player.addPlugin(MyPlugin, { endpoint: 'http://test.local' });
+await player.ready();
+
+player.emit('ended', undefined);
+```
+
+---
+
+## Mock fetch
+
+The stub player uses an in-memory fetch mock. Override it per test:
+
+```ts
+import { createStubPlayer, mockFetch } from '@nomercy-entertainment/nomercy-player-core@beta/testing';
+
+const player = createStubPlayer({
+  fetch: mockFetch({
+    'http://test.local/api': { status: 200, body: { count: 5 } },
+  }),
+});
+```
+
+---
+
+## Integration with Vitest
+
+The kit's test suite uses Vitest. If you are using a different runner (Jest), the testing utilities still work — the subpath has no Vitest imports.
+
+```ts
+// vitest.config.ts
+export default {
+  test: {
+    environment: 'node',  // or 'jsdom' for DOM-dependent plugins
+  },
+};
+```
+
+For plugins that mount DOM elements (use `this.mount(...)`), use `jsdom` or `happy-dom` as the test environment.
