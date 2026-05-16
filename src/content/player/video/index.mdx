@@ -68,3 +68,15 @@ IVideoBackend           ← backend layer (Html5VideoBackend / custom)
 ```
 
 Everything below `NMVideoPlayer<T>` is generic — zero knowledge of your server API, your item shape beyond the typed fields, or any NoMercy infrastructure. App-specific glue lives in layer-5 consumer plugins.
+
+---
+
+## Container class system
+
+The `<video>` element and state CSS classes on `.nomercyplayer` are kit-level concerns — the player manages them directly via the container-class mixin. The UI overlay (controls, seek bar, menus) is the responsibility of the optional `DesktopUiPlugin`.
+
+State classes like `nm-playing`, `nm-paused`, `nm-fullscreen` are applied to the `.nomercyplayer` container by the kit's container-class-emit mixin when state changes. `DesktopUiPlugin` reads those classes to show/hide UI elements.
+
+Do not add `nm-` or `nmplayer-` prefixed classes to elements from outside the plugin — those namespaces belong to the kit and the UI plugin respectively.
+
+See [Desktop UI](/player/video/desktop-ui) for the full class table. The exact boundary between kit-owned vs plugin-owned classes is tracked in the architecture spec — Spine owns that boundary definition.

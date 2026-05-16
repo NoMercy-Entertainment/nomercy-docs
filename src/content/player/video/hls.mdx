@@ -13,14 +13,16 @@ The video player uses hls.js for HLS playback. The kit's stream adapter wraps hl
 
 ## Peer dependency
 
-hls.js is a peer dependency — install it alongside the player:
+hls.js is an optional peer dependency. Install it when your sources include `.m3u8` URLs:
 
 ```
 npm install @nomercy-entertainment/nomercy-video-player@beta
-npm install hls.js
+npm install hls.js@beta
 ```
 
-The player uses `hls.js`'s dynamic import internally. If `hls.js` is absent and the browser does not natively support HLS (Safari), the player falls back to a native `<video>` src load.
+The player uses hls.js via dynamic import. If hls.js is absent and the browser supports HLS natively (Safari), native playback is used. On other browsers without hls.js, `.m3u8` URLs fall back to a native `<video>` src load (which will likely fail for multi-segment streams — install hls.js).
+
+If your sources are all progressive MP4 or native-supported formats, hls.js is not required.
 
 ---
 

@@ -36,25 +36,80 @@ Code format: `<vendor>:<category>/<detail>`.
 
 Kit codes always start with `core:`. Plugin codes are namespaced with the plugin id, e.g. `equalizer:band/out-of-range`.
 
-### Common kit codes
+### Auth errors (`AuthError`)
+
+| Code | Status | When |
+|------|--------|------|
+| `core:auth/forbidden` | 403 | Access denied. Never retried. |
+| `core:auth/unauthenticated` | 401 | Token missing or expired and refresh failed. |
+| `core:auth/refresh-failed` | 401 | `refreshOnUnauthenticated` threw or returned no token. |
+
+### Network errors (`NetworkError`)
 
 | Code | When |
 |------|------|
-| `core:not-implemented/<feature>` | Structural API stub — not available in this backend |
-| `core:auth/forbidden` | 403 response — access denied |
-| `core:auth/unauthenticated` | 401 with failed or missing refresh |
-| `core:auth/refresh-failed` | `refreshOnUnauthenticated` threw or returned no token |
-| `core:network/timeout` | Request timed out |
-| `core:network/fetch-error` | General fetch failure |
-| `core:stream/hls-error` | hls.js media error |
-| `core:stream/manifest-load-failed` | M3U8 manifest could not be loaded |
-| `core:stream/segment-load-failed` | A segment failed to download |
-| `core:format/unsupported` | Media format not supported by the browser |
-| `core:policy/autoplay-blocked` | Browser blocked autoplay |
-| `core:playlist/fetch-error` | URL-based playlist fetch failed |
-| `core:playlist/parse-error` | Playlist response is not a valid JSON array |
-| `core:plugin/missing-dep` | Required plugin dependency not registered |
-| `core:plugin/version-mismatch` | Dependency plugin version is below `minVersion` |
+| `core:network/timeout` | Request exceeded `timeoutMs`. |
+| `core:network/fetch-error` | DNS failure, CORS block, TCP reset, or other transport error. |
+| `core:network/offline` | `navigator.onLine` is false when a request is made. |
+
+### Stream errors (`StreamError`)
+
+| Code | When |
+|------|------|
+| `core:stream/hls-error` | hls.js emitted a media or network error. |
+| `core:stream/manifest-load-failed` | M3U8 manifest could not be fetched. |
+| `core:stream/segment-load-failed` | A fragment/segment download failed. |
+| `core:stream/buffer-stalled` | MSE `appendBuffer` stalled (no data to append). |
+| `core:stream/key-load-failed` | AES-128 key fetch failed (for encrypted HLS). |
+
+### Media format errors (`MediaFormatError`)
+
+| Code | When |
+|------|------|
+| `core:media/codec-unsupported` | Browser rejects codec string via `canPlayType`. |
+| `core:media/missing-url` | Playlist item has no `url` or `file` field. |
+| `core:media/container-error` | Corrupt or malformed container. |
+| `core:media/decode-error` | Decoder error during playback. |
+
+### Resource errors (`ResourceError`)
+
+| Code | When |
+|------|------|
+| `core:resource/worker-init-failed` | Web Worker could not be started (e.g. OctopusPlugin worker). |
+| `core:resource/wasm-load-failed` | WASM binary failed to fetch or compile. |
+| `core:resource/chunk-load-failed` | A dynamically-imported plugin chunk failed to load. |
+
+### Browser policy errors (`BrowserPolicyError`)
+
+| Code | When |
+|------|------|
+| `core:policy/autoplay-blocked` | Browser blocked `play()` due to autoplay policy. |
+| `core:policy/fullscreenUnsupported` | Fullscreen requested but no controller is configured. |
+| `core:policy/pipUnsupported` | PiP requested but no controller is configured. |
+| `core:policy/permissions-denied` | `navigator.permissions` denied a required capability. |
+
+### Playlist errors (`PlayerError`)
+
+| Code | When |
+|------|------|
+| `core:playlist/fetch-error` | URL-based playlist fetch failed. |
+| `core:playlist/parse-error` | Response is not a valid JSON array. |
+
+### Plugin errors (`PluginError`)
+
+| Code | When |
+|------|------|
+| `core:plugin/missing-dep` | A required plugin dependency is not registered. |
+| `core:plugin/version-mismatch` | A dependency plugin version is below `minVersion`. |
+| `core:plugin/duplicate-id` | A plugin with the same `id` is already registered (and `replaces` is not set). |
+| `core:plugin/init-timeout` | `use()` did not resolve within `pluginInitTimeoutMs`. |
+
+### Not-implemented errors (`NotImplementedError`)
+
+| Code | When |
+|------|------|
+| `core:not-implemented/subtitles` | `subtitles()` called on `NMMusicPlayer`. |
+| `core:not-implemented/<feature>` | Any structural API stub not supported by the current backend. |
 
 ---
 

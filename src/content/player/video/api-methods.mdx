@@ -208,7 +208,7 @@ volume(): number
 volume(v: number): void
 ```
 
-Get or set volume. **Scale: 0–100, not 0–1.** The kit normalized this in v2 — v1 callers who used 0–1 must multiply by 100.
+Get or set volume. **Scale: 0–100.**
 
 Returns 0 when muted (regardless of stored pre-mute level). `volume(v)` clamps to [0, 100] and emits `volume`. No-op if cancelled by `beforeMutation`.
 
@@ -999,6 +999,22 @@ removeClasses(el: HTMLElement, ...classes: string[]): void
 ```
 
 Low-level DOM construction helpers exposed to plugins. Not typically used in application code.
+
+---
+
+## Back listener
+
+The `back` event is how the `DesktopUiPlugin` decides whether to show the back button. Register a listener for it to signal that a back action is possible:
+
+```ts
+player.on('back', () => {
+  router.back();
+});
+```
+
+`DesktopUiPlugin` calls `player.hasListeners('back')` during `ready()`. If at least one listener is registered, the back button appears in the top-left corner. If no listener is registered, the button is not shown.
+
+There is no `setBackListener()` method — use `player.on('back', fn)` and `player.off('back', fn)` directly.
 
 ---
 
