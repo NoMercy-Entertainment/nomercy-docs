@@ -48,12 +48,26 @@ function rehypeParseCodeBlocks() {
   }
 }
 
-let highlighter: shiki.Highlighter | null = null
+// Dual-theme: One Light for light mode, One Dark Pro for dark.
+// shiki v3 emits inline color + `--shiki-dark:` style vars; CSS in global.css
+// switches between them on the .dark class.
+let highlighter: shiki.HighlighterGeneric<any, any> | null = null
+
+const LANGS = [
+  'txt', 'plaintext', 'bash', 'sh', 'shell', 'powershell',
+  'js', 'jsx', 'ts', 'tsx', 'json', 'jsonc', 'yaml', 'toml',
+  'html', 'xml', 'css', 'scss', 'md', 'mdx',
+  'python', 'rust', 'go', 'csharp', 'cs', 'java', 'kotlin', 'swift',
+  'php', 'ruby', 'sql', 'astro', 'svelte', 'vue', 'dockerfile', 'diff', 'ini',
+]
 
 function rehypeShiki() {
   return async (tree: Root) => {
     if (!highlighter) {
-      highlighter = await shiki.getHighlighter({ theme: 'css-variables' })
+      highlighter = await shiki.createHighlighter({
+        themes: ['one-light', 'one-dark-pro'],
+        langs: LANGS,
+      })
     }
 
     visit(tree, 'element', (node: Element) => {
@@ -62,50 +76,33 @@ function rehypeShiki() {
         if (codeNode.tagName === 'code' && codeNode.children[0]?.type === 'text') {
           const textNode = codeNode.children[0]
 
-          // Preserve existing properties including data-title from remark
           node.properties = node.properties || {}
           const existingDataTitle = node.properties['data-title']
-          
-          // Store raw code on pre element (not as HTML attribute, just for internal use)
           node.properties.code = textNode.value
-
-          // Replace the default classes with our custom ones
-          node.properties.className = ['overflow-x-auto', 'p-4', 'text-xs', 'text-zinc-900', 'dark:text-white']
-          
-          // Remove any inline styles (especially background-color)
+          node.properties.className = ['shiki', 'overflow-x-auto', 'p-4', 'text-xs']
           delete node.properties.style
           delete node.properties.tabindex
-
-          // Restore data-title if it was set by remark
           if (existingDataTitle) {
             node.properties['data-title'] = existingDataTitle
           }
 
-          // Apply syntax highlighting using data-language (the actual code fence language)
-          // Use 'txt' for custom blocks (button, btn) to avoid "No language registration" from Shiki
-          let syntaxLanguage = node.properties['data-language'] as string | undefined
-          const langLower = syntaxLanguage?.toLowerCase()
+          let syntaxLanguage = (node.properties['data-language'] as string | undefined) ?? 'txt'
+          const langLower = syntaxLanguage.toLowerCase()
           if (langLower === 'button' || langLower === 'btn') {
             syntaxLanguage = 'txt'
           }
-          if (syntaxLanguage && highlighter) {
-            const tokens = highlighter.codeToThemedTokens(
-              textNode.value as string,
-              syntaxLanguage,
-            )
-
-            const highlightedHtml = shiki.renderToHtml(tokens, {
-              elements: {
-                pre: ({ children }) => children,
-                code: ({ children }) => children,
-                line: ({ children }) => `<span class="line">${children}</span>`,
-              },
+          // Shiki throws on unregistered langs — fall back to txt.
+          if (!LANGS.includes(syntaxLanguage)) {
+            syntaxLanguage = 'txt'
+          }
+          if (highlighter) {
+            const highlightedHtml = highlighter.codeToHtml(textNode.value as string, {
+              lang: syntaxLanguage,
+              themes: { light: 'one-light', dark: 'one-dark-pro' },
+              defaultColor: 'light',
+              structure: 'inline',
             })
-
-            // Store the highlighted HTML as a data attribute for client-side rendering
             node.properties['data-highlighted'] = highlightedHtml
-            
-            // Keep the plain text in the code node for fallback
             textNode.value = textNode.value as string
           }
         }

@@ -43,30 +43,6 @@
 
 @layer base {
   :root {
-    /* Shiki syntax highlighting — LIGHT theme defaults.
-       Dark overrides live in the `.dark` block below. */
-    --shiki-color-text: var(--color-zinc-900);
-    --shiki-token-constant: var(--color-orange-700);
-    --shiki-token-string: var(--color-emerald-700);
-    --shiki-token-comment: var(--color-zinc-500);
-    --shiki-token-keyword: var(--color-violet-700);
-    --shiki-token-parameter: var(--color-sky-700);
-    --shiki-token-function: var(--color-violet-700);
-    --shiki-token-string-expression: var(--color-emerald-700);
-    --shiki-token-punctuation: var(--color-zinc-700);
-
-    /* Astro code (matches above). */
-    --astro-code-background: transparent;
-    --astro-code-foreground: var(--color-zinc-900);
-    --astro-code-token-comment: #71717a;
-    --astro-code-token-string: #047857;
-    --astro-code-token-constant: #c2410c;
-    --astro-code-token-keyword: #6d28d9;
-    --astro-code-token-parameter: #0369a1;
-    --astro-code-token-function: #6d28d9;
-    --astro-code-token-string-expression: #047857;
-    --astro-code-token-punctuation: #3f3f46;
-
     --color-logo-brand: rgb(from var(--color-zinc-950) r g b / 50%);
     --color-logo-front: hsl(from var(--color-emerald-500) h 50% 85%);
     --color-logo-back: hsl(from var(--color-emerald-500) h 50% 40%);
@@ -75,31 +51,20 @@
 
   :root:has(.dark),
   .dark {
-    /* Shiki — dark theme overrides. */
-    --shiki-color-text: var(--color-white);
-    --shiki-token-constant: var(--color-orange-300);
-    --shiki-token-string: var(--color-emerald-300);
-    --shiki-token-comment: var(--color-zinc-500);
-    --shiki-token-keyword: var(--color-violet-300);
-    --shiki-token-parameter: var(--color-sky-300);
-    --shiki-token-function: var(--color-violet-300);
-    --shiki-token-string-expression: var(--color-emerald-300);
-    --shiki-token-punctuation: var(--color-zinc-200);
-
-    --astro-code-foreground: var(--color-white);
-    --astro-code-token-comment: #71717a;
-    --astro-code-token-string: #86efac;
-    --astro-code-token-constant: #86efac;
-    --astro-code-token-keyword: #7dd3fc;
-    --astro-code-token-parameter: #7dd3fc;
-    --astro-code-token-function: #c4b5fd;
-    --astro-code-token-string-expression: #86efac;
-    --astro-code-token-punctuation: #e4e4e7;
-
     --color-logo-brand: hsl(from var(--color-emerald-500) h 50% 85%);
     --color-logo-front: hsl(from var(--color-emerald-500) h 50% 85%);
     --color-logo-back: hsl(from var(--color-emerald-500) h 50% 50%);
     --color-logo-text: hsl(from var(--color-emerald-500) h 50% 50%);
+  }
+
+  /* Shiki dual-theme: One Light (default) + One Dark Pro via --shiki-dark.
+     `defaultColor: 'light'` paints span styles with One Light hex; in dark
+     mode we swap them out for the --shiki-dark var the renderer also emits.
+     Background colors come from the same pair. */
+  .dark .shiki,
+  .dark .shiki span {
+    color: var(--shiki-dark) !important;
+    background-color: var(--shiki-dark-bg) !important;
   }
 
   [inert] ::-webkit-scrollbar {
@@ -141,11 +106,26 @@
     overflow-wrap: anywhere;
   }
 
-  /* Cells may need horizontal scroll on very narrow viewports where a long
-     identifier exceeds the column. Better than mid-word break. */
-  .prose table td,
-  .prose table th {
+  /* Tables: scroll the WHOLE table on narrow viewports, not individual
+     cells. Per-cell overflow-x makes columns tiny on mobile and breaks
+     inline-code chips mid-word. Table-as-block keeps column alignment
+     between header and body and lets the user swipe horizontally. */
+  .prose table {
+    display: block;
+    max-width: 100%;
     overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .prose table th,
+  .prose table td {
+    word-break: keep-all;
+    overflow-wrap: normal;
+    white-space: normal;
+  }
+  /* Inline code inside table cells: do not break mid-token. Long
+     identifiers force the column wider, the parent table scrolls. */
+  .prose table :not(pre) > code {
+    white-space: nowrap;
   }
 
   /* Anchor scroll offset for the fixed top header (h-14 = 56px) +
