@@ -1,15 +1,15 @@
 ---
 title: "Quick Start"
-description: "Install nomercy-video-player, create a working HLS player with auto-advance and basic transport controls."
+description: "Install nomercy-video-player, create a working HLS player with transport controls — copy-paste runs as-is."
 category: "Video Player"
 order: 2
 ---
 
 # Video Player — Quick Start
 
-Read this if you are setting up the video player for the first time. You should have a working HLS player with transport controls in under 30 lines of code.
+Read this if you are setting up the video player for the first time. The snippets below are verified — copy them into a fresh project and they run.
 
-**Success looks like:** the player mounts to your container element, loads the HLS stream, and `play()` starts the video. No errors in the browser console. The seek bar, play/pause, volume, and fullscreen controls appear (from `DesktopUiPlugin`).
+**Success looks like:** the player mounts to your container element, loads the HLS stream, and starts playing on `ready`. No errors in the browser console. The seek bar, play/pause, volume, and fullscreen controls appear (from `DesktopUiPlugin`).
 
 ---
 
@@ -26,63 +26,66 @@ npm install @nomercy-entertainment/nomercy-video-player@beta
 ## Minimal working player
 
 ```ts
-import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { VideoPlayerConfig, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
-// Example uses CC-licensed Sintel from nomercy-media. Swap for your own content.
-const NM_MEDIA = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films';
+const items: VideoPlaylistItem[] = [
+  {
+    id: 'sintel',
+    title: 'Sintel',
+    url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+    image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+    duration: 888,
+    tracks: [
+      { id: 0, label: 'English', file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt', language: 'eng', kind: 'subtitles' },
+      { id: 1, file: '/Sintel.(2010)/chapters.vtt', kind: 'chapters' },
+    ],
+  },
+];
 
-const player = nmplayer('main').setup({
-  container: document.getElementById('player')!,
-  baseUrl: NM_MEDIA,
-  playlist: [
-    {
-      id: 'sintel',
-      title: 'Sintel',
-      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-      image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
-      duration: 888,
-      subtitles: [
-        { id: 'en', kind: 'subtitles', language: 'eng', label: 'English', file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt' },
-      ],
-      chapters: [
-        { id: 'chapters', kind: 'chapters', file: '/Sintel.(2010)/chapters.vtt' },
-      ],
-    },
-  ],
+const config: VideoPlayerConfig = {
+  basePath: 'https://raw.githubusercontent.com/NoMercy-Entertainment/media/master/Films/Films',
+  imageBasePath: 'https://image.tmdb.org/t/p',
+  playlist: items,
+};
+
+const player = nmplayer('nomercy-player')
+  .addPlugin(DesktopUiPlugin)
+  .setup(config);
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
 });
-
-player.addPlugin(DesktopUiPlugin);
-
-await player.ready();
-await player.play();
 ```
 
 The `DesktopUiPlugin` mounts the full built-in UI — play/pause, seek bar, volume, fullscreen, subtitle and quality menus. Remove it if you are building a custom UI.
+
+The inline `playlist:` array is auto-queued during setup. `current(0, { autoplay: true })` selects the first item and starts playback in sequence.
 
 ---
 
 ## Auto-advance
 
 ```ts
-import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { DesktopUiPlugin, AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-const player = nmplayer('main').setup({
-  container: document.getElementById('player')!,
-  playlist: [
-    { id: '1', title: 'Episode 1', url: '/show/ep1.m3u8' },
-    { id: '2', title: 'Episode 2', url: '/show/ep2.m3u8' },
-    { id: '3', title: 'Episode 3', url: '/show/ep3.m3u8' },
-  ],
-});
-
-player
+const player = nmplayer('main')
   .addPlugin(DesktopUiPlugin)
-  .addPlugin(AutoAdvancePlugin);
+  .addPlugin(AutoAdvancePlugin)
+  .setup({
+    basePath: 'https://cdn.example.com/show',
+    playlist: [
+      { id: '1', title: 'Episode 1', url: '/ep1.m3u8' },
+      { id: '2', title: 'Episode 2', url: '/ep2.m3u8' },
+      { id: '3', title: 'Episode 3', url: '/ep3.m3u8' },
+    ],
+  });
 
-await player.ready();
-await player.play();
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
 ```
 
 When episode 1 ends, `AutoAdvancePlugin` calls `player.next()` automatically.
@@ -112,8 +115,9 @@ player.pipState(true);
 ## Auth-protected HLS
 
 ```ts
-nmplayer('main').setup({
-  container: document.getElementById('player')!,
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('main').setup({
   playlist: [{ id: '1', url: 'https://protected.cdn.example.com/stream.m3u8' }],
   auth: {
     bearerToken: () => myAuth.getAccessToken(),
@@ -123,6 +127,10 @@ nmplayer('main').setup({
     },
   },
 });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
 ```
 
 The player injects `Authorization: Bearer <token>` on every HLS manifest and segment request. On 401, `refreshOnUnauthenticated` fires once and the request is retried. 403 propagates — the player never retries a 403.
@@ -131,23 +139,28 @@ The player injects `Authorization: Bearer <token>` on every HLS manifest and seg
 
 ## Subtitles and multi-language audio
 
-Pass subtitle tracks and audio tracks with each playlist item:
+Pass subtitle tracks per playlist item:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
 const player = nmplayer('main').setup({
-  container: document.getElementById('player')!,
   defaultSubtitleLanguage: 'en',
   defaultAudioLanguage: 'en',
   playlist: [
     {
       id: '1',
       url: '/show/ep1.m3u8',
-      subtitles: [
-        { id: 'en', kind: 'subtitles', language: 'en', label: 'English', file: '/show/ep1.en.vtt' },
-        { id: 'nl', kind: 'subtitles', language: 'nl', label: 'Dutch',   file: '/show/ep1.nl.vtt' },
+      tracks: [
+        { id: 0, kind: 'subtitles', language: 'en', label: 'English', file: '/show/ep1.en.vtt' },
+        { id: 1, kind: 'subtitles', language: 'nl', label: 'Dutch',   file: '/show/ep1.nl.vtt' },
       ],
     },
   ],
+});
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
 });
 ```
 
@@ -157,24 +170,21 @@ For ASS/SSA subtitles with full typesetting, add `OctopusPlugin` from the `/plug
 
 ## CDN embed (no bundler)
 
-The CDN bundle is published as part of each release on unpkg / jsdelivr. The package's IIFE bundle exposes a `NMVideoPlayer` global:
+The IIFE bundle exposes a `nmplayer` global. Built-in plugins are not included in the IIFE bundle — install via npm and use ESM when you need them.
 
 ```html
 <div id="player" style="width:100%;aspect-ratio:16/9;background:#000"></div>
-<script src="https://unpkg.com/@nomercy-entertainment/nomercy-video-player@beta/dist/nomercy-video-player.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@nomercy-entertainment/nomercy-video-player@beta/dist/nomercy-video-player.iife.js"></script>
 <script>
-  const { nmplayer } = NMVideoPlayer;
-
-  const player = nmplayer('main').setup({
-    container: document.getElementById('player'),
+  const player = window.nmplayer('player').setup({
     playlist: [{ id: '1', url: 'https://cdn.example.com/stream.m3u8', title: 'Demo' }],
   });
 
-  player.ready().then(() => player.play());
+  player.on('ready', function () {
+    player.current(0, { autoplay: true });
+  });
 </script>
 ```
-
-Built-in plugins are not included in the IIFE bundle — install via npm and use ESM when you need them.
 
 ---
 

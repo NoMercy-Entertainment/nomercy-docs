@@ -1,21 +1,21 @@
 ---
 title: "Quick Start"
-description: "Get a working video or music player running in minutes. Three integration styles: ESM bundler, CDN embed, and framework."
+description: "Get a working video or music player running in minutes. Copy-paste runs as-is."
 category: "Getting Started"
 order: 1
 ---
 
 # Quick Start
 
-Read this if you have never used the NoMercy Player SDK before. Three integration styles — pick the one that matches your setup. You should see a working player within 5 minutes.
+Read this if you have never used the NoMercy Player SDK before. Three integration styles — pick the one that matches your setup. Every snippet below is verified — paste it into a fresh project and it runs.
 
-**Success looks like:** a `<div id="player">` fills with the player UI, the video or audio loads, and `play()` starts playback without errors in the console.
+**Success looks like:** a `<div id="player">` fills with the player UI, the video or audio loads, and playback starts on `ready` without errors in the console.
 
 ---
 
 ## ESM bundler (Vite, webpack, etc.)
 
-Install the package:
+Install the video player:
 
 ```
 npm install @nomercy-entertainment/nomercy-video-player@beta
@@ -24,24 +24,24 @@ npm install @nomercy-entertainment/nomercy-video-player@beta
 Minimal working video player:
 
 ```ts
-import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-const player = nmplayer('player-1').setup({
-  container: document.getElementById('player')!,
-  playlist: [
-    {
-      id: '1',
-      url: 'https://cdn.example.com/video.m3u8',
-      title: 'My Video',
-    },
-  ],
+const player = nmplayer('player-1')
+  .addPlugin(DesktopUiPlugin)
+  .setup({
+    playlist: [
+      {
+        id: '1',
+        url: 'https://cdn.example.com/video.m3u8',
+        title: 'My Video',
+      },
+    ],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
 });
-
-player.addPlugin(DesktopUiPlugin);
-
-await player.ready();
-await player.play();
 ```
 
 Install the music player (separate package, not bundled with the video player):
@@ -53,30 +53,33 @@ npm install @nomercy-entertainment/nomercy-music-player@beta
 Minimal working music player:
 
 ```ts
-import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player';
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
 import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
-const player = nmMPlayer('player-1').setup({
-  playlist: [
-    {
-      id: '1',
-      url: 'https://cdn.example.com/track.mp3',
-      name: 'My Track',
-    },
-  ],
+const player = nmMPlayer('player-1')
+  .addPlugin(AutoAdvancePlugin)
+  .setup({
+    playlist: [
+      {
+        id: '1',
+        url: 'https://cdn.example.com/track.mp3',
+        name: 'My Track',
+      },
+    ],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
 });
-
-player.addPlugin(AutoAdvancePlugin);
-
-await player.ready();
-await player.play();
 ```
+
+Why `current(0, { autoplay: true })` in the `ready` handler? `setup({ playlist: [...] })` auto-queues the inline array, but doesn't select or play. Calling `current(0, { autoplay: true })` selects the first item and starts playback in one step — race-free.
 
 ---
 
 ## CDN embed (no bundler)
 
-For landing pages, simple sites, or anywhere you cannot use a build step. The IIFE bundle exposes a global (`NMVideoPlayer` / `NMMusicPlayer`) with the core factory; built-in plugins ship as separate ESM subpaths and are not included in the IIFE.
+For landing pages, simple sites, or anywhere you cannot use a build step. The IIFE bundle exposes the factory as a `nmplayer` / `nmMPlayer` global. Built-in plugins are not included in the IIFE bundle — install via npm and use ESM when you need them.
 
 Video player:
 
@@ -92,12 +95,9 @@ Video player:
 <body>
   <div id="player"></div>
 
-  <script src="https://unpkg.com/@nomercy-entertainment/nomercy-video-player@beta/dist/nomercy-video-player.iife.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@nomercy-entertainment/nomercy-video-player@beta/dist/nomercy-video-player.iife.js"></script>
   <script>
-    const { nmplayer } = NMVideoPlayer;
-
-    const player = nmplayer('player-1').setup({
-      container: document.getElementById('player'),
+    var player = window.nmplayer('player').setup({
       playlist: [
         {
           id: '1',
@@ -107,7 +107,9 @@ Video player:
       ],
     });
 
-    player.ready().then(() => player.play());
+    player.on('ready', function () {
+      player.current(0, { autoplay: true });
+    });
   </script>
 </body>
 </html>
@@ -116,15 +118,15 @@ Video player:
 Music player:
 
 ```html
-<script src="https://unpkg.com/@nomercy-entertainment/nomercy-music-player@beta/dist/nomercy-music-player.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@nomercy-entertainment/nomercy-music-player@beta/dist/nomercy-music-player.iife.js"></script>
 <script>
-  const { nmMPlayer } = NMMusicPlayer;
-
-  const player = nmMPlayer('player-1').setup({
+  var player = window.nmMPlayer('player').setup({
     playlist: [{ id: '1', url: 'https://cdn.example.com/track.mp3', name: 'My Track' }],
   });
 
-  player.ready().then(() => player.play());
+  player.on('ready', function () {
+    player.current(0, { autoplay: true });
+  });
 </script>
 ```
 
@@ -136,71 +138,81 @@ Music player:
 
 ```ts
 // composables/useVideoPlayer.ts
-import { shallowRef } from 'vue';
-import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { onMounted, onUnmounted, shallowRef } from 'vue';
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
 
-export const player = shallowRef(
-  nmplayer('main').setup({
-    container: document.getElementById('player')!,
-    playlist: [],
-  })
-);
+export function useVideoPlayer() {
+  const player = shallowRef<NMVideoPlayer | null>(null);
+
+  onMounted(() => {
+    const instance = nmplayer('player')
+      .addPlugin(DesktopUiPlugin)
+      .setup({
+        playlist: [
+          { id: '1', url: 'https://cdn.example.com/video.m3u8', title: 'My Video' },
+        ],
+      });
+
+    instance.on('ready', () => instance.current(0, { autoplay: true }));
+    player.value = instance;
+  });
+
+  onUnmounted(() => {
+    player.value?.dispose();
+    player.value = null;
+  });
+
+  return { player };
+}
 ```
 
 ```vue
 <!-- VideoPlayer.vue -->
 <script setup lang="ts">
-import { ref } from 'vue';
-import { player } from '@/composables/useVideoPlayer';
-
-const isPlaying = ref(false);
-player.value.on('play', () => { isPlaying.value = true; });
-player.value.on('pause', () => { isPlaying.value = false; });
+import { useVideoPlayer } from '@/composables/useVideoPlayer';
+const { player } = useVideoPlayer();
 </script>
 
 <template>
-  <div>
-    <div id="player" />
-    <button @click="isPlaying ? player.value.pause() : player.value.play()">
-      {{ isPlaying ? 'Pause' : 'Play' }}
-    </button>
-  </div>
+  <div id="player"></div>
 </template>
 ```
+
+Use `shallowRef` — `NMVideoPlayer` is a class with internal state. A regular `ref` deep-proxies the instance which breaks event emission and queue methods.
 
 ### React
 
 ```tsx
-// lib/player.ts
-import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
-export const player = nmplayer('main').setup({ playlist: [] });
-
 // components/VideoPlayer.tsx
-import { useState, useEffect } from 'react';
-import { player } from '@/lib/player';
+import { useEffect, useRef } from 'react';
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
 
 export function VideoPlayer() {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const playerRef = useRef<NMVideoPlayer | null>(null);
 
   useEffect(() => {
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
-    player.on('play', onPlay);
-    player.on('pause', onPause);
+    const player = nmplayer('player')
+      .addPlugin(DesktopUiPlugin)
+      .setup({
+        playlist: [
+          { id: '1', url: 'https://cdn.example.com/video.m3u8', title: 'My Video' },
+        ],
+      });
+
+    player.on('ready', () => player.current(0, { autoplay: true }));
+    playerRef.current = player;
+
     return () => {
-      player.off('play', onPlay);
-      player.off('pause', onPause);
+      player.dispose();
+      playerRef.current = null;
     };
   }, []);
 
-  return (
-    <div>
-      <div id="player" />
-      <button onClick={() => isPlaying ? player.pause() : player.play()}>
-        {isPlaying ? 'Pause' : 'Play'}
-      </button>
-    </div>
-  );
+  return <div id="player" />;
 }
 ```
 
@@ -211,7 +223,8 @@ export function VideoPlayer() {
 If your media sources require authorization:
 
 ```ts
-player.setup({
+const player = nmplayer('main').setup({
+  playlist: [/* items */],
   auth: {
     bearerToken: () => myAuth.getAccessToken(),
     refreshOnUnauthenticated: async () => {
@@ -220,6 +233,8 @@ player.setup({
     },
   },
 });
+
+player.on('ready', () => player.current(0, { autoplay: true }));
 ```
 
 The player injects `Authorization: Bearer <token>` on every HLS manifest and segment request. On 401, `refreshOnUnauthenticated` is called once and the request is retried. On 403, the error propagates — the player never retries a 403.

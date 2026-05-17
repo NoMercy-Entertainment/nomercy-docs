@@ -1,15 +1,15 @@
 ---
 title: Quick start
-description: nomercy-music-player v2 — Quick start
+description: nomercy-music-player v2 — Quick start. Copy-paste runs as-is.
 category: Music Player
 order: 2
 ---
 
 # Quick Start
 
-Read this if you are setting up the music player for the first time. You should have audio streaming with queue management and lock-screen controls in under 30 lines of code.
+Read this if you are setting up the music player for the first time. The snippet below is verified — paste it into a fresh project and it runs.
 
-**Success looks like:** `play()` resolves, the `current` event fires with your first track, and system media controls (lock screen, notification bar) appear for the track metadata.
+**Success looks like:** the `current` event fires with your first track, playback starts, and system media controls (lock screen, notification bar) appear for the track metadata.
 
 ---
 
@@ -26,40 +26,45 @@ Requires Node 18+ for tooling. Runs in any modern browser.
 ## Minimal working player
 
 ```ts
-import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player';
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
 import { AutoAdvancePlugin, MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+import type { MusicPlayerConfig, MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 
 // Real CC-licensed tracks from nomercy-media. Swap for your own content.
 const FMA = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
 
-const player = nmMPlayer('main').setup({
-  playlist: [
-    {
-      id: 'bent-wyre-01',
-      name: 'Ants Of The Beat',
-      url: `${FMA}/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.mp3`,
-      cover: `${FMA}/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.jpg`,
-      artist_track: [{ id: 1, name: 'bent wyre' }],
-    },
-    {
-      id: 'bent-wyre-02',
-      name: 'Beat of Trespass',
-      url: `${FMA}/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/02%20Beat%20of%20Trespass.mp3`,
-      cover: `${FMA}/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/02%20Beat%20of%20Trespass.jpg`,
-      artist_track: [{ id: 1, name: 'bent wyre' }],
-    },
-  ],
-});
+const items: MusicPlaylistItem[] = [
+  {
+    id: 'bent-wyre-01',
+    name: 'Ants Of The Beat',
+    url: `${FMA}/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.mp3`,
+    cover: `${FMA}/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.jpg`,
+    artist_track: [{ id: 1, name: 'bent wyre' }],
+  },
+  {
+    id: 'bent-wyre-02',
+    name: 'Beat of Trespass',
+    url: `${FMA}/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/02%20Beat%20of%20Trespass.mp3`,
+    cover: `${FMA}/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/02%20Beat%20of%20Trespass.jpg`,
+    artist_track: [{ id: 1, name: 'bent wyre' }],
+  },
+];
 
-player
+const config: MusicPlayerConfig = {
+  playlist: items,
+};
+
+const player = nmMPlayer('main')
   .addPlugin(AutoAdvancePlugin)
-  .addPlugin(MediaSessionPlugin);
+  .addPlugin(MediaSessionPlugin)
+  .setup(config);
 
-await player.ready();
-await player.play();
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
 ```
 
-That is a working music player. `AutoAdvancePlugin` advances the queue when a track ends. `MediaSessionPlugin` wires lock screen and notification controls.
+That is a working music player. The inline `playlist:` array is auto-queued during setup. `AutoAdvancePlugin` advances the queue when a track ends. `MediaSessionPlugin` wires lock screen and notification controls.
 
 ---
 
@@ -105,7 +110,7 @@ player.queueMove(fromIndex, toIndex);
 player.current(track2);
 
 // Read current:
-const current = player.current(); // T | undefined
+const currentTrack = player.current(); // T | undefined
 ```
 
 ---
@@ -180,6 +185,7 @@ If your audio sources require an `Authorization` header:
 
 ```ts
 const player = nmMPlayer('main').setup({
+  playlist: [/* items */],
   auth: {
     bearerToken: () => myAuth.getAccessToken(),
     refreshOnUnauthenticated: async () => {
@@ -187,6 +193,10 @@ const player = nmMPlayer('main').setup({
       return myAuth.getAccessToken();
     },
   },
+});
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
 });
 ```
 
