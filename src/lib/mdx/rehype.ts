@@ -1,10 +1,11 @@
 import { slugifyWithCounter } from '@sindresorhus/slugify';
 import * as acorn from 'acorn';
+import { fromHtml } from 'hast-util-from-html';
 import { toString } from 'hast-util-to-string';
 import { mdxAnnotations } from 'mdx-annotations';
 import * as shiki from 'shiki';
 import { visit } from 'unist-util-visit';
-import type { Root, Element } from 'hast';
+import type { Root, Element, ElementContent } from 'hast';
 
 function rehypeParseCodeBlocks() {
   return (tree: Root) => {
@@ -102,8 +103,12 @@ function rehypeShiki() {
               defaultColor: 'light',
               structure: 'inline',
             })
-            node.properties['data-highlighted'] = highlightedHtml
-            textNode.value = textNode.value as string
+            // Parse shiki's HTML into HAST and put it directly inside the code
+            // element. Round-tripping through a `data-highlighted` attribute
+            // double-encoded `<` chars and broke any code sample that contained
+            // literal `<` (HTML, JSX, Vue, etc.).
+            const fragment = fromHtml(highlightedHtml, { fragment: true })
+            codeNode.children = fragment.children as ElementContent[]
           }
         }
       }
