@@ -21,20 +21,25 @@ Install the video player:
 npm install @nomercy-entertainment/nomercy-video-player@beta
 ```
 
-Minimal working video player:
+Minimal working video player — Sintel from the public CC-licensed nomercy-media catalog:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-const player = nmplayer('player-1')
+const NM_MEDIA = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films';
+
+const player = nmplayer('player')
   .addPlugin(DesktopUiPlugin)
   .setup({
+    basePath: NM_MEDIA,
     playlist: [
       {
-        id: '1',
-        url: 'https://cdn.example.com/video.m3u8',
-        title: 'My Video',
+        id: 'sintel',
+        title: 'Sintel',
+        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+        image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+        duration: 888,
       },
     ],
   });
@@ -50,20 +55,23 @@ Install the music player (separate package, not bundled with the video player):
 npm install @nomercy-entertainment/nomercy-music-player@beta
 ```
 
-Minimal working music player:
+Minimal working music player — a real Derek Clegg track from nomercy-media:
 
 ```ts
 import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
 import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
-const player = nmMPlayer('player-1')
+const FMA = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
+
+const player = nmMPlayer('player')
   .addPlugin(AutoAdvancePlugin)
   .setup({
     playlist: [
       {
-        id: '1',
-        url: 'https://cdn.example.com/track.mp3',
-        name: 'My Track',
+        id: 'derek-clegg-thaw',
+        name: 'Thaw You Out',
+        url: `${FMA}/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.mp3`,
+        artist_track: [{ id: 1, name: 'Derek Clegg' }],
       },
     ],
   });
@@ -97,12 +105,15 @@ Video player:
 
   <script src="https://cdn.jsdelivr.net/npm/@nomercy-entertainment/nomercy-video-player@beta/dist/nomercy-video-player.iife.js"></script>
   <script>
+    var NM_MEDIA = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films';
     var player = window.nmplayer('player').setup({
+      basePath: NM_MEDIA,
       playlist: [
         {
-          id: '1',
-          url: 'https://cdn.example.com/video.m3u8',
-          title: 'My Video',
+          id: 'sintel',
+          title: 'Sintel',
+          url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+          duration: 888,
         },
       ],
     });
@@ -120,8 +131,14 @@ Music player:
 ```html
 <script src="https://cdn.jsdelivr.net/npm/@nomercy-entertainment/nomercy-music-player@beta/dist/nomercy-music-player.iife.js"></script>
 <script>
+  var FMA = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
   var player = window.nmMPlayer('player').setup({
-    playlist: [{ id: '1', url: 'https://cdn.example.com/track.mp3', name: 'My Track' }],
+    playlist: [{
+      id: 'derek-clegg-thaw',
+      name: 'Thaw You Out',
+      url: FMA + '/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.mp3',
+      artist_track: [{ id: 1, name: 'Derek Clegg' }],
+    }],
   });
 
   player.on('ready', function () {
@@ -150,8 +167,9 @@ export function useVideoPlayer() {
     const instance = nmplayer('player')
       .addPlugin(DesktopUiPlugin)
       .setup({
+        basePath: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
         playlist: [
-          { id: '1', url: 'https://cdn.example.com/video.m3u8', title: 'My Video' },
+          { id: 'sintel', title: 'Sintel', url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8', duration: 888 },
         ],
       });
 
@@ -198,8 +216,9 @@ export function VideoPlayer() {
     const player = nmplayer('player')
       .addPlugin(DesktopUiPlugin)
       .setup({
+        basePath: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
         playlist: [
-          { id: '1', url: 'https://cdn.example.com/video.m3u8', title: 'My Video' },
+          { id: 'sintel', title: 'Sintel', url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8', duration: 888 },
         ],
       });
 
@@ -224,7 +243,7 @@ If your media sources require authorization:
 
 ```ts
 const player = nmplayer('main').setup({
-  playlist: [/* items */],
+  playlist: [{ id: '1', url: 'https://protected.cdn.your-domain.com/stream.m3u8' }],
   auth: {
     bearerToken: () => myAuth.getAccessToken(),
     refreshOnUnauthenticated: async () => {

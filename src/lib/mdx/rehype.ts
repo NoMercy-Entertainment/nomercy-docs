@@ -72,45 +72,53 @@ function rehypeShiki() {
     }
 
     visit(tree, 'element', (node: Element) => {
-      if (node.tagName === 'pre' && node.children[0]?.type === 'element') {
-        const codeNode = node.children[0] as Element
-        if (codeNode.tagName === 'code' && codeNode.children[0]?.type === 'text') {
-          const textNode = codeNode.children[0]
+      if (node.tagName !== 'pre' || node.children[0]?.type !== 'element') return
+      const codeNode = node.children[0] as Element
+      if (codeNode.tagName !== 'code') return
 
-          node.properties = node.properties || {}
-          const existingDataTitle = node.properties['data-title']
-          node.properties.code = textNode.value
-          node.properties.className = ['shiki', 'overflow-x-auto', 'p-4', 'text-xs']
-          delete node.properties.style
-          delete node.properties.tabindex
-          if (existingDataTitle) {
-            node.properties['data-title'] = existingDataTitle
-          }
+      // Coalesce ALL child nodes to a single source text. MDX parses real
+      // HTML tags (`<script>`, `<div>`) inside ```html fences as element
+      // children, so `children[0].type === 'text'` would miss them and the
+      // block would render unhighlighted as escaped raw HTML.
+      const rawText = toString(codeNode)
+      if (!rawText) return
 
-          let syntaxLanguage = (node.properties['data-language'] as string | undefined) ?? 'txt'
-          const langLower = syntaxLanguage.toLowerCase()
-          if (langLower === 'button' || langLower === 'btn') {
-            syntaxLanguage = 'txt'
-          }
-          // Shiki throws on unregistered langs — fall back to txt.
-          if (!LANGS.includes(syntaxLanguage)) {
-            syntaxLanguage = 'txt'
-          }
-          if (highlighter) {
-            const highlightedHtml = highlighter.codeToHtml(textNode.value as string, {
-              lang: syntaxLanguage,
-              themes: { light: 'one-light', dark: 'one-dark-pro' },
-              defaultColor: 'light',
-              structure: 'inline',
-            })
-            // Parse shiki's HTML into HAST and put it directly inside the code
-            // element. Round-tripping through a `data-highlighted` attribute
-            // double-encoded `<` chars and broke any code sample that contained
-            // literal `<` (HTML, JSX, Vue, etc.).
-            const fragment = fromHtml(highlightedHtml, { fragment: true })
-            codeNode.children = fragment.children as ElementContent[]
-          }
-        }
+      node.properties = node.properties || {}
+      const existingDataTitle = node.properties['data-title']
+      // Store raw text under `data-code` (valid HTML5 data attribute).
+      // The previous custom `code` attribute name made some browsers
+      // mis-tokenize html / vue blocks whose value contained literal
+      // `<script>` substrings, dropping every shiki span inside.
+      node.properties['data-code-raw'] = rawText
+      node.properties.className = ['shiki', 'overflow-x-auto', 'p-4', 'text-xs']
+      delete node.properties.style
+      delete node.properties.tabindex
+      if (existingDataTitle) {
+        node.properties['data-title'] = existingDataTitle
+      }
+
+      let syntaxLanguage = (node.properties['data-language'] as string | undefined) ?? 'txt'
+      const langLower = syntaxLanguage.toLowerCase()
+      if (langLower === 'button' || langLower === 'btn') {
+        syntaxLanguage = 'txt'
+      }
+      // Shiki throws on unregistered langs — fall back to txt.
+      if (!LANGS.includes(syntaxLanguage)) {
+        syntaxLanguage = 'txt'
+      }
+      if (highlighter) {
+        const highlightedHtml = highlighter.codeToHtml(rawText, {
+          lang: syntaxLanguage,
+          themes: { light: 'one-light', dark: 'one-dark-pro' },
+          defaultColor: 'light',
+          structure: 'inline',
+        })
+        // Parse shiki's HTML into HAST and replace the code element's
+        // children with the parsed span tree. Round-tripping through a
+        // `data-highlighted` attribute double-encoded `<` chars and broke
+        // any code sample that contained literal `<` (HTML, JSX, Vue).
+        const fragment = fromHtml(highlightedHtml, { fragment: true })
+        codeNode.children = fragment.children as ElementContent[]
       }
     })
   }
@@ -137,7 +145,7 @@ function rehypeWrapCodeBlocks() {
     for (let i = nodesToWrap.length - 1; i >= 0; i--) {
       const { node, parent, index } = nodesToWrap[i]
       const dataTitle = node.properties?.['data-title'] as string | undefined
-      const code = node.properties?.code as string | undefined
+      const code = (node.properties?.['data-code-raw'] as string | undefined) ?? (node.properties?.code as string | undefined)
 
       // Create wrapper structure
       const wrapper: Element = {
@@ -250,6 +258,36 @@ function rehypeWrapCodeBlocks() {
   }
 }
 
+// Stamp every <td> with `data-label="<header text>"` so the CSS in
+// global.css can stack each row as a key/value list on narrow viewports
+// instead of horizontally scrolling a 5-column table off the side of a
+// phone screen.
+function rehypeTableLabels() {
+  return (tree: Root) => {
+    visit(tree, 'element', (node: Element) => {
+      if (node.tagName !== 'table') return
+      const headers: string[] = []
+      visit(node, 'element', (cell: Element) => {
+        if (cell.tagName === 'th') headers.push(toString(cell).trim())
+      })
+      if (headers.length === 0) return
+      visit(node, 'element', (row: Element) => {
+        if (row.tagName !== 'tr') return
+        let col = 0
+        for (const child of row.children) {
+          if (child.type !== 'element' || child.tagName !== 'td') continue
+          const label = headers[col]
+          if (label) {
+            child.properties = child.properties || {}
+            child.properties['data-label'] = label
+          }
+          col++
+        }
+      })
+    })
+  }
+}
+
 function rehypeSlugify() {
   return (tree: Root) => {
     const slugify = slugifyWithCounter()
@@ -319,6 +357,7 @@ export const rehypePlugins = [
   rehypeParseCodeBlocks,
   rehypeShiki,
   rehypeWrapCodeBlocks,
+  rehypeTableLabels,
   rehypeSlugify,
   [
     rehypeAddMDXExports,

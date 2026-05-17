@@ -75,11 +75,11 @@ const player = nmplayer('main')
   .addPlugin(DesktopUiPlugin)
   .addPlugin(AutoAdvancePlugin)
   .setup({
-    basePath: 'https://cdn.example.com/show',
+    basePath: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
     playlist: [
-      { id: '1', title: 'Episode 1', url: '/ep1.m3u8' },
-      { id: '2', title: 'Episode 2', url: '/ep2.m3u8' },
-      { id: '3', title: 'Episode 3', url: '/ep3.m3u8' },
+      { id: 'sintel', title: 'Sintel', url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8', duration: 888 },
+      { id: 'cosmos', title: 'Cosmos Laundromat', url: '/Cosmos.Laundromat.(2015)/Cosmos.Laundromat.(2015).NoMercy.m3u8', duration: 724 },
+      { id: 'bbb',    title: 'Big Buck Bunny',    url: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8', duration: 596 },
     ],
   });
 
@@ -118,7 +118,7 @@ player.pipState(true);
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 
 const player = nmplayer('main').setup({
-  playlist: [{ id: '1', url: 'https://protected.cdn.example.com/stream.m3u8' }],
+  playlist: [{ id: '1', url: 'https://protected.cdn.your-domain.com/stream.m3u8' }],
   auth: {
     bearerToken: () => myAuth.getAccessToken(),
     refreshOnUnauthenticated: async () => {
@@ -145,15 +145,18 @@ Pass subtitle tracks per playlist item:
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 
 const player = nmplayer('main').setup({
-  defaultSubtitleLanguage: 'en',
-  defaultAudioLanguage: 'en',
+  basePath: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  defaultSubtitleLanguage: 'eng',
   playlist: [
     {
-      id: '1',
-      url: '/show/ep1.m3u8',
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      duration: 888,
       tracks: [
-        { id: 0, kind: 'subtitles', language: 'en', label: 'English', file: '/show/ep1.en.vtt' },
-        { id: 1, kind: 'subtitles', language: 'nl', label: 'Dutch',   file: '/show/ep1.nl.vtt' },
+        { id: 0, kind: 'subtitles', language: 'eng', label: 'English', file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt' },
+        { id: 1, kind: 'subtitles', language: 'dut', label: 'Dutch',   file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.dut.full.vtt' },
+        { id: 2, kind: 'chapters',  file: '/Sintel.(2010)/chapters.vtt' },
       ],
     },
   ],
@@ -176,8 +179,14 @@ The IIFE bundle exposes a `nmplayer` global. Built-in plugins are not included i
 <div id="player" style="width:100%;aspect-ratio:16/9;background:#000"></div>
 <script src="https://cdn.jsdelivr.net/npm/@nomercy-entertainment/nomercy-video-player@beta/dist/nomercy-video-player.iife.js"></script>
 <script>
-  const player = window.nmplayer('player').setup({
-    playlist: [{ id: '1', url: 'https://cdn.example.com/stream.m3u8', title: 'Demo' }],
+  var player = window.nmplayer('player').setup({
+    basePath: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playlist: [{
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      duration: 888,
+    }],
   });
 
   player.on('ready', function () {

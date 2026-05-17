@@ -106,26 +106,67 @@
     overflow-wrap: anywhere;
   }
 
-  /* Tables: scroll the WHOLE table on narrow viewports, not individual
-     cells. Per-cell overflow-x makes columns tiny on mobile and breaks
-     inline-code chips mid-word. Table-as-block keeps column alignment
-     between header and body and lets the user swipe horizontally. */
-  .prose table {
-    display: block;
-    max-width: 100%;
-    overflow-x: auto;
-    overflow-y: hidden;
-  }
-  .prose table th,
-  .prose table td {
-    word-break: keep-all;
-    overflow-wrap: normal;
-    white-space: normal;
-  }
-  /* Inline code inside table cells: do not break mid-token. Long
-     identifiers force the column wider, the parent table scrolls. */
+  /* Inline code inside table cells: do not break mid-token. */
   .prose table :not(pre) > code {
-    white-space: nowrap;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  /* Tables — mobile. Stack each row as a key/value list. The rehype
+     plugin stamps `data-label="<column header>"` on every <td>, and
+     the ::before below renders that label inline with each value, so
+     a 5-column table reads as five labelled lines per row instead of
+     scrolling sideways off a phone. Desktop tables (lg+) keep their
+     standard tabular layout. */
+  @media (max-width: 1023px) {
+    .prose table,
+    .prose tbody,
+    .prose tr {
+      display: block;
+      width: 100%;
+    }
+    .prose thead {
+      display: none;
+    }
+    .prose tr {
+      margin: 0 0 0.75rem;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid rgb(228 228 231);
+      border-radius: 0.5rem;
+      background: rgb(250 250 250);
+    }
+    :where(.dark) .prose tr {
+      border-color: rgb(63 63 70);
+      background: rgb(39 39 42 / 0.5);
+    }
+    .prose td {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 0.35rem 0;
+      border: 0;
+      text-align: left;
+    }
+    .prose td + td {
+      border-top: 1px dashed rgb(228 228 231 / 0.7);
+    }
+    :where(.dark) .prose td + td {
+      border-top-color: rgb(63 63 70 / 0.7);
+    }
+    .prose td::before {
+      content: attr(data-label);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgb(113 113 122);
+    }
+    :where(.dark) .prose td::before {
+      color: rgb(161 161 170);
+    }
+    .prose td:not([data-label])::before {
+      display: none;
+    }
   }
 
   /* Anchor scroll offset for the fixed top header (h-14 = 56px) +
