@@ -25,11 +25,11 @@ Minimal working video player:
 
 ```ts
 import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
-import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 const player = nmplayer('player-1').setup({
   container: document.getElementById('player')!,
-  queue: [
+  playlist: [
     {
       id: '1',
       url: 'https://cdn.example.com/video.m3u8',
@@ -44,17 +44,23 @@ await player.ready();
 await player.play();
 ```
 
+Install the music player (separate package, not bundled with the video player):
+
+```
+npm install @nomercy-entertainment/nomercy-music-player@beta
+```
+
 Minimal working music player:
 
 ```ts
 import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player';
-import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player';
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
 const player = nmMPlayer('player-1').setup({
-  queue: [
+  playlist: [
     {
       id: '1',
-      url: 'https://cdn.example.com/track.m3u8',
+      url: 'https://cdn.example.com/track.mp3',
       name: 'My Track',
     },
   ],
@@ -66,17 +72,11 @@ await player.ready();
 await player.play();
 ```
 
-Install the music player (separate package, not bundled with the video player):
-
-```
-npm install @nomercy-entertainment/nomercy-music-player@beta
-```
-
 ---
 
 ## CDN embed (no bundler)
 
-For landing pages, simple sites, or anywhere you cannot use a build step.
+For landing pages, simple sites, or anywhere you cannot use a build step. The IIFE bundle exposes a global (`NMVideoPlayer` / `NMMusicPlayer`) with the core factory; built-in plugins ship as separate ESM subpaths and are not included in the IIFE.
 
 Video player:
 
@@ -92,13 +92,13 @@ Video player:
 <body>
   <div id="player"></div>
 
-  <script src="https://cdn.nomercy.tv/player/video/2.0.0/nomercy-video-player.iife.js"></script>
+  <script src="https://unpkg.com/@nomercy-entertainment/nomercy-video-player@beta/dist/nomercy-video-player.iife.js"></script>
   <script>
-    const { nmplayer, DesktopUiPlugin } = NMVideoPlayer;
+    const { nmplayer } = NMVideoPlayer;
 
     const player = nmplayer('player-1').setup({
       container: document.getElementById('player'),
-      queue: [
+      playlist: [
         {
           id: '1',
           url: 'https://cdn.example.com/video.m3u8',
@@ -107,7 +107,6 @@ Video player:
       ],
     });
 
-    player.addPlugin(DesktopUiPlugin);
     player.ready().then(() => player.play());
   </script>
 </body>
@@ -117,15 +116,14 @@ Video player:
 Music player:
 
 ```html
-<script src="https://cdn.nomercy.tv/player/music/2.0.0/nomercy-music-player.iife.js"></script>
+<script src="https://unpkg.com/@nomercy-entertainment/nomercy-music-player@beta/dist/nomercy-music-player.iife.js"></script>
 <script>
-  const { nmMPlayer, AutoAdvancePlugin } = NMMusicPlayer;
+  const { nmMPlayer } = NMMusicPlayer;
 
   const player = nmMPlayer('player-1').setup({
-    queue: [{ id: '1', url: 'https://cdn.example.com/track.m3u8', name: 'My Track' }],
+    playlist: [{ id: '1', url: 'https://cdn.example.com/track.mp3', name: 'My Track' }],
   });
 
-  player.addPlugin(AutoAdvancePlugin);
   player.ready().then(() => player.play());
 </script>
 ```
@@ -144,7 +142,7 @@ import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
 export const player = shallowRef(
   nmplayer('main').setup({
     container: document.getElementById('player')!,
-    queue: [],
+    playlist: [],
   })
 );
 ```
@@ -175,7 +173,7 @@ player.value.on('pause', () => { isPlaying.value = false; });
 ```tsx
 // lib/player.ts
 import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
-export const player = nmplayer('main').setup({ queue: [] });
+export const player = nmplayer('main').setup({ playlist: [] });
 
 // components/VideoPlayer.tsx
 import { useState, useEffect } from 'react';
@@ -236,4 +234,3 @@ The player injects `Authorization: Bearer <token>` on every HLS manifest and seg
 - [Music Player](/player/music/) — full music player reference (crossfade, EQ, lyrics)
 - [Kit](/player/kit/) — adapter ports and the shared engine
 - [Migration Guide (v1 → v2)](/player/migration-v1-v2) — upgrading from the previous version
-- [examples.nomercy.tv](https://examples.nomercy.tv) — live code examples

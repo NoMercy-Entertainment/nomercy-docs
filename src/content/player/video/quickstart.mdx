@@ -26,7 +26,8 @@ npm install @nomercy-entertainment/nomercy-video-player@beta
 ## Minimal working player
 
 ```ts
-import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 // Example uses CC-licensed Sintel from nomercy-media. Swap for your own content.
 const NM_MEDIA = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films';
@@ -34,16 +35,18 @@ const NM_MEDIA = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomerc
 const player = nmplayer('main').setup({
   container: document.getElementById('player')!,
   baseUrl: NM_MEDIA,
-  queue: [
+  playlist: [
     {
       id: 'sintel',
       title: 'Sintel',
-      file: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
       image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
       duration: 888,
-      tracks: [
-        { id: 0, label: 'English', file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt', language: 'eng', kind: 'subtitles' },
-        { id: 4, file: '/Sintel.(2010)/chapters.vtt', kind: 'chapters' },
+      subtitles: [
+        { id: 'en', kind: 'subtitles', language: 'eng', label: 'English', file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt' },
+      ],
+      chapters: [
+        { id: 'chapters', kind: 'chapters', file: '/Sintel.(2010)/chapters.vtt' },
       ],
     },
   ],
@@ -62,14 +65,15 @@ The `DesktopUiPlugin` mounts the full built-in UI — play/pause, seek bar, volu
 ## Auto-advance
 
 ```ts
-import { nmplayer, DesktopUiPlugin, AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin, AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 const player = nmplayer('main').setup({
   container: document.getElementById('player')!,
-  queue: [
-    { id: '1', title: 'Episode 1', url: '...ep1.m3u8' },
-    { id: '2', title: 'Episode 2', url: '...ep2.m3u8' },
-    { id: '3', title: 'Episode 3', url: '...ep3.m3u8' },
+  playlist: [
+    { id: '1', title: 'Episode 1', url: '/show/ep1.m3u8' },
+    { id: '2', title: 'Episode 2', url: '/show/ep2.m3u8' },
+    { id: '3', title: 'Episode 3', url: '/show/ep3.m3u8' },
   ],
 });
 
@@ -93,7 +97,7 @@ player.pause();
 player.stop();
 player.next();
 player.previous();
-player.seekToIndex(2);       // jump to episode 3 (index 2)
+player.seekToIndex(2);       // jump to the third item (0-based)
 player.currentTime(120);     // seek to 2:00
 player.volume(60);            // 0-100
 player.mute();
@@ -110,7 +114,7 @@ player.pipState(true);
 ```ts
 nmplayer('main').setup({
   container: document.getElementById('player')!,
-  queue: [{ id: '1', url: 'https://protected.cdn.example.com/stream.m3u8' }],
+  playlist: [{ id: '1', url: 'https://protected.cdn.example.com/stream.m3u8' }],
   auth: {
     bearerToken: () => myAuth.getAccessToken(),
     refreshOnUnauthenticated: async () => {
@@ -134,40 +138,43 @@ const player = nmplayer('main').setup({
   container: document.getElementById('player')!,
   defaultSubtitleLanguage: 'en',
   defaultAudioLanguage: 'en',
-  queue: [
+  playlist: [
     {
       id: '1',
-      url: '...ep1.m3u8',
+      url: '/show/ep1.m3u8',
       subtitles: [
-        { id: 'en', language: 'en', label: 'English', file: 'ep1.en.vtt', kind: 'subtitles' },
-        { id: 'nl', language: 'nl', label: 'Dutch',   file: 'ep1.nl.vtt', kind: 'subtitles' },
+        { id: 'en', kind: 'subtitles', language: 'en', label: 'English', file: '/show/ep1.en.vtt' },
+        { id: 'nl', kind: 'subtitles', language: 'nl', label: 'Dutch',   file: '/show/ep1.nl.vtt' },
       ],
     },
   ],
 });
 ```
 
-For ASS/SSA subtitles with full typesetting, add `OctopusPlugin` — see [Subtitle Overlay](/player/video/subtitle-overlay).
+For ASS/SSA subtitles with full typesetting, add `OctopusPlugin` from the `/plugins` subpath — see [Subtitle Overlay](/player/video/subtitle-overlay).
 
 ---
 
 ## CDN embed (no bundler)
 
+The CDN bundle is published as part of each release on unpkg / jsdelivr. The package's IIFE bundle exposes a `NMVideoPlayer` global:
+
 ```html
 <div id="player" style="width:100%;aspect-ratio:16/9;background:#000"></div>
-<script src="https://cdn.nomercy.tv/player/video/2.0.0-beta.0/nomercy-video-player.iife.js"></script>
+<script src="https://unpkg.com/@nomercy-entertainment/nomercy-video-player@beta/dist/nomercy-video-player.iife.js"></script>
 <script>
-  const { nmplayer, DesktopUiPlugin, AutoAdvancePlugin } = NMVideoPlayer;
+  const { nmplayer } = NMVideoPlayer;
 
   const player = nmplayer('main').setup({
     container: document.getElementById('player'),
-    queue: [{ id: '1', url: 'https://cdn.example.com/stream.m3u8', title: 'Demo' }],
+    playlist: [{ id: '1', url: 'https://cdn.example.com/stream.m3u8', title: 'Demo' }],
   });
 
-  player.addPlugin(DesktopUiPlugin).addPlugin(AutoAdvancePlugin);
   player.ready().then(() => player.play());
 </script>
 ```
+
+Built-in plugins are not included in the IIFE bundle — install via npm and use ESM when you need them.
 
 ---
 
