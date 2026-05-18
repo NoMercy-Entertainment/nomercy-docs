@@ -1,4 +1,4 @@
-﻿---
+---
 title: "What is the Video Player"
 description: "The NoMercy Video Player and its relation to the player kit."
 category: "Getting Started"
@@ -6,6 +6,91 @@ order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/index.ts, types.ts -->
+
+## What is the NoMercy Video Player
+
+`@nomercy-entertainment/nomercy-video-player` is a headless, framework-agnostic HLS video player built on the NoMercy Player Kit (`@nomercy-entertainment/nomercy-player-core`). It provides:
+
+- HLS streaming via the bundled hls.js dependency (no separate install needed)
+- Multi-track subtitle rendering — VTT sidecar, native TextTrack, and ASS/SSA via the OctopusPlugin
+- Adaptive quality selection with manual override
+- Audio track switching
+- Fullscreen, Picture-in-Picture, and Theater mode
+- Chromecast sender integration via CastSenderPlugin
+- DRM support (Widevine, FairPlay, PlayReady) via DrmPlugin
+- A plugin system for all optional surfaces — UI, keyboard, touch, media session, and more
+
+## Architecture
+
+The video player is a three-layer stack:
+
+```
+Your application
+      ↓
+NMVideoPlayer          — video-specific methods and event map (IVideoPlayer<T>)
+      ↓
+nomercy-player-core    — lifecycle, plugin system, event bus, auth, fetch, adapters
+```
+
+`NMVideoPlayer` extends the kit's base player with video-specific surfaces: `fullscreenState()`, `aspectRatio()`, `cycleSubtitles()`, `backend()`, and the `IVideoPlayer<T>` interface. Plugin authors should type against `IVideoPlayer<T>` rather than the concrete class.
+
+All lifecycle management, the plugin registry, cross-cutting concerns (auth tokens, URL resolution, metrics, i18n), and adapter contracts live in the kit and are documented at [/nomercy-player-kit/lifecycle](/nomercy-player-kit/lifecycle).
+
+## Quick start
+
+See [Installation](/nomercy-video-player/installation) for install instructions, then [Quick Start](/nomercy-video-player/quickstart) for a minimal working example.
+
+## Setup pattern
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin, SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(DesktopUiPlugin)
+  .addPlugin(SubtitleOverlayPlugin)
+  .setup({
+    playlist: [{
+      title: 'Sintel',
+      url: 'https://media.nomercy.tv/sintel/master.m3u8',
+      image: 'https://media.nomercy.tv/sintel/poster.jpg',
+    }],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+Register all plugins before calling `setup()`. Plugin registration occurs during the `pluginsRegistering` lifecycle phase.
+
+## Plugin registry overview
+
+All optional capabilities are plugins. Available plugins:
+
+| Plugin | What it does |
+|---|---|
+| [AutoAdvance](/nomercy-video-player/plugins/auto-advance) | Calls `next()` when a queue item finishes |
+| [CastSender](/nomercy-video-player/plugins/cast-sender) | Chromecast sender — media bridge for video |
+| [DesktopUi](/nomercy-video-player/plugins/desktop-ui) | Full controls overlay for desktop browsers |
+| [DRM](/nomercy-video-player/plugins/drm) | EME DRM coordination — Widevine / FairPlay / PlayReady |
+| [Embed](/nomercy-video-player/plugins/embed) | iframe embed and postMessage control API |
+| [KeyHandler](/nomercy-video-player/plugins/key-handler) | Keyboard shortcut bindings |
+| [LiveTranscoding](/nomercy-video-player/plugins/live-transcoding) | Server-coordinated live video transcoding |
+| [MediaSession](/nomercy-video-player/plugins/media-session) | OS media session (lock screen, notifications) |
+| [Message](/nomercy-video-player/plugins/message) | Cross-tab and cross-frame messaging |
+| [Octopus](/nomercy-video-player/plugins/octopus) | libass ASS/SSA subtitle renderer |
+| [Skipper](/nomercy-video-player/plugins/skipper) | Skip-intro / skip-recap / skip-credits |
+| [SubtitleOverlay](/nomercy-video-player/plugins/subtitle-overlay) | DOM-based VTT subtitle overlay |
+| [TabLeader](/nomercy-video-player/plugins/tab-leader) | Single-tab-active coordination |
+| [TouchZones](/nomercy-video-player/plugins/touch-zones) | Mobile tap-to-seek and double-tap controls |
+| [TvUi](/nomercy-video-player/plugins/tv-ui) | TV remote control bindings |
+| [AudioGraph](/nomercy-video-player/plugins/audio-graph) | Web Audio API signal chain (EQ, visualizer) |
+
+## See also
+
+- [Player Kit — Lifecycle](/nomercy-player-kit/lifecycle)
+- [Player Kit — Plugin Model](/nomercy-player-kit/plugins)
+- [VideoPlaylistItem](/nomercy-video-player/playlist-item)
+- [IVideoPlayer interface](/nomercy-video-player/types)

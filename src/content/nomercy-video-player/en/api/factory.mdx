@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Factory"
 description: "nmplayer(id), NMVideoPlayer.create, and the expose config."
 category: "API Methods"
@@ -6,6 +6,88 @@ order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/index.ts -->
+
+## nmplayer
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+function nmplayer(id: string): NMVideoPlayer<VideoPlaylistItem>
+```
+
+The default export. Creates or retrieves a player instance bound to the DOM element with the given `id` attribute. If a player is already attached to `id`, the same instance is returned (singleton per element).
+
+**Parameters:**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `string` | The `id` attribute of the container element the player will mount into |
+
+**Returns:** `NMVideoPlayer<VideoPlaylistItem>` — the player instance, ready to chain `.addPlugin()` and `.setup()`.
+
+### Example
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin, SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(DesktopUiPlugin)
+  .addPlugin(SubtitleOverlayPlugin)
+  .setup({
+    playlist: [{
+      title: 'Big Buck Bunny',
+      url: 'https://media.nomercy.tv/bbb/master.m3u8',
+      image: 'https://media.nomercy.tv/bbb/poster.jpg',
+    }],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+## setup
+
+```ts
+player.setup(config: VideoPlayerConfig): NMVideoPlayer<T>
+```
+
+Initialises the player with the provided configuration. Triggers the setup lifecycle: `pluginsRegistering → configuring → loading → ready`. Must be called after all `.addPlugin()` calls and before any transport methods.
+
+**Returns** the same player instance for chaining.
+
+## addPlugin
+
+```ts
+player.addPlugin<O>(plugin: PluginCtorWithId, options?: O): NMVideoPlayer<T>
+```
+
+Registers a plugin class and its options. Must be called before `setup()`. Registration happens during the `pluginsRegistering` phase.
+
+**Returns** the same player instance for chaining.
+
+### Chaining example
+
+```ts
+const player = nmplayer('player')
+  .addPlugin(DesktopUiPlugin)
+  .addPlugin(OctopusPlugin, { workerUrl: '/octopus-worker.js' })
+  .addPlugin(AutoAdvancePlugin, { enabled: true })
+  .setup({ playlist: [{ url: '...' }] });
+```
+
+## destroy
+
+```ts
+player.destroy(): void
+```
+
+Tears down the player: disposes all plugins, removes the DOM tree, cancels pending network requests, and releases the HLS instance. Call this when the player's container is removed from the document.
+
+## See also
+
+- [VideoPlayerConfig](/nomercy-video-player/types)
+- [Plugins overview](/nomercy-video-player/overview)
+- [Player Kit — Lifecycle](/nomercy-player-kit/lifecycle)

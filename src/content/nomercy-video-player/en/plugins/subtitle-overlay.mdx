@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Subtitle Overlay"
 description: "The SubtitleOverlayPlugin — VTT and ASS/SSA subtitle rendering."
 category: "Plugins"
@@ -6,6 +6,86 @@ order: 3
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/plugins/subtitle-overlay/index.ts -->
+
+## Plugin id
+
+`'subtitle-overlay'`
+
+## Import
+
+```ts
+import { SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+```
+
+## What it does
+
+`SubtitleOverlayPlugin` renders the player's `subtitleCue` event stream as a positioned DOM overlay above the video element. It is a pure consumer — all subtitle parsing, VTT fetching, and cue tracking live in the kit. The overlay subscribes to the single `'subtitleCue'` event and renders one `.subtitle-area` per active cue.
+
+Features:
+
+- One `.subtitle-area` box per active cue, pooled and reused — no DOM churn
+- WebVTT cue layout: `line`, `position`, `size`, and `align` attributes from the VTT cue are applied as CSS positioning
+- Collision detection — when two cues would overlap, the later one is displaced along the line axis
+- Overlay is letterbox-fit to the actual video display rectangle (not the container), so cue font size scales with the visible picture, not the player shell
+- `subtitleStyle()` settings (font family, size, color, edge style, background) are applied and update live on `'subtitleStyle'` events
+- Language tag is mirrored onto `.subtitle-text[data-language]` for CSS targeting
+
+For ASS/SSA subtitle files, add the OctopusPlugin instead — this overlay handles VTT only.
+
+## Registration
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(SubtitleOverlayPlugin)
+  .setup({
+    playlist: [{
+      title: 'Big Buck Bunny',
+      url: 'https://media.nomercy.tv/bbb/master.m3u8',
+      subtitles: [
+        { id: 1, kind: 'subtitles', label: 'English', language: 'en', url: 'https://media.nomercy.tv/bbb/en.vtt' },
+      ],
+    }],
+    defaultSubtitleLanguage: 'en',
+  });
+```
+
+## DOM structure
+
+The plugin mounts:
+
+```
+.nomercyplayer
+  └─ .subtitle-overlay            (letterbox-fit to video rect)
+      └─ .subtitle-safezone       (5% top/bottom, 3% left/right inset)
+          └─ .subtitle-area × N   (one per active cue, positioned by VTT cue attributes)
+              └─ .subtitle-text   (styled by subtitleStyle settings)
+```
+
+## Subtitle style
+
+The overlay respects all fields of `SubtitleStyle` via `player.subtitleStyle()`:
+
+```ts
+player.subtitleStyle({
+  fontFamily: 'ReithSans, sans-serif',
+  fontSize: 120,               // 120% of default size
+  textColor: 'white',
+  textOpacity: 100,
+  edgeStyle: 'dropShadow',
+  backgroundColor: 'black',
+  backgroundOpacity: 80,
+});
+```
+
+Changes are applied immediately to all active cue areas without re-rendering.
+
+## See also
+
+- [Octopus plugin (ASS/SSA)](/nomercy-video-player/plugins/octopus)
+- [Subtitle Style Store adapter](/nomercy-video-player/adapters/subtitle-style-store)
+- [Cycling Methods — cycleSubtitles](/nomercy-video-player/api/cycling)
+- [Troubleshooting — subtitles not appearing](/nomercy-video-player/troubleshooting)

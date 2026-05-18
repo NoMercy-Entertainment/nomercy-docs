@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Thumbnail Source"
 description: "The IThumbnailSource adapter for sprite VTT thumbnails."
 category: "Adapters"
@@ -6,6 +6,86 @@ order: 2
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/adapters/thumbnail-source/IThumbnailSource.ts -->
+
+## What is a thumbnail source?
+
+`IThumbnailSource` is the adapter the player calls to supply hover thumbnail frames for the progress bar. The default implementation (`VttSpriteThumbnailSource`) fetches a WebVTT sprite manifest and parses the sprite coordinates from each cue. A custom implementation could use a different manifest format or a server-side lookup.
+
+## IThumbnailSource interface
+
+```ts
+import type { IThumbnailSource } from '@nomercy-entertainment/nomercy-video-player';
+```
+
+| Method | Signature | Description |
+|---|---|---|
+| `load(item)` | `(item: BasePlaylistItem) => Promise<boolean>` | Fetch and cache thumbnails for the item. Returns `true` when thumbnails are available, `false` otherwise |
+| `lookup(timeSeconds)` | `(timeSeconds: number) => ThumbnailFrame \| null` | Return the frame covering `timeSeconds`. Must be synchronous — called on every scrub event |
+| `unload()` | `() => void` | Release cached data. Called on unload and dispose |
+
+## ThumbnailFrame
+
+```ts
+import type { ThumbnailFrame } from '@nomercy-entertainment/nomercy-video-player';
+
+interface ThumbnailFrame {
+  spriteUrl: string;  // URL of the sprite image
+  x: number;         // Left offset within the sprite, in pixels
+  y: number;         // Top offset within the sprite, in pixels
+  w: number;         // Width of the sub-region, in pixels
+  h: number;         // Height of the sub-region, in pixels
+  start: number;     // Cue start time in seconds
+  end: number;       // Cue end time in seconds
+}
+```
+
+## Default implementation: VttSpriteThumbnailSource
+
+`VttSpriteThumbnailSource` is used automatically. It reads the `previewSpriteUrl` field on `VideoPlaylistItem`:
+
+```ts
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+const item: VideoPlaylistItem = {
+  url: 'https://media.nomercy.tv/cosmos/master.m3u8',
+  previewSpriteUrl: 'https://media.nomercy.tv/cosmos/thumbnails.vtt',
+};
+```
+
+The VTT manifest references sprite images using fragment identifiers (`#xywh=`):
+
+```
+WEBVTT
+
+00:00:00.000 --> 00:00:10.000
+/cosmos/sprites/000.jpg#xywh=0,0,160,90
+
+00:00:10.000 --> 00:00:20.000
+/cosmos/sprites/000.jpg#xywh=160,0,160,90
+```
+
+`VttSpriteThumbnailSource` parses these coordinates and exposes them via `lookup(timeSeconds)`.
+
+## Using thumbnails in a custom UI
+
+```ts
+player.on('timeupdate', () => {
+  // Called during scrub — lookup is synchronous
+  const frame = thumbnailSource.lookup(hoverTime);
+  if (!frame) return;
+
+  img.src = frame.spriteUrl;
+  img.style.objectPosition = `-${frame.x}px -${frame.y}px`;
+  img.style.width = `${frame.w}px`;
+  img.style.height = `${frame.h}px`;
+});
+```
+
+The DesktopUiPlugin uses the thumbnail source internally to show hover thumbnails above the progress bar scrubber.
+
+## See also
+
+- [VideoPlaylistItem — previewSpriteUrl field](/nomercy-video-player/playlist-item)
+- [Chapter Source adapter](/nomercy-video-player/adapters/chapter-source)
+- [DesktopUi plugin](/nomercy-video-player/plugins/desktop-ui)

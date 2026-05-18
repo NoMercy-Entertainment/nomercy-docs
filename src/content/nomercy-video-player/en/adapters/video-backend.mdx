@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Video Backend"
 description: "The IVideoBackend adapter contract."
 category: "Adapters"
@@ -6,6 +6,110 @@ order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/adapters/video-backend/IVideoBackend.ts -->
+
+## What is a video backend?
+
+The video backend is the layer between `NMVideoPlayer` and the browser's media APIs. The default implementation (`Html5VideoBackend`) wraps a `<video>` element and integrates hls.js for HLS streams. A custom backend could target WebCodecs, a native shell bridge, or an experimental pipeline.
+
+## Default backend: Html5VideoBackend
+
+`Html5VideoBackend` is used automatically when no `backendFactory` is provided. It:
+
+- Detects HLS URLs (`.m3u8`) and loads them via hls.js
+- Falls back to native `<video>` `src` for other URLs
+- Parses HLS manifest quality levels and maps them to `QualityLevel` objects
+- Exposes multi-audio track switching via the HLS API
+- Forwards `loadedmetadata`, `timeupdate`, `playing`, `waiting`, `stalled`, `ended`, `error`, and HLS-specific events to the player's event bus
+- Handles HDR/SDR level capping when the display changes
+- Implements error recovery with retry logic for HLS network and media errors
+
+## IVideoBackend interface
+
+```ts
+import type { IVideoBackend } from '@nomercy-entertainment/nomercy-video-player';
+```
+
+Every backend must implement all methods in `IVideoBackend`. See [API — Backend Access](/nomercy-video-player/api/backend) for the full method table.
+
+### BackendState
+
+```ts
+type BackendState = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'error';
+```
+
+Returned by `backend.state()`.
+
+### VideoBackendKind
+
+```ts
+type VideoBackendKind = 'html5' | 'mse' | 'webcodecs';
+```
+
+Passed to the `VideoBackendFactory` so factories can branch on the resolved kind.
+
+## Swapping the backend
+
+Pass `backendFactory` in `VideoPlayerConfig`. The factory receives the resolved `kind` and the full player config:
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import type { VideoBackendFactory, IVideoBackend, VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+import type { BasePlaylistItem } from '@nomercy-entertainment/nomercy-player-core';
+
+class MyBackend implements IVideoBackend {
+  readonly kind = 'html5' as const;
+
+  async load(url: string): Promise<void> {
+    // mount url to a <video> element
+  }
+
+  unload(): void { /* ... */ }
+  dispose(): void { /* ... */ }
+
+  play(): Promise<void> { return Promise.resolve(); }
+  pause(): void { /* ... */ }
+  stop(): void { /* ... */ }
+
+  currentTime(): number { return 0; }
+  currentTime(t: number): void { /* ... */ }
+  duration(): number { return 0; }
+
+  // ... implement all IVideoBackend methods
+}
+
+const factory: VideoBackendFactory = (kind, config) => {
+  return new MyBackend();
+};
+
+const player = nmplayer('player').setup({
+  backendFactory: factory,
+  playlist: [{ url: 'https://media.nomercy.tv/sintel/master.m3u8' }],
+});
+```
+
+## Backend events
+
+Backends emit through the `BackendEventPayload` map. The player's event bus subscribes to these and re-emits them as video player events where applicable:
+
+| Backend event | Description |
+|---|---|
+| `loadedmetadata` | Source loaded; includes `url`, `kind`, `duration` |
+| `canplay` | Enough data buffered to begin playback |
+| `playing` | Media is actively rendering (after buffer resolves) |
+| `waiting` | Buffering (forwarded to player `'waiting'`) |
+| `stalled` | Network stalled (forwarded to player `'stalled'`) |
+| `ended` | Playback reached the end |
+| `error` | A fatal error occurred |
+| `levels` | HLS quality levels available |
+| `level-switched` | ABR switched to a different quality level |
+| `audioTracks` | Audio track list available after manifest parse |
+| `subtitleCue` | Active subtitle cues changed |
+| `stream:error` | HLS non-fatal or escalated error with details |
+| `stream:recovering` | HLS error recovery attempt in progress |
+
+## See also
+
+- [API — Backend Access](/nomercy-video-player/api/backend)
+- [Player Kit — writing-a-backend](/nomercy-player-kit/advanced/writing-a-backend)
+- [Types Reference](/nomercy-video-player/types)

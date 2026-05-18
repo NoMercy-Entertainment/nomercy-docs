@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Embed"
 description: "The EmbedPlugin — iframe embed and postMessage control."
 category: "Plugins"
@@ -6,6 +6,82 @@ order: 15
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/plugins/embed/index.ts — re-exports from nomercy-player-core -->
+
+## Plugin id
+
+`'embed'`
+
+## Import
+
+```ts
+import { EmbedPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { EmbedOptions, EmbedCommand, EmbedEventMessage } from '@nomercy-entertainment/nomercy-video-player/plugins';
+```
+
+## What it does
+
+`EmbedPlugin` is a direct re-export of the kit's shared `EmbedPlugin`. It provides a `postMessage`-based control API that allows a parent page to control a player embedded in an `<iframe>`.
+
+When registered, the plugin listens for `window.message` events from the parent frame. Commands arriving as `EmbedCommand` objects are dispatched to the local player. Player events are forwarded back to the parent as `EmbedEventMessage` objects.
+
+This plugin is intended for embedding the player in third-party contexts — for example, a CMS widget, a dashboard embed, or a no-code page builder.
+
+## Options
+
+```ts
+interface EmbedOptions {
+  /** Allowed origin for postMessage. Use '*' for any origin (not recommended for production). */
+  allowedOrigin?: string;
+}
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `allowedOrigin` | `string` | `'*'` | Restricts which parent origins can send commands. Use a specific origin in production |
+
+## EmbedCommand
+
+Commands sent from the parent page to the embedded player:
+
+| Command | Description |
+|---|---|
+| `{ type: 'play' }` | Call `player.play()` |
+| `{ type: 'pause' }` | Call `player.pause()` |
+| `{ type: 'stop' }` | Call `player.stop()` |
+| `{ type: 'seek', time: number }` | Seek to `time` seconds |
+| `{ type: 'volume', level: number }` | Set volume to `level` (0–1) |
+| `{ type: 'mute' }` | Mute audio |
+| `{ type: 'unmute' }` | Unmute audio |
+| `{ type: 'fullscreen', active: boolean }` | Enter or exit fullscreen |
+
+## Registration
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { EmbedPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+// Inside the iframe:
+const player = nmplayer('player')
+  .addPlugin(EmbedPlugin, { allowedOrigin: 'https://example.com' })
+  .setup({
+    playlist: [{
+      title: 'Sintel',
+      url: 'https://media.nomercy.tv/sintel/master.m3u8',
+    }],
+  });
+```
+
+```js
+// In the parent page:
+const iframe = document.querySelector('iframe');
+
+iframe.contentWindow.postMessage({ type: 'play' }, 'https://player.example.com');
+iframe.contentWindow.postMessage({ type: 'seek', time: 120 }, 'https://player.example.com');
+```
+
+## See also
+
+- [Player Kit — EmbedPlugin (canonical docs)](/nomercy-player-kit/plugins)
+- [Tab Leader plugin](/nomercy-video-player/plugins/tab-leader)
+- [Message plugin](/nomercy-video-player/plugins/message)

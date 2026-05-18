@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Tab Leader"
 description: "The TabLeaderPlugin — single-tab-active coordination."
 category: "Plugins"
@@ -6,6 +6,57 @@ order: 13
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/plugins/tab-leader/index.ts — re-exports from nomercy-player-core -->
+
+## Plugin id
+
+`'tab-leader'`
+
+## Import
+
+```ts
+import { TabLeaderPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { TabLeaderOptions } from '@nomercy-entertainment/nomercy-video-player/plugins';
+```
+
+## What it does
+
+`TabLeaderPlugin` is a direct re-export of the kit's shared `TabLeaderPlugin`. It uses the `BroadcastChannel` API (with a `localStorage` fallback) to elect one tab as the "leader" when multiple tabs have a player open.
+
+When a player starts playing and another player instance is already the leader, `TabLeaderPlugin` pauses the non-leader player. This prevents multiple tabs from playing simultaneously without requiring the user to manually pause each one.
+
+The election is automatic — when the current leader tab closes, a new leader is elected from the remaining tabs.
+
+## Options
+
+```ts
+interface TabLeaderOptions {
+  /** BroadcastChannel name for leader election. Default 'nomercy-player-leader'. */
+  channel?: string;
+  /** Pause non-leader players when the leader starts playing. Default true. */
+  pauseOnLose?: boolean;
+}
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `channel` | `string` | `'nomercy-player-leader'` | Channel name for coordination across tabs |
+| `pauseOnLose` | `boolean` | `true` | Whether non-leader players are paused when the leader plays |
+
+## Registration
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { TabLeaderPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(TabLeaderPlugin, { pauseOnLose: true })
+  .setup({
+    playlist: [{ url: 'https://media.nomercy.tv/sintel/master.m3u8' }],
+  });
+```
+
+## See also
+
+- [Message plugin](/nomercy-video-player/plugins/message)
+- [Player Kit — TabLeaderPlugin (canonical docs)](/nomercy-player-kit/plugins)

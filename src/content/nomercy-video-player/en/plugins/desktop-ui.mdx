@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Desktop UI"
 description: "The DesktopUiPlugin — full controls overlay for desktop."
 category: "Plugins"
@@ -6,6 +6,114 @@ order: 2
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/plugins/desktop-ui/index.ts -->
+
+## Plugin id
+
+`'desktop-ui'`
+
+## Import
+
+```ts
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { DesktopUiOptions } from '@nomercy-entertainment/nomercy-video-player/plugins';
+```
+
+## What it does
+
+`DesktopUiPlugin` renders the complete video player controls overlay as a DOM tree mounted inside `.nomercyplayer`. It is a v2-native rewrite of the v1 desktop UI and provides:
+
+- Top bar — title, show/season/episode info, back button
+- Progress bar — with chapter markers, buffer indicator, scrubber, hover-time label, and sprite thumbnail preview
+- Control bar — play/pause, skip buttons, volume slider, mute toggle, speed selector, subtitle/audio/quality menus, theater, PiP, fullscreen
+- Menu panes — speed picker, quality picker, subtitle picker, audio picker, playlist, subtitle style settings, aspect ratio selector
+- Seek-feedback animations
+- Activity detection — controls auto-hide after inactivity; tap/move to reveal
+- Keyboard shortcut sheet (toggle with `?`)
+
+The back button in the top bar only renders when at least one `'back'` event listener is registered.
+
+Hover thumbnails on the progress bar use the `previewSpriteUrl` from the active playlist item automatically — no extra configuration needed.
+
+## Options
+
+```ts
+interface DesktopUiOptions {
+  // No consumer-configurable options in this release.
+  // All UI behaviour adapts to the player state automatically.
+}
+```
+
+## Registration
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import {
+  DesktopUiPlugin,
+  SubtitleOverlayPlugin,
+} from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(DesktopUiPlugin)
+  .addPlugin(SubtitleOverlayPlugin)
+  .setup({
+    playlist: [{
+      title: 'Sintel',
+      url: 'https://media.nomercy.tv/sintel/master.m3u8',
+      image: 'https://media.nomercy.tv/sintel/poster.jpg',
+      previewSpriteUrl: 'https://media.nomercy.tv/sintel/thumbnails.vtt',
+      chapters: [
+        { title: 'Intro', start: 0, end: 90 },
+        { title: 'Act 1', start: 90, end: 600 },
+      ],
+    }],
+  });
+
+// Wire the back button — it only renders when this listener exists
+player.on('back', () => {
+  history.back();
+});
+```
+
+## DOM tree
+
+The plugin builds its tree inside `.nomercyplayer > .nomercyplayer-overlay`:
+
+```
+overlay
+  ├─ top-bar > title + back button
+  ├─ center  > spinner + center play/pause button
+  └─ bottom-bar
+      ├─ bottom-bar-shadow
+      ├─ top-row (slider-bar)
+      │   ├─ slider-buffer
+      │   ├─ slider-hover
+      │   ├─ slider-progress
+      │   └─ chapter-progress × N
+      └─ bottom-row
+          ├─ left controls (play, prev, next, time, volume)
+          ├─ center (space)
+          └─ right controls (speed, quality, subtitles, audio, playlist, theater, pip, fullscreen)
+```
+
+## UX rules
+
+- Pointer input (click) on multi-state buttons opens a menu. Cycle actions (cycleAspectRatio, cycleSubtitles) are for keyboard / remote-control contexts only — the control bar uses menus for those features.
+- Theater, PiP, and Fullscreen are binary toggles — direct action on click.
+- Menus close when clicking outside them or when another menu opens.
+
+## Events emitted
+
+The desktop UI emits internal events for cross-plugin coordination:
+
+| Event | Description |
+|---|---|
+| `'activity'` | `{ active: boolean }` — controls show/hide state changed |
+| `'plugin:desktop-ui:shortcuts-toggle'` | Keyboard shortcut sheet toggled (via `?` key) |
+
+## See also
+
+- [SubtitleOverlay plugin](/nomercy-video-player/plugins/subtitle-overlay)
+- [KeyHandler plugin](/nomercy-video-player/plugins/key-handler)
+- [TouchZones plugin](/nomercy-video-player/plugins/touch-zones)
+- [Thumbnail Source adapter](/nomercy-video-player/adapters/thumbnail-source)

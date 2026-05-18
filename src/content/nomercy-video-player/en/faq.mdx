@@ -1,4 +1,4 @@
-﻿---
+---
 title: "FAQ"
 description: "Frequently asked questions about the NoMercy Video Player."
 category: "Reference"
@@ -6,6 +6,127 @@ order: 2
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+## Do I need to install hls.js separately?
+
+No. hls.js ships as a regular dependency of `@nomercy-entertainment/nomercy-video-player`. Your bundler will include it automatically.
+
+## How do I type my plugin against the player?
+
+Use the `IVideoPlayer<T>` interface rather than the concrete `NMVideoPlayer` class:
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { IVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+class MyPlugin extends Plugin<IVideoPlayer> {
+  override use(): void {
+    this.on('ready', () => {
+      // this.player is fully typed as IVideoPlayer
+      this.player.play();
+    });
+  }
+}
+```
+
+## How do I set a default subtitle or audio language?
+
+Pass `defaultSubtitleLanguage` and `defaultAudioLanguage` (BCP-47 tags) in `VideoPlayerConfig`:
+
+```ts
+player.setup({
+  defaultSubtitleLanguage: 'en',
+  defaultAudioLanguage: 'nl',
+  playlist: [{ url: 'https://media.nomercy.tv/cosmos/master.m3u8' }],
+});
+```
+
+## How do I load relative poster URLs from a CDN?
+
+Set `imageBasePath` in `VideoPlayerConfig`:
+
+```ts
+player.setup({
+  imageBasePath: 'https://image.tmdb.org/t/p/original',
+  playlist: [{ url: '...', image: '/abc123.jpg' }],
+});
+```
+
+Absolute URLs pass through unchanged.
+
+## Why does my subtitle track not render?
+
+The `subtitles` field on `VideoPlaylistItem` is the canonical typed field. Verify:
+
+1. Each entry has `id`, `kind: 'subtitles'`, `language`, and a reachable `url`.
+2. For ASS/SSA files, add the OctopusPlugin — VTT sidecar and native TextTrack are handled by the SubtitleOverlayPlugin.
+3. Check that `defaultSubtitleLanguage` matches the `language` tag in your track.
+
+## How do I use thumbnail preview sprites?
+
+Set `previewSpriteUrl` on the playlist item. The DesktopUiPlugin reads this automatically when the user hovers the progress bar:
+
+```ts
+{
+  url: 'https://media.nomercy.tv/cosmos/master.m3u8',
+  previewSpriteUrl: 'https://media.nomercy.tv/cosmos/thumbnails.vtt',
+}
+```
+
+## How do I add skip markers for intro or credits?
+
+Set `skippers` on the playlist item and register the SkipperPlugin:
+
+```ts
+import { SkipperPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+player.addPlugin(SkipperPlugin, { autoSkip: ['recap'] });
+player.setup({
+  playlist: [{
+    url: 'https://media.nomercy.tv/bbb/master.m3u8',
+    skippers: {
+      intro:   { start: 3,  end: 92   },
+      credits: { start: 600, end: 633 },
+    },
+  }],
+});
+```
+
+Listen to `skipper:available` to render your own skip button.
+
+## Can I use the player with Vue or React?
+
+Yes. The player is headless and framework-agnostic. Mount it into a `ref`-attached element:
+
+```ts
+// Vue 3
+onMounted(() => {
+  player = nmplayer(containerRef.value.id).setup({ ... });
+});
+onUnmounted(() => player.destroy());
+```
+
+## How do I swap the video backend for a custom implementation?
+
+Pass `backendFactory` in config:
+
+```ts
+import type { VideoBackendFactory } from '@nomercy-entertainment/nomercy-video-player';
+
+const myFactory: VideoBackendFactory = (kind, config) => {
+  return new MyCustomBackend(config);
+};
+
+player.setup({ backendFactory: myFactory, playlist: [...] });
+```
+
+See [Video Backend adapter](/nomercy-video-player/adapters/video-backend).
+
+## What is the recommended way to handle authentication for private streams?
+
+Use the kit's `auth` config in `VideoPlayerConfig` (inherited from `BasePlayerConfig`). The kit's fetch pipeline injects bearer tokens into all subtitle, font, and poster fetches. See [/nomercy-player-kit/auth-fetch](/nomercy-player-kit/auth-fetch).
+
+## See also
+
+- [Troubleshooting](/nomercy-video-player/troubleshooting)
+- [Types Reference](/nomercy-video-player/types)
+- [VideoPlaylistItem](/nomercy-video-player/playlist-item)

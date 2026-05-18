@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Chapter Source"
 description: "The IChapterSource adapter for loading chapter data."
 category: "Adapters"
@@ -6,6 +6,82 @@ order: 3
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/adapters/chapter-source/IChapterSource.ts -->
+
+## What is a chapter source?
+
+`IChapterSource` is the adapter the player calls to load and query chapter data for each playlist item. The default implementation (`VttChapterSource`) reads chapters from the `chapters` typed field on `VideoPlaylistItem`. A custom implementation could fetch chapters from an API endpoint or parse a different file format.
+
+## IChapterSource interface
+
+```ts
+import type { IChapterSource } from '@nomercy-entertainment/nomercy-video-player';
+```
+
+| Method | Signature | Description |
+|---|---|---|
+| `load(item)` | `(item: BasePlaylistItem) => Promise<Chapter[]>` | Fetch and cache chapters for the item. Called after `loadedmetadata` |
+| `current(timeSeconds)` | `(timeSeconds: number) => Chapter \| null` | Return the chapter active at `timeSeconds`. Must be synchronous |
+| `all()` | `() => Chapter[]` | Return all chapters for the current item. Synchronous |
+| `unload()` | `() => void` | Release cached chapter data. Called on unload and dispose |
+
+## Default implementation: VttChapterSource
+
+`VttChapterSource` is used automatically when no custom chapter source is configured. It reads chapters from the `chapters` typed array on `VideoPlaylistItem`:
+
+```ts
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+const item: VideoPlaylistItem = {
+  url: 'https://media.nomercy.tv/cosmos/master.m3u8',
+  chapters: [
+    { title: 'Opening', start: 0,   end: 90   },
+    { title: 'Act 1',   start: 90,  end: 720  },
+    { title: 'Credits', start: 720, end: 730  },
+  ],
+};
+```
+
+When `chapters` is present and non-empty, `VttChapterSource.load()` resolves immediately with the pre-supplied list without making any network request.
+
+## Chapter type
+
+`Chapter` is defined in `@nomercy-entertainment/nomercy-player-core`:
+
+```ts
+interface Chapter {
+  title: string;
+  start: number;  // seconds
+  end: number;    // seconds
+}
+```
+
+## Querying chapters
+
+The player exposes chapter queries through its top-level API:
+
+```ts
+// All chapters for the current item
+const chapters = player.chapters();
+
+// Chapter active at the current playback position
+const currentChapter = player.currentChapter();
+
+// Navigate chapters
+player.nextChapter();
+player.previousChapter();
+```
+
+The `'chapter'` event fires when the playback position crosses a chapter boundary:
+
+```ts
+player.on('chapter', ({ index, title }) => {
+  console.log(`Now in chapter ${index}: ${title}`);
+});
+```
+
+## See also
+
+- [VideoPlaylistItem — chapters field](/nomercy-video-player/playlist-item)
+- [Player Kit — Kit Methods reference](/nomercy-video-player/api/kit-methods)
+- [Thumbnail Source adapter](/nomercy-video-player/adapters/thumbnail-source)

@@ -1,4 +1,4 @@
-﻿---
+---
 title: "VideoPlaylistItem"
 description: "All fields of VideoPlaylistItem including subtitles, chapters, skippers, and progress."
 category: "Playlist Item"
@@ -6,6 +6,200 @@ order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/types.ts -->
+
+## VideoPlaylistItem
+
+`VideoPlaylistItem` is the shape of each item in the player's playlist. Pass it in `VideoPlayerConfig.playlist` or supply it to `player.current(item)`.
+
+```ts
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+```
+
+## Fields
+
+### Media source
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `url` | `string` | Yes | HLS manifest URL (`.m3u8`) or progressive MP4 URL |
+| `title` | `string` | No | Display title shown in the UI and MediaSession metadata |
+| `duration` | `number` | No | Duration in seconds. Used by the UI before the backend loads metadata |
+
+### Cover art
+
+Three field names are accepted in priority order: `image` → `poster` → `thumbnail`. The player reads whichever is first populated. Use any name your backend already uses.
+
+| Field | Type | Description |
+|---|---|---|
+| `image` | `string` | Poster/cover URL — highest priority |
+| `poster` | `string` | Poster URL — second priority |
+| `thumbnail` | `string` | Thumbnail URL — third priority |
+
+When `VideoPlayerConfig.imageBasePath` is set, relative paths like `/abc.jpg` are resolved against that base. Absolute URLs pass through unchanged.
+
+### Subtitles
+
+```ts
+subtitles?: SubtitleTrackRef[];
+```
+
+Typed array of subtitle tracks. Each entry is a `SubtitleTrackRef` (re-export of the kit's `SubtitleTrack`):
+
+```ts
+import type { SubtitleTrackRef } from '@nomercy-entertainment/nomercy-video-player';
+
+const item: VideoPlaylistItem = {
+  url: 'https://media.nomercy.tv/sintel/master.m3u8',
+  subtitles: [
+    { id: 1, kind: 'subtitles', label: 'English', language: 'en', url: 'https://media.nomercy.tv/sintel/en.vtt' },
+    { id: 2, kind: 'subtitles', label: 'Dutch', language: 'nl', url: 'https://media.nomercy.tv/sintel/nl.vtt' },
+  ],
+};
+```
+
+The player uses `defaultSubtitleLanguage` from config to auto-select a track at load time.
+
+### Chapters
+
+```ts
+chapters?: ChapterRef[];
+```
+
+Typed array of chapter markers. Each `ChapterRef` is a `{ title: string; start: number; end: number }` (re-export of the kit's `Chapter`). The player renders these in the progress bar when the DesktopUiPlugin is active.
+
+```ts
+import type { ChapterRef } from '@nomercy-entertainment/nomercy-video-player';
+
+chapters: [
+  { title: 'Intro',   start: 0,    end: 90   },
+  { title: 'Act 1',   start: 90,   end: 1200 },
+  { title: 'Credits', start: 3400, end: 3480 },
+],
+```
+
+### Skip markers
+
+```ts
+skippers?: SkipperData;
+```
+
+Optional skip ranges consumed by the SkipperPlugin. Each range has `start` and `end` in seconds.
+
+```ts
+import type { SkipperData } from '@nomercy-entertainment/nomercy-video-player';
+
+skippers: {
+  intro:   { start: 3,    end: 92   },
+  recap:   { start: 0,    end: 45   },
+  credits: { start: 3400, end: 3480 },
+},
+```
+
+### Thumbnail sprites
+
+```ts
+previewSpriteUrl?: string;
+```
+
+URL of a WebVTT sprite manifest used by the progress bar hover thumbnail. This is the canonical field — the VttSpriteThumbnailSource adapter reads it automatically.
+
+```ts
+previewSpriteUrl: 'https://media.nomercy.tv/sintel/thumbnails.vtt',
+```
+
+### Fonts (for ASS/SSA subtitles)
+
+```ts
+fonts?: FontTrackRef[];
+```
+
+Font manifests for ASS/SSA subtitle rendering via OctopusPlugin. Each entry is either a `fonts.json` manifest URL or a direct font file URL.
+
+```ts
+import type { FontTrackRef } from '@nomercy-entertainment/nomercy-video-player';
+
+fonts: [
+  { file: 'https://media.nomercy.tv/fonts/fonts.json', label: 'Cosmos fonts' },
+],
+```
+
+This is the canonical alternative to the deprecated `tracks` field for fonts.
+
+### Series metadata
+
+| Field | Type | Description |
+|---|---|---|
+| `show` | `string` | Series/show title shown in the top bar and sent as MediaSession `artist` |
+| `season` | `number` | Season number (1-based). Combined with `episode` to render "S01E03" |
+| `episode` | `number` | Episode number (1-based) |
+
+### Continue-watching progress
+
+```ts
+progress?: WatchProgress;
+```
+
+Consumer-supplied watch progress. The player reads this to render the playlist menu progress bar. The player does not write to this field — persistence is the consumer's responsibility.
+
+```ts
+import type { WatchProgress } from '@nomercy-entertainment/nomercy-video-player';
+
+progress: {
+  timestamp: Date.now(),   // Unix epoch milliseconds of last watch session
+  percentage: 42,          // 0–100 percent watched
+},
+```
+
+### Deprecated: tracks
+
+```ts
+/** @deprecated Use typed fields instead. */
+tracks?: Array<{ id?: number | string; kind?: string; file?: string; label?: string; language?: string }>;
+```
+
+Generic escape hatch for track kinds without a typed field. All built-in cases now have typed fields (`subtitles`, `chapters`, `previewSpriteUrl`, `fonts`). The `tracks` field will be removed in a future major release.
+
+## Full example
+
+```ts
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+const item: VideoPlaylistItem = {
+  title: 'Cosmos Laundromat',
+  url: 'https://media.nomercy.tv/cosmos/master.m3u8',
+  image: 'https://media.nomercy.tv/cosmos/poster.jpg',
+  duration: 12 * 60 + 10,
+  subtitles: [
+    { id: 1, kind: 'subtitles', label: 'English', language: 'en', url: 'https://media.nomercy.tv/cosmos/en.vtt' },
+  ],
+  chapters: [
+    { title: 'Opening', start: 0, end: 120 },
+  ],
+  previewSpriteUrl: 'https://media.nomercy.tv/cosmos/thumbnails.vtt',
+  skippers: {
+    intro: { start: 5, end: 90 },
+  },
+  progress: { timestamp: Date.now(), percentage: 0 },
+};
+```
+
+## Type imports
+
+```ts
+import type {
+  VideoPlaylistItem,
+  SubtitleTrackRef,
+  ChapterRef,
+  FontTrackRef,
+  SkipperData,
+  WatchProgress,
+} from '@nomercy-entertainment/nomercy-video-player';
+```
+
+## See also
+
+- [Types Reference](/nomercy-video-player/types)
+- [OctopusPlugin — ASS/SSA fonts](/nomercy-video-player/plugins/octopus)
+- [SkipperPlugin](/nomercy-video-player/plugins/skipper)
+- [Thumbnail Source adapter](/nomercy-video-player/adapters/thumbnail-source)

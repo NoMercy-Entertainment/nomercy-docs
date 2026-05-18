@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Troubleshooting"
 description: "Common video player issues and solutions."
 category: "Reference"
@@ -6,6 +6,81 @@ order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+## Video does not play
+
+**Symptoms:** `playState()` stays `'idle'` or immediately becomes `'error'` after `current(0, { autoplay: true })`.
+
+**Causes and fixes:**
+
+1. **No playlist item.** Verify `setup({ playlist: [...] })` was called and the array is non-empty.
+2. **Browser autoplay policy blocked.** Most browsers block `autoplay` without a user gesture. Call `player.play()` inside a click handler, or configure the player with `muted: true` to satisfy the autoplay requirement.
+3. **CORS on the HLS manifest.** The media server must return `Access-Control-Allow-Origin` on `.m3u8` and `.ts` responses. Check the browser Network tab for blocked requests.
+4. **HLS not supported.** The `Html5VideoBackend` loads hls.js when native HLS is unavailable. If `Hls.isSupported()` returns `false` (some sandboxed environments), playback will fail silently. Check the browser console for the hls.js error.
+
+## Subtitles do not appear
+
+**Symptoms:** Subtitle track is selected but nothing renders on screen.
+
+**Causes and fixes:**
+
+1. **SubtitleOverlayPlugin not registered.** VTT/sidecar subtitles require the plugin. Add it before `setup()`:
+   ```ts
+   player.addPlugin(SubtitleOverlayPlugin);
+   ```
+2. **ASS/SSA file without OctopusPlugin.** The SubtitleOverlayPlugin handles VTT only. For `.ass`/`.ssa` files, add the OctopusPlugin and its peer dependency `@nomercy-entertainment/nomercy-subtitle-octopus`.
+3. **Subtitle URL is not reachable.** Open the `url` field from your `SubtitleTrackRef` in a new browser tab. CORS errors in the Network tab confirm a server configuration issue.
+4. **Wrong `language` tag.** `defaultSubtitleLanguage` matches against the `language` field on the track. Verify the tag (e.g. `'en'` not `'eng'`).
+
+## Quality levels not available
+
+**Symptoms:** `player.qualityLevels()` returns an empty array after `ready`.
+
+**Cause:** The HLS manifest has not been parsed yet when `ready` fires. The `'levels'` event fires when the manifest is parsed. Subscribe to it instead of polling:
+
+```ts
+player.on('levels', ({ levels }) => {
+  console.log('Available qualities:', levels);
+});
+```
+
+## Audio context not starting (Web Audio plugins)
+
+**Symptoms:** AudioGraphPlugin emits `'unsupported'` or audio analysis is silent.
+
+**Cause:** Browsers start `AudioContext` in `'suspended'` state. The AudioGraphPlugin resumes it on the first `play` event, which must occur inside a user gesture. Do not call `player.play()` from outside a click/keydown handler.
+
+## DesktopUi back button not visible
+
+**Symptoms:** The back button in the top bar never appears.
+
+**Cause:** The back button only renders when at least one `'back'` event listener is registered. Wire the listener before or after `setup()`:
+
+```ts
+player.on('back', () => {
+  router.back();
+});
+```
+
+## PiP not available
+
+**Symptoms:** `player.togglePip()` does nothing.
+
+**Cause:** Picture-in-Picture is only available in Chromium-based browsers on desktop and Chrome on Android. Safari uses the proprietary `webkitSetPresentationMode` API. Firefox does not support the Picture-in-Picture API on `<video>` elements at all.
+
+## DRM handshake fails silently
+
+**Symptoms:** DrmPlugin is registered but video fails to play with no `key:error` event.
+
+**Checks:**
+
+1. Confirm `licenseUrl` is set on the DrmPlugin options.
+2. Verify the `keySystem` string matches your CDN — Widevine is `'com.widevine.alpha'`, FairPlay is `'com.apple.fps'`.
+3. Check the browser console for EME errors. In Safari you must also provide a `certificate` (service certificate) for FairPlay.
+
+## See also
+
+- [FAQ](/nomercy-video-player/faq)
+- [DRM plugin](/nomercy-video-player/plugins/drm)
+- [SubtitleOverlay plugin](/nomercy-video-player/plugins/subtitle-overlay)
+- [Octopus plugin](/nomercy-video-player/plugins/octopus)
+- [AudioGraph plugin](/nomercy-video-player/plugins/audio-graph)

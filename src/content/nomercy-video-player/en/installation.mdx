@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Installation"
 description: "Install via npm, yarn, pnpm, or CDN IIFE."
 category: "Getting Started"
@@ -6,6 +6,74 @@ order: 3
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/package.json -->
+
+## Prerequisites
+
+- Node.js 18 or later
+- A bundler (Vite, Webpack, Rollup, esbuild) for module builds
+
+## Install via package manager
+
+```bash
+# npm
+npm install @nomercy-entertainment/nomercy-video-player
+
+# yarn
+yarn add @nomercy-entertainment/nomercy-video-player
+
+# pnpm
+pnpm add @nomercy-entertainment/nomercy-video-player
+```
+
+hls.js ships as a regular dependency and does not require a separate install.
+
+## TypeScript
+
+Type definitions are bundled. No `@types/` package is needed.
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import type { VideoPlaylistItem, IVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+```
+
+## Importing plugins
+
+All plugins are available under the `/plugins` deep export:
+
+```ts
+import {
+  DesktopUiPlugin,
+  SubtitleOverlayPlugin,
+  OctopusPlugin,
+  SkipperPlugin,
+} from '@nomercy-entertainment/nomercy-video-player/plugins';
+```
+
+## Container element
+
+The player mounts into an existing DOM element. The element must exist before calling `nmplayer()`:
+
+```html
+<div id="player" style="width: 100%; aspect-ratio: 16/9;"></div>
+```
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player')
+  .setup({
+    playlist: [{
+      title: 'Sintel',
+      url: 'https://media.nomercy.tv/sintel/master.m3u8',
+    }],
+  });
+```
+
+The string passed to `nmplayer()` is the `id` attribute of the container element.
+
+## See also
+
+- [Quick Start](/nomercy-video-player/quickstart)
+- [Factory API](/nomercy-video-player/api/factory)
+- [VideoPlaylistItem](/nomercy-video-player/playlist-item)

@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Cast Sender"
 description: "The CastSenderPlugin — Chromecast/Google Cast sender."
 category: "Plugins"
@@ -6,6 +6,84 @@ order: 10
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/plugins/cast-sender/index.ts -->
+
+## Plugin id
+
+`'cast-sender'`
+
+## Import
+
+```ts
+import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { CastSenderOptions, CastSenderEvents } from '@nomercy-entertainment/nomercy-video-player/plugins';
+```
+
+## What it does
+
+`CastSenderPlugin` is a thin video-specific override of the kit's shared `CastSenderPlugin`. It provides the full Chromecast CAF (Cast Application Framework) sender integration for video:
+
+- Probes for the Google Cast SDK at startup
+- Manages Cast session lifecycle (connect, disconnect, resume on reconnect)
+- Mirrors `RemotePlayer` events back to the local player event bus so `currentTime()`, `playState()`, and `volume()` stay accurate while casting
+- Builds `TvShowMediaMetadata` (when `item.show` is set) or `GenericMediaMetadata` from the video item's `title`, `show`, `season`, `episode`, and `poster` fields
+- Resolves poster URLs through the kit's auth fetch pipeline (respects `imageBasePath`)
+- Forwards `play()`, `pause()`, `stop()`, `currentTime(t)`, `next()`, and `previous()` to the Cast receiver while a session is active
+
+## Options
+
+`CastSenderOptions` is defined in `@nomercy-entertainment/nomercy-player-core`. Key fields:
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `receiverApplicationId` | `string` | Cast default | Cast application ID. Use the default for the NoMercy cast receiver |
+| `autoJoinPolicy` | `string` | `'origin_scoped'` | Session auto-join policy |
+| `language` | `string` | `'en'` | Language tag sent to the receiver |
+
+## Events
+
+`CastSenderEvents` is defined in `@nomercy-entertainment/nomercy-player-core`:
+
+| Event | Payload | Description |
+|---|---|---|
+| `'cast:available'` | `{ available: boolean }` | Cast API loaded and receiver(s) discovered |
+| `'cast:connected'` | `{ sessionId: string }` | Session established |
+| `'cast:disconnected'` | `void` | Session ended |
+| `'cast:error'` | `{ message: string }` | Cast SDK or session error |
+
+## Registration
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(CastSenderPlugin)
+  .setup({
+    playlist: [{
+      title: 'Cosmos Laundromat',
+      url: 'https://media.nomercy.tv/cosmos/master.m3u8',
+      image: 'https://media.nomercy.tv/cosmos/poster.jpg',
+      show: 'Blender Foundation',
+    }],
+  });
+
+player.on('cast:connected', ({ sessionId }) => {
+  console.log('Casting to:', sessionId);
+});
+```
+
+## Metadata building
+
+The video CastSenderPlugin overrides `buildMetadata()` to pick between `TvShowMediaMetadata` and `GenericMediaMetadata`:
+
+- When `item.show` is a non-empty string: uses `TvShowMediaMetadata` with `seriesTitle`, `season`, and `episode` populated.
+- Otherwise: uses `GenericMediaMetadata` with `title` and an optional `subtitle` from `item.show`.
+
+Poster artwork is resolved via `this.resolveUrl(item.poster, 'poster')` — the kit's auth pipeline applies.
+
+## See also
+
+- [Player Kit — CastSenderPlugin (base class)](/nomercy-player-kit/plugins)
+- [VideoPlaylistItem — show/season/episode fields](/nomercy-video-player/playlist-item)
+- [MediaSession plugin](/nomercy-video-player/plugins/media-session)

@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Skipper"
 description: "The SkipperPlugin — intro/outro/recap skip markers."
 category: "Plugins"
@@ -6,6 +6,126 @@ order: 7
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/plugins/skipper/index.ts -->
+
+## Plugin id
+
+`'skipper'`
+
+## Import
+
+```ts
+import { SkipperPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { SkipperOptions, SkipperEvents, SkipperKind, SkipperRange } from '@nomercy-entertainment/nomercy-video-player/plugins';
+```
+
+## What it does
+
+`SkipperPlugin` reads `currentItem.skippers` from the active playlist item, tracks the playback position, and emits `'skipper:available'` when the player enters a skippable range. UI code subscribes to this event to render a "Skip Intro" button. Calling `plugin.skip()` jumps the player past the end of the range.
+
+Auto-skip kicks in for any kinds listed in `options.autoSkip` — no UI is shown, the player seeks immediately.
+
+## Options
+
+```ts
+interface SkipperOptions {
+  /** Auto-skip these segment kinds without user intervention. */
+  autoSkip?: ReadonlyArray<SkipperKind>;
+  /** Show the skip button N milliseconds after the range starts. Default 0. */
+  revealAfterMs?: number;
+}
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `autoSkip` | `SkipperKind[]` | `[]` | Segment kinds to skip automatically |
+| `revealAfterMs` | `number` | `0` | Delay before the skip button appears |
+
+## SkipperKind
+
+```ts
+type SkipperKind = 'intro' | 'recap' | 'credits';
+```
+
+## Events
+
+```ts
+interface SkipperEvents {
+  'skipper:available': { kind: SkipperKind; range: SkipperRange };
+  'skipper:hidden':    { kind: SkipperKind };
+  'skipper:skipped':   { kind: SkipperKind; range: SkipperRange; auto: boolean };
+}
+```
+
+| Event | Description |
+|---|---|
+| `'skipper:available'` | Player entered a skippable range. Render your skip button. |
+| `'skipper:hidden'` | Player left the range (or it was skipped). Hide the skip button. |
+| `'skipper:skipped'` | A range was jumped. `auto: true` when triggered by `autoSkip`. |
+
+## Registration
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { SkipperPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(SkipperPlugin, { autoSkip: ['recap'] })
+  .setup({
+    playlist: [{
+      title: 'Cosmos Laundromat',
+      url: 'https://media.nomercy.tv/cosmos/master.m3u8',
+      skippers: {
+        intro:   { start: 5,   end: 90  },
+        recap:   { start: 0,   end: 45  },
+        credits: { start: 700, end: 730 },
+      },
+    }],
+  });
+
+player.on('plugin:skipper:skipper:available', ({ kind, range }) => {
+  skipButton.textContent = kind === 'intro' ? 'Skip Intro' : 'Skip Credits';
+  skipButton.style.display = 'block';
+});
+
+player.on('plugin:skipper:skipper:hidden', () => {
+  skipButton.style.display = 'none';
+});
+
+skipButton.addEventListener('click', () => {
+  const plugin = player.plugin('skipper') as SkipperPlugin;
+  plugin.skip();
+});
+```
+
+## Methods
+
+### skippers
+
+```ts
+plugin.skippers(): SkipperEntry[]
+```
+
+Returns the current item's skippable segments as a flat array of `{ kind, range }` entries.
+
+### skip
+
+```ts
+plugin.skip(kind?: SkipperKind): void
+```
+
+Jump the player past the end of the named kind's range, or past the currently active range if no kind is given.
+
+### fetchSkipFile
+
+```ts
+plugin.fetchSkipFile(url: string): Promise<SkipperEntry[]>
+```
+
+Fetch and parse a JSON skip file from `url`. The file must be an array of `{ type: SkipperKind; start: number; end: number }` objects. Useful when skip data is stored server-side separately from the playlist item.
+
+## See also
+
+- [VideoPlaylistItem — skippers field](/nomercy-video-player/playlist-item)
+- [Auto Advance plugin](/nomercy-video-player/plugins/auto-advance)
+- [Player Kit — Plugin Model](/nomercy-player-kit/plugins)

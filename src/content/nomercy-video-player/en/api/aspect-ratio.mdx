@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Aspect Ratio"
 description: "aspectRatio, cycleAspectRatio, and the Stretching type."
 category: "API Methods"
@@ -6,6 +6,104 @@ order: 3
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/types.ts IVideoPlayer -->
+
+## Stretching
+
+```ts
+type Stretching = 'uniform' | 'fill' | 'exactfit' | 'none';
+```
+
+Controls how the video frame is scaled to fill the player container.
+
+| Value | Behaviour |
+|---|---|
+| `'uniform'` | Letterbox/pillarbox — preserves aspect ratio, may leave bars |
+| `'fill'` | Stretch to fill container — may crop content |
+| `'exactfit'` | Stretch width and height independently to fill — may distort |
+| `'none'` | No scaling — renders at native video resolution |
+
+## aspectRatio
+
+```ts
+player.aspectRatio(): Stretching
+player.aspectRatio(value: Stretching): void
+```
+
+Read or set the current stretching mode. Emits `'aspectRatio'` when the value changes.
+
+```ts
+import { Stretching } from '@nomercy-entertainment/nomercy-video-player';
+
+const current = player.aspectRatio();  // 'uniform' | 'fill' | 'exactfit' | 'none'
+player.aspectRatio('fill');
+```
+
+## cycleAspectRatio
+
+```ts
+player.cycleAspectRatio(): void
+```
+
+Steps through `['uniform', 'fill', 'exactfit', 'none']` in order, wrapping around. Useful for remote-control and keyboard binding contexts where a menu is not practical.
+
+```ts
+// Bind to the 'a' key
+player.on('keydown', (e) => {
+  if (e.key === 'a') player.cycleAspectRatio();
+});
+```
+
+The KeyHandlerPlugin binds `'a'` and `'BrowserFavorites'` to `cycleAspectRatio()` by default. The TvUiPlugin overrides this to also emit an OSD message confirming the change.
+
+## Event
+
+```ts
+player.on('aspectRatio', ({ value }) => {
+  console.log('New stretching mode:', value);
+});
+```
+
+| Event | Payload |
+|---|---|
+| `'aspectRatio'` | `{ value: Stretching }` |
+
+## Configuration
+
+Set the initial stretching mode in `VideoPlayerConfig`:
+
+```ts
+player.setup({
+  stretching: 'uniform',
+  playlist: [{ url: 'https://media.nomercy.tv/sintel/master.m3u8' }],
+});
+```
+
+## Example
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player').setup({
+  stretching: 'uniform',
+  playlist: [{
+    title: 'Big Buck Bunny',
+    url: 'https://media.nomercy.tv/bbb/master.m3u8',
+  }],
+});
+
+document.getElementById('cycle-ar')?.addEventListener('click', () => {
+  player.cycleAspectRatio();
+});
+
+player.on('aspectRatio', ({ value }) => {
+  document.getElementById('ar-label')!.textContent = value;
+});
+```
+
+## See also
+
+- [Playback State Methods](/nomercy-video-player/api/playback-state)
+- [Cycling Methods](/nomercy-video-player/api/cycling)
+- [KeyHandler plugin](/nomercy-video-player/plugins/key-handler)
+- [TvUi plugin](/nomercy-video-player/plugins/tv-ui)

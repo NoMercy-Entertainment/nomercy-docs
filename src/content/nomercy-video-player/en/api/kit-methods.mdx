@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Kit Methods Reference"
 description: "Index of all inherited kit methods with links to the player kit docs."
 category: "API Methods"
@@ -6,6 +6,135 @@ order: 6
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/index.ts — inherits from nomercy-player-core -->
+
+`NMVideoPlayer` inherits all methods from the Player Kit base class. This page lists the inherited surface grouped by concern and links to the canonical documentation in the kit.
+
+## Transport
+
+| Method | Signature | Description |
+|---|---|---|
+| `play` | `(opts?: ActionOptions) => Promise<void>` | Begin playback |
+| `pause` | `(opts?: ActionOptions) => Promise<void>` | Pause playback |
+| `stop` | `(opts?: ActionOptions) => Promise<void>` | Stop and return to idle |
+| `next` | `(opts?: ActionOptions) => Promise<void>` | Advance to the next playlist item |
+| `previous` | `(opts?: ActionOptions) => Promise<void>` | Return to the previous playlist item |
+| `togglePlayback` | `() => Promise<void>` | Toggle between play and pause |
+| `rewind` | `(seconds?: number) => Promise<void>` | Seek backward by `seconds` (default 10) |
+| `forward` | `(seconds?: number) => Promise<void>` | Seek forward by `seconds` (default 10) |
+
+## Queue / playlist
+
+| Method | Signature | Description |
+|---|---|---|
+| `current()` | `() => T \| undefined` | Active playlist item |
+| `current(target, opts?)` | `(target: T \| string \| number, opts?) => void` | Set the active item by value, id, or index |
+| `playlist()` | `() => T[]` | Full playlist array |
+| `playlist(items)` | `(items: T[]) => void` | Replace the playlist |
+
+## Time
+
+| Method | Signature | Description |
+|---|---|---|
+| `currentTime()` | `() => number` | Current position in seconds |
+| `currentTime(t)` | `(t: number) => void` | Seek to `t` seconds |
+| `duration()` | `() => number` | Total duration in seconds |
+
+## Volume
+
+| Method | Signature | Description |
+|---|---|---|
+| `volume()` | `() => number` | Current volume level (0–1) |
+| `volume(v)` | `(v: number) => void` | Set volume level |
+| `muted()` | `() => boolean` | Whether audio is muted |
+| `muted(state)` | `(state: boolean) => void` | Set mute state |
+| `toggleMute` | `() => void` | Toggle mute |
+| `volumeUp` | `(step?: number) => void` | Increase volume by `step` (default 0.1) |
+| `volumeDown` | `(step?: number) => void` | Decrease volume by `step` (default 0.1) |
+
+## Playback rate
+
+| Method | Signature | Description |
+|---|---|---|
+| `playbackRate()` | `() => number` | Current playback rate |
+| `playbackRate(rate)` | `(rate: number) => void` | Set playback rate |
+| `playbackRates()` | `() => number[]` | Available rate options |
+
+## Repeat and shuffle
+
+| Method | Signature | Description |
+|---|---|---|
+| `repeatState()` | `() => RepeatState` | Current repeat mode |
+| `repeatState(state)` | `(state: RepeatState) => void` | Set repeat mode |
+| `shuffleState()` | `() => ShuffleState` | Current shuffle mode |
+| `shuffleState(state)` | `(state: ShuffleState) => void` | Set shuffle mode |
+
+## Subtitle style
+
+| Method | Signature | Description |
+|---|---|---|
+| `subtitleStyle()` | `() => SubtitleStyle` | Current subtitle rendering style |
+| `subtitleStyle(patch)` | `(patch: Partial<SubtitleStyle>) => void` | Merge a partial style update |
+
+## Track selection
+
+| Method | Signature | Description |
+|---|---|---|
+| `subtitles()` | `() => SubtitleTrackRef[]` | Available subtitle tracks |
+| `currentSubtitle()` | `() => CurrentSubtitleSelection \| null` | Active subtitle track |
+| `currentSubtitle(idx)` | `(idx: number \| null) => void` | Activate subtitle by index, or `null` to turn off |
+| `audioTracks()` | `() => AudioTrackRef[]` | Available audio tracks |
+| `currentAudioTrack()` | `() => CurrentAudioTrackSelection \| null` | Active audio track |
+| `currentAudioTrack(idx)` | `(idx: number) => void` | Activate audio track by index |
+| `qualityLevels()` | `() => QualityLevel[]` | Available quality levels |
+| `currentQuality()` | `() => CurrentQualitySelection \| 'auto'` | Active quality level |
+| `currentQuality(idx)` | `(idx: number \| 'auto') => void` | Pin quality or return to ABR |
+
+## State queries
+
+| Method | Signature | Description |
+|---|---|---|
+| `playState()` | `() => PlayState` | Current top-level playback state |
+| `volumeState()` | `() => VolumeState` | Mute/unmute state |
+
+## Chapters
+
+| Method | Signature | Description |
+|---|---|---|
+| `chapters()` | `() => Chapter[]` | All chapters for the current item |
+| `currentChapter()` | `() => Chapter \| null` | Chapter active at `currentTime()` |
+| `nextChapter()` | `() => void` | Jump to the next chapter boundary |
+| `previousChapter()` | `() => void` | Jump to the previous chapter boundary |
+
+## Plugin management
+
+| Method | Signature | Description |
+|---|---|---|
+| `addPlugin(cls, opts?)` | See [Factory](/nomercy-video-player/api/factory) | Register a plugin before `setup()` |
+| `plugin(id)` | `(id: string) => Plugin \| undefined` | Retrieve a registered plugin by id |
+| `hasPlugin(id)` | `(id: string) => boolean` | Check whether a plugin is registered |
+
+## Events
+
+| Method | Signature | Description |
+|---|---|---|
+| `on(event, fn)` | See [Player Kit — Event System](/nomercy-player-kit/event-system) | Subscribe to an event |
+| `off(event, fn)` | — | Unsubscribe |
+| `once(event, fn)` | — | Subscribe for exactly one emission |
+| `emit(event, payload)` | — | Emit an event (advanced — plugin use only) |
+| `hasListeners(event)` | `(event: string) => boolean` | Check if any listener is registered for an event |
+
+## Context detection
+
+| Method | Signature | Description |
+|---|---|---|
+| `isMobile()` | `() => boolean` | Returns `true` on mobile-sized viewports |
+| `isTv()` | `() => boolean` | Returns `true` when a TV/D-pad environment is detected |
+
+## See also
+
+- [Player Kit documentation](/nomercy-player-kit/overview)
+- [Player Kit — Event System](/nomercy-player-kit/event-system)
+- [Player Kit — Lifecycle](/nomercy-player-kit/lifecycle)
+- [API — Playback State](/nomercy-video-player/api/playback-state)
+- [API — Aspect Ratio](/nomercy-video-player/api/aspect-ratio)

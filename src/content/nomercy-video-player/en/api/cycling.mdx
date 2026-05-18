@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Cycling Methods"
 description: "cycleSubtitles and cycleAudioTracks."
 category: "API Methods"
@@ -6,6 +6,83 @@ order: 4
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/types.ts IVideoPlayer -->
+
+## cycleSubtitles
+
+```ts
+player.cycleSubtitles(): void
+```
+
+Walks the subtitle track list in order: `off → 0 → 1 → … → N-1 → off`. Each call activates the next track; when the end is reached it cycles back to off.
+
+This method is designed for remote-control contexts (keyboard, TV D-pad) where the user cannot pick from a dropdown menu. UI plugins that render a subtitle menu should call `player.currentSubtitle(idx)` directly instead.
+
+```ts
+// Bind to a keyboard shortcut
+player.on('keydown', (e) => {
+  if (e.key === 'v') player.cycleSubtitles();
+});
+```
+
+The KeyHandlerPlugin binds `'v'`, `'5'`, and the `'Subtitle'` media key to `cycleSubtitles()` by default.
+
+**Emits:** `'subtitle'` with the newly selected track index (or `null` when cycling to off).
+
+## cycleAudioTracks
+
+```ts
+player.cycleAudioTracks(): void
+```
+
+Walks the audio track list in order, wrapping around: `0 → 1 → … → N-1 → 0`. Useful when the source has multiple audio renditions (e.g. original language + dub).
+
+The KeyHandlerPlugin binds `'b'`, `'2'`, and the `'Audio'` media key to `cycleAudioTracks()` by default.
+
+**Emits:** `'audioTracks'` when the track list changes, and the kit's `'audioTrack'` event when the active track changes.
+
+## Checking available tracks
+
+Read the track list before calling cycle methods if you need to check how many tracks are available:
+
+```ts
+const subtitles = player.subtitles();      // SubtitleTrackRef[]
+const audioTracks = player.audioTracks();  // AudioTrackRef[]
+
+if (subtitles.length > 0) {
+  player.cycleSubtitles();
+}
+```
+
+Note: the audio track list may not be populated until after the `'audioTracks'` event fires following HLS manifest parse.
+
+## Example — subtitle cycle button
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(SubtitleOverlayPlugin)
+  .setup({
+    playlist: [{
+      title: 'Sintel',
+      url: 'https://media.nomercy.tv/sintel/master.m3u8',
+      subtitles: [
+        { id: 1, kind: 'subtitles', label: 'English', language: 'en', url: 'https://media.nomercy.tv/sintel/en.vtt' },
+      ],
+    }],
+  });
+
+document.getElementById('sub-btn')?.addEventListener('click', () => {
+  player.cycleSubtitles();
+});
+```
+
+## See also
+
+- [Playback State Methods](/nomercy-video-player/api/playback-state)
+- [Aspect Ratio](/nomercy-video-player/api/aspect-ratio)
+- [KeyHandler plugin](/nomercy-video-player/plugins/key-handler)
+- [SubtitleOverlay plugin](/nomercy-video-player/plugins/subtitle-overlay)
+- [Player Kit — Event System](/nomercy-player-kit/event-system)

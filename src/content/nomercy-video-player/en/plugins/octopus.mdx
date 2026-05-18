@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Octopus (ASS/SSA)"
 description: "The OctopusPlugin — advanced ASS/SSA subtitle rendering."
 category: "Plugins"
@@ -6,6 +6,147 @@ order: 4
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/plugins/octopus/index.ts -->
+
+## Plugin id
+
+`'octopus'`
+
+## Import
+
+```ts
+import { OctopusPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { OctopusOptions } from '@nomercy-entertainment/nomercy-video-player/plugins';
+```
+
+## Prerequisites
+
+`OctopusPlugin` requires the optional peer dependency:
+
+```bash
+npm install @nomercy-entertainment/nomercy-subtitle-octopus
+```
+
+When the peer is absent the plugin logs a warning and degrades gracefully — playback continues normally, but ASS/SSA subtitles will not render.
+
+## What it does
+
+`OctopusPlugin` is a thin bridge over `@nomercy-entertainment/nomercy-subtitle-octopus` — the NoMercy fork of the `libass-wasm` / SubtitleOctopus library. It provides high-fidelity ASS/SSA subtitle rendering that matches desktop media player output.
+
+Activation flow:
+
+1. Listens to the `'subtitle'` event. When a track is selected, the plugin resolves its URL from `current().subtitles[idx]`.
+2. Non-ASS/non-SSA URLs tear down the renderer (VTT subtitles are handled by `SubtitleOverlayPlugin`).
+3. For `.ass` / `.ssa` files, the plugin fetches the subtitle content via the kit's auth pipeline (never direct XHR from the worker), resolves fonts from the item's `fonts` array, and instantiates the libass renderer.
+4. A `ResizeObserver` on the player container keeps the canvas sized to the actual video display rectangle.
+
+On `'current'` the renderer is torn down and font cache is cleared for the new item.
+
+## Options
+
+```ts
+interface OctopusOptions {
+  /** Worker URL (modern). Defaults to the bundled public/ URL. */
+  workerUrl?: string;
+  /** Legacy worker URL for browsers without WebAssembly. */
+  legacyWorkerUrl?: string;
+  /** Fallback font URL used when the subtitle requests a font not in the fonts list. */
+  fallbackFont?: string;
+  /** Optional list of font file URLs to preload for all items. */
+  fonts?: string[];
+  /** Renderer target FPS. */
+  targetFps?: number;
+  /** Render mode — 'wasm-blend' (default), 'js-blend', or 'lossy'. */
+  renderMode?: 'wasm-blend' | 'js-blend' | 'lossy';
+  /** Lazy-load subtitle file chunks for huge ASS files. */
+  lazyFileLoading?: boolean;
+  /** Internal scaler ratio. */
+  prescaleFactor?: number;
+  /** Frames to pre-compute ahead of currentTime. Default 10. */
+  renderAhead?: number;
+  /** Toggle debug logging in the worker. */
+  debug?: boolean;
+}
+```
+
+## Registration
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { OctopusPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(OctopusPlugin, {
+    workerUrl: '/subtitles-octopus-worker.js',
+    fallbackFont: '/fonts/NotoSans-Regular.ttf',
+    renderAhead: 10,
+  })
+  .setup({
+    playlist: [{
+      title: 'Big Buck Bunny',
+      url: 'https://media.nomercy.tv/bbb/master.m3u8',
+      subtitles: [
+        {
+          id: 1,
+          kind: 'subtitles',
+          label: 'English (ASS)',
+          language: 'en',
+          url: 'https://media.nomercy.tv/bbb/en.ass',
+        },
+      ],
+      fonts: [
+        { file: 'https://media.nomercy.tv/bbb/fonts/fonts.json' },
+      ],
+    }],
+  });
+```
+
+## Methods
+
+### subtitle
+
+```ts
+plugin.subtitle(): string | null
+plugin.subtitle(url: string | null): Promise<void>
+```
+
+Read or set the active subtitle URL directly, bypassing the kit's track list. Use this for ASS files the consumer supplies outside the `subtitles` array.
+
+```ts
+const plugin = player.plugin('octopus') as OctopusPlugin;
+await plugin.subtitle('https://media.nomercy.tv/external.ass');
+await plugin.subtitle(null);  // clear
+```
+
+### fonts
+
+```ts
+plugin.fonts(): readonly string[]
+plugin.fonts(urls: string[]): Promise<void>
+```
+
+Read or replace the plugin-level static font list. Triggers a re-load of the active subtitle when called with new URLs.
+
+### renderer
+
+```ts
+plugin.renderer(): SubtitleOctopusInstance | null
+```
+
+Returns the raw libass renderer handle for advanced consumers. Plugin retains lifecycle ownership — do not call `dispose()` on the returned instance directly.
+
+## Font resolution
+
+Fonts are resolved in this order:
+
+1. `fonts` typed array on the active `VideoPlaylistItem` — each entry is a `fonts.json` manifest URL or a direct font file URL.
+2. `OctopusOptions.fonts` — static URLs registered at plugin level (applies to all items).
+3. `OctopusOptions.fallbackFont` — single URL used when ASS requests a font not in the above lists.
+
+All font fetches go through the kit's auth pipeline (not direct browser fetch). Each font binary is converted to a blob URL and passed to the worker.
+
+## See also
+
+- [SubtitleOverlay plugin](/nomercy-video-player/plugins/subtitle-overlay)
+- [VideoPlaylistItem — fonts field](/nomercy-video-player/playlist-item)
+- [Troubleshooting — subtitles not appearing](/nomercy-video-player/troubleshooting)

@@ -1,4 +1,4 @@
-﻿---
+---
 title: "DRM"
 description: "The DrmPlugin — Widevine and PlayReady DRM."
 category: "Plugins"
@@ -6,6 +6,125 @@ order: 8
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/plugins/drm/index.ts -->
+
+## Plugin id
+
+`'drm'`
+
+## Import
+
+```ts
+import { DrmPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { DrmOptions, DrmEvents } from '@nomercy-entertainment/nomercy-video-player/plugins';
+```
+
+## What it does
+
+`DrmPlugin` coordinates EME (Encrypted Media Extensions) license acquisition for Widevine, FairPlay, and PlayReady protected streams. It:
+
+- Probes `requestMediaKeySystemAccess` at startup; emits `'unsupported'` and exits cleanly if EME is unavailable (e.g. JSDOM, server-side rendering)
+- Listens to the `'current'` event; triggers a key-system handshake when the active item has a `drm` field
+- Exposes `fetchLicense()` for explicit license retrieval with optional request signing and body transformation
+- Routes HDCP output protection signals
+
+## Options
+
+```ts
+interface DrmOptions {
+  /** EME key system identifier. */
+  keySystem: string;
+  /** License server URL. */
+  licenseUrl: string;
+  /** Service certificate for FairPlay. Optional for Widevine/PlayReady. */
+  certificate?: ArrayBuffer | string;
+  /** Optional request signer for license calls (HMAC etc.). */
+  customSignRequest?: (request: Request) => Request | Promise<Request>;
+  /** Optional license request body transformer. */
+  transformLicenseRequest?: (challenge: ArrayBuffer) => ArrayBuffer | Promise<ArrayBuffer>;
+  /** Optional license response body transformer. */
+  transformLicenseResponse?: (response: ArrayBuffer) => ArrayBuffer | Promise<ArrayBuffer>;
+  /** Output protection requirements. */
+  hdcpRequired?: 'type-0' | 'type-1' | 'none';
+}
+```
+
+| Option | Type | Required | Description |
+|---|---|---|---|
+| `keySystem` | `string` | Yes | Key system ID — see table below |
+| `licenseUrl` | `string` | Yes | License server endpoint |
+| `certificate` | `ArrayBuffer \| string` | FairPlay only | Service certificate |
+| `customSignRequest` | `function` | No | Signs the license request (HMAC, custom headers) |
+| `transformLicenseRequest` | `function` | No | Transforms the challenge body before sending |
+| `transformLicenseResponse` | `function` | No | Transforms the license bytes received from the server |
+| `hdcpRequired` | `'type-0' \| 'type-1' \| 'none'` | No | Minimum HDCP level |
+
+### Key system strings
+
+| DRM System | keySystem |
+|---|---|
+| Widevine | `'com.widevine.alpha'` |
+| FairPlay | `'com.apple.fps'` |
+| PlayReady | `'com.microsoft.playready'` |
+
+## Events
+
+```ts
+interface DrmEvents {
+  'key:requested': { sessionId: string; initData: ArrayBuffer };
+  'key:granted':   { sessionId: string };
+  'key:expired':   { sessionId: string };
+  'key:revoked':   { sessionId: string };
+  'key:error':     { sessionId: string; error: Error };
+  'output:restricted':  { reason: string };
+  'output:downgraded':  { from: string; to: string };
+  unsupported:     { reason: string };
+}
+```
+
+## Registration
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DrmPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(DrmPlugin, {
+    keySystem: 'com.widevine.alpha',
+    licenseUrl: 'https://license.example.com/widevine',
+  })
+  .setup({
+    playlist: [{
+      title: 'Protected content',
+      url: 'https://media.nomercy.tv/protected/master.m3u8',
+      drm: { keySystem: 'com.widevine.alpha' },
+    }],
+  });
+
+player.on('plugin:drm:key:granted', ({ sessionId }) => {
+  console.log('License granted for session:', sessionId);
+});
+```
+
+## Methods
+
+### fetchLicense
+
+```ts
+plugin.fetchLicense(challenge: ArrayBuffer): Promise<ArrayBuffer>
+```
+
+Fetch a license blob from the configured `licenseUrl`. Applies `customSignRequest` and `transformLicenseRequest` / `transformLicenseResponse` when provided.
+
+### mediaKeys
+
+```ts
+plugin.mediaKeys(): MediaKeys | null
+```
+
+Returns the active `MediaKeys` bound to the video element, or `null` when EME is unsupported or no key session is active.
+
+## See also
+
+- [API — Backend Access (mediaKeys)](/nomercy-video-player/api/backend)
+- [Troubleshooting — DRM handshake fails](/nomercy-video-player/troubleshooting)

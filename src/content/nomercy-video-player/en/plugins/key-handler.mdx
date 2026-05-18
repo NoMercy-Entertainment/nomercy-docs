@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Key Handler"
 description: "The KeyHandlerPlugin — keyboard shortcut bindings."
 category: "Plugins"
@@ -6,6 +6,100 @@ order: 6
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/plugins/key-handler/index.ts -->
+
+## Plugin id
+
+`'video-key-handler'`
+
+## Import
+
+```ts
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+```
+
+## What it does
+
+`KeyHandlerPlugin` is a video-specific subclass of the kit's base `KeyHandlerPlugin`. It adds the full v1 keyboard binding set on top of the kit's cooldown / scope / `when` / cleanup infrastructure. All bindings are modifier-aware.
+
+The plugin binds the following groups by default:
+
+| Group | Keys |
+|---|---|
+| Playback | `Space`, `MediaPlay`, `MediaPause`, `MediaPlayPause`, `MediaStop` |
+| Navigation | `ArrowLeft` (rewind), `ArrowRight` (forward) — disabled on TV |
+| Volume | `ArrowUp` / `ArrowDown` (on desktop only), `m` (mute) |
+| Media keys | `Subtitle` / `5` / `v` → `cycleSubtitles`; `Audio` / `2` / `b` → `cycleAudioTracks` |
+| Modifier seeks | `Shift+Arrow` ±3s, `Alt+Arrow` ±10s, `Ctrl+Arrow` ±60s |
+| Quick skip | `1`→120s, `3`→30s, `6`→60s, `9`→90s; TV color buttons `F0`–`F3` |
+| Next / Prev | `MediaTrackNext`, `MediaTrackPrevious`, `n`, `p` |
+| Chapters | `Shift+N` (next), `Shift+P` (previous) |
+| Fullscreen | `f`, `F11`, `Escape` |
+| Speed | `]` faster, `[` slower, `=` reset |
+| Frame advance | `e` — advances ~1/30s when paused |
+| Show time | `t` — OSD message with current / remaining time |
+| Subtitle size | `+` / `-` — emits `'subtitle-size-up'` / `'subtitle-size-down'` |
+| Aspect ratio | `a`, `BrowserFavorites` → `cycleAspectRatio()` |
+| Stop | `s` |
+| Help | `?` → emits `'plugin:desktop-ui:shortcuts-toggle'` |
+
+## Registration
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(KeyHandlerPlugin)
+  .setup({
+    playlist: [{
+      title: 'Big Buck Bunny',
+      url: 'https://media.nomercy.tv/bbb/master.m3u8',
+    }],
+  });
+```
+
+## Disabling controls
+
+Set `disableControls: true` in `VideoPlayerConfig` to suppress all bindings. Set `disableMediaControls: true` to suppress only the `MediaPlay` / `MediaPause` / `MediaStop` media keys:
+
+```ts
+player.setup({
+  disableMediaControls: false,
+  disableControls: false,
+  playlist: [...],
+});
+```
+
+## Subclassing
+
+All binding groups are `protected` methods — subclass `KeyHandlerPlugin` and override any group without rewriting the rest:
+
+```ts
+import { KeyHandlerPlugin as BaseKeyHandler } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+class MyKeyHandler extends BaseKeyHandler {
+  protected override addNavigationKeys(): void {
+    // Custom seek distances
+    this.bind('ArrowLeft', () => { void this.player.rewind?.(30); });
+    this.bind('ArrowRight', () => { void this.player.forward?.(30); });
+  }
+}
+```
+
+## OSD messages
+
+Bindings that change state (speed change, aspect ratio cycle) use `this.message(text)` to emit an OSD notification. This calls `player.displayMessage(text)` if present, and always emits `'display-message'` on the player so a custom OSD widget can subscribe:
+
+```ts
+player.on('display-message', ({ text }) => {
+  showOsd(text);
+});
+```
+
+## See also
+
+- [TvUi plugin](/nomercy-video-player/plugins/tv-ui)
+- [DesktopUi plugin](/nomercy-video-player/plugins/desktop-ui)
+- [Cycling Methods](/nomercy-video-player/api/cycling)
+- [Aspect Ratio](/nomercy-video-player/api/aspect-ratio)

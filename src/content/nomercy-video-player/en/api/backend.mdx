@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Backend Access"
 description: "backend(), IVideoBackend, and Html5VideoBackend."
 category: "API Methods"
@@ -6,6 +6,142 @@ order: 5
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/adapters/video-backend/IVideoBackend.ts -->
+
+## backend
+
+```ts
+player.backend(): IVideoBackend
+```
+
+Returns the active `IVideoBackend` instance, constructing it on first call. The backend wraps the `<video>` element and the hls.js instance. Most consumers do not need to call this directly — the player's transport and track methods cover the common cases.
+
+Low-level use cases that require direct backend access:
+
+- Injecting MediaKeys for DRM (the DrmPlugin does this)
+- Rerouting audio output device via `setSinkId()`
+- Capturing a `MediaStream` for recording
+
+```ts
+const backend = player.backend();
+await backend.setSinkId(deviceId);
+```
+
+## videoElement
+
+```ts
+player.videoElement: HTMLVideoElement | undefined
+```
+
+The raw `<video>` element. `undefined` until the first `backend()` call. Prefer `player.backend().mediaElement()` for consistency; `videoElement` is a convenience shortcut on the player class.
+
+## IVideoBackend interface
+
+```ts
+import type { IVideoBackend } from '@nomercy-entertainment/nomercy-video-player';
+```
+
+Every backend implements this contract. All methods follow the player's overloaded-function convention: read by calling with no arguments, write by calling with an argument.
+
+### Lifecycle
+
+| Method | Signature | Description |
+|---|---|---|
+| `load` | `(url: string, opts?) => Promise<void>` | Load a media URL. Starts HLS attachment if the URL matches `.m3u8` |
+| `unload` | `() => void` | Clears the source. Fires `emptied` on the element |
+| `dispose` | `() => void` | Full teardown — destroys the hls.js instance and detaches the element |
+
+### Transport
+
+| Method | Signature | Description |
+|---|---|---|
+| `play` | `() => Promise<void>` | Begin playback |
+| `pause` | `() => void` | Pause playback |
+| `stop` | `() => void` | Stop playback and return to `idle` state |
+
+### Time and position
+
+| Method | Signature | Description |
+|---|---|---|
+| `currentTime()` | `() => number` | Current playback position in seconds |
+| `currentTime(t)` | `(t: number) => void` | Seek to position `t` in seconds |
+| `duration()` | `() => number` | Total duration in seconds |
+| `buffered()` | `() => number` | End of the largest buffered range in seconds |
+| `bufferedRanges()` | `() => TimeRanges` | Full `TimeRanges` object from the `<video>` element |
+| `seekable()` | `() => TimeRanges` | Seekable range |
+| `playbackRate()` | `() => number` | Current playback rate |
+| `playbackRate(rate)` | `(rate: number) => void` | Set playback rate |
+
+### Volume
+
+| Method | Signature | Description |
+|---|---|---|
+| `volume()` | `() => number` | Current volume level (0–1) |
+| `volume(v)` | `(v: number) => void` | Set volume level |
+| `mute()` | `() => void` | Mute audio |
+| `unmute()` | `() => void` | Unmute audio |
+
+### Video-specific
+
+| Method | Signature | Description |
+|---|---|---|
+| `videoWidth()` | `() => number` | Natural video width in pixels |
+| `videoHeight()` | `() => number` | Natural video height in pixels |
+| `audioTracks()` | `() => AudioTrack[]` | Available audio renditions |
+| `setAudioTrack(idx)` | `(idx: number) => void` | Activate audio track at index |
+| `subtitleTracks()` | `() => SubtitleTrack[]` | Available subtitle tracks |
+| `setSubtitleTrack(idx)` | `(idx: number \| null) => void` | Activate or clear subtitle track |
+| `qualityLevels()` | `() => QualityLevel[]` | Available HLS quality levels |
+| `qualityLevels({ includeUnsupported: true })` | — | All levels including unsupported codecs |
+| `setQuality(idx)` | `(idx: number \| 'auto') => void` | Pin quality or return to ABR |
+| `currentLevel()` | `() => number` | Level index currently rendering (-1 if unknown) |
+| `state()` | `() => BackendState` | Current lifecycle state |
+
+### Advanced
+
+| Method | Signature | Description |
+|---|---|---|
+| `mediaElement()` | `() => HTMLVideoElement` | The raw `<video>` element |
+| `captureStream()` | `() => MediaStream` | `MediaStream` for recording or processing |
+| `setSinkId(id)` | `(id: string) => Promise<void>` | Route audio output to a device |
+| `getSinkId()` | `() => string` | Currently active output device ID |
+| `mediaKeys()` | `() => MediaKeys \| undefined` | Active EME `MediaKeys` (DRM) |
+| `setMediaKeys(keys)` | `(keys: MediaKeys) => Promise<void>` | Bind `MediaKeys` to the element |
+| `outputProtectionState()` | `() => 'unrestricted' \| 'restricted' \| 'unsupported'` | HDCP protection status |
+| `pauseLoader()` | `() => void` | Pause HLS fragment loading (backpressure) |
+| `resumeLoader()` | `() => void` | Resume HLS fragment loading |
+| `loaderState()` | `() => 'running' \| 'paused'` | Current loader state |
+
+### BackendState
+
+| Value | Description |
+|---|---|
+| `'idle'` | No source loaded |
+| `'loading'` | Source is loading |
+| `'ready'` | Source is loaded and ready |
+| `'playing'` | Media is playing |
+| `'paused'` | Media is paused |
+| `'error'` | A fatal backend error occurred |
+
+## Custom backend
+
+Pass a `backendFactory` in `VideoPlayerConfig` to swap the default `Html5VideoBackend`:
+
+```ts
+import type { VideoBackendFactory } from '@nomercy-entertainment/nomercy-video-player';
+import { MyNativeBackend } from './MyNativeBackend';
+
+const factory: VideoBackendFactory = (kind, config) => {
+  return new MyNativeBackend(config);
+};
+
+player.setup({ backendFactory: factory, playlist: [...] });
+```
+
+See [Video Backend adapter](/nomercy-video-player/adapters/video-backend) for the full adapter guide.
+
+## See also
+
+- [Video Backend adapter](/nomercy-video-player/adapters/video-backend)
+- [DRM plugin](/nomercy-video-player/plugins/drm)
+- [Types Reference](/nomercy-video-player/types)

@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Media Session"
 description: "The MediaSessionPlugin — system media session (lock screen, notifications)."
 category: "Plugins"
@@ -6,6 +6,63 @@ order: 11
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/plugins/media-session/index.ts -->
+
+## Plugin id
+
+`'media-session'`
+
+## Import
+
+```ts
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+```
+
+## What it does
+
+`MediaSessionPlugin` is a video-specific override of the kit's base `MediaSessionPlugin`. It populates the browser's `MediaSession` API so the OS-level "Now Playing" UI (lock screen, notification shade, media controls in browser toolbar) reflects what is currently playing.
+
+For video items, the plugin builds metadata as:
+
+| MediaSession field | Source |
+|---|---|
+| `title` | `item.title ?? item.name` |
+| `artist` | `item.show` (or `item.year` as a fallback) |
+| `album` | `'Season N'` when `item.season` is set, otherwise empty |
+| `artwork` | Resolved from `item.poster` via the kit's auth fetch pipeline (respects `imageBasePath`) |
+
+This provides TV-style metadata on series content — OS media surfaces show the show name as the artist and the season label as the album.
+
+## Registration
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(MediaSessionPlugin)
+  .setup({
+    playlist: [{
+      title: 'Foundation',
+      url: 'https://media.nomercy.tv/foundation/s01e01.m3u8',
+      image: 'https://media.nomercy.tv/foundation/poster.jpg',
+      show: 'Foundation',
+      season: 1,
+      episode: 1,
+    }],
+  });
+```
+
+The OS Now Playing widget will show: **Foundation** · Foundation · Season 1
+
+## Media action handlers
+
+The kit base class registers handlers for `play`, `pause`, `stop`, `nexttrack`, and `previoustrack` — these call the corresponding player methods. The video-specific plugin inherits all handlers.
+
+Position state (`mediaSession.setPositionState`) is updated on `timeupdate` events.
+
+## See also
+
+- [CastSender plugin](/nomercy-video-player/plugins/cast-sender)
+- [VideoPlaylistItem — show/season fields](/nomercy-video-player/playlist-item)
+- [Player Kit — MediaSessionPlugin (base class)](/nomercy-player-kit/plugins)

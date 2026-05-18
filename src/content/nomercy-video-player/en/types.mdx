@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Types Reference"
 description: "All exported types for the NoMercy Video Player."
 category: "Types Reference"
@@ -6,6 +6,194 @@ order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/types.ts, src/index.ts -->
+
+## Exported types
+
+All types are importable from the package root:
+
+```ts
+import type {
+  VideoPlaylistItem,
+  VideoPlayerConfig,
+  VideoEventMap,
+  IVideoPlayer,
+  VideoBackendFactory,
+  Stretching,
+  WatchProgress,
+  FontTrackRef,
+  SubtitleTrackRef,
+  AudioTrackRef,
+  ChapterRef,
+  SkipperData,
+  SkipperRange,
+} from '@nomercy-entertainment/nomercy-video-player';
+```
+
+## IVideoPlayer
+
+```ts
+interface IVideoPlayer<T extends BasePlaylistItem = VideoPlaylistItem>
+  extends IPlayer<VideoEventMap>
+```
+
+Typed contract for the video player's public surface. Use this to type plugin parameters and consumer functions rather than the concrete `NMVideoPlayer` class. The interface is stable across patch versions.
+
+```ts
+import type { IVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+
+class MyPlugin extends Plugin<IVideoPlayer> {
+  override use(): void {
+    this.on('ready', () => {
+      this.player.play();
+    });
+  }
+}
+```
+
+## VideoPlaylistItem
+
+See [VideoPlaylistItem](/nomercy-video-player/playlist-item) for full field documentation.
+
+## VideoPlayerConfig
+
+Configuration passed to `player.setup(config)`.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `playlist` | `VideoPlaylistItem[] \| string` | — | Initial playlist or URL to fetch |
+| `muted` | `boolean` | `false` | Start muted |
+| `autoPlay` | `boolean` | `false` | Auto-play on setup |
+| `controls` | `boolean` | `true` | Enable built-in controls |
+| `stretching` | `'uniform' \| 'fill' \| 'exactfit' \| 'none'` | `'uniform'` | Aspect ratio stretching mode |
+| `playbackRates` | `number[]` | `[0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]` | Available playback speed options |
+| `preload` | `'auto' \| 'metadata' \| 'none'` | `'auto'` | HTML `<video>` preload attribute |
+| `disableMediaControls` | `boolean` | `false` | Disable media key bindings (keyboard plugin) |
+| `disableControls` | `boolean` | `false` | Disable all controls |
+| `backendFactory` | `VideoBackendFactory` | — | Custom backend factory (advanced) |
+| `defaultSubtitleLanguage` | `string` | — | BCP-47 language tag to auto-select on load |
+| `defaultAudioLanguage` | `string` | — | BCP-47 language tag to auto-select on load |
+| `defaultQuality` | `'auto' \| number` | `'auto'` | Default quality level index or `'auto'` |
+| `theaterDefault` | `boolean` | `false` | Start in theater mode |
+| `imageBasePath` | `string` | — | Base URL prepended to relative image paths on playlist items |
+
+## State enums
+
+All state enums are exported from the package root:
+
+### PlayState
+
+Returned by `player.playState()`.
+
+| Value | Description |
+|---|---|
+| `'idle'` | No media loaded |
+| `'loading'` | Media is loading or buffering |
+| `'playing'` | Media is actively playing |
+| `'paused'` | Media is paused |
+| `'stopped'` | Playback stopped explicitly |
+| `'error'` | A fatal error occurred |
+
+### FullscreenState
+
+| Value | Description |
+|---|---|
+| `'off'` | Not in fullscreen |
+| `'on'` | In fullscreen |
+
+### PipState
+
+| Value | Description |
+|---|---|
+| `'off'` | Picture-in-Picture is inactive |
+| `'on'` | Picture-in-Picture is active |
+
+### TheaterState
+
+| Value | Description |
+|---|---|
+| `'off'` | Normal layout |
+| `'on'` | Theater (wide) mode active |
+
+### SubtitleState
+
+| Value | Description |
+|---|---|
+| `'off'` | No subtitle track active |
+| `'on'` | A subtitle track is active |
+
+### VolumeState
+
+| Value | Description |
+|---|---|
+| `'unmuted'` | Audio is playing |
+| `'muted'` | Audio is muted |
+
+### RepeatState
+
+| Value | Description |
+|---|---|
+| `'off'` | No repeat |
+| `'all'` | Repeat entire playlist |
+| `'one'` | Repeat current item |
+
+### ShuffleState
+
+| Value | Description |
+|---|---|
+| `'off'` | Sequential playback |
+| `'on'` | Shuffled playback |
+
+## Stretching
+
+```ts
+type Stretching = 'uniform' | 'fill' | 'exactfit' | 'none';
+```
+
+Controls how the video is scaled to fill the player container. Used by `aspectRatio()` and `cycleAspectRatio()`. See [Aspect Ratio](/nomercy-video-player/api/aspect-ratio).
+
+## VideoBackendFactory
+
+```ts
+type VideoBackendFactory = (
+  kind: VideoBackendKind,
+  config: VideoPlayerConfig<BasePlaylistItem>,
+) => IVideoBackend;
+```
+
+Custom backend factory passed in `VideoPlayerConfig.backendFactory`. Receives the resolved backend kind and the player config. See [Video Backend adapter](/nomercy-video-player/adapters/video-backend).
+
+## VideoEventMap
+
+The full map of events emitted by `NMVideoPlayer`. Subscribe with `player.on(event, listener)`.
+
+| Event | Payload | Description |
+|---|---|---|
+| `'current'` | `{ item: VideoPlaylistItem \| undefined; index: number }` | Active playlist item changed |
+| `'quality:requested'` | `{ level: number \| 'auto' }` | Quality level requested by consumer |
+| `'chapter'` | `{ index: number; title: string }` | Chapter boundary crossed |
+| `'pip'` | `{ active: boolean }` | PiP state changed |
+| `'theater'` | `{ active: boolean }` | Theater mode changed |
+| `'fullscreen'` | `{ active: boolean }` | Fullscreen state changed |
+| `'mute'` | `{ muted: boolean }` | Mute state changed |
+| `'volume'` | `{ level: number }` | Volume level changed (0–1) |
+| `'repeat'` | `{ state: RepeatState }` | Repeat mode changed |
+| `'shuffle'` | `{ state: ShuffleState }` | Shuffle mode changed |
+| `'aspectRatio'` | `{ value: Stretching }` | Aspect ratio changed |
+| `'waiting'` | `void` | Video element is buffering |
+| `'canplay'` | `void` | Enough data to begin playback |
+| `'stalled'` | `void` | Network stalled |
+| `'levels'` | `{ levels: QualityLevel[] }` | HLS quality levels available |
+| `'level-switched'` | `{ level: number }` | ABR switched quality level |
+| `'audioTracks'` | `{ tracks: AudioTrack[] }` | Audio track list available |
+| `'back'` | `void` | Back button in the desktop UI was pressed |
+
+Kit base events (`ready`, `time`, `duration`, `play`, `pause`, `ended`, `error`, `subtitle`, `subtitleCue`, `subtitleStyle`, `mediaReady`, etc.) are inherited from `BaseEventMap` and documented at [/nomercy-player-kit/event-system](/nomercy-player-kit/event-system).
+
+## See also
+
+- [VideoPlaylistItem](/nomercy-video-player/playlist-item)
+- [API — Factory](/nomercy-video-player/api/factory)
+- [API — Playback State](/nomercy-video-player/api/playback-state)
+- [Video Backend adapter](/nomercy-video-player/adapters/video-backend)

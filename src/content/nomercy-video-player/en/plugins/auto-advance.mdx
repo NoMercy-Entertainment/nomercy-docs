@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Auto Advance"
 description: "The AutoAdvancePlugin — automatic progression through a queue."
 category: "Plugins"
@@ -6,6 +6,84 @@ order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-video-player-v2/src/plugins/auto-advance/index.ts -->
+
+## Plugin id
+
+`'auto-advance'`
+
+## Import
+
+```ts
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+```
+
+## What it does
+
+`AutoAdvancePlugin` listens to the player's `'ended'` event and calls `player.next()` so the queue advances automatically when each item finishes. It does nothing else — no timers, no countdowns, no UI.
+
+Do not register this plugin when an external orchestrator (Cast sync, a NoMercy Connect WebSocket) drives `next()` — duplicate advances would result.
+
+## Options
+
+```ts
+interface AutoAdvanceOptions {
+  /** Master toggle. Default true. */
+  enabled?: boolean;
+}
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | `boolean` | `true` | Runtime toggle. Setting `false` suspends auto-advance without unregistering the plugin |
+
+## Registration
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(AutoAdvancePlugin, { enabled: true })
+  .setup({
+    playlist: [
+      { title: 'Sintel',          url: 'https://media.nomercy.tv/sintel/master.m3u8' },
+      { title: 'Big Buck Bunny',  url: 'https://media.nomercy.tv/bbb/master.m3u8'   },
+      { title: 'Cosmos Laundromat', url: 'https://media.nomercy.tv/cosmos/master.m3u8' },
+    ],
+  });
+```
+
+## Methods
+
+### advance
+
+```ts
+plugin.advance(): Promise<void>
+```
+
+Force-advances to the next item immediately, regardless of `ended` state. Useful for a "skip" button that bypasses the `ended` event.
+
+```ts
+const plugin = player.plugin('auto-advance') as AutoAdvancePlugin;
+plugin.advance();
+```
+
+## Runtime toggle
+
+Retrieve the plugin instance and set `opts.enabled` at runtime:
+
+```ts
+const plugin = player.plugin('auto-advance') as AutoAdvancePlugin;
+// Suspend auto-advance during binge-watching prompt
+plugin.opts = { enabled: false };
+
+// Re-enable after user confirms
+plugin.opts = { enabled: true };
+```
+
+## See also
+
+- [Skipper plugin](/nomercy-video-player/plugins/skipper)
+- [API — Kit Methods (next / previous)](/nomercy-video-player/api/kit-methods)
+- [Player Kit — Plugin Model](/nomercy-player-kit/plugins)

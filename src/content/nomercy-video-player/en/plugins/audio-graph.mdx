@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Audio Graph"
 description: "The AudioGraphPlugin — Web Audio API graph access."
 category: "Plugins"
@@ -6,6 +6,110 @@ order: 16
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+<!-- Source: packages/nomercy-player-kit/src/plugins/audio-graph/index.ts — re-exported from nomercy-player-core -->
+
+## Plugin id
+
+`'audio-graph'`
+
+## Import
+
+```ts
+import { AudioGraphPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { AudioGraphOptions, AudioGraphEvents } from '@nomercy-entertainment/nomercy-video-player/plugins';
+```
+
+## What it does
+
+`AudioGraphPlugin` is re-exported from the player kit. It owns the Web Audio signal chain for the player and is the opt-in foundation for every Web Audio plugin (equalizer, mixer, spectrum analyzer, canvas visualizer).
+
+On `use()` it creates (or reuses) an `AudioContext`, wraps the backend's `<video>` element in a `MediaElementAudioSourceNode`, and connects the baseline chain:
+
+```
+[<video> element / backend output]
+  └─ MediaElementAudioSourceNode
+      ├─ (parallel tap) → shared AnalyserNode   (read by SpectrumPlugin)
+      ├─ preEffects[0..n]                        (EQ BiquadFilters, etc.)
+      └─ postEffects[0..n]                       (Mixer gain/pan, etc.)
+          └─ AudioContext.destination
+```
+
+Subsequent plugins (EqualizerPlugin, MixerPlugin, SpectrumPlugin) extend the chain by calling `insertEffect()` or `pre()` / `post()` on the audio graph plugin instance.
+
+The `AudioContext` starts in `'suspended'` state per browser autoplay policy. The plugin resumes it on the first `'play'` event — which always fires inside or immediately after a user gesture.
+
+## Options
+
+```ts
+interface AudioGraphOptions {
+  /**
+   * Latency hint for new AudioContext.
+   * Use 'playback' (default) for music/video.
+   * Use 'interactive' when round-trip latency matters.
+   */
+  latencyHint?: AudioContextLatencyCategory;
+  /**
+   * FFT size for the shared AnalyserNode.
+   * Higher values give finer frequency resolution.
+   * Default 2048 (1024 bins).
+   */
+  fftSize?: 256 | 512 | 1024 | 2048 | 4096 | 8192 | 16384;
+  /**
+   * Smoothing time constant 0..1 for the shared analyser.
+   * Higher values make spectrum output lag behind transients.
+   * Default 0.8.
+   */
+  smoothing?: number;
+}
+```
+
+## Events
+
+```ts
+interface AudioGraphEvents {
+  /** AudioContext is live; includes sampleRate. */
+  'context:ready':   { sampleRate: number };
+  /** AudioContext was closed — on dispose or browser suspension. */
+  'context:closed':  void;
+  /** Effect list changed; downstream plugins re-link their nodes. */
+  'chain:rebuilt':   void;
+  /** AudioContext is unavailable in this environment. */
+  'unsupported':     { reason: string };
+}
+```
+
+## Registration
+
+Register `AudioGraphPlugin` before any other Web Audio plugin. The layering requirement is `AudioGraphPlugin → EqualizerPlugin → MixerPlugin → SpectrumPlugin`:
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import {
+  AudioGraphPlugin,
+  EqualizerPlugin,
+  MixerPlugin,
+  SpectrumPlugin,
+} from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(AudioGraphPlugin, { latencyHint: 'playback', fftSize: 2048 })
+  .addPlugin(EqualizerPlugin)
+  .addPlugin(MixerPlugin)
+  .addPlugin(SpectrumPlugin)
+  .setup({
+    playlist: [{
+      title: 'Cosmos Laundromat',
+      url: 'https://media.nomercy.tv/cosmos/master.m3u8',
+    }],
+  });
+
+player.on('plugin:audio-graph:context:ready', ({ sampleRate }) => {
+  console.log('AudioContext running at', sampleRate, 'Hz');
+});
+```
+
+## See also
+
+- [Player Kit — AudioGraphPlugin (canonical docs)](/nomercy-player-kit/plugins)
+- [Desktop UI plugin](/nomercy-video-player/plugins/desktop-ui)
+- [Player Kit — Plugin Model](/nomercy-player-kit/plugins)
