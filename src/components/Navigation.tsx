@@ -97,16 +97,24 @@ function NavLinkItem({
   // Scroll the active page link into view inside the sidebar on mount.
   // Without this, deep pages in long sections can have their nav entry
   // far off-screen when the sidebar first renders. Only scroll on the
-  // top-level active link (not anchor sub-links — those would chase the
-  // cursor while reading).
+  // top-level active link AND anchor sub-link both scroll the sidebar to
+  // follow. Smooth scroll for anchor changes (gentle while reading), instant
+  // for page navigation.
   const ref = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
-    if (active && !isAnchorLink && ref.current) {
+    if (active && ref.current) {
       const el = ref.current;
       const rect = el.getBoundingClientRect();
-      const inView = rect.top >= 0 && rect.bottom <= window.innerHeight;
+      const sidebar = el.closest('[data-sidebar-scroll], aside, nav') as HTMLElement | null;
+      const containerRect = sidebar?.getBoundingClientRect();
+      const inView = containerRect
+        ? rect.top >= containerRect.top && rect.bottom <= containerRect.bottom
+        : rect.top >= 0 && rect.bottom <= window.innerHeight;
       if (!inView) {
-        el.scrollIntoView({ block: 'center', behavior: 'auto' });
+        el.scrollIntoView({
+          block: 'center',
+          behavior: isAnchorLink ? 'smooth' : 'auto',
+        });
       }
     }
   }, [active, isAnchorLink]);
@@ -149,6 +157,9 @@ function AnchorSectionList({
   sections: Array<Section>;
 }) {
   const visibleSections = useSectionStore((state) => state.visibleSections);
+  // SectionProvider puts the active section (last heading scrolled past or
+  // the first heading if none scrolled past yet) at index 0 — back to the
+  // original convention.
   const activeSection = visibleSections[0];
 
   return (
@@ -438,22 +449,21 @@ export function Navigation({
   // Use provided navigation or fallback
   const navSections = navigation.length > 0 ? navigation : fallbackNavigation;
 
-  // Determine which section we're in. `isOnApiPage` is the fallback bucket
-  // for the legacy API docs section — every content collection that has its
-  // own nav (app, mediaserver, player, ...) must be excluded here, otherwise
-  // the sidebar falls back to the API boilerplate instead of showing the
-  // collection's own groups.
-  const isOnAppPage = pathname.startsWith('/app');
-  const isOnMediaServerPage = pathname.startsWith('/mediaserver');
-  const isOnPlayerPage = pathname.startsWith('/player');
-  const isOnApiPage = !isOnAppPage && !isOnMediaServerPage && !isOnPlayerPage;
-
-  // Use provided API groups or fallback
-  const apiNavGroups = apiGroups.length > 0 ? apiGroups : fallbackApiGroups;
-
-  // Find the current section's groups
-  const currentSection = navSections.find((section) => pathname.startsWith(section.href));
+  // Each section.href is the product landing page (e.g. `/nomercy-player-kit/overview`),
+  // not the product PREFIX. Match by the first path segment so any page under
+  // `/nomercy-player-kit/*` resolves to the kit section, not just `/overview`.
+  const currentProductPrefix = `/${pathname.split('/').filter(Boolean)[0] ?? ''}`;
+  const currentSection = navSections.find((section) => section.href.startsWith(currentProductPrefix + '/'));
   const currentGroups = currentSection?.groups || [];
+
+  // The legacy `ApiSectionLink` was a separate fallback bucket from the
+  // earlier IA where the API docs lived at the site root with no product
+  // prefix. After the Phase 1 restructure every product (API included) has
+  // its own collection + sidebar group, so the dedicated API fallback is
+  // dead. `apiGroups` still flows in from getNavigation() for back-compat
+  // but is no longer routed through ApiSectionLink.
+  const apiNavGroups = apiGroups.length > 0 ? apiGroups : fallbackApiGroups;
+  void apiNavGroups; // referenced for prop-type compat; sidebar now sources from currentGroups
 
   return (
     <nav aria-label="Sidebar" className={className} {...props}>
@@ -461,26 +471,21 @@ export function Navigation({
         {/* Section links at the top */}
         <li className="mb-6">
           <ul role="list" className="space-y-1">
-            <ApiSectionLink isActive={isOnApiPage} />
-            {navSections.map((section) => (
-              <SectionLink
-                key={section.href}
-                section={section}
-                isActive={pathname.startsWith(section.href)}
-              />
-            ))}
+            {navSections.map((section) => {
+              const sectionPrefix = `/${section.href.split('/').filter(Boolean)[0] ?? ''}`;
+              return (
+                <SectionLink
+                  key={section.href}
+                  section={section}
+                  isActive={currentProductPrefix === sectionPrefix}
+                />
+              );
+            })}
           </ul>
         </li>
 
         {/* Show current section's groups */}
-        {isOnApiPage && apiNavGroups.map((group, groupIndex) => (
-          <NavigationGroup
-            key={group.title}
-            group={group}
-            className={groupIndex === 0 ? 'mt-0' : ''}
-          />
-        ))}
-        {!isOnApiPage && currentGroups.map((group, groupIndex) => (
+        {currentGroups.map((group, groupIndex) => (
           <NavigationGroup
             key={group.title}
             group={group}

@@ -67,42 +67,52 @@ function useVisibleSections(sectionStore: StoreApi<SectionState>) {
   let sections = useStore(sectionStore, (s) => s.sections)
 
   useEffect(() => {
+    // Heading components are rendered server-side as plain HTML inside the
+    // MDX slot — they never hydrate as React islands, so the per-Heading
+    // `registerHeading` effect that would populate `headingRef.current` does
+    // not run. Look the elements up directly via `document.getElementById`
+    // instead. This makes section tracking entirely DOM-driven and
+    // independent of the Heading component's effect lifecycle.
+    function getEl(id: string): HTMLElement | null {
+      if (typeof document === 'undefined') return null
+      return document.getElementById(id)
+    }
+
     function checkVisibleSections() {
       let { innerHeight, scrollY } = window
-      let newVisibleSections = []
+      // Fixed header sits ~72px tall — treat any heading scrolled above that
+      // line as "passed". Sidebar active-state = the last heading scrolled
+      // past, or the first heading if none have been passed yet. Mirrors how
+      // sticky-table-of-contents widgets feel everywhere else on the web.
+      let headerThreshold = scrollY + 72
+      let newVisibleSections: Array<string> = []
+      let lastPassedId: string | null = null
 
-      for (
-        let sectionIndex = 0;
-        sectionIndex < sections.length;
-        sectionIndex++
-      ) {
-        let { id, headingRef, offsetRem = 0 } = sections[sectionIndex]
+      for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+        let { id } = sections[sectionIndex]
+        let el = getEl(id)
+        if (!el) continue
 
-        if (!headingRef?.current) {
-          continue
+        let top = el.getBoundingClientRect().top + scrollY
+
+        if (top <= headerThreshold) {
+          lastPassedId = id
         }
 
-        let offset = remToPx(offsetRem)
-        let top = headingRef.current.getBoundingClientRect().top + scrollY
-
-        if (sectionIndex === 0 && top - offset > scrollY) {
-          newVisibleSections.push('_top')
-        }
-
-        let nextSection = sections[sectionIndex + 1]
-        let bottom =
-          (nextSection?.headingRef?.current?.getBoundingClientRect().top ??
-            Infinity) +
-          scrollY -
-          remToPx(nextSection?.offsetRem ?? 0)
-
-        if (
-          (top > scrollY && top < scrollY + innerHeight) ||
-          (bottom > scrollY && bottom < scrollY + innerHeight) ||
-          (top <= scrollY && bottom >= scrollY + innerHeight)
-        ) {
+        // Track every heading whose anchor is anywhere in the viewport —
+        // useful for plugins that highlight all visible h2s. The "active"
+        // section for the sidebar is chosen below from lastPassedId.
+        if (top >= scrollY && top <= scrollY + innerHeight) {
           newVisibleSections.push(id)
         }
+      }
+
+      // Put the active section at index 0 so any consumer reading
+      // `visibleSections[0]` (current sidebar pattern) lands on it.
+      if (lastPassedId) {
+        newVisibleSections = [lastPassedId, ...newVisibleSections.filter((id) => id !== lastPassedId)]
+      } else if (newVisibleSections.length === 0 && sections[0]) {
+        newVisibleSections = [sections[0].id]
       }
 
       setVisibleSections(newVisibleSections)

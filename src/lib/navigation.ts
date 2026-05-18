@@ -139,6 +139,10 @@ export async function getNavigation(): Promise<NavigationResult> {
 }
 
 function stripLocalePrefix(slug: string): string {
+  // Astro flattens `en/index.mdx` to bare `en` (drops the trailing /index),
+  // and `en/<page>.mdx` to `en/<page>`. Strip both shapes so the en/ locale
+  // never leaks into sidebar hrefs or sneaks past the index-filter below.
+  if (/^[a-z]{2}$/.test(slug)) return '';
   return slug.replace(/^[a-z]{2}\//, '');
 }
 
@@ -148,7 +152,10 @@ function groupByCategory(
 ): NavGroup[] {
   const grouped = docs.reduce((acc, doc) => {
     const cleanSlug = stripLocalePrefix(doc.slug);
-    if (cleanSlug === 'index') return acc;
+    // Skip locale root (collection landing) AND any section root like
+    // `advanced/index` — these are reachable from the parent and shouldn't
+    // appear twice in the sidebar.
+    if (cleanSlug === '' || cleanSlug === 'index' || cleanSlug.endsWith('/index')) return acc;
 
     const category = doc.data.category || 'General';
     if (!acc[category]) acc[category] = [];
