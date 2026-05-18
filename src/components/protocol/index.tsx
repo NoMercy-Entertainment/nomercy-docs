@@ -5,7 +5,6 @@
  * Import as: import * as mdxComponents from '@/components/protocol'
  */
 
-import { Feedback } from './Feedback';
 import { Heading } from '../Heading';
 import { Prose } from './Prose';
 
@@ -23,14 +22,12 @@ export const h2 = (props: Omit<React.ComponentPropsWithoutRef<typeof Heading>, '
   <Heading level={2} {...props} />
 );
 
-/** Article wrapper with prose styling and feedback footer */
+/** Article wrapper — no flex stretching, no feedback widget. Footer chrome
+ *  (prev/next nav, copyright) is owned by the page template / Layout. */
 export function wrapper({ children }: { children: React.ReactNode; }) {
   return (
-    <article className="flex h-full flex-col pt-16 pb-10">
-      <Prose className="flex-auto">{children}</Prose>
-      <footer className="mx-auto mt-16 w-full max-w-2xl lg:max-w-5xl">
-        <Feedback />
-      </footer>
+    <article className="pt-16 pb-10">
+      <Prose>{children}</Prose>
     </article>
   );
 }

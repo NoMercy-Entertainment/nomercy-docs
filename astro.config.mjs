@@ -148,7 +148,14 @@ export default defineConfig({
       remarkPlugins,
       rehypePlugins,
       recmaPlugins,
-      optimize: true,
+      // optimize: true pre-renders MDX to static HTML and bypasses the
+      // `components` prop on <Content components={...} />. That kills every
+      // custom MDX component override — most importantly the h2 → Heading
+      // mapping that wraps headings in clickable `<a href="#id">` anchors.
+      // Without that wrapper, URL-based heading deep links still work
+      // (rehype-slug still adds ids) but users can't click a heading to
+      // grab its link. Keep optimize off until we have a build-perf reason
+      // strong enough to give up custom components.
       // Disable Astro's rehypeShiki so it never sees ::button; we handle highlighting in rehype
       syntaxHighlight: false,
     }),

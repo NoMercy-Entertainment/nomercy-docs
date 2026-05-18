@@ -229,7 +229,7 @@ function CodePanel({
     <div className="group dark:bg-white/2.5">
       <CodePanelHeader tag={tag} label={label} />
       <div className="relative">
-        <pre className="overflow-x-auto p-4 text-xs text-zinc-900 dark:text-white">{children}</pre>
+        <pre className="shiki overflow-x-auto p-4 text-xs text-zinc-900 dark:text-white">{children}</pre>
         <CopyButton code={code} />
       </div>
     </div>
@@ -619,7 +619,7 @@ export function CodeGroup({
                   <CopyButton code={codeBlocks[0].code} />
                 </>
               ) : (
-                <pre className="overflow-x-auto p-4 text-xs text-zinc-900 dark:text-white">{children}</pre>
+                <pre className="shiki overflow-x-auto p-4 text-xs text-zinc-900 dark:text-white">{children}</pre>
               )}
             </div>
           </div>

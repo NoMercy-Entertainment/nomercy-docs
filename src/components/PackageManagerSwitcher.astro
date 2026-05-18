@@ -1,84 +1,82 @@
 ---
-// Sticky dropdown that rewrites every visible `npm install` / `npm i`
-// command on the current page to yarn / pnpm / bun. Pure DOM rewriter —
-// no MDX component changes needed; works on every code block already
-// rendered.
+// Floating chip that rewrites every visible `npm install` / `npm i` /
+// `npm run` / `npx` command on the current page to yarn / pnpm / bun.
+// Pure DOM rewriter — works on every code block already rendered.
 //
-// Race-proof approach: tag each pre with a stable id and snapshot the
-// raw command BEFORE CodeHighlighter (React useEffect) runs. After
-// CodeHighlighter wraps/clones the pre, the id survives, so the swap
-// can always re-find the original text via the snapshot map.
-//
-// `color-scheme: light dark` on the <select> tells Chrome / Firefox /
-// Safari to theme the native popup to match — so the open list reads
-// the same as the chip on both themes without rebuilding the popup
-// ourselves.
+// Pinned top-right under the header so it doesn't crowd the article
+// header. Hides automatically when the page has no npm/npx commands.
 //
 // Preference persists in localStorage so the user's choice survives
 // navigation and reload.
 ---
 
-<div class="package-manager-switcher" data-pm-switcher>
-  <label class="pm-label" for="pm-select">Package manager</label>
-  <select id="pm-select" class="pm-select" aria-label="Package manager">
-    <option value="npm">npm</option>
-    <option value="yarn">yarn</option>
-    <option value="pnpm">pnpm</option>
-    <option value="bun">bun</option>
-  </select>
+<div class="package-manager-switcher" data-pm-switcher hidden role="group" aria-label="Package manager">
+  <button type="button" class="pm-btn" data-pm-value="npm">npm</button>
+  <button type="button" class="pm-btn" data-pm-value="yarn">yarn</button>
+  <button type="button" class="pm-btn" data-pm-value="pnpm">pnpm</button>
+  <button type="button" class="pm-btn" data-pm-value="bun">bun</button>
 </div>
 
 <style>
   .package-manager-switcher {
-    position: sticky;
-    top: 72px;
+    position: fixed;
+    top: 4rem;
+    right: 1rem;
+    z-index: 25;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    margin-bottom: 16px;
+    gap: 2px;
+    padding: 3px;
     background: rgb(255 255 255 / 0.9);
     border: 1px solid rgb(228 228 231 / 1);
-    border-radius: 8px;
-    z-index: 20;
+    border-radius: 999px;
     backdrop-filter: blur(8px);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
+    box-shadow: 0 4px 12px -4px rgb(0 0 0 / 0.08);
+  }
+  .package-manager-switcher[hidden] {
+    display: none;
   }
   :global(.dark) .package-manager-switcher {
-    background: rgb(39 39 42 / 0.9);
+    background: rgb(24 24 27 / 0.9);
     border-color: rgb(63 63 70 / 1);
+    box-shadow: 0 4px 12px -4px rgb(0 0 0 / 0.4);
   }
-  .pm-label {
-    color: rgb(82 82 91);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 600;
+  @media (max-width: 640px) {
+    .package-manager-switcher {
+      top: auto;
+      bottom: 1rem;
+      right: 1rem;
+    }
   }
-  :global(.dark) .pm-label {
-    color: rgb(161 161 170);
-  }
-  .pm-select {
+  .pm-btn {
     appearance: none;
     background: transparent;
-    border: 1px solid rgb(228 228 231);
-    border-radius: 6px;
-    padding: 2px 24px 2px 8px;
+    border: none;
+    padding: 3px 10px;
+    border-radius: 999px;
     font-family: 'Cascadia Code', 'Fira Code', ui-monospace, monospace;
-    color: inherit;
+    font-size: inherit;
+    color: rgb(82 82 91);
     cursor: pointer;
-    /* color-scheme tells the browser to render the NATIVE popup
-       (which we cannot style otherwise) in the appropriate theme. */
-    color-scheme: light;
-    background-image:
-      linear-gradient(45deg, transparent 50%, currentColor 50%),
-      linear-gradient(135deg, currentColor 50%, transparent 50%);
-    background-position: right 9px top 50%, right 5px top 50%;
-    background-size: 4px 4px, 4px 4px;
-    background-repeat: no-repeat;
+    transition: background 0.15s ease, color 0.15s ease;
   }
-  :global(.dark) .pm-select {
-    border-color: rgb(63 63 70);
-    color-scheme: dark;
+  .pm-btn:hover {
+    color: rgb(24 24 27);
+  }
+  .pm-btn[aria-pressed='true'] {
+    background: rgb(16 185 129);
+    color: rgb(255 255 255);
+  }
+  :global(.dark) .pm-btn {
+    color: rgb(161 161 170);
+  }
+  :global(.dark) .pm-btn:hover {
+    color: rgb(244 244 245);
+  }
+  :global(.dark) .pm-btn[aria-pressed='true'] {
+    background: rgb(16 185 129);
+    color: rgb(255 255 255);
   }
 </style>
 
@@ -143,6 +141,15 @@
         pre.setAttribute('data-pm-id', id);
         snapshots.set(id, raw);
       }
+      syncVisibility();
+    }
+
+    function syncVisibility() {
+      var widget = document.querySelector('[data-pm-switcher]');
+      if (!widget) return;
+      var hasAny = document.querySelector('pre[data-pm-id]:not([data-pm-id="skip"])');
+      if (hasAny) widget.removeAttribute('hidden');
+      else widget.setAttribute('hidden', '');
     }
 
     function applyToPre(pre, target) {
@@ -166,8 +173,12 @@
     }
 
     function syncSelect() {
-      var select = document.getElementById('pm-select');
-      if (select && select.value !== currentTarget) select.value = currentTarget;
+      var btns = document.querySelectorAll('[data-pm-switcher] .pm-btn');
+      for (var i = 0; i < btns.length; i++) {
+        var btn = btns[i];
+        var on = btn.getAttribute('data-pm-value') === currentTarget;
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
     }
 
     var rafPending = false;
@@ -208,14 +219,16 @@
       });
     }
 
-    // Document-level delegation so the listener survives any React
-    // hydration / re-render that tears down and rebuilds the select.
-    document.addEventListener('change', function (e) {
-      var t = e.target;
-      if (!t || t.id !== 'pm-select') return;
-      var target = t.value;
+    // Document-level delegation so the listener survives any hydration
+    // / re-render that tears down and rebuilds the chip.
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target.closest('[data-pm-value]') : null;
+      if (!t) return;
+      var target = t.getAttribute('data-pm-value');
+      if (!target) return;
       try { localStorage.setItem(STORAGE_KEY, target); } catch (_) {}
       applyAll(target);
+      syncSelect();
     });
 
     function init() {

@@ -4,7 +4,6 @@ import clsx from 'clsx';
 import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
 import { useRef, useState, useEffect } from 'react';
 
-import { Button } from './protocol/Button';
 import { useIsInsideMobileNavigation } from './MobileNavigation';
 import { useSectionStore, type Section } from './SectionProvider';
 import { Tag } from './protocol/Tag';
@@ -270,44 +269,102 @@ function NavigationGroup({
   let isActiveGroup =
     group.links.findIndex((link) => link.href === pathname) !== -1;
 
+  // Auto-open the group that contains the current page; otherwise honour the
+  // user's per-group toggle (persisted in sessionStorage so collapses survive
+  // page navigation within the same browsing session). Active group ignores
+  // the stored collapse so the reader never lands on a hidden current page.
+  const storageKey = `docs-nav-group:${group.title}`;
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (isActiveGroup) {
+      setIsCollapsed(false);
+      return;
+    }
+    try {
+      setIsCollapsed(sessionStorage.getItem(storageKey) === '1');
+    } catch {
+      // ignore — privacy modes, etc.
+    }
+  }, [isActiveGroup, storageKey]);
+
+  const toggle = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      try {
+        sessionStorage.setItem(storageKey, next ? '1' : '0');
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
   return (
     <li className={clsx('relative mt-6', className)}>
-      <motion.h2
-        layout="position"
-        className="text-xs font-semibold text-zinc-900 dark:text-white"
-      >
-        {group.title}
+      <motion.h2 layout="position">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={!isCollapsed}
+          className="flex w-full items-center justify-between gap-2 text-left text-xs font-semibold text-zinc-900 dark:text-white"
+        >
+          <span>{group.title}</span>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 16 16"
+            className={clsx(
+              'h-3 w-3 shrink-0 text-zinc-400 transition-transform dark:text-zinc-500',
+              isCollapsed ? '-rotate-90' : 'rotate-0',
+            )}
+          >
+            <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
       </motion.h2>
-      <div className="relative mt-3 pl-2">
-        <AnimatePresence initial={!isInsideMobileNavigation}>
-          {isActiveGroup && (
-            <VisibleSectionHighlight group={group} pathname={pathname} />
-          )}
-        </AnimatePresence>
-        <motion.div
-          layout
-          className="absolute inset-y-0 left-2 w-px bg-zinc-900/10 dark:bg-white/5"
-        />
-        <AnimatePresence initial={false}>
-          {isActiveGroup && (
-            <ActivePageMarker group={group} pathname={pathname} />
-          )}
-        </AnimatePresence>
-        <ul role="list" className="border-l border-transparent">
-          {group.links.map((link) => (
-            <motion.li key={link.href} layout="position" className="relative">
-              <NavLinkItem href={link.href} active={link.href === pathname}>
-                {link.title}
-              </NavLinkItem>
-              <AnimatePresence mode="popLayout" initial={false}>
-                {link.href === pathname && sections.length > 0 && (
-                  <AnchorSectionList link={link} sections={sections} />
+      <AnimatePresence initial={false}>
+        {!isCollapsed && (
+          <motion.div
+            key="content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="overflow-hidden"
+          >
+            <div className="relative mt-3 pl-2">
+              <AnimatePresence initial={!isInsideMobileNavigation}>
+                {isActiveGroup && (
+                  <VisibleSectionHighlight group={group} pathname={pathname} />
                 )}
               </AnimatePresence>
-            </motion.li>
-          ))}
-        </ul>
-      </div>
+              <motion.div
+                layout
+                className="absolute inset-y-0 left-2 w-px bg-zinc-900/10 dark:bg-white/5"
+              />
+              <AnimatePresence initial={false}>
+                {isActiveGroup && (
+                  <ActivePageMarker group={group} pathname={pathname} />
+                )}
+              </AnimatePresence>
+              <ul role="list" className="border-l border-transparent">
+                {group.links.map((link) => (
+                  <motion.li key={link.href} layout="position" className="relative">
+                    <NavLinkItem href={link.href} active={link.href === pathname}>
+                      {link.title}
+                    </NavLinkItem>
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      {link.href === pathname && sections.length > 0 && (
+                        <AnchorSectionList link={link} sections={sections} />
+                      )}
+                    </AnimatePresence>
+                  </motion.li>
+                ))}
+              </ul>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </li>
   );
 }
@@ -353,90 +410,6 @@ function NavigationSection({
   );
 }
 
-// Fallback API groups for when no dynamic navigation is provided
-const fallbackApiGroups: NavGroup[] = [
-  {
-    title: 'Guides',
-    links: [
-      { title: 'Introduction', href: '/' },
-      { title: 'Quickstart', href: '/quickstart' },
-      { title: 'SDKs', href: '/sdks' },
-      { title: 'Authentication', href: '/authentication' },
-      { title: 'Pagination', href: '/pagination' },
-      { title: 'Errors', href: '/errors' },
-      { title: 'Webhooks', href: '/webhooks' },
-    ],
-  },
-  {
-    title: 'Resources',
-    links: [
-      { title: 'Contacts', href: '/contacts' },
-      { title: 'Conversations', href: '/conversations' },
-      { title: 'Messages', href: '/messages' },
-      { title: 'Groups', href: '/groups' },
-      { title: 'Attachments', href: '/attachments' },
-    ],
-  },
-];
-
-// Fallback navigation for when no dynamic navigation is provided
-const fallbackNavigation: NavSection[] = [
-  {
-    title: 'App',
-    href: '/app',
-    groups: [],
-  },
-  {
-    title: 'Media Server',
-    href: '/mediaserver',
-    groups: [],
-  },
-];
-
-function SectionLink({
-  section,
-  isActive,
-}: {
-  section: NavSection;
-  isActive: boolean;
-}) {
-  return (
-    <li>
-      <CloseButton
-        as={Link}
-        href={section.href}
-        className={clsx(
-          'block py-1 text-sm transition',
-          isActive
-            ? 'font-semibold text-emerald-500'
-            : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-        )}
-      >
-        {section.title}
-      </CloseButton>
-    </li>
-  );
-}
-
-function ApiSectionLink({ isActive }: { isActive: boolean; }) {
-  return (
-    <li>
-      <CloseButton
-        as={Link}
-        href="/"
-        className={clsx(
-          'block py-1 text-sm transition',
-          isActive
-            ? 'font-semibold text-emerald-500'
-            : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
-        )}
-      >
-        API
-      </CloseButton>
-    </li>
-  );
-}
-
 export function Navigation({
   className,
   navigation = [],
@@ -446,45 +419,20 @@ export function Navigation({
 }: React.ComponentPropsWithoutRef<'nav'> & { navigation?: NavSection[]; apiGroups?: NavGroup[]; initialPathname?: string; }) {
   const pathname = usePathname(initialPathname);
 
-  // Use provided navigation or fallback
-  const navSections = navigation.length > 0 ? navigation : fallbackNavigation;
-
+  // Product list is rendered in the header now; sidebar only renders the
+  // active product's groups so the two surfaces don't duplicate.
   // Each section.href is the product landing page (e.g. `/nomercy-player-kit/overview`),
   // not the product PREFIX. Match by the first path segment so any page under
   // `/nomercy-player-kit/*` resolves to the kit section, not just `/overview`.
   const currentProductPrefix = `/${pathname.split('/').filter(Boolean)[0] ?? ''}`;
-  const currentSection = navSections.find((section) => section.href.startsWith(currentProductPrefix + '/'));
+  const currentSection = navigation.find((section) => section.href.startsWith(currentProductPrefix + '/'));
   const currentGroups = currentSection?.groups || [];
 
-  // The legacy `ApiSectionLink` was a separate fallback bucket from the
-  // earlier IA where the API docs lived at the site root with no product
-  // prefix. After the Phase 1 restructure every product (API included) has
-  // its own collection + sidebar group, so the dedicated API fallback is
-  // dead. `apiGroups` still flows in from getNavigation() for back-compat
-  // but is no longer routed through ApiSectionLink.
-  const apiNavGroups = apiGroups.length > 0 ? apiGroups : fallbackApiGroups;
-  void apiNavGroups; // referenced for prop-type compat; sidebar now sources from currentGroups
+  void apiGroups; // prop kept for back-compat; sidebar sources from currentGroups now
 
   return (
     <nav aria-label="Sidebar" className={className} {...props}>
       <ul role="list">
-        {/* Section links at the top */}
-        <li className="mb-6">
-          <ul role="list" className="space-y-1">
-            {navSections.map((section) => {
-              const sectionPrefix = `/${section.href.split('/').filter(Boolean)[0] ?? ''}`;
-              return (
-                <SectionLink
-                  key={section.href}
-                  section={section}
-                  isActive={currentProductPrefix === sectionPrefix}
-                />
-              );
-            })}
-          </ul>
-        </li>
-
-        {/* Show current section's groups */}
         {currentGroups.map((group, groupIndex) => (
           <NavigationGroup
             key={group.title}
@@ -492,16 +440,7 @@ export function Navigation({
             className={groupIndex === 0 ? 'mt-0' : ''}
           />
         ))}
-
-        <li className="sticky bottom-0 z-10 mt-6 min-[416px]:hidden">
-          <Button href="#" variant="filled" className="w-full">
-            Sign in
-          </Button>
-        </li>
       </ul>
     </nav>
   );
 }
-
-// Export for backward compatibility
-export { fallbackNavigation as navigation, fallbackApiGroups };

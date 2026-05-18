@@ -75,8 +75,8 @@ plugin.advance(): Promise<void>
 Force-advances to the next item immediately, regardless of `ended` state. Useful for a "skip" button that bypasses the `ended` event.
 
 ```ts
-const plugin = player.plugin('auto-advance') as AutoAdvancePlugin;
-plugin.advance();
+const plugin = player.getPlugin(AutoAdvancePlugin);
+plugin?.advance();
 ```
 
 ## Runtime toggle
@@ -84,12 +84,14 @@ plugin.advance();
 Retrieve the plugin instance and set `opts.enabled` at runtime:
 
 ```ts
-const plugin = player.plugin('auto-advance') as AutoAdvancePlugin;
-// Suspend auto-advance during binge-watching prompt
-plugin.opts = { enabled: false };
+const plugin = player.getPlugin(AutoAdvancePlugin);
+if (plugin) {
+  // Suspend auto-advance during binge-watching prompt
+  plugin.opts = { enabled: false };
 
-// Re-enable after user confirms
-plugin.opts = { enabled: true };
+  // Re-enable after user confirms
+  plugin.opts = { enabled: true };
+}
 ```
 
 ## See also

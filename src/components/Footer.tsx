@@ -1,102 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+// Prev/next page navigation is rendered server-side by PageFooterNav.astro
+// (which sees the real per-product navigation). This footer only owns the
+// social row + copyright now.
 
-import { Button } from './protocol/Button';
-import { navigation as fallbackNavigation, fallbackApiGroups } from './Navigation';
-
-// Simple Link component to replace next/link
 const Link = ({ href, className, children, tabIndex, ...props }: { href: string; className?: string; children: React.ReactNode; tabIndex?: number; } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
   <a href={href} className={className} tabIndex={tabIndex} {...props}>
     {children}
   </a>
 );
-
-// Hook to get current pathname
-function usePathname() {
-  const [pathname, setPathname] = useState('');
-
-  useEffect(() => {
-    setPathname(window.location.pathname);
-  }, []);
-
-  return pathname;
-}
-
-function PageLink({
-  label,
-  page,
-  previous = false,
-}: {
-  label: string;
-  page: { href: string; title: string; };
-  previous?: boolean;
-}) {
-  return (
-    <>
-      <Button
-        href={page.href}
-        aria-label={`${label}: ${page.title}`}
-        variant="secondary"
-        arrow={previous ? 'left' : 'right'}
-      >
-        {label}
-      </Button>
-      <Link
-        href={page.href}
-        tabIndex={-1}
-        aria-hidden="true"
-        className="text-base font-semibold text-zinc-900 transition hover:text-zinc-600 dark:text-white dark:hover:text-zinc-300"
-      >
-        {page.title}
-      </Link>
-    </>
-  );
-}
-
-function PageNavigation() {
-  let pathname = usePathname();
-
-  // Flatten the navigation structure: sections -> groups -> links, plus API groups
-  let sectionPages = fallbackNavigation.flatMap((section) =>
-    section.groups.flatMap((group) => group.links)
-  );
-  let apiPages = fallbackApiGroups.flatMap((group) => group.links);
-  let allPages = [...sectionPages, ...apiPages];
-
-  // If no pages found, return null
-  if (allPages.length === 0) {
-    return null;
-  }
-
-  let currentPageIndex = allPages.findIndex((page) => page.href === pathname);
-
-  if (currentPageIndex === -1) {
-    return null;
-  }
-
-  let previousPage = allPages[currentPageIndex - 1];
-  let nextPage = allPages[currentPageIndex + 1];
-
-  if (!previousPage && !nextPage) {
-    return null;
-  }
-
-  return (
-    <div className="flex">
-      {previousPage && (
-        <div className="flex flex-col items-start gap-3">
-          <PageLink label="Previous" page={previousPage} previous />
-        </div>
-      )}
-      {nextPage && (
-        <div className="ml-auto flex flex-col items-end gap-3">
-          <PageLink label="Next" page={nextPage} />
-        </div>
-      )}
-    </div>
-  );
-}
 
 function XIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   return (
@@ -167,7 +79,6 @@ function SmallPrint() {
 export function Footer() {
   return (
     <footer className="mx-auto w-full max-w-2xl space-y-10 pb-16 lg:max-w-5xl">
-      <PageNavigation />
       <SmallPrint />
     </footer>
   );

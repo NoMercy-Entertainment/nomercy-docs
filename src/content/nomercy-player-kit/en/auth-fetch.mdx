@@ -145,16 +145,15 @@ Auth refresh retries are separate from the general retry policy — `refreshOnUn
 
 ## Inside plugins: `this.fetch`
 
-Plugins should use `this.fetch(url, responseHandler, init?)` instead of the global `fetch`. This applies the player's auth config, respects the retry policy, and properly types the response:
+Plugins should use `this.fetch<T>(url, options?)` instead of the global `fetch`. The `<T>` parameter types the parsed response — no casts. The options' `responseType` (`'text'` | `'json'` | `'arrayBuffer'`) controls how the body is decoded; pass a custom `parser` to transform a `text` body. The player's auth config and retry policy are applied automatically:
 
 ```ts
 class MyPlugin extends Plugin<...> {
   async use(): Promise<void> {
-    const data = await this.fetch(
-      this.opts.endpoint,
-      (response) => response.json() as Promise<MyDataShape>,
-      { method: 'GET' }
-    );
+    const data = await this.fetch<MyDataShape>(this.opts.endpoint, {
+      method: 'GET',
+      responseType: 'json',
+    });
     this.applyData(data);
   }
 }

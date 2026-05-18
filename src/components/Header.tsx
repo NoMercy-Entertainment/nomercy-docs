@@ -4,7 +4,6 @@ import clsx from 'clsx';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import React, { forwardRef } from 'react';
 
-import { Button } from './protocol/Button';
 import { Logo } from './Logo';
 import {
   MobileNavigation,
@@ -142,9 +141,6 @@ export const Header = forwardRef<
         <div className="flex gap-4">
           <MobileSearch />
           <ThemeToggle />
-        </div>
-        <div className="hidden min-[416px]:contents">
-          <Button href="#">Sign in</Button>
         </div>
       </div>
     </motion.div>
