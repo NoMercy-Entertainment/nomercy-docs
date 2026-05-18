@@ -1,11 +1,126 @@
 ---
 title: "Custom Backend"
-description: "Implementing BackendShape and wiring it to the kit."
+description: "Replacing the default video or audio backend — IVideoBackend contract, IBackendEmitter wiring, and two worked examples (NativeBackend, ShakaBackend)."
 category: "Advanced"
 order: 74
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# Custom Backend
+
+Read this when the built-in backend does not cover your use case — for example, you need DASH support via Shaka Player, a custom MSE pipeline, or a non-browser audio engine.
+
+The full walkthrough with complete worked examples is in [Advanced: Writing a Backend](/nomercy-player-kit/advanced/writing-a-backend). This page is the quick reference.
+
+---
+
+## When to replace the backend
+
+Before replacing the backend, check whether the need can be addressed with lower-effort options:
+
+1. **Custom stream factory** — register a `StreamFactory` via `registerStream()` to handle a new URL scheme or content type (e.g. DASH, smooth streaming). The stream factory picks which backend to create for a given source. See [Adapter Ports — Streams](/nomercy-player-kit/streams).
+
+2. **hls.js config override** — if you need to tune HLS behavior (bitrate cap, fragment retry count, level cap), configure it through the `hlsConfig` setup option rather than replacing the entire backend.
+
+3. **Custom plugin** — if the need is behavioral (custom ABR, buffer management, fragment interception), write a plugin that wraps the backend rather than replacing it. See [Advanced: Custom Plugin](/nomercy-player-kit/advanced/custom-plugin).
+
+Replace the backend only when none of the above covers the use case.
+
+---
+
+## The IVideoBackend interface (summary)
+
+```ts
+interface IVideoBackend {
+  // Lifecycle
+  load(src: string): void;
+  destroy(): void;
+
+  // Transport
+  play(): Promise<void>;
+  pause(): void;
+  seek(time: number): void;
+
+  // State readers
+  getCurrentTime(): number;
+  getDuration(): number;
+  getVolume(): number;
+  getPlaybackRate(): number;
+  isPaused(): boolean;
+  isEnded(): boolean;
+  isStalled(): boolean;
+
+  // State writers
+  setVolume(value: number): void;
+  setMuted(value: boolean): void;
+  setPlaybackRate(rate: number): void;
+  setCurrentTime(time: number): void;
+
+  // Quality / ABR
+  getQualityLevels(): QualityLevel[];
+  getCurrentQualityLevel(): number;
+  setQualityLevel(index: number): void;
+
+  // Event bridge — inject kit emitter, fire these on native player events
+  attachEmitter(emitter: IBackendEmitter): void;
+}
+```
+
+---
+
+## Registering the backend
+
+```ts
+player.setup({
+  backendFactory: (kind, config) => {
+    if (kind === 'video') return new MyVideoBackend(config.container);
+    return new MyAudioBackend();
+  },
+});
+```
+
+`backendFactory` receives `kind: 'video' | 'audio'` and a `config` object that includes the player container element for video. Return an object that implements `IVideoBackend` or `IAudioBackend`.
+
+---
+
+## IBackendEmitter — required event bridge
+
+The kit injects an `IBackendEmitter` via `attachEmitter()`. Your backend must call these methods when the underlying player fires its native events. Missing a call means the corresponding player event never fires.
+
+```ts
+interface IBackendEmitter {
+  onPlay(): void;
+  onPause(): void;
+  onEnded(): void;
+  onError(error: BackendError): void;
+  onTimeUpdate(time: number): void;
+  onDurationChange(duration: number): void;
+  onLevels(levels: QualityLevel[]): void;
+  onLevelSwitched(index: number): void;
+  onBufferingStart(): void;
+  onBufferingEnd(): void;
+  onCanPlay(): void;
+  onCanPlayThrough(): void;
+  onWaiting(): void;
+  onSeeked(): void;
+  onVolumeChange(volume: number, muted: boolean): void;
+}
+```
+
+---
+
+## Full examples
+
+See [Advanced: Writing a Backend](/nomercy-player-kit/advanced/writing-a-backend) for:
+
+- Complete `NativeBackend` wrapping a bare `<video>` element
+- Complete `ShakaBackend` wrapping Shaka Player with DASH support
+- IAudioBackend contract (music player)
+
+---
+
+## See also
+
+- [Adapter Ports — Streams](/nomercy-player-kit/streams) — `StreamFactory` for adding new URL schemes without replacing the backend
+- [Advanced: Writing a Backend](/nomercy-player-kit/advanced/writing-a-backend) — full walkthrough with complete code
+- [Advanced: Custom Plugin](/nomercy-player-kit/advanced/custom-plugin) — behavioral extensions on top of the backend

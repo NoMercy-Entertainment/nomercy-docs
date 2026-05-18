@@ -1,11 +1,140 @@
 ---
 title: "Changelog"
-description: "Version history and breaking changes for the player kit."
+description: "Version history and notable changes for nomercy-player-core, nomercy-video-player, and nomercy-music-player."
 category: "Reference"
 order: 3
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# Changelog
+
+All three packages (`nomercy-player-core`, `nomercy-video-player`, `nomercy-music-player`) are versioned together. A single version number applies to all three at any given release. Breaking changes to any one package increment the major or pre-release version for all three.
+
+For the migration guide from v1, see [Migration Guide — v1 to v2](/nomercy-player-kit/migration-v1-v2).
+
+---
+
+## 2.0.0-beta (active)
+
+The v2 beta line is the current development target. Breaking changes may appear in any beta bump. Pin to an exact beta version in your lockfile if you need stability during development.
+
+Install:
+
+```
+npm install @nomercy-entertainment/nomercy-player-core@beta
+npm install @nomercy-entertainment/nomercy-video-player@beta
+npm install @nomercy-entertainment/nomercy-music-player@beta
+```
+
+### Architecture
+
+- Ground-up rewrite on a shared kit (`nomercy-player-core`). All generic infrastructure — lifecycle, queue, auth, plugin system, event bus, i18n, storage — moved into the kit package and shared by both library packages.
+- 28 named adapter ports with typed interfaces and sensible defaults. Replace any port without touching the others.
+- 5-layer model: Backend / Kit / Per-library / Built-in plugin / Consumer plugin.
+
+### New: Event system
+
+- All events carry typed payloads via `BaseEventMap` (shared) + `VideoEventMap` / `MusicEventMap` (per-library).
+- Cancellable `before*` events with `preventDefault()`, `delay(promise)`, and `stopImmediatePropagation()`.
+- Cross-plugin events via the class-form: `player.on(EqualizerPlugin, 'bandChanged', ...)`.
+
+### New: Plugin system
+
+- `addPlugin(Class, opts)` replaces `registerPlugin(name, instance)`.
+- Plugins are tree-shaken — zero cost if you do not register them.
+- `static requires`, `static replaces`, `static advisories`, `static onError` declarative contracts.
+- `this.on`, `this.timeout`, `this.interval`, `this.frame`, `this.mount` — managed resources auto-dispose.
+- `describePlugin` and `assertNoListenerLeak` test utilities in `/testing` subpath.
+
+### New: Auth pipeline
+
+- `bearerToken` (string or factory), `refreshOnUnauthenticated`, `signRequest`, `headers`.
+- 401/403 separation: 401 triggers one refresh attempt; 403 propagates immediately.
+- `auth:refreshed` and `auth:failed` events.
+
+### New: Phase machine
+
+- `player.phase()` returns one of 13 typed phase strings.
+- `player.setupState()` returns `SetupState` enum value.
+- `player.dispatching()` returns the active event dispatch stack.
+
+### New: ABR and capability probing
+
+- `player.bandwidth()` — last-known throughput estimate.
+- `player.bandwidthEstimator(fn)` — plug in a custom throughput estimator.
+- `player.canPlay(profile)` — probe `MediaCapabilities.decodingInfo()` via the platform adapter.
+
+### New: Metrics
+
+- `player.metrics()` — `PlaybackMetrics` snapshot: ttfb, ttff, rebufferRatio, avgBitrate, droppedFrames, decoderStalls, joinTime, sessionDurationMs.
+- `playback:metrics` event on configurable interval (`metricsIntervalMs`).
+- `player.recordMetric(key, value)` — plugins publish namespaced counters.
+
+### New: Preload and transition strategies
+
+- `PreloadStrategy` interface with `DefaultPreloadStrategy`.
+- `TransitionStrategy` interface with `CrossfadeTransitionStrategy` and `GaplessTransitionStrategy`.
+- Configurable via `setup({ preloadStrategy, transitionStrategy })`.
+
+### Changed: Queue API
+
+All queue mutation methods renamed and extended:
+
+| v1 | v2 |
+|----|-----|
+| `playlist()` | `queue()` |
+| `song` event | `current` event |
+| `playVideo(idx)` | `seekToIndex(idx)` |
+| `seek(t)` | `currentTime(t)` |
+| `speed(v)` | `playbackRate(v)` |
+| `quality(idx)` | `currentQuality(idx)` |
+| `subtitle(idx)` | `currentSubtitle(idx)` |
+| `audioTrack(idx)` | `currentAudioTrack(idx)` |
+
+New queue operations in v2: `queueInsert`, `queueRemoveAt`, `queueMove`, `queueSort`, `queueShuffle`, `queueClear`, `queueLength`, `queueIndexOf`, `backlog*`.
+
+### Changed: Playlist item fields
+
+- `item.path` to `item.url` (music)
+- `item.file` to `item.url` (video)
+- `item.duration` is now `number` (seconds) instead of a formatted string
+
+### Removed: Always-on features
+
+EQ, Spectrum, MediaSession, and auto-advance were always-on in v1. In v2, register them explicitly:
+
+```ts
+player
+  .addPlugin(AudioGraphPlugin)
+  .addPlugin(EqualizerPlugin)
+  .addPlugin(SpectrumPlugin)
+  .addPlugin(MediaSessionPlugin)
+  .addPlugin(AutoAdvancePlugin);
+```
+
+### Not yet implemented (planned for 2.1)
+
+| Feature | Status |
+|---------|--------|
+| `GroupListeningPlugin` (music) | Stub — throws `NotImplementedError` |
+| `LiveTranscodingPlugin` (music) | Stub — throws `NotImplementedError` |
+| `DrmPlugin` (music) | Stub — throws `NotImplementedError` |
+| `seekable()` | Returns empty `TimeRanges` — not wired to backend |
+
+---
+
+## 1.x (frozen)
+
+v1 packages are frozen. No new features. Critical security fixes only, on a best-effort basis.
+
+- `@nomercy-entertainment/nomercy-video-player@^1.x`
+- `@nomercy-entertainment/nomercy-music-player@^1.x`
+
+Migrate to v2 using the [Migration Guide](/nomercy-player-kit/migration-v1-v2).
+
+---
+
+## See also
+
+- [Versioning](/nomercy-player-kit/versioning) — beta tag, semver policy, version coordination
+- [Migration Guide — v1 to v2](/nomercy-player-kit/migration-v1-v2) — full break-change tables and fix patterns
