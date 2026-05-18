@@ -1,17 +1,155 @@
 ---
 title: "Equalizer Customization"
-description: "Building custom EQ presets, wiring the EqualizerPlugin into the Web Audio graph, and persisting user EQ settings."
+description: "Building custom EQ presets, wiring EqualizerPlugin into the Web Audio graph, and persisting user settings via the storage adapter."
 category: "Advanced"
-order: 71
-draft: true
+order: 62
+draft: false
 ---
-
-import { Callout } from '@/components/protocol/Callout'
 
 # Equalizer Customization
 
-<Callout type="info">
-  This page is being written. For the equalizer basics, see the [Equalizer](/nomercy-music-player/equalizer) reference page and the [kit EqualizerPlugin](/nomercy-player-kit/plugins-builtin).
-</Callout>
+The `EqualizerPlugin` (from `@nomercy-entertainment/nomercy-player-core`) inserts a 10-band peaking EQ into the Web Audio graph. This page covers custom presets, band manipulation, and state persistence.
 
-This page covers building custom EQ band configurations, wiring `EqualizerPlugin` into a non-default audio graph, and persisting user EQ state through the storage adapter.
+---
+
+## Prerequisites
+
+`EqualizerPlugin` requires `AudioGraphPlugin`. Register `AudioGraphPlugin` first.
+
+`AudioGraphPlugin` works with both backends but fully connects the graph to `AudioContext` only on `webaudio`. On `audio-element`, it creates a `MediaElementAudioSourceNode` lazily.
+
+```ts
+import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+const player = nmMPlayer('main')
+  .addPlugin(AudioGraphPlugin)
+  .addPlugin(EqualizerPlugin, {
+    preGain: 0,
+    presets: [
+      { name: 'Flat', bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+    ],
+  })
+  .setup({ playlist: myTracks });
+```
+
+---
+
+## Band frequencies
+
+| Index | Center frequency |
+|-------|-----------------|
+| 0 | 32 Hz |
+| 1 | 64 Hz |
+| 2 | 125 Hz |
+| 3 | 250 Hz |
+| 4 | 500 Hz |
+| 5 | 1 kHz |
+| 6 | 2 kHz |
+| 7 | 4 kHz |
+| 8 | 8 kHz |
+| 9 | 16 kHz |
+
+Gain range: −12 dB to +12 dB per band.
+
+---
+
+## Preset design guide
+
+Presets are arrays of 10 gain values (dB, index 0–9):
+
+```ts
+const presets = [
+  // Flat — reference, no modification:
+  { name: 'Flat',     bands: [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0] },
+
+  // Rock — boost lows and highs, slight mid scoop:
+  { name: 'Rock',     bands: [ 5,  3,  0, -1, -1,  0,  3,  3,  3,  1] },
+
+  // Pop — presence boost, sub rolloff:
+  { name: 'Pop',      bands: [-1,  3,  5,  5,  3,  0, -1, -1, -1, -1] },
+
+  // Bass boost — for headphones on bass-light audio:
+  { name: 'Bass',     bands: [ 8,  6,  4,  1,  0,  0,  0,  0,  0,  0] },
+
+  // Classical — gentle wide-band warmth:
+  { name: 'Classical',bands: [ 0,  0,  0,  0,  0,  0, -2, -2, -2, -4] },
+
+  // Vocal / Podcast — boost speech intelligibility:
+  { name: 'Vocal',    bands: [-3, -2,  0,  2,  4,  4,  3,  2,  0,  0] },
+];
+
+player.addPlugin(EqualizerPlugin, { presets });
+```
+
+---
+
+## Runtime band manipulation
+
+```ts
+import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+const eq = player.getPlugin(EqualizerPlugin)!;
+
+// Read a single band:
+const bassGain = eq.getBand(0); // dB
+
+// Write a single band:
+eq.setBand(0, 6); // boost 32 Hz by 6 dB
+
+// Apply a preset by name:
+eq.setPreset('Rock');
+
+// Reset to flat:
+eq.reset();
+
+// Read current state:
+const bands = eq.getBands(); // number[10]
+```
+
+---
+
+## Listening to EQ changes
+
+The `eq:change` event on the player fires for every band change:
+
+```ts
+player.on('eq:change', ({ band, gain }) => {
+  updateSlider(band, gain);
+});
+```
+
+---
+
+## Persistence
+
+EQ state (current bands, preset name, preGain) is automatically persisted to the configured storage backend. On the next `player.setup()`, `EqualizerPlugin` restores from storage.
+
+The default storage backend is `LocalStorageBackend`. Override in setup for different persistence characteristics:
+
+```ts
+import { MemoryStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
+
+// Ephemeral — resets on page reload:
+player.setup({ storage: new MemoryStorageBackend() });
+```
+
+---
+
+## preGain
+
+`preGain` is a global gain stage applied before the filter chain (in dB). Use it to compensate for the overall loudness increase when boosting multiple bands:
+
+```ts
+player.addPlugin(EqualizerPlugin, {
+  preGain: -3, // reduce overall level by 3 dB to prevent clipping
+  presets: [{ name: 'Bass', bands: [8, 6, 4, 1, 0, 0, 0, 0, 0, 0] }],
+});
+```
+
+---
+
+## See also
+
+- [AudioGraphPlugin](/nomercy-music-player/plugins/audio-graph) — prerequisite for EqualizerPlugin
+- [Backends overview](/nomercy-music-player/backends/overview) — backend requirements for full graph access
+- [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer) — combining EQ with lyrics in a Now Playing screen

@@ -1,11 +1,92 @@
 ---
-title: "Audio Backends Overview"
-description: "AudioElementBackend vs WebAudioBackend — when to use each."
+title: "Backends Overview"
+description: "Choosing between AudioElementBackend and WebAudioBackend — capabilities, crossfade accuracy, and platform constraints."
 category: "Backends"
-order: 1
+order: 32
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# Backends Overview
+
+The music player routes all audio through an `IAudioBackend` implementation. Two built-in backends are available.
+
+---
+
+## AudioElementBackend (default)
+
+**Kind:** `'audio-element'`
+
+Uses a native `<audio>` element for transport. Crossfade is driven by a `requestAnimationFrame` loop at approximately 50 fps — not sample-accurate. Expect ±20 ms seams at track boundaries during a crossfade.
+
+Web Audio graph access is available lazily: a `MediaElementAudioSourceNode` is created the first time a plugin requests `outputNode()` or `analyserSource()`. You pay zero Web Audio overhead if no plugin requests the graph.
+
+**Choose this when:**
+- Running on iOS where `AudioContext` creation requires a user gesture
+- You need the safest possible compatibility
+- Crossfade timing accuracy of ±20 ms is acceptable
+- You do not need sample-accurate crossfades but still want EQ via `AudioGraphPlugin`
+
+---
+
+## WebAudioBackend
+
+**Kind:** `'webaudio'`
+
+Routes audio through a full `AudioContext` graph. Crossfade uses `linearRampToValueAtTime` for sample-accurate gain ramps. Volume changes are smoothed with a 10 ms ramp to eliminate clicks.
+
+HLS streams fall back to `MediaElementAudioSourceNode` even in `webaudio` mode, because `hls.js` requires a `<audio>` element. Pure file playback (MP3, AAC, FLAC, OGG) decodes through `AudioBufferSourceNode`.
+
+**Choose this when:**
+- You need sample-accurate crossfades
+- You are building a custom audio processing chain
+- `AudioGraphPlugin` and `EqualizerPlugin` are in use
+
+---
+
+## Capability comparison
+
+| Capability | `audio-element` | `webaudio` |
+|-----------|----------------|-----------|
+| Default | Yes | No |
+| Crossfade accuracy | ~50 fps (RAF) | Sample-accurate |
+| EQ / effect chain | Via lazy MediaElementSourceNode | Full AudioContext graph |
+| HLS support | hls.js or native | hls.js or native (MediaElementSource) |
+| iOS compatibility | Full | Requires user gesture |
+| `setSinkId` (output routing) | Yes | Yes |
+| `captureStream()` | Yes | Yes |
+
+---
+
+## Switching at runtime
+
+```ts
+// Switch from audio-element to webaudio:
+await player.backend('webaudio');
+
+// Read the active backend:
+const backend = player.backend();
+console.log(backend.kind); // 'webaudio'
+```
+
+Switching disposes the current backend, constructs the new one, and re-wires all events. The player enters a paused state after the switch.
+
+---
+
+## Custom backend
+
+Inject a fully custom backend via `backendFactory` in the player config:
+
+```ts
+player.setup({
+  backendFactory: (kind, config) => new MyNativeAudioBackend(kind, config),
+});
+```
+
+---
+
+## See also
+
+- [AudioElementBackend](/nomercy-music-player/backends/audio-element) — implementation details
+- [WebAudioBackend](/nomercy-music-player/backends/web-audio) — implementation details
+- [IAudioBackend](/nomercy-music-player/backends/backend-interface) — full interface reference
+- [Configuration](/nomercy-music-player/configuration) — `backend` and `backendFactory` options

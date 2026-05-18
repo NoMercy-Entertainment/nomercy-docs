@@ -1,11 +1,105 @@
 ---
-title: "Scrobbler"
-description: "The IScrobbler adapter for Last.fm and similar services."
+title: "IScrobbler"
+description: "Port for recording track listens — IScrobbler, ScrobbleContext, NoopScrobbler built-in, and Last.fm/ListenBrainz implementation pattern."
 category: "Adapters"
-order: 2
+order: 34
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# IScrobbler
+
+Port for recording that a track was listened to (Last.fm-style scrobbling). The player calls `scrobble()` when a track has been played past the scrobble threshold (typically 50% of duration or 4 minutes, whichever comes first — Last.fm rules).
+
+```ts
+import type { IScrobbler, ScrobbleContext } from '@nomercy-entertainment/nomercy-music-player';
+```
+
+---
+
+## Interface
+
+```ts
+interface IScrobbler<T extends BasePlaylistItem = BasePlaylistItem> {
+  readonly id: string;
+  scrobble(item: T, context: ScrobbleContext): Promise<void>;
+  nowPlaying?(item: T): Promise<void>;
+}
+
+interface ScrobbleContext {
+  startedAt: number;       // Unix timestamp (seconds)
+  listenedSeconds: number; // actual seconds listened
+  durationSeconds: number; // total track duration
+  source: 'user' | 'auto' | 'radio';
+}
+```
+
+### `scrobble(item, context)`
+
+Record that `item` was listened to. Called after the scrobble threshold is reached.
+
+### `nowPlaying(item)` (optional)
+
+Signal that `item` started playing. Called at track start for services that display "now playing" status separately from the completed scrobble. Implementations that do not support now-playing may omit this method.
+
+---
+
+## Built-in adapter
+
+### `NoopScrobbler`
+
+```ts
+import { NoopScrobbler } from '@nomercy-entertainment/nomercy-music-player';
+```
+
+No-op implementation. Default when no scrobbler is configured. Does nothing.
+
+---
+
+## Custom implementation — Last.fm example
+
+```ts
+import type { IScrobbler, ScrobbleContext } from '@nomercy-entertainment/nomercy-music-player';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+class LastFmScrobbler implements IScrobbler<MusicPlaylistItem> {
+  readonly id = 'lastfm';
+
+  constructor(private sessionKey: string) {}
+
+  async scrobble(item: MusicPlaylistItem, context: ScrobbleContext): Promise<void> {
+    await fetch('https://ws.audioscrobbler.com/2.0/', {
+      method: 'POST',
+      body: new URLSearchParams({
+        method: 'track.scrobble',
+        artist: item.artist_track?.[0]?.name ?? '',
+        track: item.name,
+        timestamp: String(Math.floor(context.startedAt)),
+        sk: this.sessionKey,
+        api_key: MY_API_KEY,
+        format: 'json',
+      }),
+    });
+  }
+
+  async nowPlaying(item: MusicPlaylistItem): Promise<void> {
+    await fetch('https://ws.audioscrobbler.com/2.0/', {
+      method: 'POST',
+      body: new URLSearchParams({
+        method: 'track.updateNowPlaying',
+        artist: item.artist_track?.[0]?.name ?? '',
+        track: item.name,
+        sk: this.sessionKey,
+        api_key: MY_API_KEY,
+        format: 'json',
+      }),
+    });
+  }
+}
+```
+
+---
+
+## See also
+
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — `artist_track`, `name` fields read by the scrobbler
+- [Configuration](/nomercy-music-player/configuration) — where adapters are wired

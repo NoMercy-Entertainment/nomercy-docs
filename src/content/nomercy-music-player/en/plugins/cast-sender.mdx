@@ -1,11 +1,89 @@
 ---
-title: "Cast Sender"
-description: "The CastSenderPlugin — Chromecast/Google Cast sender for music."
+title: "CastSenderPlugin"
+description: "Chromecast sender for music — MusicTrackMediaMetadata, audio/mpeg default content type, and kit Cast lifecycle."
 category: "Plugins"
 order: 3
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# CastSenderPlugin
+
+Music Chromecast sender. A thin specialization of the kit's shared `CastSenderPlugin` that adapts music-specific fields (`name`, `artist_track`, `album_track`, `cover`) to `MusicTrackMediaMetadata` and sets `'audio/mpeg'` as the default content type.
+
+All Cast session lifecycle (SDK probe, session negotiation, `RemotePlayer` event mirroring, forward/rewind helpers, resume-on-disconnect) is handled by the kit base class.
+
+```ts
+import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+```
+
+---
+
+## Registration
+
+```ts
+const player = nmMPlayer('main')
+  .addPlugin(CastSenderPlugin)
+  .setup({ playlist: myTracks });
+```
+
+---
+
+## Metadata mapping
+
+| `MusicPlaylistItem` field | `MusicTrackMediaMetadata` field |
+|--------------------------|-------------------------------|
+| `name` | `title` |
+| `artist_track[].name` joined with `, ` | `artist` |
+| `album_track[0].name` | `albumName` |
+| `cover` (resolved via `resolveUrl`) | `images[0].url` |
+
+When `MusicTrackMediaMetadata` is not available from the Cast SDK, the plugin falls back to `GenericMediaMetadata`.
+
+---
+
+## Default content type
+
+The plugin returns `'audio/mpeg'` as the default content type for music items. The Cast SDK uses this when building the `MediaInfo` object. Override per-item by including a `contentType` field on the playlist item.
+
+---
+
+## Cast session events
+
+All Cast session events are namespaced under `plugin:cast-sender:*`. See the kit's `CastSenderPlugin` documentation for the full event list.
+
+---
+
+## Example
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { CastSenderPlugin, AutoAdvancePlugin, MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+const player = nmMPlayer('main')
+  .addPlugin(CastSenderPlugin)
+  .addPlugin(AutoAdvancePlugin)
+  .addPlugin(MediaSessionPlugin)
+  .setup({
+    playlist: [
+      {
+        id: 'kjc-01',
+        name: 'Thaw You Out',
+        url: 'https://cdn.example.com/01.mp3',
+        cover: 'https://cdn.example.com/01.jpg',
+        artist_track: [{ id: 1, name: 'Derek Clegg' }],
+        album_track: [{ id: 1, name: 'KJC' }],
+      },
+    ],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+---
+
+## See also
+
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — `name`, `artist_track`, `album_track`, `cover`
+- [Player Kit — Cast](/nomercy-player-kit/cast) — shared Cast lifecycle, session events, forward/rewind helpers

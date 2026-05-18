@@ -1,39 +1,14 @@
 ---
-title: React integration
-description: nomercy-music-player v2 — React integration
-category: "Getting Started"
-order: 11
+title: "React Integration"
+description: "Using NMMusicPlayer in a React hook — useState, useEffect, cleanup, and context pattern."
+category: "Framework Integration"
+order: 30
+draft: false
 ---
 
 # React Integration
 
-Using `nomercy-music-player` with React 18+ (hooks).
-
----
-
-## Install
-
-```
-npm install @nomercy-entertainment/nomercy-music-player
-```
-
----
-
-## Player singleton
-
-Create the player outside the React component tree so it is not re-created on renders:
-
-```ts
-// lib/musicPlayer.ts
-import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player';
-import { AutoAdvancePlugin, MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player';
-
-export const player = nmMPlayer('main').setup({ queue: [] });
-
-player
-  .addPlugin(AutoAdvancePlugin)
-  .addPlugin(MediaSessionPlugin);
-```
+`NMMusicPlayer` is framework-agnostic. Wrap it in a custom hook that bridges player events to component state.
 
 ---
 
@@ -41,98 +16,82 @@ player
 
 ```ts
 // hooks/useMusicPlayer.ts
-import { useState, useEffect } from 'react';
-import { player } from '@/lib/musicPlayer';
+import { useState, useEffect, useRef } from 'react';
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { AutoAdvancePlugin, MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 
 export function useMusicPlayer() {
-  const [currentTrack, setCurrentTrack] = useState<MusicPlaylistItem | undefined>(
-    player.current(),
+  const playerRef = useRef(
+    nmMPlayer('main')
+      .addPlugin(AutoAdvancePlugin)
+      .addPlugin(MediaSessionPlugin)
+      .setup({ playlist: [] }),
   );
+
+  const [currentTrack, setCurrentTrack] = useState<MusicPlaylistItem | undefined>();
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(player.volume());
 
   useEffect(() => {
+    const player = playerRef.current;
+
     player.on('current', ({ item }) => setCurrentTrack(item));
     player.on('play', () => setIsPlaying(true));
     player.on('pause', () => setIsPlaying(false));
     player.on('ended', () => setIsPlaying(false));
     player.on('time', ({ time }) => setCurrentTime(time));
     player.on('duration', ({ duration: dur }) => setDuration(dur));
-    player.on('volume', ({ level }) => setVolume(level));
 
     return () => {
-      // Player outlives the component — don't dispose here.
-      // If you need per-component cleanup, use player.off() with the exact handler refs.
+      player.dispose();
     };
   }, []);
 
-  return { currentTrack, isPlaying, currentTime, duration, volume };
+  return {
+    player: playerRef.current,
+    currentTrack,
+    isPlaying,
+    currentTime,
+    duration,
+  };
 }
 ```
 
 ---
 
-## Player component
+## Using in a component
 
 ```tsx
-// components/MusicPlayer.tsx
-import React from 'react';
-import { player } from '@/lib/musicPlayer';
-import { useMusicPlayer } from '@/hooks/useMusicPlayer';
+import { useMusicPlayer } from './hooks/useMusicPlayer';
 
-function formatTime(secs: number): string {
-  const m = Math.floor(secs / 60);
-  const s = Math.floor(secs % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
-}
-
-export function MusicPlayer() {
-  const { currentTrack, isPlaying, currentTime, duration, volume } = useMusicPlayer();
+export function NowPlaying() {
+  const { player, currentTrack, isPlaying, currentTime, duration } = useMusicPlayer();
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  function handleSeek(e: React.MouseEvent<HTMLDivElement>) {
-    const bar = e.currentTarget;
-    const ratio = e.nativeEvent.offsetX / bar.clientWidth;
-    player.currentTime(ratio * duration);
-  }
-
   return (
-    <div className="music-player">
-      {currentTrack && (
-        <div className="track-info">
-          {currentTrack.cover && <img src={currentTrack.cover} alt="" />}
-          <p>{currentTrack.name}</p>
-        </div>
-      )}
+    <div className="player">
+      <p>{currentTrack?.name ?? 'Nothing playing'}</p>
+      <p>{currentTrack?.artist_track?.[0]?.name}</p>
 
-      <div className="controls">
-        <button onClick={() => player.previous()}>Prev</button>
-        <button onClick={() => (isPlaying ? player.pause() : player.play())}>
-          {isPlaying ? 'Pause' : 'Play'}
-        </button>
-        <button onClick={() => player.next()}>Next</button>
+      <div
+        className="progress"
+        onClick={(e) => {
+          const bar = e.currentTarget;
+          const ratio = e.nativeEvent.offsetX / bar.clientWidth;
+          void player.currentTime(ratio * player.duration());
+        }}
+      >
+        <div className="fill" style={{ width: `${progress}%` }} />
       </div>
 
-      <div className="progress" onClick={handleSeek} style={{ cursor: 'pointer' }}>
-        <div className="bar" style={{ width: `${progress}%` }} />
-      </div>
-
-      <div className="time">
-        {formatTime(currentTime)} / {formatTime(duration)}
-      </div>
-
-      <input
-        type="range"
-        min={0}
-        max={100}                    {/* kit volume scale is 0-100 */}
-        step={1}
-        value={volume}
-        onChange={(e) => player.volume(Number(e.target.value))}
-      />
+      <button onClick={() => void player.togglePlayback()}>
+        {isPlaying ? 'Pause' : 'Play'}
+      </button>
+      <button onClick={() => void player.previous()}>Prev</button>
+      <button onClick={() => void player.next()}>Next</button>
     </div>
   );
 }
@@ -140,58 +99,37 @@ export function MusicPlayer() {
 
 ---
 
-## Loading a queue
+## Context pattern
 
-```ts
-import { player } from '@/lib/musicPlayer';
+For apps where multiple components need the same player:
 
-async function loadAlbum(albumId: string) {
-  const tracks = await fetch(`/api/albums/${albumId}/tracks`).then(r => r.json());
-  // Map server field names if your API uses v1 'path' naming:
-  player.queue(tracks.map((t: any) => ({ ...t, url: t.url ?? t.path })));
-  await player.play();
-}
-```
+```tsx
+import { createContext, useContext, useRef } from 'react';
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import type { IMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
 
----
+const PlayerContext = createContext<IMusicPlayer | null>(null);
 
-## Strict Mode
-
-React Strict Mode double-invokes effects in development. This is safe: the player is created outside React and is a singleton. The `useEffect` in `useMusicPlayer` only registers listeners — double-invocation registers them twice. Add explicit cleanup to prevent this:
-
-```ts
-useEffect(() => {
-  const handleCurrent = ({ item }: { item: MusicPlaylistItem | undefined }) =>
-    setCurrentTrack(item);
-
-  player.on('current', handleCurrent);
-
-  return () => {
-    player.off('current', handleCurrent);
-  };
-}, []);
-```
-
-Repeat for each event you subscribe to.
-
----
-
-## useSyncExternalStore (React 18+)
-
-For more fine-grained subscription control, use `useSyncExternalStore`:
-
-```ts
-import { useSyncExternalStore } from 'react';
-import { player } from '@/lib/musicPlayer';
-
-function useCurrentTime() {
-  return useSyncExternalStore(
-    (callback) => {
-      player.on('time', callback as any);
-      return () => player.off('time', callback as any);
-    },
-    () => player.currentTime(),
-    () => 0, // server snapshot
+export function PlayerProvider({ children }: { children: React.ReactNode }) {
+  const playerRef = useRef(nmMPlayer('global').setup({ playlist: [] }));
+  return (
+    <PlayerContext.Provider value={playerRef.current}>
+      {children}
+    </PlayerContext.Provider>
   );
 }
+
+export function usePlayer(): IMusicPlayer {
+  const player = useContext(PlayerContext);
+  if (!player) throw new Error('usePlayer must be used within PlayerProvider');
+  return player;
+}
 ```
+
+---
+
+## See also
+
+- [Quick Start](/nomercy-music-player/quickstart) — vanilla TypeScript setup
+- [Events](/nomercy-music-player/events) — all events to bind to state
+- [Vue Integration](/nomercy-music-player/framework-vue) — same pattern for Vue 3

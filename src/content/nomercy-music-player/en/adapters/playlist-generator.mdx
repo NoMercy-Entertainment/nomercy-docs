@@ -1,11 +1,99 @@
 ---
-title: "Playlist Generator"
-description: "The IPlaylistGenerator adapter for radio and autoplay."
+title: "IPlaylistGenerator"
+description: "Port for next/previous queue resolution — IPlaylistGenerator interface, LinearPlaylistGenerator and SmartShuffleGenerator built-ins."
 category: "Adapters"
-order: 4
+order: 36
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# IPlaylistGenerator
+
+Port for "what comes next?" queue decision logic. Receives the current queue snapshot and the currently-playing index, returns the index of the next item (or `undefined` for end-of-queue).
+
+```ts
+import type { IPlaylistGenerator } from '@nomercy-entertainment/nomercy-music-player';
+```
+
+---
+
+## Interface
+
+```ts
+interface IPlaylistGenerator<T extends BasePlaylistItem = BasePlaylistItem> {
+  readonly id: string;
+  next(items: ReadonlyArray<T>, currentIndex: number): number | undefined;
+  previous(items: ReadonlyArray<T>, currentIndex: number): number | undefined;
+}
+```
+
+### `next(items, currentIndex)`
+
+Resolve the next item index. `currentIndex` is `-1` when nothing is playing. Return `undefined` to signal end-of-queue (no next track).
+
+### `previous(items, currentIndex)`
+
+Resolve the previous item index. Return `undefined` when there is no previous item.
+
+---
+
+## Built-in adapters
+
+### `LinearPlaylistGenerator`
+
+```ts
+import { LinearPlaylistGenerator } from '@nomercy-entertainment/nomercy-music-player';
+```
+
+Plays items in order (0, 1, 2, …). The default.
+
+### `SmartShuffleGenerator`
+
+```ts
+import { SmartShuffleGenerator } from '@nomercy-entertainment/nomercy-music-player';
+```
+
+Tag-aware shuffle within the library. Avoids repeating the same artist or album within a configurable window.
+
+---
+
+## Custom implementation — server-side recommendations
+
+```ts
+import type { IPlaylistGenerator } from '@nomercy-entertainment/nomercy-music-player';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+class RecommendationGenerator implements IPlaylistGenerator<MusicPlaylistItem> {
+  readonly id = 'recommendation-engine';
+  private nextIdCache: string | number | null = null;
+
+  // Pre-fetch the next recommended track:
+  async prefetchNext(current: MusicPlaylistItem): Promise<void> {
+    const response = await fetch(`/api/recommend?after=${current.id}`);
+    const data = await response.json();
+    this.nextIdCache = data.nextTrackId;
+  }
+
+  next(items: ReadonlyArray<MusicPlaylistItem>, currentIndex: number): number | undefined {
+    if (this.nextIdCache !== null) {
+      const idx = items.findIndex(item => item.id === this.nextIdCache);
+      this.nextIdCache = null;
+      if (idx >= 0) return idx;
+    }
+    // Fallback: linear
+    const next = currentIndex + 1;
+    return next < items.length ? next : undefined;
+  }
+
+  previous(items: ReadonlyArray<MusicPlaylistItem>, currentIndex: number): number | undefined {
+    const prev = currentIndex - 1;
+    return prev >= 0 ? prev : undefined;
+  }
+}
+```
+
+---
+
+## See also
+
+- [Configuration](/nomercy-music-player/configuration) — where adapters are wired
+- [Events](/nomercy-music-player/events) — `queue:exhausted` fires when `next()` returns `undefined`

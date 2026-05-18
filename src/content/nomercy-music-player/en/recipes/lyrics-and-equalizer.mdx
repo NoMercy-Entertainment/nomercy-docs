@@ -1,146 +1,164 @@
 ---
 title: "Lyrics and Equalizer"
-description: "LRC lyric sync with cue highlighting, EQ band manipulation, preset save/restore, and combining both in a Now Playing screen."
+description: "LRC lyric sync with real-time cue highlighting and EQ band manipulation in a Now Playing screen."
 category: "Recipes"
 order: 59
+draft: false
 ---
 
 # Lyrics and Equalizer
 
-Read this when you are building a Now Playing screen that shows synced lyrics and includes an equalizer. Both are opt-in plugins — you only include what you need.
+Read this when you are building a Now Playing screen that shows synced lyrics and includes an equalizer. Both are opt-in — include only what you need.
 
-**Prerequisites:** [Music Quick Start](/player/music/quickstart). Full references: [Lyrics](/player/music/lyrics), [Equalizer](/player/music/equalizer).
+**Prerequisites:** [Quick Start](/nomercy-music-player/quickstart). Full references: [LyricsPlugin](/nomercy-music-player/plugins/lyrics), [Equalizer](/nomercy-music-player/equalizer).
 
 ---
 
-## Lyrics — quick setup
+## Lyrics — setup
 
 ```ts
-import {
-  nmMPlayer,
-  LyricsPlugin,
-} from '@nomercy-entertainment/nomercy-music-player';
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
-const player = nmMPlayer('main').setup({
-  queue: [
-    {
-      id: '1',
-      name: 'Track One',
-      url: 'https://cdn.example.com/track1.m3u8',
-      lyricsUrl: 'https://cdn.example.com/lyrics/1.lrc', // per-track LRC file
-    },
-  ],
+const BASE = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
+const D = `${BASE}/D/Derek%20Clegg/%5B2010%5D%20KJC`;
+
+const player = nmMPlayer('main')
+  .addPlugin(LyricsPlugin)
+  .setup({
+    playlist: [
+      {
+        id: 'kjc-01',
+        name: 'Thaw You Out',
+        url: `${D}/01%20Thaw%20You%20Out.mp3`,
+        cover: `${D}/01%20Thaw%20You%20Out.jpg`,
+        lyricsUrl: `${D}/01%20Thaw%20You%20Out.lrc`, // per-track LRC sidecar
+        artist_track: [{ id: 1, name: 'Derek Clegg' }],
+      },
+    ],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
 });
-
-player.addPlugin(LyricsPlugin);
-await player.ready();
-await player.play();
 ```
+
+`LyricsPlugin` reads `lyricsUrl` from each track on the `current` event, fetches the file, parses it through the kit's cue parser registry (the LRC parser is pre-registered), and attaches a `CueTracker` that fires timed events as playback progresses.
 
 ---
 
 ## Displaying synced lyrics
 
 ```ts
+import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
 const lyricsEl = document.getElementById('lyrics')!;
 
-// Lines loaded event — build the DOM up front:
-const allLines: string[] = [];
+// Rebuild the display when a new track's lyrics load:
+player.on(LyricsPlugin, 'loaded', () => {
+  const lyricsPlugin = player.getPlugin(LyricsPlugin)!;
+  const allCues = lyricsPlugin.all();
 
-player.on(LyricsPlugin, 'lyricsLoaded', ({ lineCount }) => {
-  allLines.length = 0;
   lyricsEl.innerHTML = '';
-  // Lines are stored in the plugin — collect them via cueChange
+  allCues.forEach((cue, index) => {
+    const line = document.createElement('p');
+    line.dataset.index = String(index);
+    line.textContent = cue.payload.text;
+    lyricsEl.appendChild(line);
+  });
 });
 
-// Cue change — highlight the current line and scroll:
-player.on(LyricsPlugin, 'cueChange', ({ line, index }) => {
-  if (line === null) return; // between cues
-
-  // Build line elements on first encounter:
-  let lineEl = lyricsEl.querySelector<HTMLElement>(`[data-index="${index}"]`);
-  if (!lineEl) {
-    lineEl = document.createElement('p');
-    lineEl.dataset.index = String(index);
-    lineEl.textContent = line;
-    lyricsEl.appendChild(lineEl);
-  }
-
-  // Remove active from previous line:
+// Highlight the active line on every cue enter:
+player.on(LyricsPlugin, 'lineEnter', ({ text }) => {
   lyricsEl.querySelector('.active')?.classList.remove('active');
 
-  // Highlight current line and scroll it into view:
-  lineEl.classList.add('active');
-  lineEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Find the line element that matches the active text:
+  const all = lyricsEl.querySelectorAll<HTMLElement>('p');
+  for (const el of all) {
+    if (el.textContent === text) {
+      el.classList.add('active');
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      break;
+    }
+  }
 });
 
-// Handle missing lyrics gracefully:
-player.on(LyricsPlugin, 'lyricsUnavailable', () => {
-  lyricsEl.textContent = 'No lyrics available';
+// Dim on line exit:
+player.on(LyricsPlugin, 'lineExit', () => {
+  lyricsEl.querySelector('.active')?.classList.remove('active');
 });
+```
+
+---
+
+## Custom lyrics URL resolver
+
+When `lyricsUrl` on the track item is not available — for example when loading lyrics from a server API by track ID — pass a `getLyricsUrl` resolver to `addPlugin`:
+
+```ts
+import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+player.addPlugin(LyricsPlugin, {
+  getLyricsUrl: (track) => {
+    // Derive the LRC URL from the track's API path or ID:
+    return `https://api.example.com/lyrics/${track.id}.lrc`;
+  },
+});
+```
+
+The `getLyricsUrl` function receives the full `MusicPlaylistItem` and returns a URL string or `undefined` (no lyrics for this track).
+
+---
+
+## Manual lyrics fetch
+
+For explicit control — loading lyrics on demand rather than automatically:
+
+```ts
+const lyricsPlugin = player.getPlugin(LyricsPlugin)!;
+
+// Disable auto-fetch:
+player.addPlugin(LyricsPlugin, { autoFetch: false });
+
+// Load manually:
+const cueList = await lyricsPlugin.fetchLyrics('https://cdn.example.com/my-track.lrc');
+if (cueList) {
+  console.log(`Loaded ${cueList.cues.length} cues`);
+}
 ```
 
 ---
 
 ## LRC format
 
+The kit's LRC parser handles the standard timestamped format:
+
 ```
-[00:12.00] First line
+[00:12.00] First line of lyrics
 [00:17.20] Second line
 [00:22.40] Third line
 ```
 
-The player ships an LRC parser by default. No extra config is needed.
+No extra configuration is needed. Parser selection is driven by the URL file extension: `.lrc` files use the LRC parser; `.vtt` files use the WebVTT parser. To add a custom parser for another format, register it with `player.registerCueParser(myParser)`.
 
 ---
 
-## Custom lyric source
-
-Load lyrics from an API instead of a URL on the queue item:
-
-```ts
-import type { ILyricSource, LyricCue } from '@nomercy-entertainment/nomercy-music-player';
-
-class ApiLyricSource implements ILyricSource {
-  async getLyrics(trackId: string | number): Promise<LyricCue[]> {
-    const response = await fetch(`/api/lyrics/${trackId}`);
-    const data: Array<{ time_ms: number; text: string }> = await response.json();
-    return data.map(line => ({
-      startMs: line.time_ms,
-      text: line.text,
-    }));
-  }
-}
-
-player.setup({
-  lyricSource: new ApiLyricSource(),
-});
-```
-
----
-
-## Equalizer — quick setup
+## Equalizer — setup
 
 `EqualizerPlugin` requires `AudioGraphPlugin`. Register `AudioGraphPlugin` first.
 
 ```ts
-import {
-  nmMPlayer,
-  AudioGraphPlugin,
-  EqualizerPlugin,
-} from '@nomercy-entertainment/nomercy-music-player';
-
-const player = nmMPlayer('main').setup({ ... });
+import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
 
 player
   .addPlugin(AudioGraphPlugin)
   .addPlugin(EqualizerPlugin, {
-    preGain: 0, // dB applied before the filter chain
+    preGain: 0,
     presets: [
-      { name: 'Flat',  bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
-      { name: 'Rock',  bands: [5, 3, 0, -1, -1, 0, 3, 3, 3, 1] },
-      { name: 'Pop',   bands: [-1, 3, 5, 5, 3, 0, -1, -1, -1, -1] },
-      { name: 'Bass',  bands: [8, 6, 4, 1, 0, 0, 0, 0, 0, 0] },
+      { name: 'Flat', bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+      { name: 'Rock', bands: [5, 3, 0, -1, -1, 0, 3, 3, 3, 1] },
+      { name: 'Pop',  bands: [-1, 3, 5, 5, 3, 0, -1, -1, -1, -1] },
+      { name: 'Bass', bands: [8, 6, 4, 1, 0, 0, 0, 0, 0, 0] },
     ],
   });
 ```
@@ -149,7 +167,7 @@ player
 
 ## EQ band frequencies
 
-The 10 bands (index 0–9) correspond to:
+The 10 bands (index 0–9):
 
 | Index | Frequency |
 |-------|-----------|
@@ -169,9 +187,11 @@ The 10 bands (index 0–9) correspond to:
 ## Building an EQ UI
 
 ```ts
-const eq = player.getPlugin(EqualizerPlugin);
+import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
 
-// Render 10 sliders:
+const eq = player.getPlugin(EqualizerPlugin)!;
+const eqContainer = document.getElementById('eq')!;
+
 const bandFrequencies = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
 bandFrequencies.forEach((freq, index) => {
@@ -183,79 +203,73 @@ bandFrequencies.forEach((freq, index) => {
   slider.value = String(eq.getBand(index));
   slider.title = `${freq} Hz`;
 
-  slider.addEventListener('input', async () => {
-    await eq.setBand(index, parseFloat(slider.value));
+  slider.addEventListener('input', () => {
+    eq.setBand(index, parseFloat(slider.value));
   });
 
   eqContainer.appendChild(slider);
 });
 
-// Listen for band changes (e.g. preset applied):
-player.on(EqualizerPlugin, 'bandChanged', ({ index, gain }) => {
-  const slider = eqContainer.querySelectorAll('input')[index];
-  if (slider) slider.value = String(gain);
+// Sync slider positions when a preset is applied:
+player.on('eq:change', ({ band, gain }) => {
+  const sliders = eqContainer.querySelectorAll<HTMLInputElement>('input');
+  if (sliders[band]) sliders[band].value = String(gain);
 });
 ```
 
 ---
 
-## Applying and saving presets
+## Applying presets
 
 ```ts
-const eq = player.getPlugin(EqualizerPlugin);
+const eq = player.getPlugin(EqualizerPlugin)!;
 
-// Apply a registered preset by name:
-await eq.setPreset('Rock');
-
-// Read current preset name:
-const name = eq.getPreset(); // 'Rock' | undefined (undefined if manually set)
-
-// Export the current EQ state for sharing:
-const snapshot = eq.state();
-// { id, enabled, opts, runtime: { bands, preGain, presetName } }
-
-// Restore from a snapshot:
-await eq.bands(snapshot.runtime.bands);
-await eq.setPreGain(snapshot.runtime.preGain);
+// Apply a named preset:
+eq.setPreset('Rock');
 
 // Reset to flat:
 eq.reset();
 ```
 
-EQ state is automatically persisted to the configured storage backend. On the next `nmMPlayer('main').setup()`, the EQ is restored to its previous state.
+EQ state is automatically persisted to the configured storage backend. On the next `nmMPlayer('main').setup()`, the EQ restores to its previous state.
 
 ---
 
-## Combining lyrics and EQ in a Now Playing screen
+## Combining lyrics and EQ
 
 ```ts
-// Single setup call — both plugins in the chain:
-player
+import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
+import { LyricsPlugin, AutoAdvancePlugin, MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+const player = nmMPlayer('main')
+  .addPlugin(AutoAdvancePlugin)
+  .addPlugin(MediaSessionPlugin)
   .addPlugin(LyricsPlugin)
   .addPlugin(AudioGraphPlugin)
-  .addPlugin(EqualizerPlugin, { presets: myPresets });
+  .addPlugin(EqualizerPlugin, { presets: myPresets })
+  .setup({ playlist: myTracks });
 
-await player.ready();
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
 
 // Lyrics panel:
-player.on(LyricsPlugin, 'cueChange', ({ line }) => {
-  if (line !== null) lyricsDisplay.textContent = line;
+player.on(LyricsPlugin, 'lineEnter', ({ text }) => {
+  lyricsDisplay.textContent = text;
 });
 
-// EQ panel:
-player.on(EqualizerPlugin, 'presetApplied', ({ name }) => {
-  highlightActivePreset(name);
+// EQ panel (preset applied by UI):
+player.on('eq:change', ({ band, gain }) => {
+  updateEqSlider(band, gain);
 });
-
-// EQ and crossfade interact — EQ applies to both audio paths during a crossfade
-// No extra handling needed
 ```
+
+The EQ graph applies to both the primary and secondary audio paths during a crossfade — no extra handling required.
 
 ---
 
-## What to read next
+## See also
 
-- [Lyrics](/player/music/lyrics) — full ILyricSource interface and cue parser registry
-- [Equalizer](/player/music/equalizer) — full method and event reference
-- [Recipes: Crossfade and Gapless](/player/recipes/crossfade-and-gapless) — EQ applies through crossfade transitions
-- [Recipes: Persistence](/player/recipes/persistence) — EQ state persists automatically via the storage backend
+- [LyricsPlugin](/nomercy-music-player/plugins/lyrics) — `getLyricsUrl`, `autoFetch`, `fetchLyrics()`, all events
+- [Equalizer](/nomercy-music-player/equalizer) — full `EqualizerPlugin` method and event reference
+- [Crossfade and Gapless](/nomercy-music-player/recipes/crossfade-and-gapless) — EQ applies through crossfade transitions

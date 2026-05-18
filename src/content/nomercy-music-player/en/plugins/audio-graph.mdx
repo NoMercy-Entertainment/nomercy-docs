@@ -1,11 +1,48 @@
 ---
-title: "Audio Graph"
-description: "The AudioGraphPlugin — Web Audio API graph access."
+title: "AudioGraphPlugin"
+description: "Web Audio API graph access — prerequisite for EqualizerPlugin and custom audio processing chains."
 category: "Plugins"
 order: 13
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# AudioGraphPlugin
+
+Establishes a `Web Audio API` graph rooted at the backend's `outputNode`. Required by `EqualizerPlugin` and any custom plugin that needs to insert audio processing nodes.
+
+`AudioGraphPlugin` is a kit-level plugin, imported from `@nomercy-entertainment/nomercy-player-core`.
+
+```ts
+import { AudioGraphPlugin } from '@nomercy-entertainment/nomercy-player-core';
+```
+
+---
+
+## Registration
+
+Always register `AudioGraphPlugin` before `EqualizerPlugin` or any custom graph plugin:
+
+```ts
+import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+const player = nmMPlayer('main')
+  .addPlugin(AudioGraphPlugin)
+  .addPlugin(EqualizerPlugin, { presets: myPresets })
+  .setup({ playlist: myTracks });
+```
+
+---
+
+## Requirements
+
+`AudioGraphPlugin` requires `WebAudioBackend` or `AudioElementBackend` with a `MediaElementAudioSourceNode`. The backend's `audioContext()` must be available before the plugin's `use()` resolves.
+
+On the default `audio-element` backend, the Web Audio graph is created lazily — it is only initialized when `AudioGraphPlugin` (or another plugin requesting `outputNode`) first activates.
+
+---
+
+## See also
+
+- [Player Kit — AudioGraphPlugin](/nomercy-player-kit/plugins/audio-graph) — full API, node insertion, effect chain
+- [Backends overview](/nomercy-music-player/backends/overview) — when `webaudio` is required
+- [Advanced: Equalizer Customization](/nomercy-music-player/advanced/equalizer-customization) — building custom EQ presets

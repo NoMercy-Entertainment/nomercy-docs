@@ -1,11 +1,57 @@
 ---
-title: "Tab Leader"
-description: "The TabLeaderPlugin — single-tab-active coordination."
+title: "TabLeaderPlugin"
+description: "Single-tab-active coordination via Web Locks — prevents multiple tabs from playing simultaneously."
 category: "Plugins"
 order: 7
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# TabLeaderPlugin
+
+Single-tab-active coordinator. Uses the Web Locks API to ensure only one tab plays audio at a time. When a second tab acquires the lock (because the user opened the app in a new tab and started playing), the first tab pauses.
+
+This plugin is a direct re-export of the kit's `TabLeaderPlugin` — the music player does not override any behavior.
+
+```ts
+import { TabLeaderPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+```
+
+---
+
+## Registration
+
+```ts
+const player = nmMPlayer('main')
+  .addPlugin(TabLeaderPlugin)
+  .setup({ playlist: myTracks });
+```
+
+With options:
+
+```ts
+player.addPlugin(TabLeaderPlugin, {
+  lockName: 'nomercy-music-leader',
+});
+```
+
+---
+
+## Options
+
+See the kit's `TabLeaderPlugin` documentation for the full options interface.
+
+### `lockName`
+
+The Web Locks API lock name. Must be the same across all tabs in the same origin. Default: `'nomercy-player-leader'`.
+
+---
+
+## Browser support
+
+Web Locks is supported in Chrome 69+, Firefox 96+, and Safari 15.4+. In unsupported browsers, the plugin silently no-ops and all tabs can play simultaneously.
+
+---
+
+## See also
+
+- [Player Kit — TabLeaderPlugin](/nomercy-player-kit/plugins/tab-leader) — full kit plugin documentation

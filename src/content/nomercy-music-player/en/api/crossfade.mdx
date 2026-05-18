@@ -1,11 +1,163 @@
 ---
 title: "Crossfade"
-description: "crossfadeTo, isTransitioning, CrossfadeOptions, and crossfade events."
+description: "crossfadeTo(), isTransitioning(), CrossfadeOptions, crossfadeStart and crossfadeComplete events."
 category: "API Methods"
 order: 3
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# Crossfade
+
+---
+
+## `crossfadeTo(track, opts?)`
+
+```ts
+crossfadeTo(track: T, opts?: CrossfadeOptions & ActionOptions): Promise<void>
+```
+
+Start a crossfade to `track`. Resolves when the fade completes and the new track is the primary.
+
+Short-circuits:
+- `isTransitioning() === true` — no-op (stacked crossfades are rejected)
+- `opts.duration === 0` — instant swap, no gain ramp
+- `track.url` is absent — throws `MediaFormatError`
+
+```ts
+await player.crossfadeTo(nextTrack, {
+  duration: 5,           // seconds
+  curve: 'equal-power',
+  startAt: 0,            // start position in the incoming track, ms
+});
+```
+
+---
+
+## `isTransitioning()`
+
+```ts
+isTransitioning(): boolean
+```
+
+Returns `true` while a crossfade is in progress. Check before calling `crossfadeTo()` when the caller needs to guard against re-entrancy.
+
+```ts
+if (!player.isTransitioning()) {
+  await player.crossfadeTo(nextTrack, { duration: 5 });
+}
+```
+
+---
+
+## `CrossfadeOptions`
+
+```ts
+interface CrossfadeOptions {
+  duration: number;
+  curve?: 'linear' | 'equal-power';
+  startAt?: number;
+}
+```
+
+### `duration`
+
+Crossfade length **in seconds**. When omitted per-call, falls back to `crossfadeDefaults.duration` from `setup()`. There is no built-in default — if neither is set, `crossfadeTo()` will use `0` (instant swap).
+
+### `curve`
+
+Gain ramp shape:
+- `'equal-power'` — `cos` / `sin` ramps. Perceived loudness stays constant throughout. Recommended for music.
+- `'linear'` — straight ramp. Creates a ~3 dB dip at the midpoint.
+
+Default: falls back to `crossfadeDefaults.curve` from `setup()`, or `'linear'` if neither is configured.
+
+### `startAt`
+
+Start position **in milliseconds** of the incoming track (default 0). Use to begin the fade mid-track rather than from the beginning.
+
+---
+
+## Events
+
+### `crossfadeStart`
+
+```ts
+player.on('crossfadeStart', ({ from, to, duration }) => {
+  // from: BasePlaylistItem | null (null when no current track)
+  // to: BasePlaylistItem
+  // duration: number (milliseconds — converted from the seconds in CrossfadeOptions)
+  showFadeUI(to.name, duration);
+});
+```
+
+`duration` in this payload is in **milliseconds**, not seconds.
+
+### `crossfadeComplete`
+
+```ts
+player.on('crossfadeComplete', ({ track }) => {
+  hideFadeUI();
+  console.log('Now primary:', track.name);
+});
+```
+
+---
+
+## Execution sequence
+
+```
+crossfadeTo(track, opts)
+  ├─ guards: isTransitioning? → nop; url missing? → MediaFormatError
+  ├─ _isTransitioning = true
+  ├─ emit crossfadeStart
+  ├─ backend.loadSecondary(url)
+  ├─ backend.primeSecondary(opts.startAt)
+  ├─ backend.crossfade(durationMs)
+  ├─ current(track.id)   ← updates queue cursor, emits 'current'
+  ├─ _isTransitioning = false
+  └─ emit crossfadeComplete
+```
+
+---
+
+## Full example
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+const BASE = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
+const D = `${BASE}/D/Derek%20Clegg/%5B2010%5D%20KJC`;
+
+const player = nmMPlayer('main')
+  .addPlugin(AutoAdvancePlugin, { crossfade: true, crossfadeDuration: 5 })
+  .setup({
+    crossfadeDefaults: { duration: 5, curve: 'equal-power' },
+    trackEndingSoonThreshold: 8,
+    playlist: [
+      { id: 'kjc-01', name: 'Thaw You Out', url: `${D}/01%20Thaw%20You%20Out.mp3`, artist_track: [{ id: 1, name: 'Derek Clegg' }] },
+      { id: 'kjc-02', name: 'Hope',         url: `${D}/02%20Hope.mp3`,             artist_track: [{ id: 1, name: 'Derek Clegg' }] },
+    ],
+  });
+
+player.on('crossfadeStart', ({ from, to, duration }) => {
+  console.log(`Fading from "${from?.name}" to "${to.name}" over ${duration}ms`);
+});
+
+player.on('crossfadeComplete', ({ track }) => {
+  console.log('Now playing:', track.name);
+});
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+---
+
+## See also
+
+- [AutoAdvancePlugin](/nomercy-music-player/plugins/auto-advance) — automatic crossfade on `trackEndingSoon`
+- [Configuration](/nomercy-music-player/configuration) — `crossfadeDefaults` option
+- [Events](/nomercy-music-player/events) — `crossfadeStart`, `crossfadeComplete`, `trackEndingSoon`
+- [Recipes: Crossfade and Gapless](/nomercy-music-player/recipes/crossfade-and-gapless) — timing guide

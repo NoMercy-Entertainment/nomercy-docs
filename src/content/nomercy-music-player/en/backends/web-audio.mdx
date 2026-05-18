@@ -1,11 +1,93 @@
 ---
 title: "WebAudioBackend"
-description: "Web Audio pipeline backend with GainNode fade and sample-accurate crossfade."
+description: "Web Audio API pipeline backend with sample-accurate crossfade via linearRampToValueAtTime."
 category: "Backends"
-order: 3
+order: 34
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# WebAudioBackend
+
+Web Audio pipeline backend. Routes all audio through a `AudioContext` graph. Crossfade uses `GainNode.gain.linearRampToValueAtTime` for sample-accurate ramps.
+
+**Kind:** `'webaudio'`
+
+---
+
+## Activation
+
+```ts
+player.setup({ backend: 'webaudio' });
+```
+
+Or switch at runtime:
+
+```ts
+await player.backend('webaudio');
+```
+
+---
+
+## Audio graph
+
+The backend constructs a graph rooted at the `AudioContext`:
+
+```
+AudioBufferSourceNode (or MediaElementSourceNode for HLS)
+  └─ GainNode (primary volume)
+       └─ backend output node
+            └─ AudioContext.destination
+```
+
+When `AudioGraphPlugin` is registered, it connects its effect chain between the `outputNode()` and `AudioContext.destination`.
+
+---
+
+## HLS fallback
+
+HLS streams (`.m3u8`) always use `MediaElementAudioSourceNode` because `hls.js` requires a `<audio>` element. Pure file playback (MP3, AAC, FLAC, OGG) uses `AudioBufferSourceNode` for sample-accurate decoding.
+
+---
+
+## Crossfade implementation
+
+`crossfade(durationMs)`:
+
+1. Primary `GainNode.gain` ramps from current volume to 0 via `linearRampToValueAtTime`
+2. Secondary `GainNode.gain` ramps from 0 to current volume via `linearRampToValueAtTime`
+3. Both ramps complete at `AudioContext.currentTime + durationMs / 1000`
+4. At completion, the secondary becomes the primary; the old primary is disconnected and its buffer released
+
+**Accuracy:** Sample-accurate. No RAF loop, no jitter.
+
+Volume changes are smoothed with a 10 ms `linearRampToValueAtTime` ramp to prevent clicks on mute/unmute or abrupt volume changes.
+
+---
+
+## iOS considerations
+
+On iOS and in some mobile Chrome contexts, `AudioContext` creation may be suspended until a user gesture. If `audioContext().state === 'suspended'`, call `audioContext().resume()` inside a user interaction handler before starting playback.
+
+---
+
+## Graph access
+
+```ts
+const ctx = player.audioContext(); // AudioContext | undefined
+
+if (ctx) {
+  const analyser = ctx.createAnalyser();
+  const backend = player.backend();
+  backend.outputNode(ctx).connect(analyser);
+  analyser.connect(ctx.destination);
+}
+```
+
+---
+
+## See also
+
+- [Backends overview](/nomercy-music-player/backends/overview) — when to choose `audio-element` vs `webaudio`
+- [IAudioBackend](/nomercy-music-player/backends/backend-interface) — full interface reference
+- [AudioElementBackend](/nomercy-music-player/backends/audio-element) — default, less accurate alternative
+- [Advanced: Equalizer Customization](/nomercy-music-player/advanced/equalizer-customization) — building on the Web Audio graph

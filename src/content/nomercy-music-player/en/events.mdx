@@ -1,107 +1,188 @@
 ---
-title: Events
-description: nomercy-music-player v2 — Events
-category: "Getting Started"
-order: 5
+title: "Events"
+description: "Complete event reference for NMMusicPlayer — MusicEventMap and all inherited BaseEventMap events, with payload types and usage notes."
+category: "Events"
+order: 27
+draft: false
 ---
 
-# Events Reference
+# Events
 
-All events emitted by `NMMusicPlayer<T>`. Use `player.on(eventName, handler)` to subscribe.
+All events emitted by `NMMusicPlayer<T>`. Subscribe with `player.on(event, handler)`.
 
----
-
-## Transport events
-
-| Event | Payload | Fires when |
-|-------|---------|-----------|
-| `play` | `ActionOptions` | Playback starts |
-| `pause` | `ActionOptions` | Playback pauses |
-| `stop` | `ActionOptions` | Playback stops and position resets |
-| `ended` | `void` | Current track finishes naturally |
-| `waiting` | `void` | Buffer underrun — player is waiting for data |
-| `canplay` | `void` | Enough data buffered to start playing |
-| `stalled` | `void` | Data is unavailable for an unexpected period |
-
-`ActionOptions` carries a `source` field (`'user'` | `'auto'` | `'remote'`) identifying what triggered the action.
+`MusicEventMap` extends `BaseEventMap` from the player kit. Music-specific events are listed first; inherited kit events follow.
 
 ---
 
-## Time events
+## Music-specific events
 
-| Event | Payload | Fires when |
-|-------|---------|-----------|
-| `time` | `{ time: number }` | Position updates during playback (rAF-driven) |
-| `seeked` | `{ time: number }` | Seek operation completes |
+### `current`
+
+```ts
+'current': { item: MusicPlaylistItem | undefined; index: number }
+```
+
+Fires when the current track changes. `item` is `undefined` when the queue is exhausted or cleared. `index` is `-1` in that case.
+
+```ts
+player.on('current', ({ item, index }) => {
+  if (item) {
+    document.title = item.name;
+    updateAlbumArt(item.cover);
+  }
+});
+```
+
+### `trackEndingSoon`
+
+```ts
+'trackEndingSoon': { remaining: number; currentTrack: BasePlaylistItem }
+```
+
+Fires when the current track has `trackEndingSoonThreshold` seconds remaining (default: 10). `remaining` is the actual seconds left at the time of emission. `AutoAdvancePlugin` listens to this event for preload and crossfade cues.
+
+### `crossfadeStart`
+
+```ts
+'crossfadeStart': { from: BasePlaylistItem | null; to: BasePlaylistItem; duration: number }
+```
+
+Fires when a crossfade begins. `from` is `null` when there is no current track. `duration` is the total fade duration **in milliseconds** (converted from the `duration` seconds value in `CrossfadeOptions` before emission).
+
+### `crossfadeComplete`
+
+```ts
+'crossfadeComplete': { track: BasePlaylistItem }
+```
+
+Fires when the crossfade completes and the incoming track is now the primary.
+
+### `repeat`
+
+```ts
+'repeat': { state: RepeatState }
+```
+
+Fires when `repeatState()` changes.
+
+### `shuffle`
+
+```ts
+'shuffle': { state: ShuffleState }
+```
+
+Fires when `shuffleState()` changes.
+
+### `eq:change`
+
+```ts
+'eq:change': { band: number; gain: number }
+```
+
+Fires when a single EQ band changes. `band` is the zero-based band index; `gain` is the new value in dB.
+
+### `backend:changed`
+
+```ts
+// payload: { kind: AudioBackendKind }
+```
+
+Fires when `backend(kind)` completes a backend swap. `kind` is `'audio-element'` or `'webaudio'`.
+
+This event is emitted by the player but is not present in `MusicEventMap`. Listen to it with a cast when you need it:
+
+```ts
+player.on('backend:changed' as any, ({ kind }: { kind: 'audio-element' | 'webaudio' }) => {
+  console.log('Switched to', kind);
+});
+```
+
+---
+
+## Transport events (inherited)
+
+| Event | Payload | When |
+|-------|---------|------|
+| `play` | `undefined` | Playback starts |
+| `pause` | `undefined` | Playback pauses |
+| `playing` | `undefined` | Media rendering after buffering resolves |
+| `ended` | `undefined` | Current track finishes naturally |
+| `waiting` | `undefined` | Buffer underrun |
+| `canplay` | `undefined` | Enough data to begin playback |
+| `stalled` | `undefined` | Data unavailable for unexpected period |
+
+---
+
+## Time events (inherited)
+
+| Event | Payload | When |
+|-------|---------|------|
+| `time` | `{ time: number }` | Position updates (rAF-driven) |
 | `duration` | `{ duration: number }` | Duration becomes known |
-| `progress` | `{ time: number; duration: number; percentage: number }` | Throttled position update (default every 5s, configurable via `metricsIntervalMs`) |
 
-Use `progress` for server watch-position saves. Use `time` for real-time UI updates (progress bar, time display).
+Use `time` to drive a real-time seekbar. Duration fires once after `loadedmetadata`.
 
 ---
 
-## Queue events
+## Queue events (inherited)
 
-| Event | Payload | Fires when |
-|-------|---------|-----------|
-| `current` | `{ item: T \| undefined; index: number }` | Current track changes |
-| `queue` | `ReadonlyArray<T>` | Queue is replaced |
-| `queue:append` | `{ items: T[]; index: number }` | Items appended to queue |
-| `queue:prepend` | `{ items: T[]; index: number }` | Items prepended to queue |
-| `queue:remove` | `{ id: string \| number }` | Item removed from queue |
-| `queue:move` | `{ from: number; to: number }` | Item moved within queue |
-| `queue:clear` | `void` | Queue cleared |
-| `queue:exhausted` | `void` | Queue played through with no repeat active |
+| Event | Payload | When |
+|-------|---------|------|
+| `queue` | `ReadonlyArray<T>` | Queue replaced |
+| `queue:append` | `{ items: T[]; index: number }` | Items appended |
+| `queue:prepend` | `{ items: T[]; index: number }` | Items prepended |
+| `queue:remove` | `{ id: string \| number }` | Item removed |
+| `queue:move` | `{ from: number; to: number }` | Item moved |
+| `queue:clear` | `undefined` | Queue cleared |
+| `queue:exhausted` | `undefined` | Queue played through with no repeat active |
 | `backlog` | `ReadonlyArray<T>` | Backlog changes |
-| `trackEndingSoon` | `{ remaining: number; currentTrack: T }` | Track is ending soon (configurable threshold) |
 
 ---
 
-## Playback state events
+## Volume events (inherited from BaseEventMap)
 
-| Event | Payload | Fires when |
-|-------|---------|-----------|
-| `shuffle` | `{ state: ShuffleState }` | Shuffle state changes |
-| `repeat` | `{ state: RepeatState }` | Repeat state changes |
-| `volume` | `{ level: number }` | Volume changes. `level` is on the kit's 0–100 scale (NOT 0–1). |
+`mute` and `volume` are inherited from `BaseEventMap` and are not re-declared in `MusicEventMap`.
+
+| Event | Payload | When |
+|-------|---------|------|
+| `volume` | `{ level: number }` | Volume changes. `level` is on the 0–100 scale. |
 | `mute` | `{ muted: boolean }` | Mute state changes |
-| `phase` | `{ from: PlayerPhase; to: PlayerPhase }` | Player phase transitions |
-| `backend:changed` | `{ kind: 'webaudio' \| 'audio-element' }` | Audio backend switches |
 
 ---
 
-## Crossfade events
+## Phase events (inherited)
 
-| Event | Payload | Fires when |
-|-------|---------|-----------|
-| `crossfadeStart` | `{ from: T; to: T; duration: number }` | Crossfade begins |
-| `crossfadeComplete` | `{ track: T }` | Crossfade finishes, new track is primary |
+```ts
+'phase': { from: PlayerPhase; to: PlayerPhase }
+```
 
----
+Fires on every player phase transition. Useful for orchestrating UI state (loading spinners, disabled controls).
 
-## Setup and lifecycle events
-
-| Event | Payload | Fires when |
-|-------|---------|-----------|
-| `ready` | `void` | Player and all plugins' `use()` resolved |
-| `setupStart` | `void` | Setup pipeline begins |
-| `dispose` | `void` | Player is being torn down |
-| `firstFrame` | `void` | First audio frame decoded after load |
+PlayerPhase values: `'idle' | 'setup' | 'ready' | 'loading' | 'starting' | 'playing' | 'paused' | 'buffering' | 'seeking' | 'ended' | 'stopped' | 'disposing' | 'disposed'`
 
 ---
 
-## Error events
+## Setup and lifecycle events (inherited)
 
-| Event | Payload | Fires when |
-|-------|---------|-----------|
+| Event | Payload | When |
+|-------|---------|------|
+| `ready` | `undefined` | Setup complete, all plugins resolved |
+| `firstFrame` | `undefined` | First audio frame decoded after load |
+| `dispose` | `undefined` | Player teardown begins |
+
+---
+
+## Error events (inherited)
+
+| Event | Payload | When |
+|-------|---------|------|
 | `error` | `PlayerErrorEvent` | Recoverable error |
-| `fatal` | `PlayerErrorEvent` | Non-recoverable error — playback stopped |
+| `fatal` | `PlayerErrorEvent` | Non-recoverable, playback stopped |
 | `warning` | `PlayerErrorEvent` | Non-fatal degradation |
 
-`PlayerErrorEvent` shape:
 ```ts
 interface PlayerErrorEvent {
-  code: string;          // e.g. 'stream:hls/manifest-load-failed'
+  code: string;       // e.g. 'plugin:lyrics/fetch-failed'
   message: string;
   severity: 'error' | 'fatal' | 'warning';
   cause?: unknown;
@@ -111,88 +192,57 @@ interface PlayerErrorEvent {
 
 ---
 
-## Before events (cancellable)
+## Auth events (inherited)
 
-These fire before an action and can be cancelled or mutated by a listener.
-
-| Event | Payload type | Action |
-|-------|-------------|--------|
-| `beforePlay` | `BeforeEvent<ActionOptions>` | Cancels play |
-| `beforePause` | `BeforeEvent<ActionOptions>` | Cancels pause |
-| `beforeStop` | `BeforeEvent<ActionOptions>` | Cancels stop |
-| `beforeNext` | `BeforeEvent<ActionOptions>` | Cancels next-track |
-| `beforePrevious` | `BeforeEvent<ActionOptions>` | Cancels previous-track |
-| `beforeLoad` | `BeforeEvent<{ item: T }>` | Cancels load — replace item to redirect |
-| `beforeSeek` | `BeforeEvent<{ time: number }>` | Cancels or adjusts seek target |
-| `beforeCrossfade` | `BeforeEvent<{ to: T; opts: CrossfadeOpts }>` | Cancels or adjusts crossfade |
-
-```ts
-player.on('beforeLoad', async (event) => {
-  // Redirect to a different item:
-  event.data.item = await fetchAlternativeItem(event.data.item.id);
-
-  // Or cancel entirely:
-  event.preventDefault();
-});
-```
-
-`BeforeEvent` methods:
-- `preventDefault()` — skip the default action
-- `stopImmediatePropagation()` — skip remaining listeners
-- `delay(promise)` — async-gate the action
-
----
-
-## Auth events
-
-| Event | Payload | Fires when |
-|-------|---------|-----------|
+| Event | Payload | When |
+|-------|---------|------|
 | `auth:refreshed` | `{ token: string }` | Token refresh succeeded |
 | `auth:failed` | `{ error: unknown }` | Token refresh failed |
-
----
-
-## Plugin events
-
-Plugin events are namespaced under `plugin:<id>:<event>`. The base class auto-fires these for every plugin:
-
-| Event | Payload |
-|-------|---------|
-| `plugin:<id>:installed` | `{ id: string; version: string }` |
-| `plugin:<id>:enabled` | `{ id: string }` |
-| `plugin:<id>:disabled` | `{ id: string; reason: string }` |
-| `plugin:<id>:opts:changed` | `{ id: string; opts: object }` |
-| `plugin:<id>:disposed` | `{ id: string }` |
-| `plugin:<id>:failed` | `{ id: string; error: unknown }` |
-
-Listen to a specific plugin's events using the class-form:
-
-```ts
-player.on(EqualizerPlugin, 'bandChanged', (event) => {
-  // Typed from EqualizerPlugin's event map
-});
-```
-
----
-
-## i18n events
-
-| Event | Payload |
-|-------|---------|
-| `language` | `{ lang: string }` |
-| `translations` | `{ lang: string; keys: string[] }` |
 
 ---
 
 ## Subscribing and unsubscribing
 
 ```ts
-const handler = ({ time }: { time: number }) => updateUI(time);
+const handler = ({ item }: { item: MusicPlaylistItem | undefined }) => {
+  if (item) updateNowPlaying(item);
+};
 
-player.on('time', handler);      // subscribe
-player.off('time', handler);     // unsubscribe
-
-player.once('ready', () => { }); // one-shot
+player.on('current', handler);   // subscribe
+player.off('current', handler);  // unsubscribe
+player.once('ready', () => {});  // one-shot
 ```
 
-From inside a plugin, always use `this.on(...)` rather than `player.on(...)` — it auto-disposes with the plugin.
+From inside a plugin, always use `this.on(...)` rather than `player.on(...)` — the plugin base class auto-disposes all its listeners when the plugin is removed.
+
+---
+
+## Plugin events
+
+Plugin events are namespaced under `plugin:<id>:<event>`. Examples:
+
+| Event | Payload |
+|-------|---------|
+| `plugin:lyrics:line` | `{ text: string }` |
+| `plugin:lyrics:lineEnter` | `{ text: string }` |
+| `plugin:lyrics:lineExit` | `{ text: string }` |
+| `plugin:lyrics:loaded` | `undefined` |
+
+Listen using the class form for full type inference:
+
+```ts
+import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+player.on(LyricsPlugin, 'line', ({ text }) => {
+  updateLyricsDisplay(text);
+});
+```
+
+---
+
+## See also
+
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — item shape in `current` payload
+- [Crossfade](/nomercy-music-player/crossfade) — `crossfadeTo()`, crossfade event details
+- [AutoAdvancePlugin](/nomercy-music-player/plugins/auto-advance) — listens to `trackEndingSoon` and `ended`
+- [LyricsPlugin](/nomercy-music-player/plugins/lyrics) — `line`, `lineEnter`, `lineExit`, `loaded` events

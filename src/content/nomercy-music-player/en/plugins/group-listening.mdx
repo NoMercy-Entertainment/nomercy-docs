@@ -1,11 +1,51 @@
 ---
-title: "Group Listening"
-description: "The GroupListeningPlugin — synchronized multi-client playback (stub: v2.1)."
+title: "GroupListeningPlugin"
+description: "Synchronized multi-client playback — roadmapped for v2.1. Calling use() throws NotImplementedError."
 category: "Plugins"
-order: 10
+order: 8
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# GroupListeningPlugin
+
+Synchronized multi-client listening (NoMercy Connect watch-party parity for music). This plugin is **roadmapped for v2.1** and is not yet functional. Calling `addPlugin(GroupListeningPlugin)` followed by `setup()` will cause `use()` to throw `NotImplementedError`.
+
+```ts
+import { GroupListeningPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+```
+
+---
+
+## Planned options
+
+```ts
+interface GroupListeningOptions {
+  wsUrl: string;
+  sessionId?: string;
+  driftThresholdMs?: number;  // default 80
+  maxRateAdjust?: number;     // default 0.05 (±5%)
+  canControl?: boolean;       // DJ role, default true
+}
+```
+
+---
+
+## Planned events
+
+| Event | Payload |
+|-------|---------|
+| `session:joined` | `{ sessionId: string; participants: number }` |
+| `session:left` | `undefined` |
+| `sync:applied` | `{ source: 'remote'; action: 'play' \| 'pause' \| 'seek' \| 'next' \| 'previous'; from: string }` |
+| `sync:broadcast` | `{ action: string; payload: unknown }` |
+| `sync:drift` | `{ deltaMs: number }` |
+| `sync:participants` | `{ count: number }` |
+| `role:dj-acquired` | `{ id: string }` |
+| `role:dj-lost` | `undefined` |
+| `unsupported` | `{ reason: string }` |
+
+---
+
+## Status
+
+Not available. Do not register this plugin in production. The options and events documented here describe the planned API and may change before the v2.1 release.

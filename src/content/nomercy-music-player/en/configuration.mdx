@@ -1,92 +1,139 @@
 ---
-title: Configuration
-description: nomercy-music-player v2 — Configuration
-category: "Getting Started"
-order: 3
+title: "Configuration"
+description: "Every option accepted by MusicPlayerConfig — backend, crossfadeDefaults, auth, playlist, trackEndingSoonThreshold, and all inherited kit options."
+category: "Configuration"
+order: 25
+draft: false
 ---
 
-# Configuration Reference
+# Configuration
 
-All options passed to `nmMPlayer(id).setup(opts)`.
-
----
-
-## Basics
-
-### `queue`
-
-```ts
-queue?: T[] | string
-```
-
-Initial track list. Pass an array of `MusicPlaylistItem`-compatible objects, or a URL to fetch a playlist. Defaults to an empty queue.
-
-```ts
-player.setup({ queue: [{ id: '1', name: 'Track', url: '...' }] });
-```
-
-### `autoPlay`
-
-```ts
-autoPlay?: boolean
-```
-
-Start playback immediately after setup resolves. Default `false`.
-
-### `disableAutoPlayback`
-
-```ts
-disableAutoPlayback?: boolean
-```
-
-When `true`, the player will never start playback without an explicit `play()` call. Overrides `autoPlay`. Default `false`.
-
-### `expose`
-
-```ts
-expose?: boolean
-```
-
-Expose the player instance on `window.__nmplayer_<id>` for debugging. Default `false`.
-
-### `baseUrl`
-
-```ts
-baseUrl?: string
-```
-
-Base URL prepended to relative audio source URLs. Default: none (URLs used as-is).
+All options passed to `nmMPlayer(id).setup(opts)`. The type is `MusicPlayerConfig<T>` which extends `BasePlayerConfig` from the player kit.
 
 ---
 
-## Audio backend
-
-### `backend`
+## `backend`
 
 ```ts
-backend?: 'webaudio' | 'audio-element'
+backend?: 'audio-element' | 'webaudio'
 ```
 
-Which audio backend to use initially. Default: `'webaudio'`.
+Which audio backend to activate on first use. Default: `'audio-element'`.
 
-- `'webaudio'` — `WebAudioBackend`. Routes audio through a `Web Audio API` graph. Required for crossfade, EQ, and spectrum analysis.
-- `'audio-element'` — `AudioElementBackend`. Simpler; two `<audio>` elements with no Web Audio graph. Use when Web Audio is unavailable or unnecessary.
+- `'audio-element'` — `AudioElementBackend`. Uses a native `<audio>` element. Crossfade is driven by a `requestAnimationFrame` loop (~50 fps, not sample-accurate). Safe on iOS and any context where Web Audio is unavailable or restricted.
+- `'webaudio'` — `WebAudioBackend`. Routes audio through a `Web Audio API` `AudioContext` graph. Crossfade is sample-accurate via `linearRampToValueAtTime`. Required for full EQ chain access.
 
-You can switch backends at runtime: `player.backend('audio-element')`.
-
-### `backendFactory`
-
-```ts
-backendFactory?: (kind: 'webaudio' | 'audio-element', config: AudioBackendConfig) => IAudioBackend
-```
-
-Inject a custom audio backend. The factory receives the resolved `kind` and full config. Returns an `IAudioBackend` instance.
+You can switch backends at runtime: `await player.backend('webaudio')`.
 
 ---
 
-## Auth
+## `backendFactory`
 
-### `auth`
+```ts
+backendFactory?: (kind: AudioBackendKind, config: MusicPlayerConfig<T>) => IAudioBackend
+```
+
+Inject a custom audio backend. The factory receives the resolved `kind` and full config, and returns an `IAudioBackend` instance.
+
+When `backendFactory` is set, the default `AudioElementBackend` / `WebAudioBackend` resolution is bypassed. The factory still receives the `kind` so it can branch on it or ignore it entirely.
+
+```ts
+import type { IAudioBackend } from '@nomercy-entertainment/nomercy-music-player';
+
+player.setup({
+  backend: 'audio-element',
+  backendFactory: (kind, config) => {
+    return new MyCapacitorAudioBackend(kind, config);
+  },
+});
+```
+
+---
+
+## `crossfadeDefaults`
+
+```ts
+crossfadeDefaults?: {
+  duration: number;
+  curve?: 'linear' | 'equal-power';
+}
+```
+
+Default crossfade parameters applied when no explicit options are passed to `crossfadeTo()`.
+
+- `duration` — crossfade length **in seconds**. There is no default; pass a value explicitly when using this option.
+- `curve` — gain ramp curve. `'equal-power'` keeps perceived loudness constant throughout the fade (recommended). `'linear'` creates a ~3 dB dip at the midpoint.
+
+```ts
+player.setup({
+  crossfadeDefaults: {
+    duration: 5,
+    curve: 'equal-power',
+  },
+});
+```
+
+---
+
+## `playlist`
+
+```ts
+playlist?: T[] | string
+```
+
+Initial track list. Pass an array of `MusicPlaylistItem`-compatible objects, or a URL to fetch and parse a playlist at setup time. When using a URL, the player fetches it via the configured auth pipeline.
+
+Defaults to an empty queue when omitted.
+
+```ts
+const BASE = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
+const D = `${BASE}/D/Derek%20Clegg/%5B2010%5D%20KJC`;
+
+player.setup({
+  playlist: [
+    {
+      id: 'kjc-01',
+      name: 'Thaw You Out',
+      url: `${D}/01%20Thaw%20You%20Out.mp3`,
+      cover: `${D}/01%20Thaw%20You%20Out.jpg`,
+      lyricsUrl: `${D}/01%20Thaw%20You%20Out.lrc`,
+      artist_track: [{ id: 1, name: 'Derek Clegg' }],
+      album_track: [{ id: 1, name: 'KJC' }],
+    },
+    {
+      id: 'kjc-02',
+      name: 'Hope',
+      url: `${D}/02%20Hope.mp3`,
+      cover: `${D}/02%20Hope.jpg`,
+      lyricsUrl: `${D}/02%20Hope.lrc`,
+      artist_track: [{ id: 1, name: 'Derek Clegg' }],
+      album_track: [{ id: 1, name: 'KJC' }],
+    },
+  ],
+});
+```
+
+---
+
+## `trackEndingSoonThreshold`
+
+```ts
+trackEndingSoonThreshold?: number
+```
+
+Seconds before natural end at which the `trackEndingSoon` event fires. Default: `10`.
+
+`AutoAdvancePlugin` listens to this event for preload and crossfade cues. Lower values give less time to preload and crossfade; higher values give more lead time at the cost of prematurely signalling the end.
+
+```ts
+player.setup({
+  trackEndingSoonThreshold: 15, // fire 15 seconds before end
+});
+```
+
+---
+
+## Auth (`auth`)
 
 ```ts
 auth?: {
@@ -97,90 +144,38 @@ auth?: {
 }
 ```
 
-Auth pipeline for authenticated audio fetches (media URL + any streaming manifest the audio backend issues).
+Auth pipeline for authenticated audio fetches (media URL + any HLS manifests and segments the backend issues).
 
-- `bearerToken` — token or factory. Injected as `Authorization: Bearer <token>`.
-- `refreshOnUnauthenticated` — called once on a 401 response. Must return a new token.
-- `signRequest` — HMAC or custom signing. Called after bearer is applied.
+- `bearerToken` — static token string or a function (sync or async) that returns one. Injected as `Authorization: Bearer <token>`.
+- `refreshOnUnauthenticated` — called once on a 401. Must return a new token string. The player retries the original request once. On a 403, the error propagates and `refreshOnUnauthenticated` is never called.
+- `signRequest` — HMAC or custom signing. Called after `bearerToken` is applied.
 - `headers` — static headers appended to every request.
 
-On a 403, the error propagates. `refreshOnUnauthenticated` is never called for 403s.
+```ts
+player.setup({
+  auth: {
+    bearerToken: () => myAuth.getAccessToken(),
+    refreshOnUnauthenticated: async () => {
+      await myAuth.refresh();
+      return myAuth.getAccessToken();
+    },
+  },
+});
+```
 
 ---
 
-## Crossfade
-
-### `crossfadeDefaults`
+## Base URL (`baseUrl`)
 
 ```ts
-crossfadeDefaults?: {
-  durationMs?: number;
-  curve?: 'linear' | 'equal-power';
-  startAt?: number;
-}
+baseUrl?: string
 ```
 
-Default crossfade parameters used when no explicit options are passed to `crossfadeTo()`.
-
-- `durationMs` — milliseconds. Default: `3000`.
-- `curve` — gain curve. `'equal-power'` preserves perceived loudness. Default: `'equal-power'`.
-- `startAt` — seconds before track end to start the fade automatically via `AutoAdvancePlugin`. Default: `durationMs / 1000`.
-
-### `crossfadeEnabled`
-
-```ts
-crossfadeEnabled?: boolean
-```
-
-Whether crossfade is active by default. Default: `false`. `AutoAdvancePlugin` respects this when deciding how to transition tracks.
-
----
-
-## Preload
-
-### `preloadLeadSeconds`
-
-```ts
-preloadLeadSeconds?: number
-```
-
-How many seconds before the current track ends to begin loading the next. Default: `30`.
-
-### `trackEndingSoonThreshold`
-
-```ts
-trackEndingSoonThreshold?: number
-```
-
-Seconds remaining when the `trackEndingSoon` event fires. Plugins and app code use this to trigger pre-staging. Default: `30`.
-
----
-
-## Queue
-
-### `disableAutoPlayback`
-
-Already covered in Basics above.
-
-### `pauseWhenHidden`
-
-```ts
-pauseWhenHidden?: boolean
-```
-
-Pause playback when the page is hidden (visibility API). Default: `false`.
+Base URL prepended to relative audio source URLs. Default: none (URLs used as-is).
 
 ---
 
 ## Logging
-
-### `debug`
-
-```ts
-debug?: boolean
-```
-
-Deprecated alias for `logLevel: 'debug'`. Use `logLevel` instead.
 
 ### `logLevel`
 
@@ -200,9 +195,7 @@ Custom logger. Defaults to the kit's console logger. Inject a Pino, Winston, or 
 
 ---
 
-## Storage
-
-### `storage`
+## Storage (`storage`)
 
 ```ts
 storage?: IStorage
@@ -211,23 +204,21 @@ storage?: IStorage
 Where plugin state is persisted (volume, EQ presets, shuffle state, etc.). Defaults to `LocalStorageBackend`.
 
 ```ts
-import { LocalStorageBackend, MemoryStorageBackend, IndexedDBBackend } from '@nomercy-entertainment/nomercy-player-core';
+import {
+  LocalStorageBackend,
+  MemoryStorageBackend,
+} from '@nomercy-entertainment/nomercy-player-core';
 
 // Default:
-storage: new LocalStorageBackend()
+player.setup({ storage: new LocalStorageBackend() });
 
-// Testing (ephemeral, no cross-tab persistence):
-storage: new MemoryStorageBackend()
-
-// High-capacity (for large EQ preset libraries):
-storage: new IndexedDBBackend('my-db')
+// Testing — ephemeral, no cross-tab persistence:
+player.setup({ storage: new MemoryStorageBackend() });
 ```
 
 ---
 
-## Platform
-
-### `platform`
+## Platform (`platform`)
 
 ```ts
 platform?: IPlatform
@@ -235,7 +226,7 @@ platform?: IPlatform
 
 Platform abstraction bundle. Defaults to `browserPlatform` from the kit.
 
-For native-shell environments, override individual sub-ports:
+For native-shell environments (Capacitor, Electron), override individual sub-ports:
 
 ```ts
 import { browserPlatform } from '@nomercy-entertainment/nomercy-player-core';
@@ -248,21 +239,7 @@ player.setup({
 });
 ```
 
-Sub-ports: `wakeLock`, `network`, `visibility`, `capabilities`. (Fullscreen and PiP are video-only sub-ports.)
-
----
-
-## Realtime
-
-### `websocketFactory`
-
-```ts
-websocketFactory?: (url: string, opts: RealtimeChannelOpts) => IRealtimeChannel
-```
-
-Realtime channel factory. Used by `GroupListeningPlugin` and `CastSenderPlugin`. Defaults to a native WebSocket adapter.
-
-For SignalR or Socket.IO, wire a matching adapter package via `setup({ websocketFactory })`.
+Music player sub-ports: `wakeLock`, `network`, `visibility`, `capabilities`. Fullscreen and PiP are video-only sub-ports and are not present in the music player platform contract.
 
 ---
 
@@ -274,7 +251,7 @@ For SignalR or Socket.IO, wire a matching adapter package via `setup({ websocket
 language?: string
 ```
 
-Initial language code (BCP 47, e.g. `'en'`, `'nl'`, `'ja'`). Default: browser `navigator.language`.
+Initial language code (BCP 47, e.g. `'en'`, `'nl'`). Default: browser `navigator.language`.
 
 ### `translations`
 
@@ -282,40 +259,13 @@ Initial language code (BCP 47, e.g. `'en'`, `'nl'`, `'ja'`). Default: browser `n
 translations?: Translations
 ```
 
-Inline translation strings. Keys match the kit's internal event and error messages.
-
-### `loadTranslations`
-
-```ts
-loadTranslations?: (lang: string) => Promise<Translations>
-```
-
-Async translation loader. Called when `player.setLanguage(lang)` is called or on init if `language` is set.
+Inline translation strings merged with the player's built-in strings.
 
 ---
 
-## Metrics
+## See also
 
-### `metricsIntervalMs`
-
-```ts
-metricsIntervalMs?: number
-```
-
-Interval for the throttled `progress` event (milliseconds). Default: `5000`.
-
----
-
-## Music-specific adapters
-
-Pass adapter instances via `setup()` alongside the options above.
-
-| Option key | Interface | Default |
-|------------|-----------|---------|
-| `playlistGenerator` | `IPlaylistGenerator` | `linear` |
-| `similarityEngine` | `ISimilarityEngine` | none — consumer-required |
-| `scrobbler` | `IScrobbler` | `noop` |
-| `lyricSource` | `ILyricSource` | `lrc-file` |
-| `nowPlayingArt` | `INowPlayingArt` | `media-session` |
-
-See [Kit — Adapters](/player/kit/adapters) for the full 28-port kit adapter catalog.
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — fields accepted in the `playlist` array
+- [Backends overview](/nomercy-music-player/backends/overview) — when to pick `'audio-element'` vs `'webaudio'`
+- [Crossfade](/nomercy-music-player/crossfade) — `crossfadeTo()`, `crossfadeStart`, `crossfadeComplete`
+- [Events](/nomercy-music-player/events) — `trackEndingSoon` payload and timing

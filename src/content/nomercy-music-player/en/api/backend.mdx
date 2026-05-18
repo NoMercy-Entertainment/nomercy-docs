@@ -1,11 +1,112 @@
 ---
 title: "Backend Access"
-description: "backend(), backend(kind) setter, AudioBackendKind, and IAudioBackend."
+description: "backend() getter, backend(kind) runtime swap, AudioBackendKind, and backendFactory wiring."
 category: "API Methods"
 order: 2
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# Backend Access
+
+---
+
+## `backend()`
+
+```ts
+backend(): IAudioBackend
+```
+
+Return the active audio backend instance. Instantiates the backend on first call based on the `backend` option from `setup()` (default: `'audio-element'`).
+
+```ts
+const backend = player.backend();
+console.log(backend.kind); // 'audio-element' or 'webaudio'
+```
+
+When `backendFactory` is configured, the factory is called on the first `backend()` call to construct the instance.
+
+---
+
+## `backend(kind)`
+
+```ts
+backend(kind: AudioBackendKind): Promise<void>
+```
+
+Switch backends at runtime. Returns a `Promise` that resolves when the new backend is constructed and wired.
+
+```ts
+await player.backend('webaudio');
+// or:
+await player.backend('audio-element');
+```
+
+Switching:
+
+1. Disposes the current backend (`dispose()`)
+2. Constructs the new backend (via factory if configured, otherwise the built-in default)
+3. Re-wires all event bridges
+4. Emits `backend:changed` with `{ kind }`
+
+The player enters a paused state after the switch. The current position is lost — start playback explicitly after switching.
+
+---
+
+## `AudioBackendKind`
+
+```ts
+type AudioBackendKind = 'audio-element' | 'webaudio'
+```
+
+---
+
+## Discriminating backend type
+
+Do not compare the return value of `player.backend()` as a string. Use `.kind`:
+
+```ts
+// Correct:
+if (player.backend().kind === 'webaudio') { }
+
+// Wrong — backend() returns an IAudioBackend instance, not a string:
+if (player.backend() === 'webaudio') { }
+```
+
+---
+
+## `backendFactory`
+
+When `backendFactory` is set in `setup()`, both the initial `backend()` call and any `backend(kind)` swap call invoke the factory instead of constructing a built-in backend:
+
+```ts
+player.setup({
+  backendFactory: (kind, config) => {
+    if (kind === 'webaudio') {
+      return new MyWebAudioBackend(config);
+    }
+    return new MyAudioElementBackend(config);
+  },
+});
+```
+
+The factory receives the resolved `kind` string and the full `MusicPlayerConfig`. Return an object that satisfies `IAudioBackend`.
+
+---
+
+## `'backend:changed'` event
+
+The `backend:changed` event fires after a successful runtime swap. It is emitted by the player but not declared in `MusicEventMap`. Listen with a type cast:
+
+```ts
+player.on('backend:changed' as any, ({ kind }: { kind: AudioBackendKind }) => {
+  console.log('Switched to', kind);
+});
+```
+
+---
+
+## See also
+
+- [Backends overview](/nomercy-music-player/backends/overview) — when to pick each backend
+- [IAudioBackend](/nomercy-music-player/backends/backend-interface) — full interface reference
+- [Configuration](/nomercy-music-player/configuration) — `backend` and `backendFactory` options

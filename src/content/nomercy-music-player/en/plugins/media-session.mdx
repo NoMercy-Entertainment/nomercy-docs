@@ -1,11 +1,110 @@
 ---
-title: "Media Session"
-description: "The MediaSessionPlugin — system media session for music."
+title: "MediaSessionPlugin"
+description: "OS media session integration for music — name, artist, album, cover pushed to lock screens and notification panels."
 category: "Plugins"
 order: 4
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# MediaSessionPlugin
+
+Music-specific Media Session integration. Reads `name`, `artist_track[]`, `album_track[]`, and `cover` from each `MusicPlaylistItem` and publishes `MediaMetadata` to the browser Media Session API on every track change.
+
+This wires up lock-screen controls, notification-panel artwork, and hardware media keys (play/pause/next/prev).
+
+```ts
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+```
+
+---
+
+## Registration
+
+```ts
+const player = nmMPlayer('main')
+  .addPlugin(MediaSessionPlugin)
+  .setup({ playlist: myTracks });
+```
+
+With options:
+
+```ts
+player.addPlugin(MediaSessionPlugin, {
+  artworkBaseUrl: 'https://cdn.example.com',
+});
+```
+
+---
+
+## Options
+
+```ts
+interface MediaSessionOptions {
+  artworkBaseUrl?: string;
+}
+```
+
+### `artworkBaseUrl`
+
+Base URL prepended to `item.cover` when constructing the artwork `src` for `MediaMetadata`. Use when `cover` fields on your items are relative paths.
+
+If `cover` is already an absolute URL, this option is not needed.
+
+---
+
+## Field mapping
+
+| `MusicPlaylistItem` field | `MediaMetadata` field |
+|--------------------------|----------------------|
+| `name` | `title` |
+| `artist_track[].name` joined with `, ` | `artist` |
+| `album_track[0].name` | `album` |
+| `cover` (prefixed by `artworkBaseUrl`) | `artwork[0].src` (512×512) |
+
+---
+
+## Example
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { AutoAdvancePlugin, MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+const BASE = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
+const D = `${BASE}/D/Derek%20Clegg/%5B2010%5D%20KJC`;
+
+const player = nmMPlayer('main')
+  .addPlugin(AutoAdvancePlugin)
+  .addPlugin(MediaSessionPlugin)
+  .setup({
+    playlist: [
+      {
+        id: 'kjc-01',
+        name: 'Thaw You Out',
+        url: `${D}/01%20Thaw%20You%20Out.mp3`,
+        cover: `${D}/01%20Thaw%20You%20Out.jpg`,
+        artist_track: [{ id: 1, name: 'Derek Clegg' }],
+        album_track: [{ id: 1, name: 'KJC' }],
+      },
+    ],
+  });
+```
+
+On track change, the OS lock screen and notification panel show:
+
+- Title: **Thaw You Out**
+- Artist: **Derek Clegg**
+- Album: **KJC**
+- Artwork: the `.jpg` URL
+
+---
+
+## Browser support
+
+The Media Session API is supported in Chrome, Firefox, and Safari. In environments where it is unavailable, the plugin silently no-ops without throwing.
+
+---
+
+## See also
+
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — `name`, `artist_track`, `album_track`, `cover` fields
+- [Quick Start](/nomercy-music-player/quickstart) — minimal player with `MediaSessionPlugin`

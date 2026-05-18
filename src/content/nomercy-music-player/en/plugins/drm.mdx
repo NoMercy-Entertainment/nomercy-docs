@@ -1,11 +1,50 @@
 ---
-title: "DRM"
-description: "The DrmPlugin — DRM-protected audio streams (stub: v2.1)."
+title: "DrmPlugin"
+description: "DRM-protected audio streams — roadmapped for v2.1. Calling use() throws NotImplementedError."
 category: "Plugins"
-order: 12
+order: 9
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# DrmPlugin
+
+EME-based DRM for music streams. **Roadmapped for v2.1.** Calling `addPlugin(DrmPlugin)` followed by `setup()` will cause `use()` to throw `NotImplementedError`.
+
+```ts
+import { DrmPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+```
+
+---
+
+## Planned options
+
+```ts
+interface DrmOptions {
+  keySystem: string;          // e.g. 'com.widevine.alpha'
+  licenseUrl: string;
+  certificate?: ArrayBuffer | string;
+  customSignRequest?: (request: Request) => Request | Promise<Request>;
+  transformLicenseRequest?: (challenge: ArrayBuffer) => ArrayBuffer | Promise<ArrayBuffer>;
+  transformLicenseResponse?: (response: ArrayBuffer) => ArrayBuffer | Promise<ArrayBuffer>;
+}
+```
+
+---
+
+## Planned events
+
+| Event | Payload |
+|-------|---------|
+| `key:requested` | `{ sessionId: string; initData: ArrayBuffer }` |
+| `key:granted` | `{ sessionId: string }` |
+| `key:expired` | `{ sessionId: string }` |
+| `key:revoked` | `{ sessionId: string }` |
+| `key:error` | `{ sessionId: string; error: Error }` |
+| `output:restricted` | `{ reason: string }` |
+| `unsupported` | `{ reason: string }` |
+
+---
+
+## Status
+
+Not available. Do not register this plugin in production.

@@ -1,11 +1,91 @@
 ---
 title: "Installation"
-description: "Install via npm, yarn, or pnpm."
+description: "Install nomercy-music-player via npm, yarn, or pnpm. Requirements and import paths."
 category: "Getting Started"
-order: 3
+order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# Installation
+
+## Requirements
+
+- Node.js 18 or later (tooling only — the player itself runs in any modern browser)
+- A module bundler (Vite, Webpack, Rollup, or similar)
+
+---
+
+## Install the package
+
+```bash
+npm install @nomercy-entertainment/nomercy-music-player@beta
+```
+
+```bash
+yarn add @nomercy-entertainment/nomercy-music-player@beta
+```
+
+```bash
+pnpm add @nomercy-entertainment/nomercy-music-player@beta
+```
+
+---
+
+## Import paths
+
+The package ships two import paths:
+
+```ts
+// Main player + types
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import type { MusicPlaylistItem, MusicPlayerConfig, IMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
+
+// Plugins — always import from the /plugins subpath
+import { AutoAdvancePlugin, LyricsPlugin, MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+```
+
+Importing plugins from the main entry point is not supported — always use `/plugins`.
+
+---
+
+## TypeScript
+
+The package ships full TypeScript declarations. No `@types/` package is needed.
+
+The recommended type for a consumer-held player reference is `IMusicPlayer<T>`:
+
+```ts
+import type { IMusicPlayer, MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+let player: IMusicPlayer<MusicPlaylistItem>;
+```
+
+Use the concrete `NMMusicPlayer<T>` type only when you need access to internals not exposed on the interface.
+
+---
+
+## Browser support
+
+| Browser | Minimum version | Notes |
+|---------|----------------|-------|
+| Chrome | 90 | Full support |
+| Firefox | 90 | Full support |
+| Safari | 15 | Web Audio crossfade supported; native HLS skips `hls.js` |
+| Edge | 90 | Full support |
+| iOS Safari | 15.4 | Web Audio may require user gesture before `AudioContext.resume()` |
+| Android WebView | 90 | `setSinkId` (audio output routing) not available |
+
+---
+
+## HLS streams
+
+HLS support is handled by `hls.js`, which is a regular production dependency of the package. No separate install is needed. The library is loaded automatically when an `.m3u8` URL is detected on a browser that does not support native HLS.
+
+On Safari and iOS, native HLS is used directly and `hls.js` is not loaded.
+
+---
+
+## What to read next
+
+- [Quick Start](/nomercy-music-player/quickstart) — minimal working player in under 30 lines
+- [Configuration](/nomercy-music-player/configuration) — all `setup()` options

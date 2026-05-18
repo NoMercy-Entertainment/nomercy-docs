@@ -1,146 +1,151 @@
 ---
-title: Crossfade
-description: nomercy-music-player v2 — Crossfade
-category: "Plugins"
-order: 6
+title: "Crossfade"
+description: "crossfadeTo(), CrossfadeOptions, automatic crossfade via AutoAdvancePlugin, and the crossfadeStart / crossfadeComplete events."
+category: "API Methods"
+order: 26
+draft: false
 ---
 
 # Crossfade
 
-Crossfade is the signature feature of the music player. It smoothly transitions between two tracks by fading one out while fading the other in, using a dual-buffer audio architecture in the `WebAudioBackend`.
+Crossfade transitions smoothly between two tracks by fading one out while fading the other in — using a dual-buffer architecture in both built-in backends.
+
+For the full method reference see [Crossfade API](/nomercy-music-player/api/crossfade).
 
 ---
 
 ## How it works
 
-The `WebAudioBackend` maintains two audio elements. The "primary" element plays the current track. When a crossfade begins, the secondary element starts loading and playing the incoming track while its gain ramps up. Simultaneously, the primary element's gain ramps down. When the fade completes, roles swap: the incoming track becomes primary.
+Both backends support crossfade:
 
-The gain ramping uses the Web Audio API's `GainNode`. Two curve types are supported:
+- **AudioElementBackend** — two `<audio>` elements; gain ramps driven by a `requestAnimationFrame` loop (~50 fps, ±20 ms accuracy)
+- **WebAudioBackend** — two `GainNode` ramps scheduled with `linearRampToValueAtTime` (sample-accurate)
 
-- `'equal-power'` — the sum of the two gain curves is constant. Perceived loudness stays stable throughout the transition. Recommended for most music.
-- `'linear'` — simple linear ramp. Can produce a brief perceived volume dip at the midpoint.
+When a crossfade begins:
+
+1. The backend loads the incoming track URL into a secondary slot via `loadSecondary(url)`
+2. The secondary is pre-rolled via `primeSecondary(startAt)`
+3. `crossfade(durationMs)` ramps primary → 0 and secondary → volume simultaneously
+4. At completion, secondary becomes primary; old primary is discarded
+5. The queue cursor advances and `current` event fires
 
 ---
 
 ## Configuration
 
-Set crossfade defaults at setup time:
+Set defaults that apply when no per-call options are provided:
 
 ```ts
-const player = nmMPlayer('main').setup({
-  crossfadeEnabled: true,
+player.setup({
   crossfadeDefaults: {
-    durationMs: 4000,
+    duration: 5,           // seconds
     curve: 'equal-power',
-    startAt: 4, // seconds before track end to trigger automatic crossfade
   },
+  trackEndingSoonThreshold: 8, // fire trackEndingSoon 8s before end
 });
-```
-
-`crossfadeEnabled` is `false` by default. `AutoAdvancePlugin` reads this value to decide whether to use a crossfade transition or an immediate skip when a track ends.
-
----
-
-## Triggering a crossfade
-
-### Manual crossfade
-
-```ts
-await player.crossfadeTo(nextTrack, {
-  durationMs: 3000,
-  curve: 'equal-power',
-});
-```
-
-This starts the crossfade immediately to a specific track. The track does not need to be in the queue first. After the crossfade completes, the incoming track becomes current.
-
-### Automatic crossfade via AutoAdvancePlugin
-
-```ts
-player.addPlugin(AutoAdvancePlugin, {
-  crossfadeOnEnd: true, // use crossfade instead of immediate next()
-});
-```
-
-With `crossfadeOnEnd: true`, `AutoAdvancePlugin` calls `crossfadeTo(peekNext())` when `trackEndingSoon` fires (controlled by `trackEndingSoonThreshold`). This gives the fade time to complete before the track ends.
-
-### Server-triggered crossfade
-
-For server-orchestrated crossfades (e.g. radio mode, group listening), listen to your realtime channel and call `crossfadeTo`:
-
-```ts
-signalRConnection.on('CrossfadeNow', ({ nextTrack, durationMs }) => {
-  player.crossfadeTo(nextTrack, { durationMs });
-});
-```
-
-The server should send this signal `durationMs` milliseconds before the target transition point to account for network latency.
-
----
-
-## Monitoring crossfade state
-
-```ts
-player.on('crossfadeStart', ({ from, to, duration }) => {
-  console.log(`Fading from "${from.name}" to "${to.name}" over ${duration}ms`);
-});
-
-player.on('crossfadeComplete', ({ track }) => {
-  console.log(`Now playing: ${track.name}`);
-});
-
-// Check if a crossfade is in progress:
-player.isTransitioning(); // boolean
 ```
 
 ---
 
-## Cancelling a crossfade
-
-No explicit cancel API exists. Starting a new `crossfadeTo()` while one is in progress cancels the previous one.
-
----
-
-## Requirements
-
-Crossfade requires the `WebAudioBackend`. With `AudioElementBackend`, crossfade calls fall back to an immediate track switch.
-
-Check the active backend before triggering:
+## Manual crossfade
 
 ```ts
-if (player.backend() === 'webaudio') {
-  await player.crossfadeTo(nextTrack);
-} else {
-  player.current(nextTrack);
-  await player.play();
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+async function playWithFade(track: MusicPlaylistItem): Promise<void> {
+  if (player.isTransitioning()) return;
+
+  await player.crossfadeTo(track, {
+    duration: 5,           // seconds
+    curve: 'equal-power',
+  });
 }
 ```
 
 ---
 
-## Crossfade and EQ
+## Automatic crossfade via AutoAdvancePlugin
 
-If `EqualizerPlugin` and `AudioGraphPlugin` are registered, the EQ applies to both audio paths during a crossfade. The outgoing track fades with its EQ applied; the incoming track plays through the same EQ graph from the first sample.
+```ts
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+player.addPlugin(AutoAdvancePlugin, {
+  crossfade: true,       // hand off to crossfadeTo on trackEndingSoon
+  crossfadeDuration: 5,  // seconds — must be ≤ trackEndingSoonThreshold
+});
+```
+
+`AutoAdvancePlugin` calls `player.crossfadeTo(next, { duration: crossfadeDuration })` when `trackEndingSoon` fires.
 
 ---
 
-## `trackEndingSoon` and preload
+## Server-triggered crossfade
 
-The `trackEndingSoon` event fires when the current track has `trackEndingSoonThreshold` seconds remaining. Use it to preload artwork, metadata, or make server calls before the transition:
+For radio mode, group listening, or any server-orchestrated transition:
 
 ```ts
-player.on('trackEndingSoon', async ({ remaining, currentTrack }) => {
-  const nextTrack = player.peekNext();
-  if (nextTrack) {
-    await prefetchArtwork(nextTrack);
+signalRConnection.on('CrossfadeNow', ({ nextTrackId, durationSeconds }) => {
+  const queue = player.queue();
+  const track = queue.find(item => item.id === nextTrackId);
+  if (track && !player.isTransitioning()) {
+    void player.crossfadeTo(track, { duration: durationSeconds });
   }
 });
 ```
 
 ---
 
-## Crossfade timing notes
+## Monitoring transitions
 
-The crossfade starts `startAt` seconds before the track ends (defaults to `durationMs / 1000`). The incoming track begins loading at `preloadLeadSeconds` (default: 30s). Ensure `preloadLeadSeconds` is well above `startAt + (typical network latency in seconds)`.
+```ts
+player.on('crossfadeStart', ({ from, to, duration }) => {
+  // duration is in milliseconds here (converted from seconds in CrossfadeOptions)
+  console.log(`Fading "${from?.name}" → "${to.name}" over ${duration}ms`);
+});
 
-On slow connections, if the incoming track hasn't buffered enough by the time the crossfade starts, the crossfade will wait for the buffer before fading. This adds a brief delay. On very slow connections, `AudioElementBackend` may be more reliable.
+player.on('crossfadeComplete', ({ track }) => {
+  console.log(`Now playing: ${track.name}`);
+});
+
+// Poll mid-transition:
+if (player.isTransitioning()) {
+  showFadeIndicator();
+}
+```
+
+---
+
+## Backend and accuracy
+
+Crossfade works with both backends. For sample-accurate transitions, use `webaudio`:
+
+```ts
+player.setup({ backend: 'webaudio' });
+```
+
+Check the active backend by `.kind`, not by string comparison with the return value of `player.backend()`:
+
+```ts
+const backend = player.backend();
+if (backend.kind === 'webaudio') {
+  console.log('Sample-accurate crossfade available');
+} else {
+  console.log('RAF-based crossfade (~50 fps)');
+}
+```
+
+---
+
+## EQ through crossfade
+
+If `EqualizerPlugin` and `AudioGraphPlugin` are registered, the EQ graph applies to both audio paths during a crossfade. No extra configuration needed.
+
+---
+
+## See also
+
+- [Crossfade API](/nomercy-music-player/api/crossfade) — `crossfadeTo()`, `isTransitioning()`, `CrossfadeOptions`
+- [AutoAdvancePlugin](/nomercy-music-player/plugins/auto-advance) — `crossfade`, `crossfadeDuration` options
+- [Events](/nomercy-music-player/events) — `crossfadeStart`, `crossfadeComplete`, `trackEndingSoon`
+- [Advanced: Crossfade Tuning](/nomercy-music-player/advanced/crossfade-tuning) — duration, curve, and timing guide
+- [Recipes: Crossfade and Gapless](/nomercy-music-player/recipes/crossfade-and-gapless) — practical walkthrough

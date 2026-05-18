@@ -1,68 +1,66 @@
 ---
-title: Vue integration
-description: nomercy-music-player v2 — Vue integration
-category: "Getting Started"
-order: 10
+title: "Vue Integration"
+description: "Using NMMusicPlayer in a Vue 3 composable — reactive state, event subscriptions, and cleanup."
+category: "Framework Integration"
+order: 30
+draft: false
 ---
 
 # Vue Integration
 
-Using `nomercy-music-player` with Vue 3 (Composition API).
+`NMMusicPlayer` is framework-agnostic. In Vue 3, wrap it in a composable to expose reactive state.
 
 ---
 
-## Install
-
-```
-npm install @nomercy-entertainment/nomercy-music-player
-```
-
----
-
-## Basic composable
-
-Wrap the player in a composable so it lives outside the Vue component tree and survives navigation:
+## Composable pattern
 
 ```ts
 // composables/useMusicPlayer.ts
-import { ref, shallowRef, onUnmounted } from 'vue';
-import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player';
-import { AutoAdvancePlugin, MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player';
-
-const player = shallowRef(
-  nmMPlayer('main').setup({
-    queue: [],
-  })
-);
-
-// Register plugins once — not inside the component
-player.value
-  .addPlugin(AutoAdvancePlugin)
-  .addPlugin(MediaSessionPlugin);
+import { ref, onUnmounted } from 'vue';
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { AutoAdvancePlugin, MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 
 export function useMusicPlayer() {
-  const currentTrack = shallowRef(player.value.current());
+  const currentTrack = ref<MusicPlaylistItem | undefined>(undefined);
   const isPlaying = ref(false);
   const currentTime = ref(0);
   const duration = ref(0);
-  const volume = ref(player.value.volume());
+  const volume = ref(100);
 
-  function setup() {
-    player.value.on('current', ({ item }) => {
-      currentTrack.value = item;
+  const player = nmMPlayer('main')
+    .addPlugin(AutoAdvancePlugin)
+    .addPlugin(MediaSessionPlugin)
+    .setup({
+      playlist: [],
     });
-    player.value.on('play', () => { isPlaying.value = true; });
-    player.value.on('pause', () => { isPlaying.value = false; });
-    player.value.on('ended', () => { isPlaying.value = false; });
-    player.value.on('time', ({ time }) => { currentTime.value = time; });
-    player.value.on('duration', ({ duration: dur }) => { duration.value = dur; });
-    player.value.on('volume', ({ level }) => { volume.value = level; });
-  }
 
-  setup();
+  player.on('current', ({ item }) => {
+    currentTrack.value = item;
+  });
+
+  player.on('play', () => { isPlaying.value = true; });
+  player.on('pause', () => { isPlaying.value = false; });
+  player.on('ended', () => { isPlaying.value = false; });
+
+  player.on('time', ({ time }) => {
+    currentTime.value = time;
+  });
+
+  player.on('duration', ({ duration: dur }) => {
+    duration.value = dur;
+  });
+
+  player.on('volume', ({ level }) => {
+    volume.value = level;
+  });
+
+  onUnmounted(() => {
+    player.dispose();
+  });
 
   return {
-    player: player.value,
+    player,
     currentTrack,
     isPlaying,
     currentTime,
@@ -74,15 +72,13 @@ export function useMusicPlayer() {
 
 ---
 
-## Player component
+## Using in a component
 
 ```vue
-<!-- components/MusicPlayer.vue -->
 <script setup lang="ts">
-import { computed } from 'vue';
 import { useMusicPlayer } from '@/composables/useMusicPlayer';
 
-const { player, currentTrack, isPlaying, currentTime, duration, volume } = useMusicPlayer();
+const { player, currentTrack, isPlaying, currentTime, duration } = useMusicPlayer();
 
 const progress = computed(() =>
   duration.value > 0 ? (currentTime.value / duration.value) * 100 : 0,
@@ -91,98 +87,56 @@ const progress = computed(() =>
 function seek(event: MouseEvent) {
   const bar = event.currentTarget as HTMLElement;
   const ratio = event.offsetX / bar.clientWidth;
-  player.currentTime(ratio * duration.value);
-}
-
-function formatTime(secs: number) {
-  const m = Math.floor(secs / 60);
-  const s = Math.floor(secs % 60).toString().padStart(2, '0');
-  return `${m}:${s}`;
+  void player.currentTime(ratio * player.duration());
 }
 </script>
 
 <template>
-  <div class="music-player">
-    <div class="track-info" v-if="currentTrack">
-      <img :src="currentTrack.cover" v-if="currentTrack.cover" />
-      <div>
-        <p>{{ currentTrack.name }}</p>
-      </div>
-    </div>
-
-    <div class="controls">
-      <button @click="player.previous()">Prev</button>
-      <button @click="isPlaying ? player.pause() : player.play()">
-        {{ isPlaying ? 'Pause' : 'Play' }}
-      </button>
-      <button @click="player.next()">Next</button>
-    </div>
+  <div class="player">
+    <p>{{ currentTrack?.name ?? 'Nothing playing' }}</p>
+    <p>{{ currentTrack?.artist_track?.[0]?.name }}</p>
 
     <div class="progress" @click="seek">
-      <div class="bar" :style="{ width: progress + '%' }" />
+      <div class="fill" :style="{ width: `${progress}%` }" />
     </div>
 
-    <div class="time">
-      {{ formatTime(currentTime) }} / {{ formatTime(duration) }}
-    </div>
-
-    <div class="volume">
-      <input
-        type="range"
-        min="0"
-        max="100"
-        step="1"
-        :value="volume"
-        @input="player.volume(Number(($event.target as HTMLInputElement).value))"
-      />
-      <!-- kit volume scale is 0-100 -->
-    </div>
+    <button @click="player.togglePlayback()">
+      {{ isPlaying ? 'Pause' : 'Play' }}
+    </button>
+    <button @click="player.previous()">Prev</button>
+    <button @click="player.next()">Next</button>
   </div>
 </template>
 ```
 
 ---
 
-## Loading a queue
+## Providing the player globally
+
+For apps where multiple components need the same player, provide it at the app root:
 
 ```ts
-const { player } = useMusicPlayer();
+// main.ts
+import { createApp } from 'vue';
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
 
-// From an API response — map `path` → `url` if your server uses the v1 field name:
-const tracks = await fetch('/api/tracks').then(r => r.json());
-player.queue(tracks.map((t: any) => ({ ...t, url: t.url ?? t.path })));
-await player.play();
+const player = nmMPlayer('global');
+const app = createApp(App);
+app.provide('player', player);
+```
+
+```ts
+// any component
+import { inject } from 'vue';
+import type { IMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
+
+const player = inject<IMusicPlayer>('player')!;
 ```
 
 ---
 
-## Using plugins from a component
+## See also
 
-```ts
-import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-music-player';
-
-const { player } = useMusicPlayer();
-const eq = player.getPlugin(EqualizerPlugin);
-
-function setBand(index: number, gain: number) {
-  eq?.setBand(index, gain);
-}
-```
-
----
-
-## Cleanup
-
-The player instance is designed to live for the application lifetime (like a Pinia store). If you need to tear it down on component unmount, call `player.dispose()` inside `onUnmounted`. In most apps you do not need to do this.
-
-```ts
-onUnmounted(() => {
-  player.dispose();
-});
-```
-
----
-
-## shallowRef vs ref
-
-Always use `shallowRef` for the player instance. `ref` deep-wraps the object in a Vue `Proxy`, which adds overhead and can interfere with the player's internal identity checks. The player class is not designed to be reactive — wrap its observable state (current track, time, etc.) in `ref` separately, as shown in the composable above.
+- [Quick Start](/nomercy-music-player/quickstart) — vanilla TypeScript setup
+- [Events](/nomercy-music-player/events) — all events to bind to reactive state
+- [React Integration](/nomercy-music-player/framework-react) — same pattern for React

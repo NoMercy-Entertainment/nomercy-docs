@@ -1,160 +1,101 @@
 ---
-title: Lyrics
-description: nomercy-music-player v2 — Lyrics
+title: "Lyrics"
+description: "Synced lyric display via LyricsPlugin — setup, events, custom resolvers, and LRC format."
 category: "Plugins"
-order: 8
+order: 18
+draft: false
 ---
 
 # Lyrics
 
-Synced lyric display is provided by `LyricsPlugin`. It reads timed lyric cues from a `ILyricSource` adapter and emits cue-change events as the track plays.
+Synced lyric display is provided by `LyricsPlugin`. See the full plugin reference at [LyricsPlugin](/nomercy-music-player/plugins/lyrics).
+
+This page is a conceptual overview. Go to the plugin page for the complete API.
 
 ---
 
 ## Setup
 
 ```ts
-import {
-  nmMPlayer,
-  LyricsPlugin,
-} from '@nomercy-entertainment/nomercy-music-player';
-import { LrcFileLyricSource } from '@nomercy-entertainment/nomercy-music-player/adapters/lyric-source';
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
-const player = nmMPlayer('main').setup({
-  queue: [
-    {
-      id: '1',
-      name: 'Track',
-      url: 'https://cdn.example.com/track.m3u8',
-      lyricsUrl: 'https://cdn.example.com/lyrics/1.lrc', // per-track URL
-    },
-  ],
-});
+const BASE = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
+const D = `${BASE}/D/Derek%20Clegg/%5B2010%5D%20KJC`;
 
-player.addPlugin(LyricsPlugin);
+const player = nmMPlayer('main')
+  .addPlugin(LyricsPlugin)
+  .setup({
+    playlist: [
+      {
+        id: 'kjc-01',
+        name: 'Thaw You Out',
+        url: `${D}/01%20Thaw%20You%20Out.mp3`,
+        lyricsUrl: `${D}/01%20Thaw%20You%20Out.lrc`,
+        artist_track: [{ id: 1, name: 'Derek Clegg' }],
+      },
+    ],
+  });
 ```
 
-The `LrcFileLyricSource` adapter (the default) reads the `lyricsUrl` field from the current `MusicPlaylistItem` and fetches + parses the LRC file automatically.
+---
+
+## How it works
+
+On every `current` event, `LyricsPlugin` reads `item.lyricsUrl`, fetches the LRC file, parses it through the kit's cue parser registry, and attaches a `CueTracker`. The tracker fires `lineEnter` / `lineExit` events as playback advances.
+
+Parser selection is driven by URL file extension:
+- `.lrc` → LRC parser (pre-registered)
+- `.vtt` → WebVTT parser (pre-registered)
+- Custom extension → register a parser via `player.registerCueParser(myParser)`
 
 ---
 
 ## Displaying lyrics
 
-Listen to `plugin:lyrics:cueChange` via the class-form for typed payloads:
-
 ```ts
-player.on(LyricsPlugin, 'cueChange', ({ line, index, timestamp }) => {
-  document.getElementById('lyrics-display').textContent = line ?? '';
+import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+const lyricsEl = document.getElementById('lyrics')!;
+
+// Build lyric sheet when loaded:
+player.on(LyricsPlugin, 'loaded', () => {
+  const cues = player.getPlugin(LyricsPlugin)!.all();
+  lyricsEl.innerHTML = cues
+    .map((cue, i) => `<p data-i="${i}">${cue.payload.text}</p>`)
+    .join('');
 });
-```
 
-The event fires when the current lyric line changes. `line` is `null` when there is no active cue (between cues or before the first cue).
-
----
-
-## Events
-
-| Event | Payload | Fires when |
-|-------|---------|-----------|
-| `cueChange` | `{ line: string \| null; index: number; timestamp: number }` | Current lyric line changes |
-| `lyricsLoaded` | `{ trackId: string \| number; lineCount: number }` | Lyrics fetched and parsed for a track |
-| `lyricsFailed` | `{ trackId: string \| number; reason: string }` | Lyrics could not be loaded |
-| `lyricsUnavailable` | `{ trackId: string \| number }` | Track has no `lyricsUrl` |
-
----
-
-## LRC format
-
-The `LrcFileLyricSource` parses standard LRC files:
-
-```
-[00:12.00] First lyric line
-[00:17.20] Second lyric line
-[00:22.40] Third lyric line
-```
-
-Enhanced LRC (word-level timestamps) is supported when the cue parser registry has an LRC word-level parser registered. The kit ships `parseLrc` from `@nomercy-entertainment/nomercy-player-core/cues/parsers/lrc`.
-
----
-
-## Custom lyric source
-
-Implement `ILyricSource` to fetch lyrics from a database, API, or embedded metadata:
-
-```ts
-import type { ILyricSource, LyricCue } from '@nomercy-entertainment/nomercy-music-player';
-
-class MyApiLyricSource implements ILyricSource {
-  async getLyrics(trackId: string | number): Promise<LyricCue[]> {
-    const response = await fetch(`/api/lyrics/${trackId}`);
-    const data = await response.json();
-    return data.lines.map((line: { time: number; text: string }) => ({
-      startMs: line.time * 1000,
-      text: line.text,
-    }));
+// Highlight active line:
+player.on(LyricsPlugin, 'lineEnter', ({ text }) => {
+  lyricsEl.querySelector('.active')?.classList.remove('active');
+  for (const el of lyricsEl.querySelectorAll<HTMLElement>('p')) {
+    if (el.textContent === text) {
+      el.classList.add('active');
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      break;
+    }
   }
-}
-
-// Inject via setup:
-player.setup({
-  lyricSource: new MyApiLyricSource(),
-});
-```
-
-`ILyricSource` has a single method:
-
-```ts
-interface ILyricSource {
-  getLyrics(trackId: string | number, item: MusicPlaylistItem): Promise<LyricCue[]>;
-}
-```
-
-`getLyrics` is called when the current track changes. Return an empty array if no lyrics are available for a track.
-
----
-
-## Scrolling lyrics UI
-
-A minimal scrolling lyric display in vanilla JS:
-
-```ts
-const lyricsEl = document.getElementById('lyrics');
-let allLines: string[] = [];
-let currentIndex = -1;
-
-player.on(LyricsPlugin, 'lyricsLoaded', ({ lineCount }) => {
-  // Fetch all lines from the plugin if needed, or buffer from cueChange events
-  allLines = [];
-  currentIndex = -1;
-});
-
-player.on(LyricsPlugin, 'cueChange', ({ line, index }) => {
-  if (line === null) return;
-
-  currentIndex = index;
-
-  // Highlight current line, scroll into view:
-  const lineEls = lyricsEl.querySelectorAll('.lyric-line');
-  lineEls.forEach((el, i) => {
-    el.classList.toggle('active', i === index);
-  });
-  lineEls[index]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
 ```
 
 ---
 
-## Cue parser registry
+## Custom resolver
 
-`LyricsPlugin` uses the kit's cue parser registry to decode lyric files. The kit ships an LRC parser by default. Register additional parsers to support custom formats:
+When `lyricsUrl` is not on the track item, pass a `getLyricsUrl` function:
 
 ```ts
-import { parseLrc } from '@nomercy-entertainment/nomercy-player-core/cues/parsers/lrc';
-
-// Registered by default — no code needed for LRC.
-// To add a custom format:
-player.registerCueParser({
-  canParse: (url) => url.endsWith('.mylyrics'),
-  parse: (text) => myCustomParser(text),
+player.addPlugin(LyricsPlugin, {
+  getLyricsUrl: (track) => `https://api.example.com/lyrics/${track.id}.lrc`,
 });
 ```
+
+---
+
+## See also
+
+- [LyricsPlugin](/nomercy-music-player/plugins/lyrics) — full reference: options, methods, all events
+- [ILyricSource](/nomercy-music-player/adapters/lyric-source) — resolver adapter interface
+- [Advanced: Lyrics Sync Deep Dive](/nomercy-music-player/advanced/lyrics-sync-deep-dive) — CueTracker, custom parsers, word-level timing
+- [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer) — practical Now Playing screen

@@ -1,11 +1,75 @@
 ---
 title: "What is the Music Player"
-description: "The NoMercy Music Player and its relation to the player kit."
+description: "The NoMercy Music Player — headless, plugin-driven, event-driven. Architecture overview and relation to the player kit."
 category: "Getting Started"
-order: 1
+order: 0
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# What is the NoMercy Music Player
+
+`@nomercy-entertainment/nomercy-music-player` is a headless, TypeScript-first audio player for browsers. It handles playback, queue management, crossfade, lyric sync, and EQ — with no UI in the core package. Every visual element is either a plugin or built by the consumer.
+
+---
+
+## Architecture
+
+The player sits on top of the **NoMercy Player Kit** (`@nomercy-entertainment/nomercy-player-core`). The kit owns:
+
+- Transport lifecycle (play, pause, stop, seek)
+- Queue and backlog management
+- Plugin system and event bus
+- Auth pipeline (Bearer tokens, request signing, 401 refresh)
+- HLS stream registration
+- Cue parser registry (LRC, WebVTT, custom)
+- i18n
+- Storage adapter interface
+
+The music player adds on top of the kit:
+
+- **Audio backends** — `AudioElementBackend` (default) and `WebAudioBackend`
+- **Crossfade** — dual-buffer crossfade with `equal-power` / `linear` curves
+- **Music-typed events** — `current` narrowed to `MusicPlaylistItem`, `trackEndingSoon`, `crossfadeStart`, `crossfadeComplete`, `eq:change`
+- **Music plugins** — `LyricsPlugin`, `AutoAdvancePlugin`, `MediaSessionPlugin`, `CastSenderPlugin`, `KeyHandlerPlugin`, `MusicUiPlugin`, `TabLeaderPlugin`
+- **Music adapters** — `ILyricSource`, `IScrobbler`, `INowPlayingArt`, `IPlaylistGenerator`
+
+---
+
+## Layer diagram
+
+```
+Consumer app
+  └─ NMMusicPlayer<T>
+       ├─ Audio backends (AudioElementBackend / WebAudioBackend)
+       ├─ Music plugins (LyricsPlugin, AutoAdvancePlugin, …)
+       ├─ Kit core methods (transport, queue, auth, storage, …)
+       └─ Kit plugins (AudioGraphPlugin, EqualizerPlugin, …)
+```
+
+---
+
+## Key design decisions
+
+**No UI in core.** `NMMusicPlayer` renders nothing. The `MusicUiPlugin` is optional and produces a configurable DOM overlay. Consumers who want full control render their own UI from player events.
+
+**Generic playlist item.** `NMMusicPlayer<T>` — `T` defaults to `MusicPlaylistItem` but consumers extend it with their own fields without wrapping or adapting.
+
+**Plugin-everything.** Lyrics, media session, cast, EQ, key handling — all plugins. Register only what you need. Plugins are removed from the bundle via tree-shaking when not imported.
+
+**Backend swappable at runtime.** Switch between `audio-element` and `webaudio` with `await player.backend('webaudio')`. Custom backends inject via `backendFactory`.
+
+---
+
+## What it is not
+
+- Not a UI framework component (no Vue/React component — see [Framework Integration](/nomercy-music-player/framework-vue))
+- Not a video player (no subtitle tracks, no quality levels — see [nomercy-video-player](/nomercy-video-player/))
+- Not server-side — runs in the browser only
+
+---
+
+## See also
+
+- [Installation](/nomercy-music-player/installation) — install and import paths
+- [Quick Start](/nomercy-music-player/quickstart) — minimal working player
+- [Player Kit](/nomercy-player-kit/) — shared infrastructure documentation

@@ -1,11 +1,50 @@
 ---
-title: "Live Transcoding"
-description: "The LiveTranscodingPlugin — server-side live transcode integration."
+title: "LiveTranscodingPlugin"
+description: "Server-side live transcode integration with loader backpressure — roadmapped for v2.1."
 category: "Plugins"
-order: 11
+order: 10
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# LiveTranscodingPlugin
+
+Server-coordinated live transcoding with segment-ready gating and loader backpressure. **Roadmapped for v2.1.** Calling `addPlugin(LiveTranscodingPlugin)` followed by `setup()` will cause `use()` to throw `NotImplementedError`.
+
+```ts
+import { LiveTranscodingPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+```
+
+---
+
+## Planned options
+
+```ts
+interface LiveTranscodingOptions {
+  wsUrl: string;
+  pollIntervalMs?: number;
+  resumeAheadSeconds?: number;
+  seekTimeoutMs?: number;
+}
+```
+
+---
+
+## Planned events
+
+| Event | Payload |
+|-------|---------|
+| `job:started` | `{ jobId: string; sourceUrl: string }` |
+| `job:progress` | `{ jobId: string; transcodedSeconds: number; totalSeconds?: number }` |
+| `job:ready-to-play` | `{ jobId: string }` |
+| `job:error` | `{ jobId: string; error: Error }` |
+| `job:complete` | `{ jobId: string }` |
+| `segment:ready` | `{ time: number }` |
+| `backpressure:apply` | `{ reason: 'buffer-full' \| 'encoder-stall' }` |
+| `backpressure:release` | `undefined` |
+| `unsupported` | `{ reason: string }` |
+
+---
+
+## Status
+
+Not available. Do not register this plugin in production.

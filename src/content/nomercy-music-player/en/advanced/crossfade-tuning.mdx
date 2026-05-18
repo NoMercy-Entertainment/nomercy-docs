@@ -1,17 +1,112 @@
 ---
 title: "Crossfade Tuning"
-description: "Fine-tuning crossfade duration, curves, lead time, and tail time for different musical contexts."
+description: "Fine-tuning crossfade duration, curves, lead time, and backend selection for different musical contexts."
 category: "Advanced"
-order: 70
-draft: true
+order: 61
+draft: false
 ---
-
-import { Callout } from '@/components/protocol/Callout'
 
 # Crossfade Tuning
 
-<Callout type="info">
-  This page is being written. For the crossfade basics, see the [Crossfade and Gapless recipe](/nomercy-music-player/recipes/crossfade-and-gapless) and [Crossfade API reference](/nomercy-music-player/api/crossfade).
-</Callout>
+Crossfade quality depends on three variables: backend choice, duration, and the lead time between the `trackEndingSoon` signal and when the fade starts. This page covers the trade-offs and how to tune each.
 
-This page covers advanced crossfade configuration: custom easing curves, per-track override, lead/tail timing, and the interaction between crossfade and the preload strategy.
+---
+
+## Backend choice determines accuracy
+
+The `audio-element` backend uses a `requestAnimationFrame` loop (~50 fps). One frame is ~20 ms. Gain steps are applied every frame, so transitions are not sample-accurate — slight audible stepping may occur on short fades.
+
+The `webaudio` backend uses `linearRampToValueAtTime` on a `GainNode`. This schedules the ramp in the browser's audio render thread, independent of the animation frame rate. Gain transitions are sample-accurate.
+
+**For production DJ-style crossfades:** use `webaudio`.
+
+**For casual "smooth transition" crossfades at 5 s+:** either backend works.
+
+```ts
+player.setup({ backend: 'webaudio' });
+```
+
+---
+
+## Duration guide
+
+| Context | Recommended duration |
+|---------|---------------------|
+| Radio / background music | 3–5 s |
+| DJ-style mix | 8–16 s |
+| Album transition | 1–3 s |
+| "Instant" (hard cut with preload) | 0 s |
+
+Set duration in `crossfadeDefaults`:
+
+```ts
+player.setup({
+  crossfadeDefaults: { duration: 5, curve: 'equal-power' },
+});
+```
+
+Override per-call:
+
+```ts
+await player.crossfadeTo(nextTrack, { duration: 12, curve: 'equal-power' });
+```
+
+---
+
+## Lead time — threshold vs duration
+
+`trackEndingSoonThreshold` controls when `AutoAdvancePlugin` initiates the crossfade. It must be greater than or equal to `crossfadeDuration`:
+
+```ts
+player.setup({
+  trackEndingSoonThreshold: 10,  // fire 10s before end
+  crossfadeDefaults: { duration: 8 }, // 8s fade
+});
+
+player.addPlugin(AutoAdvancePlugin, {
+  crossfade: true,
+  crossfadeDuration: 8,
+});
+```
+
+If `threshold < duration`, the fade will start but will be cut off when the outgoing track reaches `ended`. The incoming track will become primary mid-fade.
+
+---
+
+## Equal-power vs linear
+
+`equal-power` is almost always correct for music:
+
+```
+equal-power gain sum = cos²(t×π/2) + sin²(t×π/2) = 1.0 (constant)
+linear gain sum at t=0.5 = 0.5 + 0.5 = 1.0, but dips to ~0.71 perceived
+```
+
+Use `linear` only when you deliberately want a brief dip (unusual).
+
+---
+
+## Mid-crossfade gain inspection
+
+During an active crossfade, inspect the secondary gain via the backend:
+
+```ts
+player.on('crossfadeStart', () => {
+  const interval = setInterval(() => {
+    if (!player.isTransitioning()) {
+      clearInterval(interval);
+      return;
+    }
+    const gain = player.backend().secondaryGain();
+    console.log('Secondary gain:', gain.toFixed(3));
+  }, 100);
+});
+```
+
+---
+
+## See also
+
+- [Crossfade API](/nomercy-music-player/api/crossfade) — `crossfadeTo()`, `isTransitioning()`, `CrossfadeOptions`
+- [AutoAdvancePlugin](/nomercy-music-player/plugins/auto-advance) — `crossfade`, `crossfadeDuration` options
+- [Backends overview](/nomercy-music-player/backends/overview) — backend accuracy comparison

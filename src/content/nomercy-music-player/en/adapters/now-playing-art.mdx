@@ -1,11 +1,83 @@
 ---
-title: "Now Playing Art"
-description: "The INowPlayingArt adapter for album art resolution."
+title: "INowPlayingArt"
+description: "Port for publishing now-playing artwork to OS surfaces — INowPlayingArt interface, MediaSessionArtProvider built-in."
 category: "Adapters"
-order: 3
+order: 35
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# INowPlayingArt
+
+Port for publishing now-playing artwork and metadata to OS-native UI surfaces (lock screen, notification panel, AirPlay, cast receiver). The player calls `publish(item, artwork)` on each track change and `clear()` on stop or dispose.
+
+```ts
+import type { INowPlayingArt } from '@nomercy-entertainment/nomercy-music-player';
+```
+
+---
+
+## Interface
+
+```ts
+interface INowPlayingArt<T extends BasePlaylistItem = BasePlaylistItem> {
+  readonly id: string;
+  publish(item: T, artwork: string | undefined): Promise<void>;
+  clear(): void;
+}
+```
+
+### `publish(item, artwork)`
+
+Publish now-playing metadata and artwork for `item`. `artwork` is the resolved artwork URL, or `undefined` when no art is available. Called by the player when the current track changes.
+
+### `clear()`
+
+Clear the now-playing metadata. Called when the player stops or is disposed. Implementations that do not support clearing may no-op.
+
+---
+
+## Built-in adapter
+
+### `MediaSessionArtProvider`
+
+```ts
+import { MediaSessionArtProvider } from '@nomercy-entertainment/nomercy-music-player';
+```
+
+Uses the browser Media Session API (`navigator.mediaSession.metadata`) to push artwork and track metadata to lock screens, notification panels, and browser media controls.
+
+This adapter is used by `MediaSessionPlugin` internally. You do not need to wire it separately if you are using `MediaSessionPlugin`.
+
+---
+
+## Custom implementation
+
+For native-shell scenarios (Capacitor, Electron) or custom cast receiver artwork feeds:
+
+```ts
+import type { INowPlayingArt } from '@nomercy-entertainment/nomercy-music-player';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+class CapacitorNowPlayingArt implements INowPlayingArt<MusicPlaylistItem> {
+  readonly id = 'capacitor-now-playing';
+
+  async publish(item: MusicPlaylistItem, artwork: string | undefined): Promise<void> {
+    await NativeAudio.setNowPlaying({
+      title: item.name,
+      artist: item.artist_track?.[0]?.name ?? '',
+      artwork: artwork ?? '',
+    });
+  }
+
+  clear(): void {
+    void NativeAudio.clearNowPlaying();
+  }
+}
+```
+
+---
+
+## See also
+
+- [MediaSessionPlugin](/nomercy-music-player/plugins/media-session) — uses `MediaSessionArtProvider` internally
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — `cover`, `name`, `artist_track` fields

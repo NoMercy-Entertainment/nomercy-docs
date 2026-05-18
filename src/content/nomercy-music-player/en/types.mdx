@@ -1,11 +1,198 @@
 ---
 title: "Types Reference"
-description: "All exported types for the NoMercy Music Player."
+description: "All exported types from @nomercy-entertainment/nomercy-music-player — MusicPlaylistItem, MusicPlayerConfig, IMusicPlayer, MusicEventMap, CrossfadeOptions, enums."
 category: "Types Reference"
-order: 1
+order: 24
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+# Types Reference
+
+All types exported from `@nomercy-entertainment/nomercy-music-player`.
+
+---
+
+## Core types
+
+### `MusicPlaylistItem`
+
+```ts
+interface MusicPlaylistItem extends BasePlaylistItem {
+  id: string | number;
+  name: string;
+  url?: string;
+  cover?: string;
+  artist_track?: ArtistRef[];
+  album_track?: AlbumRef[];
+  lyricsUrl?: string;
+  duration?: number;
+}
+
+interface ArtistRef { id: string | number; name: string }
+interface AlbumRef  { id: string | number; name: string }
+```
+
+See [MusicPlaylistItem](/nomercy-music-player/playlist-item) for field details.
+
+### `MusicPlayerConfig<T>`
+
+```ts
+interface MusicPlayerConfig<T extends BasePlaylistItem = MusicPlaylistItem>
+  extends BasePlayerConfig {
+  backend?: AudioBackendKind;
+  backendFactory?: AudioBackendFactory;
+  crossfadeDefaults?: { duration: number; curve?: 'linear' | 'equal-power' };
+  playlist?: T[] | string;
+  trackEndingSoonThreshold?: number;
+}
+```
+
+See [Configuration](/nomercy-music-player/configuration).
+
+### `IMusicPlayer<T>`
+
+```ts
+interface IMusicPlayer<T extends BasePlaylistItem = MusicPlaylistItem>
+  extends IPlayer<MusicEventMap> {
+  backend(): IAudioBackend;
+  backend(kind: AudioBackendKind): Promise<void>;
+  crossfadeTo(track: T, opts?: CrossfadeOptions & ActionOptions): Promise<void>;
+  isTransitioning(): boolean;
+}
+```
+
+Recommended type for consumer-held player references. See [Factory](/nomercy-music-player/api/factory).
+
+### `MusicEventMap`
+
+```ts
+interface MusicEventMap extends BaseEventMap {
+  'current': { item: MusicPlaylistItem | undefined; index: number };
+  'repeat': { state: RepeatState };
+  'shuffle': { state: ShuffleState };
+  'trackEndingSoon': { remaining: number; currentTrack: BasePlaylistItem };
+  'crossfadeStart': { from: BasePlaylistItem | null; to: BasePlaylistItem; duration: number };
+  'crossfadeComplete': { track: BasePlaylistItem };
+  'eq:change': { band: number; gain: number };
+}
+```
+
+Note: `'backend:changed'` is emitted by the player but not declared in `MusicEventMap`. Listening to it requires a cast.
+
+---
+
+## Crossfade types
+
+### `CrossfadeOptions`
+
+```ts
+interface CrossfadeOptions {
+  duration: number;
+  curve?: 'linear' | 'equal-power';
+  startAt?: number;
+}
+```
+
+### `AudioBackendKind`
+
+```ts
+type AudioBackendKind = 'audio-element' | 'webaudio'
+```
+
+### `AudioBackendFactory`
+
+```ts
+type AudioBackendFactory = (
+  kind: AudioBackendKind,
+  config: MusicPlayerConfig<BasePlaylistItem>,
+) => IAudioBackend
+```
+
+---
+
+## Enums
+
+### `PlayState`
+
+```ts
+enum PlayState {
+  IDLE    = 'idle',
+  LOADING = 'loading',
+  PLAYING = 'playing',
+  PAUSED  = 'paused',
+  STOPPED = 'stopped',
+  ERROR   = 'error',
+}
+```
+
+### `VolumeState`
+
+```ts
+enum VolumeState {
+  UNMUTED = 'unmuted',
+  MUTED   = 'muted',
+}
+```
+
+### `RepeatState`
+
+```ts
+enum RepeatState {
+  OFF = 'off',
+  ALL = 'all',
+  ONE = 'one',
+}
+```
+
+### `ShuffleState`
+
+```ts
+enum ShuffleState {
+  OFF = 'off',
+  ON  = 'on',
+}
+```
+
+---
+
+## Backend types
+
+### `BackendState`
+
+```ts
+type BackendState = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'error'
+```
+
+### `BackendLoaderState`
+
+```ts
+type BackendLoaderState = 'running' | 'paused'
+```
+
+### `BackendEvent`
+
+```ts
+type BackendEvent =
+  | 'loadstart' | 'loadedmetadata' | 'canplay' | 'play' | 'playing'
+  | 'pause' | 'ended' | 'timeupdate' | 'waiting' | 'stalled'
+  | 'ratechange' | 'encrypted' | 'error'
+```
+
+---
+
+## Adapter types
+
+| Type | Import path |
+|------|------------|
+| `ILyricSource` | `@nomercy-entertainment/nomercy-music-player` |
+| `IScrobbler`, `ScrobbleContext` | `@nomercy-entertainment/nomercy-music-player` |
+| `INowPlayingArt` | `@nomercy-entertainment/nomercy-music-player` |
+| `IPlaylistGenerator` | `@nomercy-entertainment/nomercy-music-player` |
+
+---
+
+## See also
+
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — field reference
+- [Events](/nomercy-music-player/events) — full `MusicEventMap` with payloads
+- [IAudioBackend](/nomercy-music-player/backends/backend-interface) — backend interface

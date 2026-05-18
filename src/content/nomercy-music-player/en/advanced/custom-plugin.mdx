@@ -1,19 +1,136 @@
 ---
 title: "Custom Plugin (Music)"
-description: "Writing a music-context plugin — accessing IAudioBackend, extending MusicEventMap, and using crossfadeTo and isTransitioning."
+description: "Writing a music-context plugin — accessing IAudioBackend, MusicEventMap events, crossfadeTo, isTransitioning, and typed this.player."
 category: "Advanced"
-order: 73
-draft: true
+order: 64
+draft: false
 ---
-
-import { Callout } from '@/components/protocol/Callout'
 
 # Custom Plugin (Music)
 
-<Callout type="info">
-  This page is being written. The authoritative plugin authoring guide lives at [Plugin Authoring](/nomercy-player-kit/plugin-authoring) in the kit docs. This page covers the music-player-specific additions only.
-</Callout>
+Music plugins extend the kit `Plugin<NMMusicPlayer<any>, YourOptions, YourEvents>` base class. This gives you typed access to `this.player` as an `NMMusicPlayer` with all music-specific methods (`backend()`, `crossfadeTo()`, `isTransitioning()`).
 
-The kit's `Plugin<TPlayer, TEventMap, TOpts>` base class is the same for both video and music. This page documents what is different when writing a plugin that targets the music player: `IAudioBackend` access, `MusicEventMap` extension, and the `crossfadeTo`/`isTransitioning` surface available inside music-player callbacks.
+For the general plugin authoring guide (lifecycle, `this.on`, `this.emit`, `this.fetch`, `this.logger`), see [Writing Plugins](/nomercy-player-kit/writing-plugins) in the player kit docs.
 
-See [Plugin Authoring](/nomercy-player-kit/plugin-authoring) for the base class, lifecycle hooks, `requires`, `replaces`, and `minCoreVersion`.
+---
+
+## Minimal music plugin
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
+
+interface MyMusicOptions {
+  logEveryLine: boolean;
+}
+
+export class MyMusicPlugin extends Plugin<NMMusicPlayer<any>, MyMusicOptions> {
+  static override readonly id = 'my-music-plugin';
+  static override readonly version = '1.0.0';
+
+  override use(): void {
+    // this.player is typed as NMMusicPlayer<any> here
+    this.on('current', ({ item }) => {
+      if (item) {
+        console.log('Now playing:', item.name);
+        // Access music-specific fields:
+        console.log('Artist:', item.artist_track?.[0]?.name);
+      }
+    });
+
+    this.on('trackEndingSoon', ({ remaining, currentTrack }) => {
+      if (this.opts?.logEveryLine) {
+        console.log(`Track "${currentTrack.name}" ends in ${remaining.toFixed(1)}s`);
+      }
+    });
+  }
+}
+```
+
+---
+
+## Accessing the audio backend
+
+```ts
+override use(): void {
+  this.on('ready', () => {
+    const backend = this.player.backend();
+    console.log('Backend kind:', backend.kind);
+
+    // Connect an analyser to the output:
+    const ctx = this.player.audioContext();
+    if (ctx) {
+      const analyser = ctx.createAnalyser();
+      backend.outputNode(ctx).connect(analyser);
+      analyser.connect(ctx.destination);
+      this.startVisualization(analyser);
+    }
+  });
+}
+```
+
+---
+
+## Initiating a crossfade from a plugin
+
+```ts
+override use(): void {
+  this.on('ended', () => {
+    const next = this.player.peekNext();
+    if (!next || this.player.isTransitioning()) return;
+
+    void this.player.crossfadeTo(next, { duration: 3, curve: 'equal-power' })
+      .catch(err => this.logger.warn('crossfadeTo failed', err));
+  });
+}
+```
+
+---
+
+## Emitting custom events
+
+```ts
+interface BeatEvents {
+  'beat:detected': { bpm: number; confidence: number };
+}
+
+export class BeatDetectorPlugin extends Plugin<NMMusicPlayer<any>, {}, BeatEvents> {
+  static override readonly id = 'beat-detector';
+
+  override use(): void {
+    this.on('play', () => {
+      void this.detectBeat();
+    });
+  }
+
+  private async detectBeat(): Promise<void> {
+    // … analysis …
+    this.emit('beat:detected', { bpm: 128, confidence: 0.92 });
+  }
+}
+
+// Usage:
+player.on(BeatDetectorPlugin, 'beat:detected', ({ bpm, confidence }) => {
+  console.log(`BPM: ${bpm} (${(confidence * 100).toFixed(0)}% confidence)`);
+});
+```
+
+---
+
+## Registration
+
+```ts
+import { MyMusicPlugin } from './my-music-plugin';
+
+const player = nmMPlayer('main')
+  .addPlugin(MyMusicPlugin, { logEveryLine: true })
+  .setup({ playlist: myTracks });
+```
+
+---
+
+## See also
+
+- [Player Kit — Writing Plugins](/nomercy-player-kit/writing-plugins) — full plugin authoring guide (lifecycle, helpers, i18n)
+- [IAudioBackend](/nomercy-music-player/backends/backend-interface) — methods available via `this.player.backend()`
+- [Events](/nomercy-music-player/events) — `MusicEventMap` events available via `this.on(...)`

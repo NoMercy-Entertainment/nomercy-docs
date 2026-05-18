@@ -1,17 +1,171 @@
 ---
 title: "Lyrics Sync Deep Dive"
-description: "LRC and enhanced LRC parsing, word-level timing, VTT cue mapping, custom lyric source adapters, and real-time highlight sync."
+description: "CueTracker internals, LRC and WebVTT parsing, custom cue parser registration, and word-level timing patterns."
 category: "Advanced"
-order: 72
-draft: true
+order: 63
+draft: false
 ---
-
-import { Callout } from '@/components/protocol/Callout'
 
 # Lyrics Sync Deep Dive
 
-<Callout type="info">
-  This page is being written. For the lyrics basics, see the [Lyrics](/nomercy-music-player/lyrics) reference page and the [Lyrics plugin](/nomercy-music-player/plugins/lyrics).
-</Callout>
+This page covers how `LyricsPlugin` works internally — the cue parser registry, `CueTracker` lifecycle, parser selection, and extending the system with custom formats.
 
-This page covers LRC and enhanced LRC parsing internals, word-level timing via the `CueTracker`, writing a custom `LyricSource` adapter, and implementing real-time highlight sync with requestAnimationFrame.
+---
+
+## How LyricsPlugin works
+
+1. On every `current` event, `LyricsPlugin.use()` fires
+2. The plugin calls `resolveLyricsUrl(item)` — returns `item.lyricsUrl` or the custom `getLyricsUrl(item)` result
+3. The URL is passed to `resolveParser(url)` — which calls `player.resolveCueParser(url)`
+4. The kit walks the registered `CueParser[]` in registration order. The first parser whose `canParse(url)` returns `true` wins.
+5. The plugin fetches the URL via `this.fetch(url)` (auth-aware, retried)
+6. The raw text is passed to `parser.parse(raw)` → returns a `CueList`
+7. A new `CueTracker` is attached to the player — it listens to the `time` event and fires `enter` / `exit` on the tracker
+
+---
+
+## CueParser interface
+
+```ts
+interface CueParser {
+  readonly id: string;
+  canParse(url: string): boolean;
+  parse(raw: string): CueList<any>;
+}
+```
+
+**`canParse(url)`** — inspects the URL (typically the file extension) and returns `true` if this parser can handle it.
+
+**`parse(raw)`** — receives the raw text content and returns a `CueList`. The cue list is an array of `Cue<T>` objects with `startMs` and `endMs` fields.
+
+---
+
+## Built-in parsers
+
+| Parser id | Extension | Format |
+|-----------|-----------|--------|
+| `lrc` | `.lrc` | LRC timestamp format: `[mm:ss.cc] text` |
+| `vtt` | `.vtt` | WebVTT: `HH:MM:SS.mmm --> HH:MM:SS.mmm` |
+
+Both are pre-registered in the kit.
+
+---
+
+## Registering a custom parser
+
+```ts
+import type { CueParser, CueList, Cue } from '@nomercy-entertainment/nomercy-player-core';
+
+interface LrcLine {
+  text: string;
+}
+
+// Simple parser for a JSON format: [{ "t": 12000, "text": "First line" }]
+const jsonLrcParser: CueParser = {
+  id: 'json-lrc',
+
+  canParse(url: string): boolean {
+    return url.endsWith('.jlrc');
+  },
+
+  parse(raw: string): CueList<LrcLine> {
+    const data: Array<{ t: number; text: string }> = JSON.parse(raw);
+    const cues: Cue<LrcLine>[] = data.map((entry, index) => ({
+      startMs: entry.t,
+      endMs: data[index + 1]?.t ?? Infinity,
+      payload: { text: entry.text },
+    }));
+    return { cues };
+  },
+};
+
+// Register before setup:
+player.registerCueParser(jsonLrcParser);
+
+// Register at the front of the chain (checked first):
+player.registerCueParser(jsonLrcParser, /* prepend */ true);
+```
+
+---
+
+## LRC format reference
+
+Standard LRC:
+
+```lrc
+[00:12.00] First line of lyrics
+[00:17.20] Second line
+[00:22.40] Third line
+```
+
+Enhanced LRC (word-level timing — not all players support this):
+
+```lrc
+[00:12.00] <00:12.00> First <00:12.50> line <00:13.00> of lyrics
+```
+
+The built-in LRC parser supports standard LRC. Enhanced LRC (word-level `<>` tags) requires a custom parser if you want word-level highlighting.
+
+---
+
+## Word-level highlighting
+
+For word-level karaoke effects, parse enhanced LRC into sub-cues:
+
+```ts
+const enhancedLrcParser: CueParser = {
+  id: 'enhanced-lrc',
+  canParse: (url) => url.endsWith('.elrc'),
+  parse(raw): CueList<{ text: string; words: Array<{ t: number; text: string }> }> {
+    // Parse enhanced LRC format and return word-level cues
+    // Implementation left as an exercise — enhanced LRC is non-standard
+    return { cues: [] };
+  },
+};
+```
+
+---
+
+## CueTracker lifecycle
+
+`LyricsPlugin.attach(cueList)`:
+
+1. Calls `this.clear()` — disposes any existing tracker
+2. Creates a new `CueTracker<LyricPayload>(list)`
+3. Binds `tracker.on('enter', cue => ...)` and `tracker.on('exit', cue => ...)`
+4. Calls `tracker.attach(this.player)` — the tracker subscribes to the player's `time` event
+
+When the player emits a `time` event, the tracker scans the cue list and fires `enter` / `exit` events for any cues whose `[startMs, endMs)` window crosses the current time.
+
+`LyricsPlugin.clear()` calls `tracker.dispose()` which unsubscribes the `time` listener — no leak.
+
+---
+
+## Handling missing lyrics
+
+`LyricsPlugin` reports (not throws) when no parser is found or the fetch fails:
+
+```ts
+// Listen to plugin:failed to detect parse/fetch failures:
+player.on('plugin:lyrics:failed' as any, (event: unknown) => {
+  console.warn('Lyrics failed:', event);
+  showNoLyricsMessage();
+});
+```
+
+When `autoFetch: false`, you control when lyrics load and can handle errors from `fetchLyrics()`:
+
+```ts
+const cueList = await lyricsPlugin.fetchLyrics(url);
+if (!cueList) {
+  showNoLyricsMessage();
+}
+```
+
+---
+
+## See also
+
+- [LyricsPlugin](/nomercy-music-player/plugins/lyrics) — options, methods, events
+- [ILyricSource](/nomercy-music-player/adapters/lyric-source) — resolver adapter
+- [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer) — practical implementation guide

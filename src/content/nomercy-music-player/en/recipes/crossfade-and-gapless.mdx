@@ -3,96 +3,111 @@ title: "Crossfade and Gapless"
 description: "Music crossfade tuning, gapless transition strategy, choosing between them, and timing pitfalls."
 category: "Recipes"
 order: 55
+draft: false
 ---
 
 # Crossfade and Gapless
 
-Read this when you need smooth music transitions — either a volume-faded crossfade or a sample-accurate gapless handoff. This applies to the music player only.
+Read this when you need smooth music transitions — either a volume-faded crossfade or a preloaded gapless handoff. This applies to the music player only.
 
-**Prerequisites:** [Music Quick Start](/player/music/quickstart). For the full crossfade API see [Crossfade](/player/music/crossfade).
+**Prerequisites:** [Quick Start](/nomercy-music-player/quickstart). For the full crossfade API see [Crossfade](/nomercy-music-player/crossfade).
 
 ---
 
-## Crossfade vs gapless — when to choose which
+## Crossfade vs gapless — when to choose
 
 | Feature | Crossfade | Gapless |
 |---------|-----------|---------|
-| Overlap | Yes — both tracks play simultaneously | No — tracks play sequentially |
+| Overlap | Both tracks play simultaneously | Tracks play sequentially |
 | Volume | Outgoing fades down, incoming fades up | Constant |
-| Use case | Album transitions, radio, DJ-style mixes | Albums with tracks that are meant to be continuous (e.g. prog rock, live albums) |
-| Backend required | `WebAudioBackend` | Either backend |
-| Config | `crossfadeEnabled: true` | `gaplessEnabled: true` (or `crossfadeEnabled: false`) |
-
-Most music apps want **crossfade** for a polished feel. Use **gapless** when the music itself is continuous and adding a volume dip would break the listening experience.
+| Use case | Album transitions, radio, DJ-style mixes | Continuous music (prog rock, live albums) |
+| Config | `crossfadeDefaults.duration` + `AutoAdvancePlugin` | Omit crossfade; `AutoAdvancePlugin` preloads next |
 
 ---
 
 ## Enabling crossfade
 
 ```ts
-import { nmMPlayer, AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player';
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
-const player = nmMPlayer('main').setup({
-  crossfadeEnabled: true,
-  crossfadeDefaults: {
-    durationMs: 4000,           // fade length in milliseconds
-    curve: 'equal-power',       // 'equal-power' or 'linear' (see below)
-    startAt: 4,                 // seconds before track end to trigger automatic crossfade
-  },
-  queue: [track1, track2, track3],
+const BASE = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
+const D = `${BASE}/D/Derek%20Clegg/%5B2010%5D%20KJC`;
+
+const player = nmMPlayer('main')
+  .addPlugin(AutoAdvancePlugin, {
+    crossfade: true,      // hand off to crossfadeTo on trackEndingSoon
+    crossfadeDuration: 5, // seconds
+  })
+  .setup({
+    crossfadeDefaults: {
+      duration: 5,          // seconds
+      curve: 'equal-power',
+    },
+    trackEndingSoonThreshold: 8, // fire trackEndingSoon with 8s remaining
+    playlist: [
+      {
+        id: 'kjc-01',
+        name: 'Thaw You Out',
+        url: `${D}/01%20Thaw%20You%20Out.mp3`,
+        artist_track: [{ id: 1, name: 'Derek Clegg' }],
+      },
+      {
+        id: 'kjc-02',
+        name: 'Hope',
+        url: `${D}/02%20Hope.mp3`,
+        artist_track: [{ id: 1, name: 'Derek Clegg' }],
+      },
+    ],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
 });
-
-player.addPlugin(AutoAdvancePlugin, {
-  crossfadeOnEnd: true, // use crossfade instead of hard cut when a track ends
-});
-
-await player.ready();
-await player.play();
 ```
 
-`equal-power` keeps perceived loudness stable — the sum of both gain curves is constant throughout the fade. Use `linear` only when your audio already handles its own loudness management.
+`AutoAdvancePlugin` with `crossfade: true` calls `player.crossfadeTo(next, { duration: crossfadeDuration })` when `trackEndingSoon` fires. Set `crossfadeDuration` to match or be less than `trackEndingSoonThreshold`.
 
 ---
 
 ## Crossfade curve comparison
 
+`'equal-power'` keeps perceived loudness stable:
+
 ```
 equal-power:
-  outgoing gain: cos(t * π/2)
-  incoming gain: sin(t * π/2)
-  sum: always 1.0 (no dip)
+  outgoing gain: cos(t × π/2)
+  incoming gain: sin(t × π/2)
+  sum: constant at 1.0 throughout
 
 linear:
-  outgoing gain: 1 - t
+  outgoing gain: 1 − t
   incoming gain: t
-  sum: 1.0 at 0 and 1.0 at 1, but dips to ~0.71 at t=0.5
+  sum: dips to ~0.71 at t = 0.5
 ```
 
-Use `equal-power` for all standard music. `linear` is only useful if you need a clear midpoint silence (unusual).
+Use `'equal-power'` for all standard music. `'linear'` creates an audible dip at the midpoint, which is almost never what you want.
 
 ---
 
 ## Manual crossfade trigger
 
-To crossfade on user action (next button, playlist skip):
+To crossfade on an explicit user action (next button, click on a playlist item):
 
 ```ts
 import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 
-async function playNext(nextTrack: MusicPlaylistItem): Promise<void> {
-  if (player.backend() === 'webaudio') {
-    // Crossfade to the specific track
-    await player.crossfadeTo(nextTrack, {
-      durationMs: 2000,
-      curve: 'equal-power',
-    });
-  } else {
-    // Fallback for AudioElementBackend (e.g. iOS where WebAudio context may be suspended)
-    player.current(nextTrack);
-    await player.play();
-  }
+async function crossfadeToTrack(nextTrack: MusicPlaylistItem): Promise<void> {
+  if (player.isTransitioning()) return; // ignore if already fading
+
+  await player.crossfadeTo(nextTrack, {
+    duration: 3,
+    curve: 'equal-power',
+  });
 }
 ```
+
+Nested crossfades are rejected by the player — `crossfadeTo` is a no-op when `isTransitioning()` returns `true`.
 
 ---
 
@@ -100,18 +115,19 @@ async function playNext(nextTrack: MusicPlaylistItem): Promise<void> {
 
 ```ts
 player.on('crossfadeStart', ({ from, to, duration }) => {
-  console.log(`Fading from "${from.name}" to "${to.name}" over ${duration}ms`);
-  showTransitionAnimation();
+  // duration is in milliseconds
+  console.log(`Fading from "${from?.name ?? 'nothing'}" to "${to.name}" over ${duration}ms`);
+  showTransitionUI();
 });
 
 player.on('crossfadeComplete', ({ track }) => {
   console.log(`Now playing: ${track.name}`);
-  hideTransitionAnimation();
+  hideTransitionUI();
 });
 
-// Check in-progress state:
+// Poll mid-fade:
 if (player.isTransitioning()) {
-  // a crossfade is active right now
+  showFadeIndicator();
 }
 ```
 
@@ -119,49 +135,63 @@ if (player.isTransitioning()) {
 
 ## Gapless playback
 
-Gapless is the simpler of the two — the player preloads the next track and begins playback at the exact sample where the current track ends, with no silence gap.
+Gapless preloads the next track so it can begin immediately when the current one ends:
 
 ```ts
-const player = nmMPlayer('main').setup({
-  crossfadeEnabled: false, // ensure crossfade is off
-  gaplessEnabled: true,    // preload and stitch tracks back-to-back
-  queue: [track1, track2, track3],
-});
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
-player.addPlugin(AutoAdvancePlugin);
+const player = nmMPlayer('main')
+  .addPlugin(AutoAdvancePlugin, {
+    preloadNext: true,   // preload next track on trackEndingSoon
+    crossfade: false,    // no volume fade — hard cut
+  })
+  .setup({
+    trackEndingSoonThreshold: 30, // preload 30 s before end
+    playlist: [track1, track2, track3],
+  });
 ```
 
-Gapless works with both `WebAudioBackend` and `AudioElementBackend`. On `AudioElementBackend`, gapless accuracy depends on the browser — Safari and Chrome handle it well; Firefox may have a small gap.
+`AutoAdvancePlugin` with `preloadNext: true` calls `player.load(next, { slot: 'next' })` when `trackEndingSoon` fires, so the next track's audio is buffered before `ended`.
+
+---
+
+## Backend choice and accuracy
+
+| Backend | Crossfade mechanism | Gapless accuracy |
+|---------|-------------------|-----------------|
+| `audio-element` | RAF loop (~50 fps, ±20 ms) | Browser-dependent — Chrome/Safari good, Firefox may gap |
+| `webaudio` | `linearRampToValueAtTime` (sample-accurate) | Sample-accurate on all browsers with Web Audio |
+
+Switch to `webaudio` for production DJ-style crossfades:
+
+```ts
+player.setup({
+  backend: 'webaudio',
+  crossfadeDefaults: { duration: 6, curve: 'equal-power' },
+});
+```
 
 ---
 
 ## Timing pitfalls
 
-**Preload lead time.** The incoming track must be buffered before the crossfade starts. The player begins preloading at `preloadLeadSeconds` before the end (default: 30s). On slow connections, ensure this margin is generous:
+The crossfade `duration` (seconds) must be less than or equal to `trackEndingSoonThreshold`:
 
 ```ts
-player.setup({
-  preloadLeadSeconds: 45, // start preloading 45 seconds before end
-  crossfadeDefaults: {
-    startAt: 6, // begin the actual fade 6 seconds before end
-  },
-});
-```
+// Correct — threshold gives 8s to run a 5s fade:
+trackEndingSoonThreshold: 8,
+crossfadeDefaults: { duration: 5 }
 
-**Crossfade start timing.** `startAt` is in seconds before track end. `durationMs` is the fade length. Ensure `startAt >= durationMs / 1000` — otherwise the fade starts after the track ends, which means no crossfade actually happens.
-
-```ts
-// Correct: fade starts 4 seconds before end, lasts 4 seconds
-crossfadeDefaults: { durationMs: 4000, startAt: 4 }
-
-// Wrong: fade is 6 seconds but starts only 2 seconds before end
-crossfadeDefaults: { durationMs: 6000, startAt: 2 }
+// Wrong — 6s fade but only 3s warning; fade clips at end:
+trackEndingSoonThreshold: 3,
+crossfadeDefaults: { duration: 6 }
 ```
 
 ---
 
-## What to read next
+## See also
 
-- [Crossfade](/player/music/crossfade) — full crossfade API, server-triggered crossfade, cancellation
-- [Recipes: Playlist and Queue](/player/recipes/playlist-and-queue) — `peekNext()` for preloading artwork before a crossfade
-- [Recipes: Lyrics and Equalizer](/player/recipes/lyrics-and-equalizer) — EQ applies to both audio paths during a crossfade
+- [Crossfade](/nomercy-music-player/crossfade) — full `crossfadeTo()` API, per-call options
+- [AutoAdvancePlugin](/nomercy-music-player/plugins/auto-advance) — `crossfade`, `preloadNext`, `crossfadeDuration` options
+- [Backends overview](/nomercy-music-player/backends/overview) — `audio-element` vs `webaudio` crossfade trade-offs
+- [Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer) — EQ applies through crossfade transitions
