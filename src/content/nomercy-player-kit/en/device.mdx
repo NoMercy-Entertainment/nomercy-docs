@@ -6,6 +6,98 @@ order: 2
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/device.ts */}
+
+## Overview
+
+Device detection methods classify the current runtime environment using the user-agent string. Detection is best-effort — UA strings lie. For production capability-gating, pair these methods with a platform probe-based bridge via `setup({ platform: ... })`.
+
+Results are cached after the first call — the UA does not change at runtime.
+
+---
+
+## `isTv()`
+
+Whether the current environment appears to be a Smart TV or set-top box.
+
+TV detection runs before mobile detection — "Smart TV running Android" is classified as `isTv: true`, not `isMobile: true`.
+
+UA hints checked: `SmartTV`, `GoogleTV`, `AppleTV`, `HbbTV`, `NetCast`, `WebOS`, `Tizen`, `VIDAA`, `BRAVIA`, `AFTS`, `AFTM`, `AFTB`, `AFTT`, `AFTN`, `FireTV`, `Crkey`, `PlayStation`, `Xbox`.
+
+**Returns:** `boolean`
+
+---
+
+## `isMobile()`
+
+Whether the current environment appears to be a mobile phone or tablet.
+
+Returns `false` on TV environments even when the OS is Android — TV detection takes priority.
+
+UA hints checked: `Android`, `iPhone`, `iPad`, `iPod`, `Mobile`, `Tablet`, `Silk`, `Kindle`, `Opera Mini`.
+
+**Returns:** `boolean`
+
+---
+
+## `isDesktop()`
+
+Whether the current environment is classified as desktop — the catch-all when neither TV nor mobile hints are detected.
+
+**Returns:** `boolean`
+
+---
+
+## `device()`
+
+Full device capabilities snapshot. Combines UA-based classification with platform API probes.
+
+**Returns:** `DeviceCapabilities`
+
+```ts
+interface DeviceCapabilities {
+  isTv: boolean;
+  isMobile: boolean;
+  isDesktop: boolean;
+  pipSupported: boolean;
+  fullscreenSupported: boolean;
+  webLocksSupported: boolean;
+  /** Always 'unknown' — synchronous autoplay detection is unreliable. */
+  autoplayAllowed: 'unknown';
+  /** 'powerEfficient' on TV + mobile; 'smooth' on desktop. */
+  preferred: 'powerEfficient' | 'smooth';
+}
+```
+
+```ts
+const caps = player.device();
+
+if (caps.isTv) {
+  // apply TV-specific buffer caps and key-handler plugin
+}
+
+if (!caps.pipSupported) {
+  hidePipButton();
+}
+```
+
+---
+
+## OS detection
+
+The device classifier also probes `os` internally (not exposed on the public `DeviceCapabilities` surface). The `preferred` field uses it to pick the appropriate ABR quality preference:
+
+| `os` | `preferred` |
+| --- | --- |
+| `android` on TV | `'powerEfficient'` |
+| `android` on mobile | `'powerEfficient'` |
+| `ios` | `'powerEfficient'` |
+| `windows`, `macos`, `linux` | `'smooth'` |
+
+---
+
+## See also
+
+- [Cast and Remote Playback](/player/kit/cast) — `transferTo`, `castState`
+- [Platform Adapter](/player/kit/platform) — `IPlatform`, `ICapabilitiesProbe`
+- [Audio Output Selection](/player/kit/audio-output) — `audioOutputs`, `currentAudioOutput`

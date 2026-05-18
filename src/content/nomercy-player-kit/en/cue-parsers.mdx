@@ -6,6 +6,132 @@ order: 5
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/adapters/cue-parser/, cues/ */}
+
+## Overview
+
+The cue parser system parses timed text files (VTT, LRC, sprite-VTT) into `CueList` objects that the `CueTracker` consumes to emit time-aligned events. Custom parsers can be registered via `player.registerCueParser()` or at `setup({ cueParsers })`.
+
+Most-recently-registered wins, so consumer parsers can override the kit's built-ins for the same URL pattern.
+
+---
+
+## `registerCueParser(parser, prepend?)`
+
+Register a custom cue-format parser.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `parser` | `CueParser` | Parser object |
+| `prepend` | `boolean` | Insert at the back of the priority list (lower priority) |
+
+### CueParser interface
+
+```ts
+interface CueParser {
+  /** Stable identifier for this parser. */
+  id: string;
+  /** Return true when this parser can handle the given URL. */
+  canParse(url: string): boolean;
+  /**
+   * Fetch and parse the given URL into a CueList.
+   * The player's auth pipeline applies to the fetch automatically.
+   */
+  parse(url: string, auth?: AuthConfig): Promise<CueList>;
+}
+```
+
+---
+
+## `unregisterCueParser(id)`
+
+Unregister a cue parser by id.
+
+---
+
+## `resolveCueParser(url)`
+
+Resolve the registered parser for the given URL. Returns `undefined` when no parser matches.
+
+**Returns:** `CueParser | undefined`
+
+---
+
+## Built-in parsers
+
+All three are exported from the kit root.
+
+### `parseVtt(text)`
+
+Parse a WebVTT string into cues. Returns `{ cues }` where each cue has `start`, `end`, `payload`.
+
+```ts
+import { parseVtt } from '@nomercy-entertainment/nomercy-player-core';
+const { cues } = parseVtt(vttText);
+```
+
+### `parseVttSubtitles(text)`
+
+Parse a subtitle-oriented VTT (with markup, positioning cues). Returns a `CueList<VTTSubtitlePayload>`.
+
+### `parseVttSprite(text)`
+
+Parse a sprite-preview VTT (thumbnail strip). Returns a `CueList<VTTSpritePayload>` where each entry carries `x`, `y`, `w`, `h`, and the sprite image URL.
+
+### `parseLrc(text)`
+
+Parse an LRC lyrics file. Returns a `CueList<LrcPayload>` where each cue carries `text` and optional extended metadata.
+
+```ts
+import { parseLrc } from '@nomercy-entertainment/nomercy-player-core';
+const { cues } = parseLrc(lrcText);
+```
+
+---
+
+## CueTracker
+
+`CueTracker` drives the timed-cue event pipeline. Given a `CueList`, it attaches to a player and emits `cue:enter` / `cue:exit` as the playback position crosses cue boundaries.
+
+```ts
+import { CueTracker } from '@nomercy-entertainment/nomercy-player-core';
+
+const tracker = new CueTracker(cueList, { trackerId: 'my-lyrics' });
+tracker.on('enter', (cue) => showLyric(cue.payload.text));
+tracker.on('exit', (cue) => hideLyric());
+tracker.attach(player); // starts listening to player.on('time', ...)
+```
+
+### CueTrackerOptions
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `trackerId` | `string` | — | Stable identifier (for debugging) |
+| `tolerance` | `number` | `0` | Seconds of tolerance for early/late entry |
+
+### Cleanup
+
+Call `tracker.dispose()` to detach from the player and release listeners. The media-tracks mixin calls this automatically when switching subtitle tracks.
+
+---
+
+## Custom parser example (TTML)
+
+```ts
+player.registerCueParser({
+  id: 'ttml',
+  canParse: (url) => url.endsWith('.ttml') || url.endsWith('.xml'),
+  async parse(url) {
+    const r = await fetch(url);
+    const text = await r.text();
+    return parseTTML(text); // your parser returns a CueList
+  },
+});
+```
+
+---
+
+## See also
+
+- [Media Tracks](/player/kit/media-tracks) — `currentSubtitle`, sidecar VTT handling
+- [Events Reference](/player/kit/events-reference) — `cue:enter`, `cue:exit`, `subtitleCue`

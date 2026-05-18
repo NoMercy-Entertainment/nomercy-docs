@@ -6,6 +6,350 @@ order: 4
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/types/player.ts, types/config.ts, types/events.ts, types/playlist.ts */}
+
+## Import
+
+```ts
+import type {
+  IPlayer,
+  BasePlayerConfig,
+  BaseEventMap,
+  BasePlaylistItem,
+  AuthConfig,
+  CastConfig,
+  DrmConfig,
+  ActionOptions,
+  LoadOptions,
+  BeforeEvent,
+} from '@nomercy-entertainment/nomercy-player-core';
+```
+
+---
+
+## IPlayer
+
+Minimum surface both `NMMusicPlayer` and `NMVideoPlayer` satisfy. Plugins typed against `IPlayer<E>` work uniformly against either player.
+
+```ts
+interface IPlayer<E extends BaseEventMap = BaseEventMap> extends DispatchTarget {
+  // Identity
+  readonly playerId: string;
+  readonly id: string;           // alias for playerId
+  readonly container: HTMLElement;
+
+  // Event system
+  on<K extends keyof E>(event: K, fn: (data: E[K]) => void): void;
+  off<K extends keyof E>(event: K, fn: (data: E[K]) => void): void;
+  once<K extends keyof E>(event: K, fn: (data: E[K]) => void): void;
+  emit<K extends keyof E>(event: K, data?: E[K]): void;
+  hasListeners<K extends keyof E>(event: K): boolean;
+
+  // Runtime URL
+  baseUrl(): string | undefined;
+  baseUrl(url: string): void;
+
+  // Audio context
+  audioContext(): AudioContext | undefined;
+
+  // URL resolution
+  resolveUrl(url: string, category?: UrlCategory): Promise<ResolvedUrl>;
+  urlResolver(): UrlResolver | undefined;
+  urlResolver(resolver: UrlResolver | undefined): void;
+
+  // Phase + dispatch
+  phase(): PlayerPhase;
+  dispatching(): ReadonlyArray<string>;
+
+  // Experimental override surface
+  readonly experimental: PlayerExperimental;
+
+  // i18n
+  t(key: string, vars?: Record<string, string>): string;
+  language(): string;
+  language(lang: string): Promise<void>;
+  addTranslations(bundle: Translations): void;
+  translation(lang: string, key: string): string | undefined;
+  translation(lang: string, key: string, value: string): void;
+  removeTranslations(prefix: string, lang?: string): void;
+
+  // Cue parsers
+  registerCueParser(parser: CueParser, prepend?: boolean): void;
+  unregisterCueParser(id: string): void;
+  resolveCueParser(url: string): CueParser | undefined;
+
+  // Auth
+  auth(): Readonly<AuthConfig> | undefined;
+  auth(config: AuthConfig): void;
+  auth(partial: Partial<AuthConfig>): void;
+
+  // Tracks (playback)
+  currentSubtitle(): CurrentSubtitleSelection | null;
+  currentSubtitle(idx: number | null): void;
+  currentAudioTrack(): CurrentAudioTrackSelection | null;
+  currentAudioTrack(idx: number): void;
+  currentQuality(): CurrentQualitySelection | 'auto';
+  currentQuality(idx: number | 'auto'): void;
+  chapters(): ReadonlyArray<Chapter>;
+  currentChapter(): Chapter | null;
+}
+```
+
+### `playerId` vs `id`
+
+Both always return the same value. `id` is the shorthand; `playerId` is the stable explicit form used internally.
+
+### Phantom event map
+
+```ts
+declare readonly __eventMap__: E;
+```
+
+This phantom property exists purely for TypeScript inference. It is never set at runtime. `PlayerEventMap<P>` in the plugin base reads it to extract `E` from a concrete player type without hitting conditional-type widening.
+
+---
+
+## BasePlayerConfig
+
+Full configuration passed to `setup()`. All fields are optional — the player applies safe defaults.
+
+```ts
+interface BasePlayerConfig {
+  // Auth
+  auth?: AuthConfig;
+
+  // Logging
+  logger?: ILogger;
+  logLevel?: LogLevel;
+
+  // Storage
+  storage?: IStorage;
+
+  // Platform adapter
+  platform?: Partial<IPlatform>;
+
+  // Realtime / WebSocket factory
+  websocketFactory?: RealtimeFactory;
+
+  // Translator adapter (server-side i18n)
+  translator?: ITranslator;
+
+  // URL resolver
+  urlResolver?: UrlResolver;
+
+  // Base URL for relative media URLs
+  baseUrl?: string;
+
+  // Before-event timeout (ms). Default 10 000.
+  beforeEventTimeoutMs?: number;
+
+  // Plugin init timeout (ms). Default 5 000.
+  pluginInitTimeoutMs?: number;
+
+  // Cast
+  cast?: CastConfig;
+
+  // Playlist / initial load
+  playlist?: BasePlaylistItem[];
+
+  // Plugins registered at setup time
+  plugins?: PluginRegistration[];
+
+  // Custom cue parsers
+  cueParsers?: CueParser[];
+
+  // Mutation guards
+  mutationGuards?: MutationGuardConfig;
+
+  // Preload / transition strategies
+  preloadStrategy?: PreloadStrategy;
+  transitionStrategy?: TransitionStrategy;
+
+  // i18n
+  language?: string;
+  translations?: Translations;
+  translationLoader?: TranslationLoader;
+  onMissingTranslation?: (key: string, lang: string) => string | undefined;
+
+  // ABR / quality
+  startLevel?: number | 'auto';
+
+  // Audio
+  volume?: number;
+  muted?: boolean;
+}
+```
+
+### Key config fields
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `auth` | `AuthConfig` | — | Bearer token, headers, transformUrl, signRequest, refresh hook |
+| `logLevel` | `LogLevel` | `'info'` | Verbosity threshold |
+| `baseUrl` | `string` | — | Prefixed to all relative media URLs |
+| `beforeEventTimeoutMs` | `number` | `10000` | Max wait for `delay()` promises in before-events |
+| `pluginInitTimeoutMs` | `number` | `5000` | Max wait for async `use()` per plugin |
+| `platform` | `Partial<IPlatform>` | `browserPlatform` | Swap wake-lock, network, fullscreen, PiP adapters |
+| `mutationGuards` | `MutationGuardConfig` | — | Which mutations emit `beforeMutation` |
+| `preloadStrategy` | `PreloadStrategy` | `DefaultPreloadStrategy` | When and what to buffer ahead |
+| `transitionStrategy` | `TransitionStrategy` | `GaplessTransitionStrategy` | How track boundaries feel |
+
+---
+
+## AuthConfig
+
+Unified auth pipeline applied to every kit-internal fetch. Hard rules:
+
+- **401 (unauthenticated)** — may invoke `refreshOnUnauthenticated`, then retry once.
+- **403 (unauthorized)** — propagates immediately. Never refreshed, never retried.
+
+```ts
+interface AuthConfig {
+  bearerToken?: string | (() => string) | (() => Promise<string>);
+  headers?: Record<string, string | (() => string) | (() => Promise<string>)>;
+  credentials?: 'omit' | 'same-origin' | 'include';
+  transformUrl?: (url: string) => string | Promise<string>;
+  signRequest?: (request: Request) => Request | Promise<Request>;
+  refreshOnUnauthenticated?: () => Promise<void>;
+  retryAfterRefresh?: number;   // default 1
+}
+```
+
+All `bearerToken` and `headers` values accept a static string, a sync getter, or an async getter — Vue refs, signals, and reactive stores all work:
+
+```ts
+auth: {
+  bearerToken: () => myStore.token,
+  refreshOnUnauthenticated: async () => {
+    await myStore.refresh();
+  },
+}
+```
+
+---
+
+## CastConfig
+
+```ts
+interface CastConfig {
+  autoLoad?: boolean;             // default false — auto-inject Cast SDK on first transferTo
+  receiverApplicationId?: string; // default: standard Google media receiver
+}
+```
+
+---
+
+## DrmConfig
+
+Passed to a library-specific DRM plugin (e.g. `DrmPlugin` in the video package), not directly to `BasePlayerConfig`.
+
+```ts
+interface DrmConfig {
+  keySystem: string;         // e.g. 'com.widevine.alpha', 'com.apple.fps'
+  licenseUrl: string;
+  certificate?: ArrayBuffer | string;
+  customSignRequest?: (request: Request) => Request | Promise<Request>;
+}
+```
+
+---
+
+## BaseEventMap
+
+Complete event map emitted by every kit-based player. Library-specific maps (`MusicEventMap`, `VideoEventMap`) extend this.
+
+The table below shows the top-level groups. For the full per-event payload reference see [Events Reference](/player/kit/events-reference).
+
+| Group | Example keys |
+| --- | --- |
+| Setup lifecycle | `beforeSetup`, `setupStart`, `ready`, `setupError` |
+| Play-path | `beforePlay`, `play`, `playing`, `beforePause`, `pause`, `stop`, `ended` |
+| Seek | `beforeSeek`, `seeking`, `seeked` |
+| Mutation guards | `beforeMutation`, `mutationPrevented` |
+| Time | `time`, `duration`, `buffered` |
+| Volume / mode | `volume`, `mute`, `repeat`, `shuffle` |
+| Queue | `beforeQueueAdd`, `queueAdd`, `beforeQueueRemove`, `queueRemove`, `queueClear` |
+| Media tracks | `subtitle`, `audioTrack`, `quality`, `chapters` |
+| Network / visibility | `network:online`, `network:offline`, `network:slow`, `visibility:visible`, `visibility:hidden` |
+| Auth | `auth:refreshed`, `auth:refresh-failed` |
+| Cast | `cast`, `castState` |
+| Plugin | `plugin:registered`, `plugin:removed`, `plugin:enabled`, `plugin:disabled`, `plugin:error`, `plugin:warning` |
+| Error severity | `fatal`, `error`, `warning`, `info` |
+
+### BeforeEvent
+
+All `before*` events carry a `BeforeEvent<TData>` payload:
+
+```ts
+interface BeforeEvent<TData> {
+  data: TData;
+  preventDefault(): void;
+  isDefaultPrevented(): boolean;
+  stopImmediatePropagation(): void;
+  isPropagationStopped(): boolean;
+  delay(promise: Promise<unknown>): void;
+  isDelayed(): boolean;
+}
+```
+
+- **`data`** is mutable — listeners modify it and the player reads the mutated value when running the default action.
+- **`preventDefault()`** skips the default action AND its post-event chain. Consumer sees a `<action>Prevented` event.
+- **`delay(promise)`** blocks the player. Multiple delays compose via `Promise.all`. Bounded by `beforeEventTimeoutMs` (default 10 000 ms).
+
+---
+
+## BasePlaylistItem
+
+Minimum shape every playlist item must satisfy.
+
+```ts
+interface BasePlaylistItem {
+  id: number | string;
+  title?: string;
+  image?: string;
+}
+```
+
+Library-specific packages extend this. The video package adds fields like `sources`, `subtitles`, `audio`, `chapters`, and `tracks`. The music package adds `artists`, `album`, `lrc`, and `duration`.
+
+---
+
+## ActionOptions
+
+Common options accepted by every transport and queue action.
+
+```ts
+interface ActionOptions {
+  source?: ActionSource;   // 'user' | 'remote' | 'plugin' | string — default 'user'
+  silent?: boolean;        // skip lifecycle events and before* guards
+  autoplay?: boolean;      // call play() immediately after load resolves
+}
+```
+
+`source` is stamped on emitted events. Remote-sync plugins filter out their own remote-applied actions by checking `event.source === 'remote'`.
+
+---
+
+## LoadOptions
+
+Options for `player.load(item, opts?)`. Extends `ActionOptions`.
+
+```ts
+interface LoadOptions extends ActionOptions {
+  slot?: 'current' | 'next';   // default 'current'
+  startAt?: number;             // start position (seconds)
+  fadeIn?: number;              // fade-in duration (seconds); 0 = immediate
+}
+```
+
+`slot: 'next'` preloads without interrupting the currently-playing item — used by the preload pipeline.
+
+---
+
+## See also
+
+- [Runtime Classes](/player/kit/types/classes) — `Plugin`, `Logger`, `LifecycleRegistry`
+- [Enums](/player/kit/types/enums) — `SetupState`, `BufferState`, `CastState`, and more
+- [Error Classes](/player/kit/types/errors) — `PlayerError` and subclasses
+- [Events Reference](/player/kit/events-reference) — full event payload table
+- [Setup](/player/kit/setup) — `BasePlayerConfig` in context

@@ -6,6 +6,101 @@ order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/player-state.ts */}
+
+## Overview
+
+Player state methods expose the current health of the backend, network, and track selection as typed enum values. These are snapshot reads — subscribe to the corresponding events for reactive updates.
+
+---
+
+## `bufferState()`
+
+Coarse buffer health derived from the active backend.
+
+| Backend state | Return value |
+| --- | --- |
+| `'loading'` | `BufferState.LOADING` |
+| `'seeking'` | `BufferState.SEEKING` |
+| `'stalled'` | `BufferState.STALLED` |
+| anything else / no backend | `BufferState.IDLE` |
+
+**Returns:** `BufferState`
+
+```ts
+import { BufferState } from '@nomercy-entertainment/nomercy-player-core';
+
+player.on('phase', () => {
+  if (player.bufferState() === BufferState.STALLED) {
+    showBufferingOverlay();
+  }
+});
+```
+
+---
+
+## `networkState()`
+
+Current network reachability via the platform's network monitor.
+
+| Condition | Return value |
+| --- | --- |
+| No monitor registered | `NetworkState.ONLINE` |
+| Monitor reports offline | `NetworkState.OFFLINE` |
+| Monitor reports downlink < 1.5 Mbps | `NetworkState.SLOW` |
+| Online with acceptable bandwidth | `NetworkState.ONLINE` |
+
+**Returns:** `NetworkState`
+
+---
+
+## `streamState()`
+
+Raw state string from the backend (`'idle'`, `'loading'`, `'playing'`, etc.). Returns `'idle'` when no backend is registered or the backend does not expose a `state()` method. Prefer `bufferState()` for typed enum access.
+
+**Returns:** `string`
+
+---
+
+## `visibilityState()`
+
+Tab / page visibility. Returns `VisibilityState.VISIBLE` when no visibility monitor is configured (safe default for SSR / headless environments).
+
+**Returns:** `VisibilityState`
+
+---
+
+## `qualityState(target?)`
+
+Get or set the ABR quality selection mode.
+
+**Read:** returns `QualityState.AUTO` or `QualityState.MANUAL`.
+
+**Write:** `qualityState(level)` switches to MANUAL mode and forwards to the backend. `qualityState('auto')` switches back to AUTO.
+
+Note: `currentQuality(idx)` also updates `_qualityState`. Both paths keep the state in sync.
+
+**Events emitted:** `qualityState` with `{ state: 'auto' | 'manual' }`
+
+---
+
+## `audioTrackState(idx?)`
+
+Get or set the audio track selection mode.
+
+**Read:** returns `AudioTrackState.DEFAULT` or `AudioTrackState.MANUAL`.
+
+**Write:** `audioTrackState(idx)` selects the track at `idx` and marks the state as MANUAL.
+
+Note: `currentAudioTrack(idx)` also updates `_audioTrackState`. Both paths keep the state in sync.
+
+**Events emitted:** `audioTrackState` with `{ state: 'default' | 'manual' }`
+
+---
+
+## See also
+
+- [Playback State](/player/kit/playback-state) — `playState`, `volumeState`, `repeatState`, `shuffleState`
+- [Media Tracks](/player/kit/media-tracks) — `currentQuality`, `currentAudioTrack`
+- [Events Reference](/player/kit/events-reference) — `qualityState`, `audioTrackState`
+- [Enums](/player/kit/types/enums) — `BufferState`, `NetworkState`, `VisibilityState`, `QualityState`, `AudioTrackState`

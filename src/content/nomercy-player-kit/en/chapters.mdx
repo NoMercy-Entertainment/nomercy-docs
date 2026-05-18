@@ -6,6 +6,100 @@ order: 2
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/media-tracks.ts */}
+
+## Overview
+
+Chapter methods navigate within a single playlist item. Chapter data comes from either an inline `chapters` array on the item or a sidecar VTT file referenced in `tracks: [{ kind: 'chapters', file }]`. The kit fetches and parses sidecar VTTs asynchronously during `load()` or on cursor change.
+
+Subscribe to the `chapters` event to know when the list is ready.
+
+---
+
+## `chapters()`
+
+The chapter list for the active item. Returns `[]` until the asynchronous fetch settles. Subscribe to the `chapters` event for the ready signal.
+
+**Returns:** `ReadonlyArray<Chapter>`
+
+```ts
+interface Chapter {
+  index: number;   // zero-based
+  start: number;   // seconds
+  end: number;     // seconds
+  title: string;
+}
+```
+
+```ts
+player.on('chapters', ({ chapters }) => {
+  renderChapterMenu(chapters);
+});
+```
+
+---
+
+## `seekToChapter(idx, opts?)`
+
+Seek to the start of the chapter at `idx`. Out-of-range indexes no-op. The seek goes through `currentTime()` so `beforeSeek` fires and the seek is cancellable.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `idx` | `number` | Zero-based chapter index |
+| `opts` | `ActionOptions` | Source attribution |
+
+**Events emitted:** `chapter` with `{ index, title }` after the seek is dispatched.
+
+```ts
+player.on('chapter', ({ index, title }) => {
+  console.log(`Now in chapter ${index}: ${title}`);
+});
+```
+
+---
+
+## `nextChapter(opts?)`
+
+Seek to the chapter immediately after the current playback position. No-op when the chapter list is empty or playback is already in or past the last chapter.
+
+---
+
+## `previousChapter(opts?)`
+
+Seek to the previous chapter. UX rule: if more than 10 seconds into the current chapter, jumps to that chapter's start instead of the previous one — the standard media remote "restart this chapter" behaviour.
+
+No-op when the chapter list is empty or playback is before the first chapter.
+
+---
+
+## `currentChapter(idx?)`
+
+**Read:** `currentChapter()` returns the `Chapter` whose time range contains `currentTime`, or `null` when playback is between chapters or the list is empty.
+
+**Write:** `currentChapter(idx)` jump to the chapter at `idx` (equivalent to `seekToChapter(idx)`). No-op when `idx` is out of range.
+
+```ts
+// highlight the active chapter in a UI list
+player.on('seek', () => {
+  const ch = player.currentChapter();
+  if (ch) highlightChapter(ch.index);
+});
+```
+
+---
+
+## Inline chapters vs sidecar VTT
+
+**Inline:** Item carries `chapters: Chapter[]` — the list is available immediately, no fetch needed.
+
+**Sidecar:** Item carries `tracks: [{ kind: 'chapters', file: 'https://...' }]` — the kit fetches the VTT, parses it, writes the chapters back onto the queue entry, and emits `chapters`. A network or parse failure resolves to an empty list (chapters are an enhancement, never a blocker).
+
+**Priority:** Inline chapters always win. If an item has both inline chapters and a sidecar chapter track, the sidecar is never fetched.
+
+---
+
+## See also
+
+- [Media Tracks](/player/kit/media-tracks) — `subtitles`, `audioTracks`, `qualityLevels`
+- [Loading](/player/kit/loading) — `resolveItemTrackUrls`
+- [Events Reference](/player/kit/events-reference) — `chapters`, `chapter`

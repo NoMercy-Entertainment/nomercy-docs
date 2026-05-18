@@ -6,6 +6,166 @@ order: 6
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/adapters/preload/default.ts */}
+
+## Overview
+
+The preload and transition system controls what happens at the boundary between two queue items. The preload strategy decides when and what to prefetch. The transition strategy decides how the handoff from outgoing to incoming item is handled.
+
+Both are stateless — a single instance is reused across items — and swappable per player instance via `BasePlayerConfig` or at runtime.
+
+---
+
+## PreloadStrategy
+
+### Interface
+
+```ts
+interface PreloadStrategy {
+  shouldPreload(context: PreloadContext): boolean;
+  assetsToPreload(item: BasePlaylistItem): PreloadAsset[];
+  cancel(): void;
+}
+```
+
+| Method | When called | Purpose |
+| --- | --- | --- |
+| `shouldPreload(context)` | Every `time` event while a next item is queued | Return `true` when prefetching should begin |
+| `assetsToPreload(item)` | Once when `shouldPreload` returns `true` | Return the ordered list of assets to prefetch |
+| `cancel()` | Cursor jump (shuffle, manual `current()`, early `next()`) | Abort any in-flight prefetch |
+
+### PreloadContext
+
+```ts
+interface PreloadContext {
+  currentTime: number;   // seconds
+  duration: number;      // seconds (0 when not yet known)
+  nextItem: BasePlaylistItem | null;
+}
+```
+
+### DefaultPreloadStrategy
+
+Fires at `duration - preloadLeadSeconds` (config field, default `10`). Returns a generic manifest URL from the next item. Per-library players (music, video) compose domain-specific asset lists on top by providing their own `assetsToPreload` implementations.
+
+### Custom preload strategy
+
+```ts
+player.setup({
+  preloadStrategy: {
+    shouldPreload({ currentTime, duration }) {
+      return duration > 0 && duration - currentTime < 20;
+    },
+    assetsToPreload(item) {
+      return [{ url: (item as VideoItem).url, category: 'media', mode: 'metadata' }];
+    },
+    cancel() {
+      // abort any in-flight fetch you started
+    },
+  },
+});
+```
+
+---
+
+## TransitionStrategy
+
+### Interface
+
+```ts
+interface TransitionStrategy {
+  shouldTransition(context: TransitionContext): boolean;
+  execute(
+    context: TransitionContext,
+    backend: TransitionBackend,
+  ): Promise<void>;
+  cancel(): void;
+}
+```
+
+### TransitionContext
+
+```ts
+interface TransitionContext {
+  currentTime: number;
+  duration: number;
+  outgoingItem: BasePlaylistItem;
+  incomingItem: BasePlaylistItem;
+  fraction: number; // 0 = transition start, 1 = complete
+}
+```
+
+### TransitionBackend
+
+The minimal dual-playback surface required by the transition engine:
+
+```ts
+interface TransitionBackend {
+  play(item: BasePlaylistItem): Promise<void>;
+  setVolume(level: number): void;
+  stop(): void;
+}
+```
+
+---
+
+## Built-in strategies
+
+### DefaultPreloadStrategy
+
+Standard preload — fires at `duration - preloadLeadSeconds`. Exported from:
+
+```ts
+import { DefaultPreloadStrategy } from '@nomercy-entertainment/nomercy-player-core';
+```
+
+### GaplessTransitionStrategy
+
+Hard-cut, no audio overlap. Default for the video player. Items are still preloaded; there is no audio crossfade.
+
+### CrossfadeTransitionStrategy
+
+Overlap crossfade. Default for the music player. Outgoing item fades out over `crossfadeTailSeconds`; incoming item fades in starting `crossfadeLeadSeconds` before the outgoing ends.
+
+```ts
+import {
+  DefaultPreloadStrategy,
+  GaplessTransitionStrategy,
+  CrossfadeTransitionStrategy,
+} from '@nomercy-entertainment/nomercy-player-core';
+```
+
+---
+
+## Config fields
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `preloadLeadSeconds` | `number` | `10` | Seconds before end to begin prefetching |
+| `crossfadeLeadSeconds` | `number` | `3` | Seconds before end to begin crossfade |
+| `crossfadeTailSeconds` | `number` | `3` | Seconds of audio overlap during crossfade |
+| `crossfadeEnabled` | `boolean` | `true` (music) / `false` (video) | Enable crossfade transition |
+| `preloadStrategy` | `PreloadStrategy` | `DefaultPreloadStrategy` | Custom preload strategy |
+| `transitionStrategy` | `TransitionStrategy` | Per-library default | Custom transition strategy |
+
+---
+
+## Preload events
+
+| Event | Payload | When |
+| --- | --- | --- |
+| `preloadStart` | `{ item, assets }` | Prefetch began for next item |
+| `preloadProgress` | `{ item, loaded, total }` | Individual asset completed |
+| `preloadComplete` | `{ item }` | All assets fetched |
+| `preloadError` | `{ item, error }` | One or more assets failed (non-fatal) |
+| `transitionStart` | `{ outgoing, incoming }` | Transition window began |
+| `transitionProgress` | `{ outgoing, incoming, fraction }` | Per-frame progress |
+| `transitionComplete` | `{ from, to }` | Transition done |
+| `transitionCancelled` | `{ reason }` | Transition aborted |
+
+---
+
+## See also
+
+- [setup()](/player/kit/setup) — `preloadLeadSeconds`, `crossfadeEnabled`
+- [Events Reference](/player/kit/events-reference) — preload and transition events

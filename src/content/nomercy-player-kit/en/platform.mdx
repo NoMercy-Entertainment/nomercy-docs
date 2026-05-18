@@ -6,6 +6,160 @@ order: 3
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/adapters/platform/browser.ts */}
+
+## Overview
+
+The platform adapter bundles every primitive the kit hardcodes against browser APIs — wake-lock, network monitoring, visibility, codec capabilities, fullscreen, and PiP. Swapping the bundle lets Capacitor, Tauri, and Electron consumers inject platform-native equivalents in one place.
+
+The default `browserPlatform` ships with the kit and works in any modern browser.
+
+---
+
+## IPlatform interface
+
+```ts
+interface IPlatform {
+  wakeLock: IWakeLock;
+  network: INetworkMonitor;
+  visibility: IVisibilityMonitor;
+  capabilities: ICapabilitiesProbe;
+  fullscreen?: IFullscreenController;  // video player only
+  pip?: IPipController;                // video player only
+}
+```
+
+---
+
+## IWakeLock
+
+Prevents the device display from sleeping while media is playing.
+
+```ts
+interface IWakeLock {
+  acquire(): Promise<void>;
+  release(): Promise<void>;
+  isHeld(): boolean;
+  isSupported?(): boolean | Promise<boolean>;
+}
+```
+
+`acquire()` throws `BrowserPolicyError('core:policy/wakeLockUnsupported')` when the Screen Wake Lock API is absent. Call `isSupported()` before offering the feature.
+
+---
+
+## INetworkMonitor
+
+Read-only view of the host device's network state.
+
+```ts
+interface INetworkMonitor {
+  isOnline(): boolean;
+  type(): 'wifi' | 'cellular' | 'ethernet' | 'none' | 'unknown';
+  downlinkMbps(): number | undefined;
+  rttMs(): number | undefined;
+  subscribe(fn: (state: { online: boolean; type: NetworkType }) => void): () => void;
+}
+```
+
+`downlinkMbps()` and `rttMs()` return `undefined` on browsers where the Network Information API is absent (Firefox, Safari as of 2025). The `subscribe()` function returns a teardown disposer.
+
+---
+
+## IVisibilityMonitor
+
+Tracks whether the browser tab is currently visible.
+
+```ts
+interface IVisibilityMonitor {
+  isVisible(): boolean;
+  subscribe(fn: (visible: boolean) => void): () => void;
+}
+```
+
+---
+
+## ICapabilitiesProbe
+
+Queries the runtime for hardware decode capabilities before committing to a stream variant.
+
+```ts
+interface ICapabilitiesProbe {
+  canDecode(profile: DecodeProfile): Promise<DecodeCapability>;
+  supportedCodecs?(): readonly string[] | Promise<readonly string[]>;
+}
+
+interface DecodeProfile {
+  contentType: string;
+  width?: number;
+  height?: number;
+  bitrate?: number;
+  framerate?: number;
+}
+
+interface DecodeCapability {
+  supported: boolean;
+  smooth: boolean;
+  powerEfficient: boolean;
+}
+```
+
+---
+
+## IFullscreenController (video only)
+
+```ts
+interface IFullscreenController {
+  enter(target: HTMLElement): Promise<void>;
+  exit(): Promise<void>;
+  isActive(): boolean;
+  isSupported(): boolean;
+  subscribe(fn: (active: boolean) => void): () => void;
+}
+```
+
+---
+
+## IPipController (video only)
+
+```ts
+interface IPipController {
+  enter(element: HTMLVideoElement): Promise<void>;
+  exit(): Promise<void>;
+  isActive(): boolean;
+  isSupported(): boolean;
+  subscribe(fn: (active: boolean) => void): () => void;
+}
+```
+
+---
+
+## Partial override
+
+You do not have to replace the entire platform bundle. Spread `browserPlatform` and override only what you need:
+
+```ts
+import { browserPlatform } from '@nomercy-entertainment/nomercy-player-core';
+
+player.setup({
+  platform: {
+    ...browserPlatform,
+    wakeLock: capacitorWakeLock,
+    network: capacitorNetworkMonitor,
+  },
+});
+```
+
+---
+
+## `player.platform()`
+
+Returns the active platform bundle. Available before `setup()` — returns `browserPlatform` as the default so early reads don't need a null check.
+
+---
+
+## See also
+
+- [setup()](/player/kit/setup) — `platform` config field, `wakeLock` policy
+- [Device Detection](/player/kit/device) — `device()`, `DeviceCapabilities`
+- [Events Reference](/player/kit/events-reference) — `network:online`, `network:offline`, `network:slow`, `visibility:visible`, `visibility:hidden`

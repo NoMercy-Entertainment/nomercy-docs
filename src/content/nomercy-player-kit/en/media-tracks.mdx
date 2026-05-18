@@ -6,6 +6,178 @@ order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/media-tracks.ts */}
+
+## Overview
+
+Media track methods read and select subtitle tracks, audio tracks, and quality levels. Read methods delegate to the active backend; setters emit the corresponding event so plugins and UI components react regardless of backend support.
+
+Subtitle track lists combine backend-managed tracks (from HLS manifests) with sidecar VTT tracks from the item's `tracks` field. The flat merged list is what consumers index into.
+
+---
+
+## Subtitles
+
+### `subtitles()`
+
+The full subtitle track list — backend-managed tracks first, sidecar VTT tracks appended after. Returns `[]` before a backend is mounted or when no item is active.
+
+**Returns:** `ReadonlyArray<SubtitleTrack>`
+
+```ts
+interface SubtitleTrack {
+  id: string;
+  language?: string;
+  label?: string;
+  kind?: string;
+  type?: string;
+  url?: string;
+  default?: boolean;
+}
+```
+
+### `currentSubtitle(idx?)`
+
+Read or write the active subtitle track.
+
+**Read:** `currentSubtitle()` returns `{ index, track }` for the selected track, or `null` when subtitles are off.
+
+**Write:** `currentSubtitle(idx)` selects the track at `idx`. Pass `null` or a negative number to disable subtitles. For backend-managed tracks the backend is notified directly; for sidecar tracks a `CueTracker` is started and feeds `subtitleCue` events.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `idx` | `number \| null` | Track index into `subtitles()`, or `null` to disable |
+
+**Events emitted:** `subtitle` with `{ track: idx | null }`; `subtitleCue` with `{ cues: [], language }` when disabling.
+
+### `subtitleStyle(patch?)`
+
+Read or write the subtitle style. A partial patch is merged onto the active style.
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `fontSize` | `number` | `100` (percentage) |
+| `fontFamily` | `string` | `'ReithSans, sans-serif'` |
+| `textColor` | `string` | `'white'` |
+| `textOpacity` | `number` | `100` |
+| `backgroundColor` | `string` | `'black'` |
+| `backgroundOpacity` | `number` | `0` |
+| `edgeStyle` | `string` | `'textShadow'` |
+| `areaColor` | `string` | `'black'` |
+| `windowOpacity` | `number` | `0` |
+
+**Events emitted:** `subtitleStyle` with the merged style
+
+```ts
+player.subtitleStyle({ fontSize: 120, textColor: 'yellow' });
+```
+
+---
+
+## Audio tracks
+
+### `audioTracks()`
+
+The active backend's audio tracks. Returns `[]` for single-track sources or when no backend is mounted.
+
+**Returns:** `ReadonlyArray<AudioTrack>`
+
+```ts
+interface AudioTrack {
+  id: number;
+  language?: string;
+  name?: string;
+  default?: boolean;
+}
+```
+
+### `currentAudioTrack(idx?)`
+
+Read or write the active audio track.
+
+**Read:** `currentAudioTrack()` returns `{ index, track }` or `null` when no explicit selection has been made.
+
+**Write:** `currentAudioTrack(idx)` selects the track at `idx`. Sets `audioTrackState` to `MANUAL`.
+
+**Events emitted:** `audioTrack` with `{ id: idx }`; `audioTrackState` with `{ state: 'manual' }`
+
+---
+
+## Quality levels
+
+### `qualityLevels(opts?)`
+
+The active backend's quality levels. Returns `[]` for single-rendition sources.
+
+`opts.includeUnsupported: true` returns every manifest level; the default filters to supported levels only.
+
+**Returns:** `ReadonlyArray<QualityLevel>`
+
+```ts
+interface QualityLevel {
+  id: number;
+  height?: number;
+  bitrate?: number;
+  label?: string;
+  supported?: boolean;
+}
+```
+
+### `currentQuality(idx?)`
+
+Read or write the active quality level.
+
+**Read:** `currentQuality()` returns `{ index, track }` or `'auto'` when adaptive bitrate selection is active.
+
+**Write:** `currentQuality(idx)` locks to a level; `currentQuality('auto')` restores ABR. Sets `qualityState` accordingly.
+
+**Events emitted:** `qualityState` with `{ state: 'auto' | 'manual' }`
+
+```ts
+// lock to 1080p (index varies per manifest)
+player.currentQuality(2);
+
+// restore ABR
+player.currentQuality('auto');
+```
+
+---
+
+## Chapters
+
+### `chapters()`
+
+Chapters for the active playlist item. Returns `[]` until the async chapter fetch settles — subscribe to the `chapters` event for the ready signal.
+
+**Returns:** `ReadonlyArray<Chapter>`
+
+```ts
+interface Chapter {
+  index: number;
+  start: number;   // seconds
+  end: number;     // seconds
+  title: string;
+}
+```
+
+### `seekToChapter(idx, opts?)`
+
+Seek to the start of the chapter at `idx`. Out-of-range indexes no-op. Emits `chapter` after the seek.
+
+### `nextChapter(opts?)` / `previousChapter(opts?)`
+
+Jump to the next or previous chapter. `previousChapter` applies a 10-second heuristic: if more than 10 s into the current chapter, jumps to that chapter's start instead of the previous one.
+
+### `currentChapter(idx?)`
+
+**Read:** returns the `Chapter` whose range contains `currentTime`, or `null`.
+
+**Write:** jump to the chapter at `idx` (same as `seekToChapter(idx)`).
+
+---
+
+## See also
+
+- [Loading](/player/kit/loading) — `resolveItemTrackUrls`, sidecar track resolution
+- [Chapters](/player/kit/chapters) — full chapter API reference
+- [Events Reference](/player/kit/events-reference) — `subtitle`, `subtitleCue`, `audioTrack`, `chapters`

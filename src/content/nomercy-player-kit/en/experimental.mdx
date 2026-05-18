@@ -6,6 +6,89 @@ order: 2
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/experimental.ts, types/experimental.ts */}
+
+## Overview
+
+The `experimental` namespace is a Tier-4 override surface for behaviour changes not covered by `before*` events, `static replaces`, or subclass hooks. It lets consumers and plugins monkey-patch player methods at runtime without touching the prototype.
+
+Use this as a last resort. Before reaching for `experimental.override`, check whether a `before*` event listener or a plugin advisory solves the problem.
+
+---
+
+## `player.experimental.override(method, fn)`
+
+Temporarily replace a player method with a custom implementation.
+
+The original method is captured on first call. Multiple overrides of the same method overwrite each other — the last writer wins. Returns a zero-arg disposer; call it to undo the override.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `method` | `string` | Name of the method to override |
+| `fn` | `(...args: unknown[]) => unknown` | Replacement function (called with the player as `this`) |
+
+**Returns:** `() => void` — call to restore the original
+
+```ts
+const restore = player.experimental.override('play', async function(...args) {
+  // custom logic before play
+  console.log('play intercepted');
+  // call through to the original
+  const orig = player.experimental.overrides()
+    .find(o => o.method === 'play');
+  // NOTE: to call-through you'd need to capture the original before overriding
+  // This is intentionally low-level — use beforePlay event instead when possible
+});
+
+// later, when done
+restore();
+```
+
+---
+
+## `player.experimental.restore(method)`
+
+Remove the active override for `method` and restore the original implementation. No-op when the method has no active override.
+
+```ts
+player.experimental.restore('play');
+```
+
+---
+
+## `player.experimental.overrides()`
+
+Snapshot of all active overrides. Each entry names the method and which layer installed it (`'consumer'` for app code, or a plugin id).
+
+**Returns:** `Array<{ method: string; by: string | 'consumer' }>`
+
+```ts
+const active = player.experimental.overrides();
+// e.g. [{ method: 'play', by: 'consumer' }, { method: 'currentTime', by: 'nomercy:sync' }]
+```
+
+---
+
+## Plugin lint rule
+
+The ESLint rule `nmplayer/no-experimental` flags any call to `experimental.override` from inside plugin code. Plugin authors must add an ESLint disable comment with a written reason:
+
+```ts
+// eslint-disable-next-line nmplayer/no-experimental
+player.experimental.override('play', myFn);
+```
+
+Consumer (app) code is free to use it without lint friction.
+
+---
+
+## Auto-restore
+
+When a plugin that installed an override is disposed (via `removePlugin`), its overrides are restored automatically. Consumer-installed overrides (`by: 'consumer'`) are not auto-restored.
+
+---
+
+## See also
+
+- [Events Reference](/player/kit/events-reference) — `beforePlay`, `beforeSeek`, and other cancellable events (prefer these over `override`)
+- [Mutation Guards](/player/kit/mutation-guards) — `beforeMutation` advisory system

@@ -6,6 +6,108 @@ order: 4
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/state-mutators.ts */}
+
+## Overview
+
+Mutation guards let plugins and consumer code observe (and cancel) state-mutating method calls before they land. They are an advisory system — not a security boundary — designed for plugins that need to enforce ordering constraints, logging, or rate-limiting.
+
+---
+
+## How it works
+
+Before a mutating method (like `current()`, `queue()`, or `repeatState()`) writes its state, it calls the internal `_emitBeforeMutation(method, args)` helper. That helper:
+
+1. Checks the `mutationGuards` config to decide whether to guard this method.
+2. If guarding: dispatches `beforeMutation` synchronously with the method name, args, current phase, and dispatch stack.
+3. Walks every enabled plugin's `static advisories` entries and emits matching `info`, `warning`, or `error` events.
+4. If any `beforeMutation` listener called `event.preventDefault()`, emits `mutationPrevented` and returns `false` — the mutation is skipped.
+
+**Important:** `delay()` on the `beforeMutation` event object is a no-op. Mutations are synchronous. Only transport `before*` events support async delays.
+
+---
+
+## `beforeMutation` event
+
+```ts
+interface BeforeEvent<{
+  method: string;
+  args: ReadonlyArray<unknown>;
+  phase: PlayerPhase;
+  dispatchStack: ReadonlyArray<string>;
+}>
+```
+
+```ts
+player.on('beforeMutation', (evt) => {
+  if (evt.data.method === 'current') {
+    // gate cursor changes during buffering
+    if (evt.data.phase === 'buffering') {
+      evt.preventDefault();
+    }
+  }
+});
+```
+
+---
+
+## `mutationPrevented` event
+
+Fires when a `beforeMutation` listener called `preventDefault()`.
+
+```ts
+{ method: string; reason: PreventedReason; cause?: unknown }
+```
+
+---
+
+## Config: `mutationGuards`
+
+Passed in `setup({ mutationGuards })`:
+
+| Value | Effect |
+| --- | --- |
+| `undefined` (default) | Guard normal mutations (`load`, `setCurrent`, `queue*`, `setSubtitle`, etc.); hot methods skip the guard |
+| `false` | Disable entirely — fastest path |
+| `'all'` | Guard every mutating method including hot ones (`currentTime`, `volume`, `playbackRate`) |
+| `string[]` | Guard normal mutations + the named hot methods |
+
+**Hot mutations** (skip the guard by default):
+
+- `currentTime`
+- `volume`
+- `playbackRate`
+- `bandwidth`
+- `recordMetric`
+
+These fire on every frame and would make the guard a hot path.
+
+---
+
+## Plugin advisories
+
+Plugins declare advisories via `static advisories`:
+
+```ts
+class MyPlugin extends Plugin {
+  static readonly advisories = [
+    {
+      method: 'current',
+      duringPhase: 'playing',
+      severity: 'warning',
+      reason: 'cursor-change-during-playback',
+      message: 'Switching tracks while playing causes a buffer flush.',
+    },
+  ];
+}
+```
+
+The guard walks advisories from all enabled plugins and emits the matched severity event (carries a `PluginError` with the code `plugin:<id>/<reason>`).
+
+---
+
+## See also
+
+- [Plugin Registration](/player/kit/plugin-registration) — `addPlugin`, `static advisories`
+- [Events Reference](/player/kit/events-reference) — `beforeMutation`, `mutationPrevented`
+- [Phase API](/player/kit/phase) — `phase()`, `dispatching()`

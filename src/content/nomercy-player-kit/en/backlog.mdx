@@ -6,6 +6,75 @@ order: 3
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/queue.ts */}
+
+## Overview
+
+The backlog is a separate `MediaList` that holds items the user has already played. It is a history store — it does not drive cursor movement. Consumers populate it manually.
+
+`next()` does not automatically push items to the backlog. `previous()` does not pop from it. Both behaviours are left to consumer plugins so they can implement any history semantics they need (LRU, capped, no-repeat, etc.).
+
+---
+
+## `backlog(items?)`
+
+Read or write the backlog.
+
+**Read:** `backlog()` returns the backlog as a read-only array.
+
+**Write:** `backlog(items)` replaces the backlog with `items`. Emits `backlog` with the new array.
+
+**Returns:** `ReadonlyArray<BasePlaylistItem> | void`
+
+**Events emitted:** `backlog` with the new item array
+
+```ts
+// read
+const history = player.backlog();
+
+// replace
+player.backlog([]);
+```
+
+---
+
+## `backlogAppend(item)`
+
+Append one item or an array of items to the backlog.
+
+**Events emitted:** `backlog:append` with `{ items }`
+
+```ts
+// push current item to history before advancing
+player.on('beforeNext', () => {
+  const current = player.current();
+  if (current) player.backlogAppend(current);
+});
+```
+
+---
+
+## `backlogRemove(id)`
+
+Remove the item with the given `id` from the backlog. No-op when not found.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `id` | `string \| number` | Item id to remove |
+
+**Events emitted:** `backlog:remove` with `{ id, index, item }`
+
+---
+
+## `backlogClear()`
+
+Remove all items from the backlog.
+
+**Events emitted:** `backlog:clear` with `{ previousLength }`
+
+---
+
+## See also
+
+- [Queue Methods](/player/kit/queue) — `queue`, `queueAppend`, `queueClear`
+- [Events Reference](/player/kit/events-reference) — `backlog`, `backlog:append`, `backlog:clear`

@@ -6,6 +6,119 @@ order: 3
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/lifecycle.ts, types/player.ts */}
+
+## Overview
+
+The phase system is the complete ordered lifecycle of a player instance — a small closed set of stable states from `idle` to `disposed`. Phases do not enumerate event names; they capture coarse playback state.
+
+---
+
+## `phase()`
+
+Current fine-grained player phase.
+
+**Returns:** `PlayerPhase`
+
+```
+idle
+  │  constructor() → setup(config)
+  ▼
+setting-up    (config resolving, plugins registering, auth/streams/playlist mounting)
+  │  ready event fires
+  ▼
+ready         ← awaiting first command
+  │  load(item)
+  ▼
+loading       (backend pulling source)
+  │  loaded
+  ▼
+ready
+  │  play()
+  ▼
+starting      (backend kicking up)
+  │  firstFrame
+  ▼
+playing  ⇄  buffering  ⇄  seeking
+  │  pause()          ended (natural)       stop() (explicit)
+  ▼                     │                     │
+paused                ended               stopped
+  │ play()               │  load/play/next      │  load/play
+  ▼                     ▼                     ▼
+starting            starting             starting
+─────────────────────────────────────────────────────
+any phase ─ dispose() ─→  disposing  ─→  disposed
+```
+
+**Emits:** `phase` with `{ from, to }` on every transition.
+
+```ts
+player.on('phase', ({ from, to }) => {
+  console.log(`${from} → ${to}`);
+});
+
+if (player.phase() === 'playing') {
+  // safe to call transport methods
+}
+```
+
+---
+
+## `setupState()`
+
+Coarser than `phase()` — answers "is the player usable right now?".
+
+| Phase(s) | Return value |
+| --- | --- |
+| `idle` | `SetupState.NOT_SETUP` |
+| `setup` | `SetupState.SETTING_UP` |
+| `disposing`, `disposed` | `SetupState.DISPOSED` |
+| everything else | `SetupState.READY` |
+
+**Returns:** `SetupState` enum value
+
+---
+
+## `dispatching()`
+
+Names of all events currently being dispatched, innermost last. Empty when no event is dispatching.
+
+**Returns:** `ReadonlyArray<string>`
+
+Use this to detect "am I currently inside a `beforePlay` handler":
+
+```ts
+player.on('beforeMutation', (evt) => {
+  const stack = player.dispatching();
+  if (stack.includes('beforeSeek')) {
+    // mutation called from inside a beforeSeek listener
+  }
+});
+```
+
+---
+
+## `pushDispatch(name)` / `popDispatch()`
+
+Internal helpers that maintain the dispatch stack. Called by `runDispatchBefore` around every `before*` event. Plugin authors building custom before-events call these to keep the stack accurate.
+
+| Method | Returns |
+| --- | --- |
+| `pushDispatch(name: string)` | `void` |
+| `popDispatch()` | `string \| undefined` |
+
+---
+
+## `platform()`
+
+The active platform bundle. Returns `browserPlatform` even before `setup()` so early reads don't need a null check.
+
+**Returns:** `IPlatform`
+
+---
+
+## See also
+
+- [setup()](/player/kit/setup) — pipeline stages and `ready()`
+- [Player State](/player/kit/player-state) — `bufferState`, `networkState`, `visibilityState`
+- [Events Reference](/player/kit/events-reference) — `phase` event

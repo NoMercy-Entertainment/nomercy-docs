@@ -6,6 +6,175 @@ order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/queue.ts */}
+
+## Overview
+
+Queue methods manage the ordered list of `BasePlaylistItem` objects. The queue delegates to an internal `MediaList` instance. Every mutation emits a corresponding `queue:*` event so reactive UIs stay in sync.
+
+The event bridge is wired lazily on the first read or write — it is idempotent to call queue methods before `setup()`.
+
+---
+
+## `queue(items?)`
+
+Read or write the entire queue.
+
+**Read:** `queue()` returns the current playlist as a read-only array and wires the internal `MediaList` event bridge on first call.
+
+**Write:** `queue(items)` replaces the entire playlist. Emits `queue` with the new array.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `items` | `BasePlaylistItem[]` | Replacement playlist |
+
+**Returns:** `ReadonlyArray<BasePlaylistItem> | void`
+
+**Events emitted:** `queue` with the new item array
+
+```ts
+const items = player.queue(); // read
+
+player.queue([
+  { id: 'sintel', title: 'Sintel', image: 'https://cdn.nomercy.tv/assets/sintel.jpg' },
+  { id: 'bbb', title: 'Big Buck Bunny', image: 'https://cdn.nomercy.tv/assets/bbb.jpg' },
+]);
+```
+
+---
+
+## `queueAppend(item)`
+
+Append one item or an array of items to the end of the queue.
+
+**Events emitted:** `queue:append` with `{ items, from }` — `from` is the index of the first appended item
+
+```ts
+player.queueAppend({ id: 'cosmos', title: 'Cosmos Laundromat' });
+player.queueAppend([item1, item2]);
+```
+
+---
+
+## `queuePrepend(item)`
+
+Prepend one item or an array of items to the start of the queue.
+
+**Events emitted:** `queue:prepend` with `{ items }`
+
+---
+
+## `queueInsert(item, index)`
+
+Insert one item or an array of items at `index`. Items at and after that position shift right.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `item` | `BasePlaylistItem \| BasePlaylistItem[]` | Item(s) to insert |
+| `index` | `number` | Zero-based insertion index |
+
+**Events emitted:** `queue:insert` with `{ items, index }`
+
+---
+
+## `queueRemove(id)`
+
+Remove the item with the given `id`. No-op when the id is not found.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `id` | `string \| number` | Item id to remove |
+
+**Events emitted:** `queue:remove` with `{ id, index, item }`
+
+---
+
+## `queueRemoveAt(index)`
+
+Remove the item at the given zero-based `index`. No-op when `index` is out of range.
+
+**Events emitted:** `queue:remove`
+
+---
+
+## `queueMove(from, to)`
+
+Move the item at position `from` to position `to`. No-op when either index is out of range.
+
+**Events emitted:** `queue:move` with `{ from, to }`
+
+---
+
+## `queueClear()`
+
+Remove all items from the queue.
+
+**Events emitted:** `queue:clear` with `{ previousLength }`
+
+---
+
+## `queueShuffle()`
+
+Randomly reorder all items in the queue in-place.
+
+**Events emitted:** `queue:shuffle`
+
+---
+
+## `queueSort(compare)`
+
+Sort the queue in-place using `compare` (same contract as `Array.prototype.sort`).
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `compare` | `(a, b) => number` | Comparator — negative means `a` before `b` |
+
+**Events emitted:** `queue:sort`
+
+```ts
+// alphabetical by title
+player.queueSort((a, b) =>
+  (a.title ?? '').localeCompare(b.title ?? '')
+);
+```
+
+---
+
+## `queueLength()`
+
+Return the total number of items in the queue.
+
+**Returns:** `number`
+
+---
+
+## `queueIndexOf(id)`
+
+Return the zero-based index of the item with the given `id`, or `-1` when not found.
+
+**Returns:** `number`
+
+---
+
+## `peekNext()`
+
+Return the item that would become active if `next()` were called now, without moving the cursor. Returns `undefined` when the queue is exhausted.
+
+**Returns:** `BasePlaylistItem | undefined`
+
+---
+
+## `peekPrevious()`
+
+Return the item that would become active if `previous()` were called now, without moving the cursor. Returns `undefined` when already at the start.
+
+**Returns:** `BasePlaylistItem | undefined`
+
+---
+
+## See also
+
+- [Queue Navigation](/player/kit/queue-navigation) — `current`, `next`, `previous`, `seekToIndex`
+- [Backlog](/player/kit/backlog) — `backlog`, `backlogAppend`
+- [BasePlaylistItem](/player/kit/playlist-item) — item shape
+- [Events Reference](/player/kit/events-reference) — `queue`, `queue:append`, `queue:exhausted`

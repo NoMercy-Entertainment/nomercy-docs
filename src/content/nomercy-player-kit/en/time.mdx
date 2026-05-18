@@ -6,6 +6,109 @@ order: 3
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/time.ts */}
+
+## Overview
+
+Time methods expose position, duration, buffer health, and playback speed. The `time` event fires on every frame; the throttled `progress` event fires at most every `progressIntervalMs` (default 5 s) and is better suited for server-side watch-position saves.
+
+---
+
+## `duration()`
+
+Total track/clip duration in seconds. Returns `0` when metadata has not yet loaded.
+
+**Returns:** `number`
+
+---
+
+## `buffered()`
+
+How many seconds of media are buffered ahead of the current position. Delegates to the backend; returns `0` when no backend is registered.
+
+**Returns:** `number`
+
+---
+
+## `bufferedRanges()`
+
+Full buffered `TimeRanges` from the backend, mirroring `HTMLMediaElement.buffered`. Returns an empty range set when no backend is registered or the backend does not expose `bufferedRanges`.
+
+**Returns:** `TimeRanges`
+
+---
+
+## `seekable()`
+
+Seekable `TimeRanges` for the current source. Delegates to the backend's `seekable()` when present. Returns an empty range set when no backend is mounted or the backend does not implement `seekable()`.
+
+**Returns:** `TimeRanges`
+
+---
+
+## `timeData()`
+
+Snapshot of all time-related state in one call. Useful for rendering a progress bar without individually calling `currentTime()`, `duration()`, `buffered()`, and computing derived values.
+
+**Returns:** `TimeState`
+
+```ts
+interface TimeState {
+  position: number;    // seconds — same as currentTime()
+  duration: number;    // seconds
+  buffered: number;    // seconds ahead of position
+  remaining: number;   // duration - position, clamped to 0
+  percentage: number;  // (position / duration) * 100, 0 when duration is 0
+}
+```
+
+```ts
+player.on('time', () => {
+  const { position, duration, percentage } = player.timeData();
+  seekBar.style.setProperty('--progress', `${percentage}%`);
+  timeLabel.textContent = `${formatTime(position)} / ${formatTime(duration)}`;
+});
+```
+
+---
+
+## `playbackRate(rate?)`
+
+Get or set the playback rate multiplier.
+
+**Read:** `playbackRate()` returns the current rate.
+
+**Write:** `playbackRate(rate)` stores the rate, emits `backend:ratechange`, and forwards to the backend.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `rate` | `number` | Speed multiplier (e.g. `0.5`, `1`, `1.5`, `2`) |
+
+**Events emitted:** `backend:ratechange` with `{ rate: number }`
+
+---
+
+## `playbackRates()`
+
+Supported playback rate values for UI speed-selector controls. Returns a fixed list: `[0.5, 0.75, 1, 1.25, 1.5, 2]`.
+
+**Returns:** `number[]`
+
+```ts
+const speeds = player.playbackRates(); // [0.5, 0.75, 1, 1.25, 1.5, 2]
+
+// build a speed menu
+speeds.forEach(speed => {
+  const btn = document.createElement('button');
+  btn.textContent = `${speed}x`;
+  btn.addEventListener('click', () => player.playbackRate(speed));
+  speedMenu.appendChild(btn);
+});
+```
+
+---
+
+## See also
+
+- [Seeking](/player/kit/seeking) — `currentTime`, `seekByPercentage`
+- [Events Reference](/player/kit/events-reference) — `time`, `progress`, `duration`, `seeked`

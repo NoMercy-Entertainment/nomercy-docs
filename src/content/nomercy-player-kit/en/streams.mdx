@@ -6,6 +6,130 @@ order: 4
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/stream-registration.ts, adapters/stream/ */}
+
+## Overview
+
+The stream registry maps format identifiers (e.g. `'hls'`, `'native'`) to factory functions that create backend playback instances. Factories are tried in reverse registration order — most-recently-registered first — so a custom factory takes priority over the kit's built-in `hls` and `native` factories.
+
+Default factories (`hls`, `native`) are registered lazily at `streamsReady` during setup, or on first access to the registry.
+
+---
+
+## `registerStream(factory, prepend?)`
+
+Register a custom stream factory.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `factory` | `StreamFactory` | Factory object with `id` and `create` |
+| `prepend` | `boolean` | Push to the back of the queue (lower priority) |
+
+**Returns:** `this` (the player, for chaining)
+
+```ts
+import type { StreamFactory } from '@nomercy-entertainment/nomercy-player-core';
+
+const dashFactory: StreamFactory = {
+  id: 'dash',
+  canPlay: (url) => url.endsWith('.mpd'),
+  create: (player) => new DashBackend(player),
+};
+
+player.registerStream(dashFactory);
+```
+
+---
+
+## `unregisterStream(id)`
+
+Remove a registered factory by id. No-op when the id is not registered.
+
+**Returns:** `this`
+
+---
+
+## `streams()`
+
+Snapshot of registered factory ids in resolution order (highest-priority first).
+
+**Returns:** `ReadonlyArray<string>`
+
+---
+
+## `getStreamFactory(id)`
+
+Look up a registered factory by id.
+
+**Returns:** `StreamFactory | undefined`
+
+---
+
+## StreamFactory interface
+
+```ts
+interface StreamFactory {
+  /** Stable identifier for this factory. Must be unique in the registry. */
+  id: string;
+  /**
+   * Return true when this factory can handle the given URL.
+   * Factories are tried in reverse-registration order; the first to return
+   * true is used. Returning false passes control to the next factory.
+   */
+  canPlay(url: string): boolean;
+  /** Create a backend instance for the given player. */
+  create(player: IPlayer): StreamSource;
+}
+```
+
+---
+
+## StreamSource interface
+
+The contract every backend must satisfy. Only the methods the player calls need to be implemented; opt-in surfaces (`seekable`, `bufferedRanges`, `audioTracks`, etc.) are called conditionally.
+
+```ts
+interface StreamSource {
+  id: string;
+  load(url: string): Promise<void>;
+  play(): Promise<void> | void;
+  pause(): void;
+  stop(): void;
+  currentTime(t: number): void;
+  buffered(): number;
+  bufferedRanges?(): TimeRanges;
+  seekable?(): TimeRanges;
+  volume?(v: number): void;
+  mute?(): void;
+  unmute?(): void;
+  playbackRate?(rate: number): void;
+  subtitleTracks?(): SubtitleTrack[];
+  setSubtitleTrack?(idx: number | null): void;
+  audioTracks?(): AudioTrack[];
+  setAudioTrack?(idx: number): void;
+  qualityLevels?(opts?: { includeUnsupported?: true }): QualityLevel[];
+  setQuality?(idx: number | 'auto'): void;
+  state?(): string;
+  mediaElement?(): HTMLMediaElement;
+  dispose(): void;
+}
+```
+
+---
+
+## Built-in factories
+
+| Id | Description |
+| --- | --- |
+| `'hls'` | hls.js adaptive bitrate streaming |
+| `'native'` | Browser-native `<video>` / `<audio>` playback |
+
+The `hls` factory is registered with higher priority — it is tried first. The `native` factory is the fallback for formats the browser handles natively (MP4, WebM, Ogg, MP3, etc.).
+
+---
+
+## See also
+
+- [setup()](/player/kit/setup) — `streamsReady` pipeline stage
+- [Events Reference](/player/kit/events-reference) — `stream:manifest-loaded`, `stream:level-switched`
+- [Platform Adapter](/player/kit/platform) — `ICapabilitiesProbe` for codec probing

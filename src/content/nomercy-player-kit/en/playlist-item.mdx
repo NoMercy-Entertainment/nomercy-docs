@@ -6,6 +6,82 @@ order: 4
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/types/playlist.ts */}
+
+## Interface
+
+```ts
+interface BasePlaylistItem {
+  id: string | number;
+  title?: string;
+  image?: string;
+}
+```
+
+`id` is the stable identity used by the queue, backlog, cursor, and `queueIndexOf`. It must be unique within a session but does not need to be globally unique.
+
+`title` and `image` are the canonical cross-library fields for display name and cover art. Consumer code targeting both the video and music players should populate these fields; domain-specific code may use the library's own field names in addition.
+
+---
+
+## Library extensions
+
+Each library extends `BasePlaylistItem` with domain-specific fields.
+
+### Video player — `VideoPlaylistItem`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `title?` | `string` | Display title |
+| `image?` | `string` | Poster / thumbnail URL |
+| `poster?` | `string` | Alias for `image` |
+| `thumbnail?` | `string` | Small thumbnail (for hover previews) |
+| `url?` | `string` | Required by `load()` — the playable media URL |
+| `tracks?` | `SidecarTrack[]` | Subtitle / chapter sidecar files |
+| `chapters?` | `Chapter[]` | Inline chapter list (overrides sidecar) |
+
+### Music player — `MusicPlaylistItem`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Track name (required by the music player) |
+| `cover?` | `string` | Cover art URL (aliases `image`) |
+| `artist?` | `string \| Artist` | Artist name or object |
+| `album?` | `string \| Album` | Album name or object |
+| `url?` | `string` | Required by `load()` — the audio file URL |
+
+---
+
+## Sidecar tracks
+
+Items with sidecar subtitle or chapter files carry them under `tracks`:
+
+```ts
+{
+  id: 'sintel',
+  title: 'Sintel',
+  url: 'https://media.nomercy.tv/sintel/master.m3u8',
+  tracks: [
+    {
+      kind: 'subtitles',
+      language: 'en',
+      label: 'English',
+      file: 'https://media.nomercy.tv/sintel/en.vtt',
+    },
+    {
+      kind: 'chapters',
+      file: 'https://media.nomercy.tv/sintel/chapters.vtt',
+    },
+  ],
+}
+```
+
+`kind` values the kit recognises: `'subtitles'`, `'captions'`, `'chapters'`. Other kinds are preserved but not acted on by the kit.
+
+---
+
+## See also
+
+- [Loading](/player/kit/loading) — `load(item)` uses `item.url`
+- [Media Tracks](/player/kit/media-tracks) — `subtitles()`, `chapters()`
+- [Queue Methods](/player/kit/queue) — queue mutation methods accept `BasePlaylistItem`

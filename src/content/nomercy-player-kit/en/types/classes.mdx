@@ -6,6 +6,347 @@ order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/adapters/logger/default.ts, adapters/lifecycle-registry/default.ts, plugin/base.ts */}
+
+## Import
+
+```ts
+import {
+  Logger,
+  Plugin,
+  LifecycleRegistry,
+} from '@nomercy-entertainment/nomercy-player-core';
+```
+
+---
+
+## Logger
+
+Lightweight scoped logger. The kit and every plugin share a single root instance per player.
+
+Level ranks from least to most verbose: `silent < error < warn < info < debug < trace`.
+
+```ts
+class Logger implements ILogger {
+  constructor(opts?: LoggerOptions);
+
+  trace(...args: unknown[]): void;
+  debug(...args: unknown[]): void;
+  info(...args: unknown[]): void;
+  warn(...args: unknown[]): void;
+  error(...args: unknown[]): void;
+
+  level(): LogLevel;
+  level(value: LogLevel): void;
+
+  addSink(fn: LogSink): () => void;
+  child(suffix: string): Logger;
+}
+
+interface LoggerOptions {
+  level?: LogLevel;   // default 'info'
+  prefix?: string;
+}
+
+type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+
+type LogSink = (level: LogLevel, prefix: string, args: unknown[]) => void;
+```
+
+**`addSink`** pipes all future log lines to an additional sink. Multiple sinks compose in registration order. Returns an unsubscribe function.
+
+**`child`** returns a scoped sub-logger that prepends an additional prefix segment. Children share the parent's registered sinks.
+
+```ts
+import { Logger } from '@nomercy-entertainment/nomercy-player-core';
+
+const logger = new Logger({ level: 'debug', prefix: 'myapp' });
+const sub = logger.child('subtitle');
+sub.info('cue loaded');  // → "[myapp][subtitle] cue loaded"
+
+// Route to a custom telemetry sink
+const unsub = logger.addSink((level, prefix, args) => {
+  myTelemetry.log({ level, prefix, message: args.join(' ') });
+});
+
+// Remove the sink later
+unsub();
+```
+
+Pass a custom logger via `setup({ logger })` to replace the kit's default implementation. The `ILogger` interface is the full contract.
+
+---
+
+## ILogger
+
+The pluggable logger contract. Implement this to swap in Pino, Winston, Bunyan, or any telemetry-tapped logger.
+
+```ts
+interface ILogger {
+  trace(...args: unknown[]): void;
+  debug(...args: unknown[]): void;
+  info(...args: unknown[]): void;
+  warn(...args: unknown[]): void;
+  error(...args: unknown[]): void;
+
+  level(): LogLevel;
+  level(value: LogLevel): void;
+
+  addSink(fn: LogSink): () => void;
+  child(suffix: string): ILogger;
+}
+```
+
+Plugin authors never construct a logger directly — they receive `this.logger` from the kit, already scoped to their plugin id.
+
+---
+
+## LifecycleRegistry
+
+Disposable registry — every plugin gets one. Records every listener, timer, observer, abort controller, and RAF loop the plugin registers. A single `dispose()` call tears them all down. Idempotent: calling `dispose()` twice is safe.
+
+Plugin authors never construct or dispose this directly — the player creates one per plugin and calls `dispose()` automatically.
+
+```ts
+class LifecycleRegistry {
+  addCleanup(fn: () => void): void;
+  listen(target: EventTarget, event: string, handler: EventListener, options?: AddEventListenerOptions): void;
+  timeout(fn: () => void, ms: number): number;
+  interval(fn: () => void, ms: number): number;
+  observe<O extends { disconnect(): void }>(observer: O): O;
+  abortable(): AbortController;
+  frame(fn: (deltaMs: number, time: number) => void): void;
+  dispose(): void;
+  isDisposed(): boolean;
+}
+```
+
+| Method | Auto-cleaned on dispose |
+| --- | --- |
+| `listen` | DOM event listener removed |
+| `timeout` | `clearTimeout` called |
+| `interval` | `clearInterval` called |
+| `frame` | `cancelAnimationFrame` called |
+| `observe` | Observer `disconnect()` called |
+| `abortable` | `AbortController.abort()` called |
+| `addCleanup` | Callback called in reverse registration order |
+
+`observe()` returns the observer unchanged so callers can chain:
+
+```ts
+this.lifecycle.observe(new ResizeObserver(cb)).observe(el);
+```
+
+`frame()` is silent in environments without `requestAnimationFrame` (Node, SSR).
+
+---
+
+## Plugin
+
+Base plugin class. Subclass to write a plugin.
+
+```ts
+class Plugin<
+  P extends IPlayer<any> = IPlayer,
+  O = unknown,
+  E extends Record<string, any> = Record<string, never>,
+> {
+  // Required statics
+  static readonly id: string;
+  static readonly description: string;
+
+  // Recommended statics
+  static readonly version: string;          // default '0.0.0'
+
+  // Optional statics
+  static readonly minCoreVersion?: string;
+  static readonly moduleUrl?: string;       // set to import.meta.url
+  static readonly requires?: ReadonlyArray<RequireSpec>;
+  static readonly replaces?: string;
+  static readonly priority: number;         // default 0
+  static readonly onError?: Record<string, PluginRecoveryAction>;
+  static readonly advisories?: ReadonlyArray<PluginAdvisory>;
+  static readonly translations?: Translations;
+
+  // Instance — set by the player before use() runs
+  declare player: P;
+  declare opts: O;
+  declare readonly __events__: E;           // phantom type carrier
+
+  // Protected scoped helpers
+  protected logger: ILogger;               // prefixed [nmplayer][<id>]
+  protected storage: IStorage;             // prefixed nmplayer-<id>-
+
+  // Lifecycle
+  initialize(player: P, opts: O, lifecycle: LifecycleRegistry): void;
+  use(): void | Promise<void>;
+  dispose(): void;
+
+  // Standard surface
+  enabled(): boolean;
+  enable(): void;
+  disable(reason?: string): void;
+  state(): PluginState<O>;
+  options(): Readonly<O>;
+  options(partial: Partial<O>): void;
+
+  // Scoped event helpers (protected)
+  protected on(event, fn): void;
+  protected on(PluginClass, event, fn): void;
+  protected once(event, fn): void;
+  protected off(event, fn): void;
+  protected hasListeners(event): boolean;
+  protected emit(event: string, data?): void;
+  protected dispatchBefore<T>(event, data, opts?): Promise<BeforeDispatchResult<T>>;
+
+  // Error escalation (protected)
+  protected throw(payload: ThrowPayload): never;
+  protected report(payload: ThrowPayload): void;
+
+  // Auth-aware fetch (protected)
+  protected fetch<T = string>(url: string, options?: FetchOptions<T>): Promise<T>;
+  protected resolveUrl(url: string, category?: UrlCategory): Promise<ResolvedUrl>;
+
+  // Realtime (protected)
+  protected websocket(url: string, opts?: RealtimeFactoryOptions): IRealtimeChannel;
+
+  // DOM (protected)
+  protected mount(name: string): HTMLDivElement;
+  protected appendStyles(href: string, id: string): void;
+
+  // i18n (protected)
+  protected t(key: string, vars?: Record<string, string>): string;
+  protected loadTranslations?(lang: string): Promise<Record<string, string> | undefined>;
+
+  // Auto-cleaned lifecycle primitives (protected)
+  protected listen(target, event, handler, options?): void;
+  protected timeout(fn, ms): number;
+  protected interval(fn, ms): number;
+  protected frame(fn: (deltaMs: number, time: number) => void): void;
+  protected abortable(): AbortController;
+
+  // Class-level utilities
+  static derive<C>(opts, newId?): C;
+  clone(): typeof Plugin;
+  export(): O;
+}
+```
+
+### Static plugin contract
+
+| Static | Required | Description |
+| --- | --- | --- |
+| `id` | Yes | Unique string — `'myvendor:feature'`. Lint-enforced namespacing for third-party. |
+| `description` | Yes | One-line human-readable. Used in error messages and listings. |
+| `version` | Recommended | Semver string. Defaults to `'0.0.0'`. |
+| `minCoreVersion` | No | Minimum kit version (semver). Checked at registration. |
+| `moduleUrl` | No | Set to `import.meta.url`. Required for `appendStyles` to resolve relative paths. |
+| `requires` | No | Dependency class refs. Required-missing throws; optional-missing warns. |
+| `replaces` | No | Opt-in same-id replacement. Without it, duplicate id throws `core:plugin/duplicate-id`. |
+| `priority` | No | Event-handler ordering. Default `0`. Higher runs first. |
+| `onError` | No | Per-error-code recovery action map. |
+| `advisories` | No | Declarative phase-aware mutation advisories. |
+| `translations` | No | Static i18n bundles. Keys must be namespaced under `plugin.<id>.*`. |
+
+### Minimal plugin
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+
+interface MyOptions {
+  apiUrl: string;
+}
+
+interface MyEvents {
+  'data:loaded': { count: number };
+}
+
+class MyPlugin extends Plugin<IPlayer, MyOptions, MyEvents> {
+  static override readonly id = 'myplugin';
+  static override readonly description = 'Loads data from an API';
+  static override readonly version = '1.0.0';
+  static override readonly moduleUrl = import.meta.url;
+
+  override use(): void {
+    this.on('ready', () => {
+      this.logger.info('player ready');
+    });
+
+    this.listen(document, 'visibilitychange', () => {
+      this.logger.debug('visibility changed');
+    });
+  }
+}
+
+// Register at setup time
+player.setup({
+  plugins: [[MyPlugin, { apiUrl: 'https://api.example.com' }]],
+});
+```
+
+### Plugin event forms
+
+```ts
+// Player event — string form
+this.on('play', () => { /* handler */ });
+
+// Another plugin's event — class form
+this.on(EqualizerPlugin, 'bandChanged', (data) => {
+  console.log(data.index, data.gain);
+});
+```
+
+### Recovery actions
+
+```ts
+type PluginRecoveryAction = 'ignore' | 'disable' | 'retry-once' | 'fallback';
+```
+
+Map error codes to actions in `static onError`. When the error fires, the registry applies the action automatically:
+
+- `'ignore'` — no further action after surfacing
+- `'disable'` — calls `this.disable(reason)`
+- `'retry-once'` — calls `this.retryLastOperation()` if implemented
+- `'fallback'` — calls `this.activateFallback()` if implemented
+
+### `derive` and `clone`
+
+`Plugin.derive(opts, newId?)` produces a derived class with options pre-baked. Consumer-supplied opts at registration time win (shallow merge):
+
+```ts
+const LoudPlugin = MyPlugin.derive({ volume: 1.0 }, 'loud-myplugin');
+player.setup({ plugins: [[LoudPlugin]] });
+```
+
+`clone()` captures the current instance's options via `export()` and calls `derive()`:
+
+```ts
+const snapshot = runningPlugin.clone();
+```
+
+---
+
+## PluginState
+
+Snapshot type returned by `plugin.state()`. Used by debug overlays and save/restore tooling.
+
+```ts
+interface PluginState<O> {
+  id: string;
+  version: string;
+  enabled: boolean;
+  opts: Readonly<O>;
+  runtime: Record<string, unknown>;
+}
+```
+
+`runtime` is populated by overriding `protected getRuntimeState()` in the plugin subclass.
+
+---
+
+## See also
+
+- [Plugin Registration](/player/kit/plugin-registration) — `addPlugin`, `removePlugin`, `getPlugin`
+- [Built-in Plugins](/player/kit/plugins-builtin) — plugins shipped with the kit
+- [Key Interfaces](/player/kit/types/interfaces) — `IPlayer`, `BasePlayerConfig`, `BaseEventMap`
+- [Storage Adapter](/player/kit/storage) — `IStorage` and backend implementations

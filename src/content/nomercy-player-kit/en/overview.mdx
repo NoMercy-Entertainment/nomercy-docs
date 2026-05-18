@@ -6,6 +6,84 @@ order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/index.ts */}
+
+## What it is
+
+The Player Kit (`@nomercy-entertainment/nomercy-player-core`) is the shared engine underneath `nomercy-video-player` and `nomercy-music-player`. It is not a player you instantiate directly. You install a library package and the kit comes along as a peer dependency.
+
+The kit owns:
+
+- The mixin-composed prototype that every player instance is built from
+- The adapter port contracts (storage, platform, streams, cue parsers, preload/transition strategies, translator, realtime)
+- The plugin runtime (registration, lifecycle, dependency checks, translation merging)
+- The event bus and the complete `BaseEventMap`
+- The error hierarchy and retry policy
+- DOM construction helpers
+
+## Five-layer model
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  5. Consumer plugins                                    │
+│     Your app's plugins — `nomercy:sync`, `fillz:winamp` │
+├─────────────────────────────────────────────────────────┤
+│  4. Built-in kit plugins                                │
+│     AudioGraphPlugin, CanvasPlugin, CastSenderPlugin,   │
+│     EqualizerPlugin, MixerPlugin, SpectrumPlugin,       │
+│     VisualizationPlugin, EmbedPlugin                    │
+├─────────────────────────────────────────────────────────┤
+│  3. Per-library code                                    │
+│     nomercy-video-player: HLS backend, subtitle overlay │
+│     nomercy-music-player: Web Audio backend, lyrics     │
+├─────────────────────────────────────────────────────────┤
+│  2. Player Kit (this package)                           │
+│     Mixins + adapter ports + plugin runtime + event bus │
+├─────────────────────────────────────────────────────────┤
+│  1. Backend (stream factory)                            │
+│     hls.js, native HTMLMediaElement, custom             │
+└─────────────────────────────────────────────────────────┘
+```
+
+Anything NoMercy-specific (server auth, SignalR sync, watch-history writes) lives in layer 5. The kit and per-library packages stay generic — they know nothing about the NoMercy server API.
+
+## Adapter ports
+
+The kit exposes 28+ adapter contracts that consumers swap without subclassing the player. See the Adapter Ports section in the navigation for the full list. The most commonly swapped ports are:
+
+| Port | Default | Why swap |
+| --- | --- | --- |
+| `platform` | `browserPlatform` | Capacitor, Tauri, Electron native APIs |
+| `storage` | `LocalStorageBackend` | IndexedDB for larger values; remote API for cross-device sync |
+| `streams` | `hls` + `native` | Custom stream protocol, DASH, low-latency HLS |
+| `cueParsers` | VTT + LRC + sprite-VTT | TTML, SRT, ASS, proprietary formats |
+| `preloadStrategy` | `DefaultPreloadStrategy` | Different timing heuristics |
+| `transitionStrategy` | `GaplessTransitionStrategy` (video) / `CrossfadeTransitionStrategy` (music) | Custom fades or creative transitions |
+| `translator` | `DefaultTranslator` | i18next, FormatJS, any ICU-capable engine |
+| `websocketFactory` | `nativeWebSocketAdapter` | SignalR, Socket.IO |
+
+## Mixin composition
+
+The player prototype is assembled at class definition time from 15+ mixins via `composeMixins`. Each mixin owns one surface:
+
+```ts
+composeMixins(PlayerClass, [
+  lifecycleMethods,   // setup, dispose, ready, phase
+  transportMethods,   // play, pause, stop, next, previous, rewind, forward, restart
+  timeMethods,        // currentTime, duration, buffered, timeData, playbackRate
+  volumeMethods,      // volume, mute, unmute, toggleMute, volumeUp, volumeDown
+  queueMethods,       // queue, queueAppend, current, backlog, ...
+  loadingMethods,     // load, loadQueue
+  mediaTracksMethods, // subtitles, audioTracks, qualityLevels, chapters
+  // ...and more
+]);
+```
+
+This means a fix in `volumeMethods` lands once and applies identically to both the music and video player.
+
+## See also
+
+- [Lifecycle — setup](/player/kit/setup)
+- [Plugin Registration](/player/kit/plugin-registration)
+- [Events Reference](/player/kit/events-reference)
+- [Adapter Ports](/player/kit/adapters)

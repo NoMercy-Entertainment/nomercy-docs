@@ -6,6 +6,73 @@ order: 3
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/audio-output.ts */}
+
+## Overview
+
+Audio output methods route audio to a specific output device using the browser's `setSinkId` API (Chrome / Chromium-based browsers). Call `selectAudioOutput()` first to trigger the browser permission grant that gates enumeration.
+
+---
+
+## `audioOutputs()`
+
+Enumerate available audio output devices. Resolves to `MediaDeviceInfo[]` via `navigator.mediaDevices.enumerateDevices()`.
+
+Browsers gate output-device enumeration behind a permission grant — call `selectAudioOutput()` first to trigger the grant. Returns an empty array when `navigator.mediaDevices` is unavailable (e.g. non-HTTPS origin, SSR).
+
+**Returns:** `Promise<MediaDeviceInfo[]>`
+
+```ts
+const outputs = await player.audioOutputs();
+outputs.forEach(device => {
+  const option = document.createElement('option');
+  option.value = device.deviceId;
+  option.textContent = device.label;
+  deviceSelect.appendChild(option);
+});
+```
+
+---
+
+## `selectAudioOutput()`
+
+Open the browser's audio-output picker. Chrome 105+ exposes `MediaDevices.selectAudioOutput()`. Returns the selected `MediaDeviceInfo`, or `null` when the user cancels. Throws `BrowserPolicyError` on unsupported browsers.
+
+**Returns:** `Promise<MediaDeviceInfo | null>`
+
+**Throws:** `BrowserPolicyError('core:policy/audioOutputPickerUnsupported')` — Chrome 105+ only
+
+```ts
+const device = await player.selectAudioOutput();
+if (device) {
+  await player.currentAudioOutput(device.deviceId);
+}
+```
+
+---
+
+## `currentAudioOutput(deviceId?)`
+
+Read or write the active audio output device.
+
+**Read:** `currentAudioOutput()` returns the current `sinkId` (device id string), or `null` for system default output.
+
+**Write:** `currentAudioOutput(deviceId)` routes audio to `deviceId` via `HTMLMediaElement.setSinkId()` on the backend's media element. Stores the id on success so a subsequent read reflects the change.
+
+**Returns:** `Promise<string | null>` (read) or `Promise<void>` (write)
+
+**Throws:** `BrowserPolicyError('core:policy/setSinkIdUnsupported')` when `setSinkId` is not supported or no media element is bound.
+
+```ts
+deviceSelect.addEventListener('change', async () => {
+  await player.currentAudioOutput(deviceSelect.value);
+});
+```
+
+---
+
+## See also
+
+- [Device Detection](/player/kit/device) — `isTv`, `isMobile`, `device`
+- [Cast and Remote Playback](/player/kit/cast) — `transferTo`, `castState`
+- [Error Classes](/player/kit/types/errors) — `BrowserPolicyError`

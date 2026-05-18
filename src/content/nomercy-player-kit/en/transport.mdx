@@ -6,6 +6,161 @@ order: 1
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/transport.ts */}
+
+## Overview
+
+Transport methods start, stop, and navigate playback. Every method dispatches a cancellable `before*` event first. If a listener calls `event.preventDefault()` the action is aborted and a paired `*Prevented` event fires instead.
+
+All methods call `_assertReady()` — they throw `core:player/not-ready` before `setup()` and `core:player/disposed` after `dispose()`.
+
+---
+
+## `play(opts?)`
+
+Start or resume playback.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `opts.source` | `ActionSource` | `'user'` | Who triggered the action |
+| `opts.silent` | `boolean` | `false` | Skip emitting the `play` event |
+| `opts.autoplay` | `boolean` | — | (unused in play itself) |
+
+**Returns:** `Promise<void>`
+
+**Events emitted:**
+- `beforePlay` — cancellable, fires before any state change
+- `play` — fires after the phase transitions to `starting`
+- `playPrevented` — fires instead when `beforePlay` is prevented
+
+```ts
+// basic play
+await player.play();
+
+// play attributed to a remote sync event
+await player.play({ source: 'remote' });
+```
+
+---
+
+## `pause(opts?)`
+
+Pause playback. Transitions the player to `paused` when the prior phase was `playing` or `starting`.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `opts.source` | `ActionSource` | `'user'` | Source attribution |
+| `opts.silent` | `boolean` | `false` | Skip emitting the `pause` event |
+
+**Returns:** `Promise<void>`
+
+**Events emitted:** `beforePause` → `pause` (or `pausePrevented`)
+
+---
+
+## `stop(opts?)`
+
+Stop playback and release the source. Transitions the player to `stopped`.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `opts.source` | `ActionSource` | `'user'` | Source attribution |
+
+**Returns:** `Promise<void>`
+
+**Events emitted:** `beforeStop` → `stop` (or `stopPrevented`)
+
+---
+
+## `togglePlayback(opts?)`
+
+Flip between play and pause based on `_playState`. Routes through `play()` or `pause()` so their `before*` dispatch chains fire normally.
+
+**Returns:** `Promise<void>`
+
+---
+
+## `next(opts?)`
+
+Advance to the next queue item and start playback. Repeat mode is honoured:
+
+- `'one'` — reload the current item; the cursor does not move
+- `'all'` — wrap to the first item when at the end
+- `'off'` — emit `queue:exhausted` when there is no next item
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `opts.source` | `ActionSource` | `'user'` | Source attribution |
+
+**Returns:** `Promise<void>`
+
+**Events emitted:** `beforeNext` → `next` (or `nextPrevented`); `queue:exhausted` when the queue is empty
+
+---
+
+## `previous(opts?)`
+
+Go back to the previous queue item and start playback. Silently no-ops when no previous item exists — going past the start is a common gesture, not an error.
+
+**Returns:** `Promise<void>`
+
+**Events emitted:** `beforePrevious` → `previous` (or `previousPrevented`)
+
+---
+
+## `rewind(seconds?, opts?)`
+
+Seek backwards by `seconds` (default 5). Clamps the result to 0.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `seconds` | `number` | `5` | How many seconds to rewind |
+| `opts` | `ActionOptions` | `{}` | Source attribution |
+
+**Returns:** `Promise<void>`
+
+**Events emitted:** `beforeSeek` (with negative delta) → `seek` → `seeked` (or `seekPrevented`)
+
+---
+
+## `forward(seconds?, opts?)`
+
+Seek forwards by `seconds` (default 5). No upper clamp — the backend snaps to `duration` if the target exceeds it.
+
+**Returns:** `Promise<void>`
+
+**Events emitted:** `beforeSeek` → `seek` → `seeked` (or `seekPrevented`)
+
+---
+
+## `restart(opts?)`
+
+Seek to position 0 and play. The seek and play are atomic: if `beforeSeek` is prevented, the subsequent `play()` is also skipped.
+
+**Returns:** `Promise<void>`
+
+**Events emitted:** `beforeSeek` → `seek` → `seeked` → `beforePlay` → `play`
+
+```ts
+// restart playback from the beginning
+await player.restart();
+
+// from a remote sync event
+await player.restart({ source: 'remote' });
+```
+
+---
+
+## `_seekingTransition(doSeek)`
+
+Internal helper. Wraps a synchronous seek in a `seeking` phase round-trip when the prior phase was `playing`, `paused`, or `starting`. Skips the transition for pre-play seeks to avoid UI blips.
+
+Not part of the public surface — documented for plugin authors building custom seek logic.
+
+---
+
+## See also
+
+- [Seeking](/player/kit/seeking) — `currentTime`, `rewind`, `forward`, `seekByPercentage`
+- [Events Reference](/player/kit/events-reference) — `beforePlay`, `play`, `beforeSeek`, `seek`
+- [Queue Navigation](/player/kit/queue-navigation) — `next`, `previous`, `current`

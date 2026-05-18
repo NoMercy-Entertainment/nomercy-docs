@@ -6,6 +6,142 @@ order: 3
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/plugins/, src/index.ts:141-167 */}
+
+## Overview
+
+The kit ships eight opt-in plugins. None are registered automatically — add only what you need. All are re-exported from `@nomercy-entertainment/nomercy-player-core`.
+
+---
+
+## AudioGraphPlugin
+
+**Id:** `'nm:audio-graph'` (inferred)
+**Import:** `import { AudioGraphPlugin, audioGraphPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+
+Foundation plugin that owns the Web Audio signal chain. Every other audio plugin in the kit (EqualizerPlugin, SpectrumPlugin, VisualizationPlugin, MixerPlugin) requires this one to be registered first.
+
+On `use()` it creates (or reuses) an `AudioContext`, wraps the backend's media element in a `MediaElementAudioSourceNode`, and wires the baseline chain: `source → destination`. Subsequent plugins extend the chain via `insertEffect()`.
+
+**Options (`AudioGraphOptions`):**
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `latencyHint` | `AudioContextLatencyCategory` | `'playback'` | Context latency hint |
+| `fftSize` | `256 \| 512 \| ... \| 16384` | `2048` | FFT size for the shared analyser (1024 bins) |
+| `smoothing` | `number` | `0.8` | Smoothing time constant 0–1 |
+
+**Events:**
+
+| Event | Payload | When |
+| --- | --- | --- |
+| `context:ready` | `{ sampleRate }` | AudioContext created and chain wired |
+| `context:closed` | `void` | Context closed (dispose or browser suspend) |
+| `chain:rebuilt` | `void` | Chain reconnected after an effect insert/remove |
+| `unsupported` | `{ reason }` | Web Audio not available |
+
+---
+
+## CanvasPlugin
+
+**Import:** `import { CanvasPlugin, canvasPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+
+Provides a managed `<canvas>` overlay with a RAF-driven render loop. Visualization plugins build on top of this rather than managing their own canvas.
+
+**Options (`CanvasOptions`):** canvas element dimensions, layer z-index.
+
+---
+
+## CastSenderPlugin
+
+**Import:** `import { CastSenderPlugin, castSenderPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+
+Coordinates the Cast Web Sender SDK with the player's state machine. Wraps the core `transferTo('cast')` surface and emits higher-level events for Cast UI components.
+
+**Options (`CastSenderOptions`):** receiver application id, SDK script URL, timeout.
+
+**Events (`CastSenderEvents`):** mirrors the `castState` event with plugin-namespaced identifiers.
+
+---
+
+## EqualizerPlugin
+
+**Import:** `import { EqualizerPlugin, equalizerPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+
+Multi-band parametric EQ using Web Audio `BiquadFilterNode` chains. Requires `AudioGraphPlugin`.
+
+**Options (`EqualizerOptions`):**
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `bands` | `number` | `10` | Number of EQ bands |
+| `presets` | `EqPreset[]` | — | Named presets |
+
+**Events (`EqualizerEvents`):** band change events per band index.
+
+---
+
+## MixerPlugin
+
+**Import:** `import { MixerPlugin, mixerPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+
+Per-channel gain control (`GainNode`) built on the audio graph. Useful for cross-fading between two sources or building a stem mixer. Requires `AudioGraphPlugin`.
+
+**Options (`MixerOptions`):** channel count, initial gain per channel.
+
+---
+
+## SpectrumPlugin
+
+**Import:** `import { SpectrumPlugin, spectrumPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+
+Reads frequency-domain data from the shared `AnalyserNode` provided by `AudioGraphPlugin` and emits frame data on every RAF tick. Requires `AudioGraphPlugin`.
+
+**Options (`SpectrumOptions`):** smoothing, fft size override, frame rate cap.
+
+---
+
+## VisualizationPlugin
+
+**Import:** `import { VisualizationPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+
+Base class for custom audio visualizations. Wraps `SpectrumPlugin` and provides a `render(frame: VisualizationFrame)` hook. Subclass and override `render` to draw into a canvas.
+
+**Options (`VisualizationOptions`):** canvas target, frame rate.
+
+---
+
+## EmbedPlugin
+
+**Import:** `import { EmbedPlugin, embedPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+
+Cross-origin `postMessage` bridge for embedding the player inside an iframe. Translates kit events to structured `EmbedEventMessage` payloads and processes `EmbedCommand` messages from the host page.
+
+**Options (`EmbedOptions`):** trusted origin list, allowed commands.
+
+**Events:** re-emits all `EmbedEventMessage` types through the plugin channel.
+
+---
+
+## Registration example
+
+```ts
+import {
+  AudioGraphPlugin,
+  EqualizerPlugin,
+  SpectrumPlugin,
+} from '@nomercy-entertainment/nomercy-player-core';
+
+player
+  .setup({ ... })
+  .addPlugin(AudioGraphPlugin, { latencyHint: 'playback' })
+  .addPlugin(EqualizerPlugin, { bands: 10 })
+  .addPlugin(SpectrumPlugin);
+```
+
+---
+
+## See also
+
+- [Plugin Registration](/player/kit/plugin-registration) — `addPlugin`, `getPlugin`, `removePlugin`
+- [Events Reference](/player/kit/events-reference) — `plugin:installed`, `plugin:failed`

@@ -6,6 +6,110 @@ order: 4
 draft: false
 ---
 
-::Callout
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
-::
+{/* src: packages/nomercy-player-kit/src/core/mixins/volume.ts */}
+
+## Overview
+
+Volume methods control output level and mute state. The scale is 0–100 (not 0–1) to match the v1 API. The player translates to the 0–1 range internally when routing to the backend.
+
+---
+
+## `volume(level?)`
+
+Read or write the playback volume.
+
+**Read:** `volume()` returns the effective level (0–100). Returns `0` when muted regardless of the stored pre-mute level.
+
+**Write:** `volume(level)` clamps `level` to [0, 100], persists it, and routes the new value to the active backend. Fires `beforeMutation` (cancellable) then `volume`. No-op when the mutation is cancelled.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `level` | `number` | No | Target volume 0–100 |
+
+**Returns:** `number | void`
+
+**Events emitted:** `volume` with `{ level: number }`
+
+```ts
+// read
+const current = player.volume(); // e.g. 75
+
+// write
+player.volume(50);
+
+// persist on change
+player.on('volume', ({ level }) => {
+  localStorage.setItem('player-volume', String(level));
+});
+
+// restore on load
+await player.ready();
+const saved = parseInt(localStorage.getItem('player-volume') ?? '100', 10);
+player.volume(saved);
+```
+
+---
+
+## `mute()`
+
+Silence output without discarding the current volume level. Persists the current level so `unmute()` can restore it. No-op when already muted.
+
+**Events emitted:** `mute` with `{ muted: true }`
+
+---
+
+## `unmute()`
+
+Restore output after mute. Reinstates the level saved by the last `mute()` call. No-op when already unmuted.
+
+**Events emitted:** `mute` with `{ muted: false }`
+
+---
+
+## `toggleMute()`
+
+Flip between muted and unmuted. Delegates to `mute()` or `unmute()`.
+
+```ts
+button.addEventListener('click', () => player.toggleMute());
+
+player.on('mute', ({ muted }) => {
+  muteButton.setAttribute('aria-pressed', String(muted));
+});
+```
+
+---
+
+## `volumeUp(step?)`
+
+Raise volume by `step` percentage points. Delegates to `volume()`.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `step` | `number` | `5` | Points to increase |
+
+---
+
+## `volumeDown(step?)`
+
+Lower volume by `step` percentage points. Delegates to `volume()`.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `step` | `number` | `5` | Points to decrease |
+
+```ts
+// keyboard volume controls
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowUp') player.volumeUp();
+  if (e.key === 'ArrowDown') player.volumeDown();
+  if (e.key === 'm') player.toggleMute();
+});
+```
+
+---
+
+## See also
+
+- [Events Reference](/player/kit/events-reference) — `volume`, `mute`
+- [Playback State](/player/kit/playback-state) — `volumeState()`
