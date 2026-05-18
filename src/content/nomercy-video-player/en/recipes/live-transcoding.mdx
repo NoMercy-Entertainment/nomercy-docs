@@ -1,0 +1,123 @@
+﻿---
+title: "Live Transcoding"
+description: "Using LiveTranscodingPlugin to negotiate server-side on-demand transcode sessions, monitor progress, and switch quality during playback."
+category: "Recipes"
+order: 57
+---
+
+# Live Transcoding
+
+Read this when your media server transcodes video on demand rather than serving pre-encoded HLS. `LiveTranscodingPlugin` manages the negotiation with a NoMercy media server endpoint, monitors transcode progress, and exposes quality switching that works alongside the server's encoding pipeline.
+
+**Prerequisites:** [Video Quick Start](/nomercy-video-player/quickstart). Your server must expose a compatible `/transcode` endpoint.
+
+---
+
+## Minimal setup
+
+```ts
+import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { LiveTranscodingPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('main')
+  .addPlugin(DesktopUiPlugin)
+  .addPlugin(LiveTranscodingPlugin, {
+    serverUrl: 'https://media.your-server.com',
+    auth: { bearerToken: () => myAuth.getToken() },
+  })
+  .setup({
+    basePath: 'https://media.your-server.com',
+    playlist: [
+      {
+        id: 'movie-1',
+        title: 'My Movie',
+        url: '/api/transcode/movie-1/stream.m3u8',
+        duration: 7200,
+      },
+    ],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+The plugin intercepts requests to the server's transcode endpoint and attaches session headers. When the server is still encoding, the plugin polls for readiness before handing the manifest URL to hls.js.
+
+---
+
+## Monitoring transcode progress
+
+```ts
+const transcodingPlugin = player.getPlugin(LiveTranscodingPlugin);
+
+// Fires when the server begins encoding a new segment group:
+player.on('transcoding:progress', ({ percent, segmentsReady, segmentsTotal }) => {
+  progressBar.value = percent;
+  progressLabel.textContent = `Encoding: ${segmentsReady}/${segmentsTotal} segments`;
+});
+
+// Fires when the full transcode is available (seek anywhere is safe):
+player.on('transcoding:complete', () => {
+  progressBar.hidden = true;
+});
+
+// Fires if the server returns an error (out of disk, codec unsupported, etc.):
+player.on('transcoding:error', ({ code, message }) => {
+  showError(`Server error ${code}: ${message}`);
+});
+```
+
+---
+
+## Quality negotiation
+
+When the server encodes multiple quality profiles in parallel, switch profiles without restarting the session:
+
+```ts
+// Request a specific profile by name:
+const plugin = player.getPlugin(LiveTranscodingPlugin);
+plugin.requestProfile('1080p');  // server switches encoding target
+plugin.requestProfile('auto');   // let the server decide based on client bandwidth report
+```
+
+The plugin fires `transcoding:profile-changed` when the server confirms the switch:
+
+```ts
+player.on('transcoding:profile-changed', ({ profile }) => {
+  qualityIndicator.textContent = profile;
+});
+```
+
+---
+
+## Session cleanup
+
+The transcode session on the server holds resources (CPU, disk). Dispose the player to send a cleanup signal:
+
+```ts
+// On page unload or player unmount:
+player.dispose(); // LiveTranscodingPlugin sends DELETE /api/transcode/{sessionId}
+```
+
+For single-page apps, wire disposal to your router's leave hook:
+
+```ts
+// Vue Router:
+onBeforeRouteLeave(() => {
+  player.dispose();
+});
+
+// React Router:
+useEffect(() => {
+  return () => player.dispose();
+}, []);
+```
+
+---
+
+## What to read next
+
+- [Plugins — Live Transcoding](/nomercy-video-player/plugins/live-transcoding) — full plugin option and event reference
+- [HLS](/nomercy-video-player/hls) — ABR and quality level internals
+- [Kit — Auth & Fetch](/nomercy-player-kit/auth-fetch) — securing transcode session requests
