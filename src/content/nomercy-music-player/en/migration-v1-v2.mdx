@@ -1,7 +1,7 @@
 ---
 title: v1 → v2 migration (music)
 description: Breaking changes and how to upgrade your code from nomercy-music-player v1 to v2.
-category: "Getting Started"
+category: 'Getting Started'
 order: 99
 ---
 
@@ -68,11 +68,11 @@ Read the checklist below, then work through each section.
 
 ## Events renamed
 
-| v1 event | v2 event |
-|----------|----------|
-| `song` | `current` |
-| `fatalError` | `fatal` |
-| `loadstart` | `setupStart` / `beforeLoad` |
+| v1 event     | v2 event                    |
+| ------------ | --------------------------- |
+| `song`       | `current`                   |
+| `fatalError` | `fatal`                     |
+| `loadstart`  | `setupStart` / `beforeLoad` |
 
 ---
 
@@ -80,20 +80,20 @@ Read the checklist below, then work through each section.
 
 These events no longer exist in v2. No compatibility shim is provided.
 
-| v1 event | Why removed | v2 replacement |
-|----------|-------------|----------------|
-| `queueNext` | Internal implementation signal; leaked publicly | No replacement — internal to `AutoAdvancePlugin` |
-| `startFadeOut` | Internal crossfade signal | `crossfadeStart` |
-| `endFadeOut` | Internal crossfade signal | `crossfadeComplete` |
-| `nextSong` | Internal implementation signal | `current` event |
-| `setCurrentAudio` | Exposed internal `HTMLAudioElement` | No replacement — element is backend-internal |
-| `setPreGain` | EQ moved to plugin | `plugin:equalizer:bandChanged` via `EqualizerPlugin` |
-| `setPanner` | EQ moved to plugin | Plugin event via `MixerPlugin` |
-| `setFilter` | EQ moved to plugin | Plugin event via `EqualizerPlugin` |
-| `time-internal` | Internal timing detail | Never public — do not rely on it |
-| `play-internal` | Internal playback detail | Never public |
-| `pause-internal` | Internal playback detail | Never public |
-| `loadedmetadata` | Internal media event | Not exposed in v2 |
+| v1 event          | Why removed                                     | v2 replacement                                       |
+| ----------------- | ----------------------------------------------- | ---------------------------------------------------- |
+| `queueNext`       | Internal implementation signal; leaked publicly | No replacement — internal to `AutoAdvancePlugin`     |
+| `startFadeOut`    | Internal crossfade signal                       | `crossfadeStart`                                     |
+| `endFadeOut`      | Internal crossfade signal                       | `crossfadeComplete`                                  |
+| `nextSong`        | Internal implementation signal                  | `current` event                                      |
+| `setCurrentAudio` | Exposed internal `HTMLAudioElement`             | No replacement — element is backend-internal         |
+| `setPreGain`      | EQ moved to plugin                              | `plugin:equalizer:bandChanged` via `EqualizerPlugin` |
+| `setPanner`       | EQ moved to plugin                              | Plugin event via `MixerPlugin`                       |
+| `setFilter`       | EQ moved to plugin                              | Plugin event via `EqualizerPlugin`                   |
+| `time-internal`   | Internal timing detail                          | Never public — do not rely on it                     |
+| `play-internal`   | Internal playback detail                        | Never public                                         |
+| `pause-internal`  | Internal playback detail                        | Never public                                         |
+| `loadedmetadata`  | Internal media event                            | Not exposed in v2                                    |
 
 ---
 
@@ -101,72 +101,72 @@ These events no longer exist in v2. No compatibility shim is provided.
 
 Every event that carried a raw `HTMLAudioElement` or a multi-field object now carries a typed wrapper. Update every `player.on(...)` call.
 
-| v1 event | v1 payload | v2 payload |
-|----------|-----------|-----------|
-| `play` | `HTMLAudioElement` | `ActionOptions` |
-| `pause` | `HTMLAudioElement` | `ActionOptions` |
-| `ended` | `HTMLAudioElement` | `void` |
-| `error` | `HTMLAudioElement` | `PlayerErrorEvent` |
-| `time` | `TimeState` (5 fields) | `{ time: number }` |
-| `current` (was `song`) | `S \| null` | `{ item: T \| undefined; index: number }` |
-| `shuffle` | `boolean` | `{ state: ShuffleState }` |
-| `repeat` | `RepeatState` string | `{ state: RepeatState }` |
-| `mute` | `boolean` | `{ muted: boolean }` |
-| `volume` | `number` | `{ level: number }` |
-| `seeked` | `TimeState` | `{ time: number }` |
-| `crossfadeStart` | `void` | `{ from: T; to: T; duration: number }` |
-| `crossfadeComplete` | `void` | `{ track: T }` |
-| `duration` | `number` | `{ duration: number }` |
-| `fatal` (was `fatalError`) | `{ error, recoverable, message }` | `PlayerErrorEvent` |
-| `canplay` | `HTMLAudioElement` | `void` |
-| `waiting` | `HTMLAudioElement` | `void` |
+| v1 event                   | v1 payload                        | v2 payload                                |
+| -------------------------- | --------------------------------- | ----------------------------------------- |
+| `play`                     | `HTMLAudioElement`                | `ActionOptions`                           |
+| `pause`                    | `HTMLAudioElement`                | `ActionOptions`                           |
+| `ended`                    | `HTMLAudioElement`                | `void`                                    |
+| `error`                    | `HTMLAudioElement`                | `PlayerErrorEvent`                        |
+| `time`                     | `TimeState` (5 fields)            | `{ time: number }`                        |
+| `current` (was `song`)     | `S \| null`                       | `{ item: T \| undefined; index: number }` |
+| `shuffle`                  | `boolean`                         | `{ state: ShuffleState }`                 |
+| `repeat`                   | `RepeatState` string              | `{ state: RepeatState }`                  |
+| `mute`                     | `boolean`                         | `{ muted: boolean }`                      |
+| `volume`                   | `number`                          | `{ level: number }`                       |
+| `seeked`                   | `TimeState`                       | `{ time: number }`                        |
+| `crossfadeStart`           | `void`                            | `{ from: T; to: T; duration: number }`    |
+| `crossfadeComplete`        | `void`                            | `{ track: T }`                            |
+| `duration`                 | `number`                          | `{ duration: number }`                    |
+| `fatal` (was `fatalError`) | `{ error, recoverable, message }` | `PlayerErrorEvent`                        |
+| `canplay`                  | `HTMLAudioElement`                | `void`                                    |
+| `waiting`                  | `HTMLAudioElement`                | `void`                                    |
 
 ---
 
 ## Methods renamed
 
-| v1 method | v2 method |
-|-----------|-----------|
-| `seek(time)` | `currentTime(t, opts?)` |
-| `getDuration()` | `duration()` |
-| `getCurrentTime()` | `currentTime()` |
-| `getBuffer()` | `buffered()` |
-| `getTimeData()` | `timeData()` |
-| `setVolume(v)` | `volume(v)` |
-| `getVolume()` | `volume()` |
-| `getQueue()` | `queue()` |
-| `setQueue(items)` | `queue(items, opts?)` |
-| `addToQueue(item)` | `queueAppend(item, opts?)` |
-| `pushToQueue(items)` | `queueAppend(items, opts?)` |
-| `removeFromQueue(item)` | `queueRemove(id, opts?)` — takes id, not full item |
-| `addToQueueNext(item)` | `queuePrepend(item, opts?)` |
-| `getBackLog()` | `backlog()` |
-| `setBackLog(items)` | `backlog(items)` |
-| `addToBackLog(item)` | `backlogAppend(item)` |
-| `pushToBackLog(items)` | `backlogAppend(items)` |
-| `removeFromBackLog(item)` | `backlogRemove(id)` — takes id, not full item |
-| `playTrack(track, tracks?)` | `current(track, opts?)` + `queue(tracks)` |
-| `setCurrentSong(item)` | `current(item, opts?)` |
-| `currentSong` (property) | `current()` (method) |
-| `shuffle(value)` | `shuffleState(value)` — boolean → `ShuffleState` enum |
-| `repeat(value)` | `repeatState(value)` |
-| `prepareCrossfade(item?)` | `crossfadeTo(track, opts?)` — semantics changed |
-| `setAccessToken(token)` | `auth({ bearerToken: token })` |
-| `setBaseUrl(url)` | `baseUrl(url)` |
-| `isShuffling` (property) | `shuffleState()` (method) |
-| `isRepeating` (property) | `repeatState()` (method) |
-| `isMuted` (property) | `volumeState()` (method, returns enum) |
-| `isPlaying` (property) | `playState()` (method, returns `PlayState` enum) |
-| `state` (PlayerState enum property) | `playState()` (method) |
-| `_crossfadeActive` (property) | `isTransitioning()` (method) |
-| `context` (AudioContext property) | `audioContext()` (method) |
-| `isPlatform(platform)` | `isMobile()` / `isTv()` (separate methods) |
-| `loadEqualizerSettings()` | `player.getPlugin(EqualizerPlugin)` |
-| `saveEqualizerSettings()` | `EqualizerPlugin` state persistence |
-| `setPreGain(gain)` | `player.getPlugin(EqualizerPlugin).setPreGain(gain)` |
-| `setPanner(pan)` | `player.getPlugin(MixerPlugin)` |
-| `setFilter(band)` | `player.getPlugin(EqualizerPlugin).setBand(...)` |
-| `setAutoPlayback(v)` | `setup({ disableAutoPlayback: !v })` — config-time only |
+| v1 method                           | v2 method                                               |
+| ----------------------------------- | ------------------------------------------------------- |
+| `seek(time)`                        | `currentTime(t, opts?)`                                 |
+| `getDuration()`                     | `duration()`                                            |
+| `getCurrentTime()`                  | `currentTime()`                                         |
+| `getBuffer()`                       | `buffered()`                                            |
+| `getTimeData()`                     | `timeData()`                                            |
+| `setVolume(v)`                      | `volume(v)`                                             |
+| `getVolume()`                       | `volume()`                                              |
+| `getQueue()`                        | `queue()`                                               |
+| `setQueue(items)`                   | `queue(items, opts?)`                                   |
+| `addToQueue(item)`                  | `queueAppend(item, opts?)`                              |
+| `pushToQueue(items)`                | `queueAppend(items, opts?)`                             |
+| `removeFromQueue(item)`             | `queueRemove(id, opts?)` — takes id, not full item      |
+| `addToQueueNext(item)`              | `queuePrepend(item, opts?)`                             |
+| `getBackLog()`                      | `backlog()`                                             |
+| `setBackLog(items)`                 | `backlog(items)`                                        |
+| `addToBackLog(item)`                | `backlogAppend(item)`                                   |
+| `pushToBackLog(items)`              | `backlogAppend(items)`                                  |
+| `removeFromBackLog(item)`           | `backlogRemove(id)` — takes id, not full item           |
+| `playTrack(track, tracks?)`         | `current(track, opts?)` + `queue(tracks)`               |
+| `setCurrentSong(item)`              | `current(item, opts?)`                                  |
+| `currentSong` (property)            | `current()` (method)                                    |
+| `shuffle(value)`                    | `shuffleState(value)` — boolean → `ShuffleState` enum   |
+| `repeat(value)`                     | `repeatState(value)`                                    |
+| `prepareCrossfade(item?)`           | `crossfadeTo(track, opts?)` — semantics changed         |
+| `setAccessToken(token)`             | `auth({ bearerToken: token })`                          |
+| `setBaseUrl(url)`                   | `baseUrl(url)`                                          |
+| `isShuffling` (property)            | `shuffleState()` (method)                               |
+| `isRepeating` (property)            | `repeatState()` (method)                                |
+| `isMuted` (property)                | `volumeState()` (method, returns enum)                  |
+| `isPlaying` (property)              | `playState()` (method, returns `PlayState` enum)        |
+| `state` (PlayerState enum property) | `playState()` (method)                                  |
+| `_crossfadeActive` (property)       | `isTransitioning()` (method)                            |
+| `context` (AudioContext property)   | `audioContext()` (method)                               |
+| `isPlatform(platform)`              | `isMobile()` / `isTv()` (separate methods)              |
+| `loadEqualizerSettings()`           | `player.getPlugin(EqualizerPlugin)`                     |
+| `saveEqualizerSettings()`           | `EqualizerPlugin` state persistence                     |
+| `setPreGain(gain)`                  | `player.getPlugin(EqualizerPlugin).setPreGain(gain)`    |
+| `setPanner(pan)`                    | `player.getPlugin(MixerPlugin)`                         |
+| `setFilter(band)`                   | `player.getPlugin(EqualizerPlugin).setBand(...)`        |
+| `setAutoPlayback(v)`                | `setup({ disableAutoPlayback: !v })` — config-time only |
 
 ---
 
@@ -180,13 +180,13 @@ If your server API returns track objects with a `path` field and you pass them t
 
 ```ts
 // v1 — server returns { path: '...', name: '...' }
-player.setQueue(serverTracks);  // worked because player read item.path
+player.setQueue(serverTracks); // worked because player read item.path
 
 // v2 — BREAKS. item.url is undefined, player cannot load the source.
 player.queue(serverTracks);
 
 // v2 — correct. Map the field before passing to the player:
-player.queue(serverTracks.map(track => ({ ...track, url: track.path })));
+player.queue(serverTracks.map((track) => ({ ...track, url: track.path })));
 ```
 
 **For group listening:** The queue is serialized and shared between participants in a listening session. If any participant's queue contains items without `url` set, they will fail to load tracks. The server must emit `url` (or you must map `path` → `url` before sharing the queue over the realtime channel).
@@ -195,16 +195,16 @@ player.queue(serverTracks.map(track => ({ ...track, url: track.path })));
 
 Full `MusicPlaylistItem` shape changes:
 
-| v1 field | v2 field | Change |
-|----------|----------|--------|
-| `path: string` (required) | `url?: string` | Renamed + now optional |
-| `name: string` (required) | `name: string` (required) | Same |
-| `album_track: { name, ...any }[]` (required) | `album_track?: AlbumRef[]` | Required → optional |
-| `artist_track: { name, ...any }[]` (required) | `artist_track?: ArtistRef[]` | Required → optional |
-| `cover` (typed as `any`) | `cover?: string` | Now typed |
-| (not present) | `lyricsUrl?: string` | New — source URL for `LyricsPlugin` |
-| (not present) | `duration?: number` | New |
-| `id` (via index signature) | `id` (from `BasePlaylistItem`) | Now typed and required |
+| v1 field                                      | v2 field                       | Change                              |
+| --------------------------------------------- | ------------------------------ | ----------------------------------- |
+| `path: string` (required)                     | `url?: string`                 | Renamed + now optional              |
+| `name: string` (required)                     | `name: string` (required)      | Same                                |
+| `album_track: { name, ...any }[]` (required)  | `album_track?: AlbumRef[]`     | Required → optional                 |
+| `artist_track: { name, ...any }[]` (required) | `artist_track?: ArtistRef[]`   | Required → optional                 |
+| `cover` (typed as `any`)                      | `cover?: string`               | Now typed                           |
+| (not present)                                 | `lyricsUrl?: string`           | New — source URL for `LyricsPlugin` |
+| (not present)                                 | `duration?: number`            | New                                 |
+| `id` (via index signature)                    | `id` (from `BasePlaylistItem`) | Now typed and required              |
 
 ---
 
@@ -237,7 +237,7 @@ player.shuffle(true);
 
 // v2
 import { ShuffleState } from '@nomercy-entertainment/nomercy-music-player';
-player.shuffleState(ShuffleState.On);  // or ShuffleState.Off
+player.shuffleState(ShuffleState.On); // or ShuffleState.Off
 ```
 
 The `shuffle` event payload also changed from `boolean` to `{ state: ShuffleState }`.
@@ -322,14 +322,14 @@ player.on('crossfadeComplete', fn);
 
 **Plugins that moved from always-on to opt-in:**
 
-| v1 (always on) | v2 (opt-in) |
-|----------------|-------------|
-| Equalizer (WebAudio BiquadFilter) | `addPlugin(EqualizerPlugin)` (requires `AudioGraphPlugin`) |
-| Spectrum (audiomotion-analyzer) | `addPlugin(SpectrumPlugin)` (requires `AudioGraphPlugin`) |
-| MediaSession | `addPlugin(MediaSessionPlugin)` |
-| Auto-advance (play on ended) | `addPlugin(AutoAdvancePlugin)` |
-| `motionConfig` / `motionColors` constructor options | `SpectrumPlugin` options at `addPlugin` |
-| `actions` constructor option | `MediaSessionPlugin` options at `addPlugin` |
+| v1 (always on)                                      | v2 (opt-in)                                                |
+| --------------------------------------------------- | ---------------------------------------------------------- |
+| Equalizer (WebAudio BiquadFilter)                   | `addPlugin(EqualizerPlugin)` (requires `AudioGraphPlugin`) |
+| Spectrum (audiomotion-analyzer)                     | `addPlugin(SpectrumPlugin)` (requires `AudioGraphPlugin`)  |
+| MediaSession                                        | `addPlugin(MediaSessionPlugin)`                            |
+| Auto-advance (play on ended)                        | `addPlugin(AutoAdvancePlugin)`                             |
+| `motionConfig` / `motionColors` constructor options | `SpectrumPlugin` options at `addPlugin`                    |
+| `actions` constructor option                        | `MediaSessionPlugin` options at `addPlugin`                |
 
 **Cross-plugin event listening** is typed:
 
@@ -355,22 +355,22 @@ const player = nmMPlayer('player-1').setup({
   accessToken: () => myAuth.getToken(),
 
   // Music-specific adapters:
-  backend: 'webaudio',             // 'webaudio' (default) or 'audio-element'
-  scrobbler: myLastFmScrobbler,    // reports to Last.fm
+  backend: 'webaudio', // 'webaudio' (default) or 'audio-element'
+  scrobbler: myLastFmScrobbler, // reports to Last.fm
   lyricSource: new LrcFileLyricSource(),
 });
 ```
 
 **Music-specific ports:**
 
-| Port | Interface | Default |
-|------|-----------|---------|
-| audio-backend | `IAudioBackend` | `WebAudioBackend` |
-| playlist-generator | `IPlaylistGenerator` | `linear` |
-| similarity-engine | `ISimilarityEngine` | consumer-required (no default) |
-| scrobbler | `IScrobbler` | `noop` |
-| lyric-source | `ILyricSource` | `lrc-file` |
-| now-playing-art | `INowPlayingArt` | `media-session` |
+| Port               | Interface            | Default                        |
+| ------------------ | -------------------- | ------------------------------ |
+| audio-backend      | `IAudioBackend`      | `WebAudioBackend`              |
+| playlist-generator | `IPlaylistGenerator` | `linear`                       |
+| similarity-engine  | `ISimilarityEngine`  | consumer-required (no default) |
+| scrobbler          | `IScrobbler`         | `noop`                         |
+| lyric-source       | `ILyricSource`       | `lrc-file`                     |
+| now-playing-art    | `INowPlayingArt`     | `media-session`                |
 
 See the [kit migration guide](/nomercy-player-kit/adapters) for the full 28-port kit catalog and subpath import table.
 
@@ -378,20 +378,20 @@ See the [kit migration guide](/nomercy-player-kit/adapters) for the full 28-port
 
 ## Constructor options that moved
 
-| v1 constructor option | v2 equivalent |
-|----------------------|---------------|
-| `siteTitle: string` | **Removed** — player must not touch `document.title` |
-| `expose: boolean` (required) | `setup({ expose?: boolean })` — optional in v2 |
-| `debug: boolean` | `setup({ logLevel: 'debug' })` |
-| `motionConfig` | `addPlugin(SpectrumPlugin, { /* audiomotion opts */ })` |
-| `motionColors` | `addPlugin(SpectrumPlugin, { colors: [...] })` |
-| `actions` (MediaSession) | `addPlugin(MediaSessionPlugin, { actions: { ... } })` |
-| `onCrossfadeStart` | `player.on('crossfadeStart', fn)` |
-| `onCrossfadeComplete` | `player.on('crossfadeComplete', fn)` |
-| `fadeDuration` | `setup({ crossfadeDefaults: { durationMs: ... } })` |
-| `prefetchLeeway` | `setup({ preloadLeadSeconds: ... })` |
-| `disableAutoPlayback` | `setup({ disableAutoPlayback: true })` |
-| `baseUrl` | `setup({ baseUrl: ... })` |
+| v1 constructor option        | v2 equivalent                                           |
+| ---------------------------- | ------------------------------------------------------- |
+| `siteTitle: string`          | **Removed** — player must not touch `document.title`    |
+| `expose: boolean` (required) | `setup({ expose?: boolean })` — optional in v2          |
+| `debug: boolean`             | `setup({ logLevel: 'debug' })`                          |
+| `motionConfig`               | `addPlugin(SpectrumPlugin, { /* audiomotion opts */ })` |
+| `motionColors`               | `addPlugin(SpectrumPlugin, { colors: [...] })`          |
+| `actions` (MediaSession)     | `addPlugin(MediaSessionPlugin, { actions: { ... } })`   |
+| `onCrossfadeStart`           | `player.on('crossfadeStart', fn)`                       |
+| `onCrossfadeComplete`        | `player.on('crossfadeComplete', fn)`                    |
+| `fadeDuration`               | `setup({ crossfadeDefaults: { durationMs: ... } })`     |
+| `prefetchLeeway`             | `setup({ preloadLeadSeconds: ... })`                    |
+| `disableAutoPlayback`        | `setup({ disableAutoPlayback: true })`                  |
+| `baseUrl`                    | `setup({ baseUrl: ... })`                               |
 
 ---
 
@@ -435,6 +435,7 @@ import { WebAudioBackend } from '@nomercy-entertainment/nomercy-music-player/ada
 ### nomercy-app-web
 
 High-impact areas:
+
 - Every `player.on(...)` music event handler needs payload updates (`song` → `current`, `{ item, index }` payload shape, etc.)
 - Equalizer, Spectrum, and MediaSession wiring — move from constructor options to `addPlugin` calls
 - `player.setPreGain()` / `player.setFilter()` calls → `player.getPlugin(EqualizerPlugin).*`

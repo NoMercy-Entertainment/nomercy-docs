@@ -1,7 +1,7 @@
 ---
-title: "Types Reference"
-description: "All exported types from @nomercy-entertainment/nomercy-music-player — MusicPlaylistItem, MusicPlayerConfig, IMusicPlayer, MusicEventMap, CrossfadeOptions, enums."
-category: "Types Reference"
+title: 'Types Reference'
+description: 'All exported types from @nomercy-entertainment/nomercy-music-player — MusicPlaylistItem, MusicPlayerConfig, IMusicPlayer, MusicEventMap, CrossfadeOptions, enums.'
+category: 'Types Reference'
 order: 24
 draft: false
 ---
@@ -28,8 +28,14 @@ interface MusicPlaylistItem extends BasePlaylistItem {
   duration?: number;
 }
 
-interface ArtistRef { id: string | number; name: string }
-interface AlbumRef  { id: string | number; name: string }
+interface ArtistRef {
+  id: string | number;
+  name: string;
+}
+interface AlbumRef {
+  id: string | number;
+  name: string;
+}
 ```
 
 See [MusicPlaylistItem](/nomercy-music-player/playlist-item) for field details.
@@ -37,8 +43,9 @@ See [MusicPlaylistItem](/nomercy-music-player/playlist-item) for field details.
 ### `MusicPlayerConfig<T>`
 
 ```ts
-interface MusicPlayerConfig<T extends BasePlaylistItem = MusicPlaylistItem>
-  extends BasePlayerConfig {
+interface MusicPlayerConfig<
+  T extends BasePlaylistItem = MusicPlaylistItem,
+> extends BasePlayerConfig {
   backend?: AudioBackendKind;
   backendFactory?: AudioBackendFactory;
   crossfadeDefaults?: { duration: number; curve?: 'linear' | 'equal-power' };
@@ -52,8 +59,9 @@ See [Configuration](/nomercy-music-player/configuration).
 ### `IMusicPlayer<T>`
 
 ```ts
-interface IMusicPlayer<T extends BasePlaylistItem = MusicPlaylistItem>
-  extends IPlayer<MusicEventMap> {
+interface IMusicPlayer<
+  T extends BasePlaylistItem = MusicPlaylistItem,
+> extends IPlayer<MusicEventMap> {
   backend(): IAudioBackend;
   backend(kind: AudioBackendKind): Promise<void>;
   crossfadeTo(track: T, opts?: CrossfadeOptions & ActionOptions): Promise<void>;
@@ -67,13 +75,13 @@ Recommended type for consumer-held player references. See [Factory](/nomercy-mus
 
 ```ts
 interface MusicEventMap extends BaseEventMap {
-  'current': { item: MusicPlaylistItem | undefined; index: number };
+  current: { item: MusicPlaylistItem | undefined; index: number };
   'backend:changed': { kind: AudioBackendKind };
-  'repeat': { state: RepeatState };
-  'shuffle': { state: ShuffleState };
-  'trackEndingSoon': { remaining: number; currentTrack: BasePlaylistItem };
-  'crossfadeStart': { from: BasePlaylistItem | null; to: BasePlaylistItem; duration: number };
-  'crossfadeComplete': { track: BasePlaylistItem };
+  repeat: { state: RepeatState };
+  shuffle: { state: ShuffleState };
+  trackEndingSoon: { remaining: number; currentTrack: BasePlaylistItem };
+  crossfadeStart: { from: BasePlaylistItem | null; to: BasePlaylistItem; duration: number };
+  crossfadeComplete: { track: BasePlaylistItem };
   'eq:change': { band: number; gain: number };
 }
 ```
@@ -95,7 +103,7 @@ interface CrossfadeOptions {
 ### `AudioBackendKind`
 
 ```ts
-type AudioBackendKind = 'audio-element' | 'webaudio'
+type AudioBackendKind = 'audio-element' | 'webaudio';
 ```
 
 ### `AudioBackendFactory`
@@ -104,7 +112,7 @@ type AudioBackendKind = 'audio-element' | 'webaudio'
 type AudioBackendFactory = (
   kind: AudioBackendKind,
   config: MusicPlayerConfig<BasePlaylistItem>,
-) => IAudioBackend
+) => IAudioBackend;
 ```
 
 ---
@@ -115,12 +123,12 @@ type AudioBackendFactory = (
 
 ```ts
 enum PlayState {
-  IDLE    = 'idle',
+  IDLE = 'idle',
   LOADING = 'loading',
   PLAYING = 'playing',
-  PAUSED  = 'paused',
+  PAUSED = 'paused',
   STOPPED = 'stopped',
-  ERROR   = 'error',
+  ERROR = 'error',
 }
 ```
 
@@ -129,7 +137,7 @@ enum PlayState {
 ```ts
 enum VolumeState {
   UNMUTED = 'unmuted',
-  MUTED   = 'muted',
+  MUTED = 'muted',
 }
 ```
 
@@ -148,7 +156,7 @@ enum RepeatState {
 ```ts
 enum ShuffleState {
   OFF = 'off',
-  ON  = 'on',
+  ON = 'on',
 }
 ```
 
@@ -159,34 +167,44 @@ enum ShuffleState {
 ### `BackendState`
 
 ```ts
-type BackendState = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'error'
+type BackendState = 'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'error';
 ```
 
 ### `BackendLoaderState`
 
 ```ts
-type BackendLoaderState = 'running' | 'paused'
+type BackendLoaderState = 'running' | 'paused';
 ```
 
 ### `BackendEvent`
 
 ```ts
 type BackendEvent =
-  | 'loadstart' | 'loadedmetadata' | 'canplay' | 'play' | 'playing'
-  | 'pause' | 'ended' | 'timeupdate' | 'waiting' | 'stalled'
-  | 'ratechange' | 'encrypted' | 'error'
+  | 'loadstart'
+  | 'loadedmetadata'
+  | 'canplay'
+  | 'play'
+  | 'playing'
+  | 'pause'
+  | 'ended'
+  | 'timeupdate'
+  | 'waiting'
+  | 'stalled'
+  | 'ratechange'
+  | 'encrypted'
+  | 'error';
 ```
 
 ---
 
 ## Adapter types
 
-| Type | Import path |
-|------|------------|
-| `ILyricSource` | `@nomercy-entertainment/nomercy-music-player` |
+| Type                            | Import path                                   |
+| ------------------------------- | --------------------------------------------- |
+| `ILyricSource`                  | `@nomercy-entertainment/nomercy-music-player` |
 | `IScrobbler`, `ScrobbleContext` | `@nomercy-entertainment/nomercy-music-player` |
-| `INowPlayingArt` | `@nomercy-entertainment/nomercy-music-player` |
-| `IPlaylistGenerator` | `@nomercy-entertainment/nomercy-music-player` |
+| `INowPlayingArt`                | `@nomercy-entertainment/nomercy-music-player` |
+| `IPlaylistGenerator`            | `@nomercy-entertainment/nomercy-music-player` |
 
 ---
 

@@ -1,7 +1,7 @@
 ﻿---
-title: "Framework — Vue"
-description: "Integrating nomercy-video-player with Vue 3. shallowRef pattern, composable, event cleanup."
-category: "Getting Started"
+title: 'Framework — Vue'
+description: 'Integrating nomercy-video-player with Vue 3. shallowRef pattern, composable, event cleanup.'
+category: 'Getting Started'
 order: 7
 ---
 
@@ -16,19 +16,21 @@ The player instance must be wrapped in `shallowRef`, not `ref`. The player is a 
 ```ts
 // composables/useVideoPlayer.ts
 import { shallowRef, onUnmounted } from 'vue';
-import { nmplayer, DesktopUiPlugin, AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player';
+import {
+  nmplayer,
+  DesktopUiPlugin,
+  AutoAdvancePlugin,
+} from '@nomercy-entertainment/nomercy-video-player';
 
 export function useVideoPlayer(containerId: string) {
   const player = shallowRef(
     nmplayer('main').setup({
       container: document.getElementById(containerId)!,
       queue: [],
-    })
+    }),
   );
 
-  player.value
-    .addPlugin(DesktopUiPlugin)
-    .addPlugin(AutoAdvancePlugin);
+  player.value.addPlugin(DesktopUiPlugin).addPlugin(AutoAdvancePlugin);
 
   onUnmounted(() => {
     player.value.dispose();
@@ -64,9 +66,15 @@ onMounted(async () => {
 
   player.addPlugin(DesktopUiPlugin);
 
-  player.on('play', () => { isPlaying.value = true; });
-  player.on('pause', () => { isPlaying.value = false; });
-  player.on('time', ({ time }) => { currentTime.value = time; });
+  player.on('play', () => {
+    isPlaying.value = true;
+  });
+  player.on('pause', () => {
+    isPlaying.value = false;
+  });
+  player.on('time', ({ time }) => {
+    currentTime.value = time;
+  });
 
   await player.ready();
 });
@@ -115,7 +123,9 @@ Import in any component:
 ```ts
 import { player } from '@/lib/player';
 
-player.value.on('current', ({ item }) => { /* ... */ });
+player.value.on('current', ({ item }) => {
+  /* ... */
+});
 ```
 
 ---
@@ -129,9 +139,13 @@ import { player } from '@/lib/player';
 
 const store = usePlayerStore();
 
-watch(() => store.queue, (newQueue) => {
-  player.value.queue(newQueue);
-}, { deep: true });
+watch(
+  () => store.queue,
+  (newQueue) => {
+    player.value.queue(newQueue);
+  },
+  { deep: true },
+);
 ```
 
 ---

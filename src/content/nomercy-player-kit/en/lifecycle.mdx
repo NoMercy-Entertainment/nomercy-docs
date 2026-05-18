@@ -1,7 +1,7 @@
 ---
-title: "Lifecycle"
-description: "The 13-phase player state machine. Phase transitions, setup stages, and how to listen to lifecycle events."
-category: "Lifecycle"
+title: 'Lifecycle'
+description: 'The 13-phase player state machine. Phase transitions, setup stages, and how to listen to lifecycle events.'
+category: 'Lifecycle'
 order: 6
 ---
 
@@ -57,21 +57,21 @@ idle
 
 ## All 13 phases
 
-| Phase | When |
-|-------|------|
-| `idle` | Before `setup()` is called |
-| `setup` | `setup()` is running — plugins are initializing |
-| `ready` | All plugins resolved — player can accept transport commands |
-| `loading` | `load()` or `current()` is in progress |
-| `starting` | Media is loaded, `play()` dispatched — waiting for first frame |
-| `playing` | Playback is active |
-| `paused` | Playback is paused |
-| `buffering` | Buffer underrun — player is stalled, waiting for data |
-| `seeking` | A seek operation is in progress |
-| `ended` | Current item played to the end |
-| `stopped` | `stop()` was called — position reset to 0 |
-| `disposing` | `dispose()` is in progress — teardown running |
-| `disposed` | Player is fully torn down — instance can be garbage collected |
+| Phase       | When                                                           |
+| ----------- | -------------------------------------------------------------- |
+| `idle`      | Before `setup()` is called                                     |
+| `setup`     | `setup()` is running — plugins are initializing                |
+| `ready`     | All plugins resolved — player can accept transport commands    |
+| `loading`   | `load()` or `current()` is in progress                         |
+| `starting`  | Media is loaded, `play()` dispatched — waiting for first frame |
+| `playing`   | Playback is active                                             |
+| `paused`    | Playback is paused                                             |
+| `buffering` | Buffer underrun — player is stalled, waiting for data          |
+| `seeking`   | A seek operation is in progress                                |
+| `ended`     | Current item played to the end                                 |
+| `stopped`   | `stop()` was called — position reset to 0                      |
+| `disposing` | `dispose()` is in progress — teardown running                  |
+| `disposed`  | Player is fully torn down — instance can be garbage collected  |
 
 ---
 
@@ -86,7 +86,7 @@ player.on('phase', ({ from, to }) => {
 Current phase at any point:
 
 ```ts
-player.phase();  // 'playing' | 'paused' | etc.
+player.phase(); // 'playing' | 'paused' | etc.
 ```
 
 ---
@@ -95,19 +95,19 @@ player.phase();  // 'playing' | 'paused' | etc.
 
 The setup pipeline fires events at each stage. Each stage can fail independently:
 
-| Event | Payload | Fires when |
-|-------|---------|-----------|
-| `beforeSetup` | `void` | Immediately before setup begins — cancellable |
-| `setupStart` | `{ container: HTMLElement }` | Setup begins |
-| `configResolved` | `{ config }` | Config normalized |
-| `pluginsRegistering` | `void` | Plugin `use()` running |
-| `pluginsRegistered` | `void` | All plugins' `use()` resolved |
-| `streamsReady` | `void` | HLS/native stream adapters registered |
-| `authReady` | `void` | Auth pipeline wired |
-| `playlistResolving` | `{ url: string }` | Fetching a URL-based playlist |
-| `playlistReady` | `{ length: number }` | Playlist loaded (or URL load complete) |
-| `mediaReady` | `void` | Media backend ready |
-| `ready` | `void` | Full setup complete — all plugins resolved |
+| Event                | Payload                      | Fires when                                    |
+| -------------------- | ---------------------------- | --------------------------------------------- |
+| `beforeSetup`        | `void`                       | Immediately before setup begins — cancellable |
+| `setupStart`         | `{ container: HTMLElement }` | Setup begins                                  |
+| `configResolved`     | `{ config }`                 | Config normalized                             |
+| `pluginsRegistering` | `void`                       | Plugin `use()` running                        |
+| `pluginsRegistered`  | `void`                       | All plugins' `use()` resolved                 |
+| `streamsReady`       | `void`                       | HLS/native stream adapters registered         |
+| `authReady`          | `void`                       | Auth pipeline wired                           |
+| `playlistResolving`  | `{ url: string }`            | Fetching a URL-based playlist                 |
+| `playlistReady`      | `{ length: number }`         | Playlist loaded (or URL load complete)        |
+| `mediaReady`         | `void`                       | Media backend ready                           |
+| `ready`              | `void`                       | Full setup complete — all plugins resolved    |
 
 Each stage has a paired `*Error` event for observability:
 

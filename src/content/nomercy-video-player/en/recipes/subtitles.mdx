@@ -1,7 +1,7 @@
 ﻿---
-title: "Subtitles"
-description: "VTT default rendering, ASS/SSA via OctopusPlugin with dynamic load, multi-language switching, and style customization."
-category: "Recipes"
+title: 'Subtitles'
+description: 'VTT default rendering, ASS/SSA via OctopusPlugin with dynamic load, multi-language switching, and style customization.'
+category: 'Recipes'
 order: 51
 ---
 
@@ -18,10 +18,7 @@ Read this when you need subtitle rendering beyond the bare minimum in the quicks
 `SubtitleOverlayPlugin` renders WebVTT cues as styled DOM text over the video. It is the lightest option and works without any extra dependencies.
 
 ```ts
-import {
-  nmplayer,
-  SubtitleOverlayPlugin,
-} from '@nomercy-entertainment/nomercy-video-player';
+import { nmplayer, SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-player';
 
 const player = nmplayer('main').setup({
   container: document.getElementById('player')!,
@@ -33,8 +30,8 @@ const player = nmplayer('main').setup({
       subtitles: [
         // Each track needs an id, language code, label, and file URL
         { id: 'en', language: 'en', label: 'English', file: '/subs/ep1.en.vtt', kind: 'subtitles' },
-        { id: 'nl', language: 'nl', label: 'Dutch',   file: '/subs/ep1.nl.vtt', kind: 'subtitles' },
-        { id: 'de', language: 'de', label: 'German',  file: '/subs/ep1.de.vtt', kind: 'subtitles' },
+        { id: 'nl', language: 'nl', label: 'Dutch', file: '/subs/ep1.nl.vtt', kind: 'subtitles' },
+        { id: 'de', language: 'de', label: 'German', file: '/subs/ep1.de.vtt', kind: 'subtitles' },
       ],
     },
   ],
@@ -108,10 +105,7 @@ export default {
 **Register the plugin:**
 
 ```ts
-import {
-  nmplayer,
-  OctopusPlugin,
-} from '@nomercy-entertainment/nomercy-video-player';
+import { nmplayer, OctopusPlugin } from '@nomercy-entertainment/nomercy-video-player';
 
 const player = nmplayer('main').setup({
   container: document.getElementById('player')!,
@@ -123,21 +117,19 @@ const player = nmplayer('main').setup({
       subtitles: [
         // Use kind: 'ass' for ASS/SSA tracks
         { id: 'en', language: 'en', label: 'English', file: '/subs/ep1.en.ass', kind: 'ass' },
-        { id: 'nl', language: 'nl', label: 'Dutch',   file: '/subs/ep1.nl.ass', kind: 'ass' },
+        { id: 'nl', language: 'nl', label: 'Dutch', file: '/subs/ep1.nl.ass', kind: 'ass' },
       ],
       // Font manifest — embed font names referenced by the ASS file
-      tracks: [
-        { kind: 'fonts', file: '/fonts/ep1-fonts.json' },
-      ],
+      tracks: [{ kind: 'fonts', file: '/fonts/ep1-fonts.json' }],
     },
   ],
 });
 
 player.addPlugin(OctopusPlugin, {
-  workerUrl: '/static/subtitles-octopus-worker.js',         // WASM worker (modern browsers)
+  workerUrl: '/static/subtitles-octopus-worker.js', // WASM worker (modern browsers)
   legacyWorkerUrl: '/static/subtitles-octopus-worker-legacy.js', // asm.js fallback
-  fallbackFont: '/static/fonts/Roboto.ttf',                 // font used when ASS font is missing
-  targetFps: 24,                                            // rendering frame rate
+  fallbackFont: '/static/fonts/Roboto.ttf', // font used when ASS font is missing
+  targetFps: 24, // rendering frame rate
 });
 ```
 
@@ -182,7 +174,10 @@ Register both plugins. The correct one activates for each track.
 Override the store to use a different backend:
 
 ```ts
-import type { ISubtitleStyleStore, SubtitleStyle } from '@nomercy-entertainment/nomercy-video-player';
+import type {
+  ISubtitleStyleStore,
+  SubtitleStyle,
+} from '@nomercy-entertainment/nomercy-video-player';
 
 class RemoteSubtitleStyleStore implements ISubtitleStyleStore {
   async get(): Promise<SubtitleStyle | null> {

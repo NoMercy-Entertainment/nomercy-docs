@@ -1,7 +1,7 @@
 ---
-title: "Runtime Classes"
-description: "EventEmitter, Logger, MediaList, Plugin, LifecycleRegistry, and more."
-category: "Types Reference"
+title: 'Runtime Classes'
+description: 'EventEmitter, Logger, MediaList, Plugin, LifecycleRegistry, and more.'
+category: 'Types Reference'
 order: 1
 draft: false
 ---
@@ -11,11 +11,7 @@ draft: false
 ## Import
 
 ```ts
-import {
-  Logger,
-  Plugin,
-  LifecycleRegistry,
-} from '@nomercy-entertainment/nomercy-player-core';
+import { Logger, Plugin, LifecycleRegistry } from '@nomercy-entertainment/nomercy-player-core';
 ```
 
 ---
@@ -44,7 +40,7 @@ class Logger implements ILogger {
 }
 
 interface LoggerOptions {
-  level?: LogLevel;   // default 'info'
+  level?: LogLevel; // default 'info'
   prefix?: string;
 }
 
@@ -62,7 +58,7 @@ import { Logger } from '@nomercy-entertainment/nomercy-player-core';
 
 const logger = new Logger({ level: 'debug', prefix: 'myapp' });
 const sub = logger.child('subtitle');
-sub.info('cue loaded');  // → "[myapp][subtitle] cue loaded"
+sub.info('cue loaded'); // → "[myapp][subtitle] cue loaded"
 
 // Route to a custom telemetry sink
 const unsub = logger.addSink((level, prefix, args) => {
@@ -110,7 +106,12 @@ Plugin authors never construct or dispose this directly — the player creates o
 ```ts
 class LifecycleRegistry {
   addCleanup(fn: () => void): void;
-  listen(target: EventTarget, event: string, handler: EventListener, options?: AddEventListenerOptions): void;
+  listen(
+    target: EventTarget,
+    event: string,
+    handler: EventListener,
+    options?: AddEventListenerOptions,
+  ): void;
   timeout(fn: () => void, ms: number): number;
   interval(fn: () => void, ms: number): number;
   observe<O extends { disconnect(): void }>(observer: O): O;
@@ -121,14 +122,14 @@ class LifecycleRegistry {
 }
 ```
 
-| Method | Auto-cleaned on dispose |
-| --- | --- |
-| `listen` | DOM event listener removed |
-| `timeout` | `clearTimeout` called |
-| `interval` | `clearInterval` called |
-| `frame` | `cancelAnimationFrame` called |
-| `observe` | Observer `disconnect()` called |
-| `abortable` | `AbortController.abort()` called |
+| Method       | Auto-cleaned on dispose                       |
+| ------------ | --------------------------------------------- |
+| `listen`     | DOM event listener removed                    |
+| `timeout`    | `clearTimeout` called                         |
+| `interval`   | `clearInterval` called                        |
+| `frame`      | `cancelAnimationFrame` called                 |
+| `observe`    | Observer `disconnect()` called                |
+| `abortable`  | `AbortController.abort()` called              |
 | `addCleanup` | Callback called in reverse registration order |
 
 `observe()` returns the observer unchanged so callers can chain:
@@ -156,14 +157,14 @@ class Plugin<
   static readonly description: string;
 
   // Recommended statics
-  static readonly version: string;          // default '0.0.0'
+  static readonly version: string; // default '0.0.0'
 
   // Optional statics
   static readonly minCoreVersion?: string;
-  static readonly moduleUrl?: string;       // set to import.meta.url
+  static readonly moduleUrl?: string; // set to import.meta.url
   static readonly requires?: ReadonlyArray<RequireSpec>;
   static readonly replaces?: string;
-  static readonly priority: number;         // default 0
+  static readonly priority: number; // default 0
   static readonly onError?: Record<string, PluginRecoveryAction>;
   static readonly advisories?: ReadonlyArray<PluginAdvisory>;
   static readonly translations?: Translations;
@@ -171,11 +172,11 @@ class Plugin<
   // Instance — set by the player before use() runs
   declare player: P;
   declare opts: O;
-  declare readonly __events__: E;           // phantom type carrier
+  declare readonly __events__: E; // phantom type carrier
 
   // Protected scoped helpers
-  protected logger: ILogger;               // prefixed [nmplayer][<id>]
-  protected storage: IStorage;             // prefixed nmplayer-<id>-
+  protected logger: ILogger; // prefixed [nmplayer][<id>]
+  protected storage: IStorage; // prefixed nmplayer-<id>-
 
   // Lifecycle
   initialize(player: P, opts: O, lifecycle: LifecycleRegistry): void;
@@ -234,19 +235,19 @@ class Plugin<
 
 ### Static plugin contract
 
-| Static | Required | Description |
-| --- | --- | --- |
-| `id` | Yes | Unique string — `'myvendor:feature'`. Lint-enforced namespacing for third-party. |
-| `description` | Yes | One-line human-readable. Used in error messages and listings. |
-| `version` | Recommended | Semver string. Defaults to `'0.0.0'`. |
-| `minCoreVersion` | No | Minimum kit version (semver). Checked at registration. |
-| `moduleUrl` | No | Set to `import.meta.url`. Required for `appendStyles` to resolve relative paths. |
-| `requires` | No | Dependency class refs. Required-missing throws; optional-missing warns. |
-| `replaces` | No | Opt-in same-id replacement. Without it, duplicate id throws `core:plugin/duplicate-id`. |
-| `priority` | No | Event-handler ordering. Default `0`. Higher runs first. |
-| `onError` | No | Per-error-code recovery action map. |
-| `advisories` | No | Declarative phase-aware mutation advisories. |
-| `translations` | No | Static i18n bundles. Keys must be namespaced under `plugin.<id>.*`. |
+| Static           | Required    | Description                                                                             |
+| ---------------- | ----------- | --------------------------------------------------------------------------------------- |
+| `id`             | Yes         | Unique string — `'myvendor:feature'`. Lint-enforced namespacing for third-party.        |
+| `description`    | Yes         | One-line human-readable. Used in error messages and listings.                           |
+| `version`        | Recommended | Semver string. Defaults to `'0.0.0'`.                                                   |
+| `minCoreVersion` | No          | Minimum kit version (semver). Checked at registration.                                  |
+| `moduleUrl`      | No          | Set to `import.meta.url`. Required for `appendStyles` to resolve relative paths.        |
+| `requires`       | No          | Dependency class refs. Required-missing throws; optional-missing warns.                 |
+| `replaces`       | No          | Opt-in same-id replacement. Without it, duplicate id throws `core:plugin/duplicate-id`. |
+| `priority`       | No          | Event-handler ordering. Default `0`. Higher runs first.                                 |
+| `onError`        | No          | Per-error-code recovery action map.                                                     |
+| `advisories`     | No          | Declarative phase-aware mutation advisories.                                            |
+| `translations`   | No          | Static i18n bundles. Keys must be namespaced under `plugin.<id>.*`.                     |
 
 ### Minimal plugin
 
@@ -288,7 +289,9 @@ player.setup({
 
 ```ts
 // Player event — string form
-this.on('play', () => { /* handler */ });
+this.on('play', () => {
+  /* handler */
+});
 
 // Another plugin's event — class form
 this.on(EqualizerPlugin, 'bandChanged', (data) => {

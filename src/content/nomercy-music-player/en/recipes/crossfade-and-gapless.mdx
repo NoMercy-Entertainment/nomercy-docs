@@ -1,7 +1,7 @@
 ---
-title: "Crossfade and Gapless"
-description: "Music crossfade tuning, gapless transition strategy, choosing between them, and timing pitfalls."
-category: "Recipes"
+title: 'Crossfade and Gapless'
+description: 'Music crossfade tuning, gapless transition strategy, choosing between them, and timing pitfalls.'
+category: 'Recipes'
 order: 55
 draft: false
 ---
@@ -16,12 +16,12 @@ Read this when you need smooth music transitions — either a volume-faded cross
 
 ## Crossfade vs gapless — when to choose
 
-| Feature | Crossfade | Gapless |
-|---------|-----------|---------|
-| Overlap | Both tracks play simultaneously | Tracks play sequentially |
-| Volume | Outgoing fades down, incoming fades up | Constant |
-| Use case | Album transitions, radio, DJ-style mixes | Continuous music (prog rock, live albums) |
-| Config | `crossfadeDefaults.duration` + `AutoAdvancePlugin` | Omit crossfade; `AutoAdvancePlugin` preloads next |
+| Feature  | Crossfade                                          | Gapless                                           |
+| -------- | -------------------------------------------------- | ------------------------------------------------- |
+| Overlap  | Both tracks play simultaneously                    | Tracks play sequentially                          |
+| Volume   | Outgoing fades down, incoming fades up             | Constant                                          |
+| Use case | Album transitions, radio, DJ-style mixes           | Continuous music (prog rock, live albums)         |
+| Config   | `crossfadeDefaults.duration` + `AutoAdvancePlugin` | Omit crossfade; `AutoAdvancePlugin` preloads next |
 
 ---
 
@@ -36,12 +36,12 @@ const D = `${BASE}/D/Derek%20Clegg/%5B2010%5D%20KJC`;
 
 const player = nmMPlayer('main')
   .addPlugin(AutoAdvancePlugin, {
-    crossfade: true,      // hand off to crossfadeTo on trackEndingSoon
+    crossfade: true, // hand off to crossfadeTo on trackEndingSoon
     crossfadeDuration: 5, // seconds
   })
   .setup({
     crossfadeDefaults: {
-      duration: 5,          // seconds
+      duration: 5, // seconds
       curve: 'equal-power',
     },
     trackEndingSoonThreshold: 8, // fire trackEndingSoon with 8s remaining
@@ -142,8 +142,8 @@ import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/p
 
 const player = nmMPlayer('main')
   .addPlugin(AutoAdvancePlugin, {
-    preloadNext: true,   // preload next track on trackEndingSoon
-    crossfade: false,    // no volume fade — hard cut
+    preloadNext: true, // preload next track on trackEndingSoon
+    crossfade: false, // no volume fade — hard cut
   })
   .setup({
     trackEndingSoonThreshold: 30, // preload 30 s before end
@@ -157,10 +157,10 @@ const player = nmMPlayer('main')
 
 ## Backend choice and accuracy
 
-| Backend | Crossfade mechanism | Gapless accuracy |
-|---------|-------------------|-----------------|
-| `audio-element` | RAF loop (~50 fps, ±20 ms) | Browser-dependent — Chrome/Safari good, Firefox may gap |
-| `webaudio` | `linearRampToValueAtTime` (sample-accurate) | Sample-accurate on all browsers with Web Audio |
+| Backend         | Crossfade mechanism                         | Gapless accuracy                                        |
+| --------------- | ------------------------------------------- | ------------------------------------------------------- |
+| `audio-element` | RAF loop (~50 fps, ±20 ms)                  | Browser-dependent — Chrome/Safari good, Firefox may gap |
+| `webaudio`      | `linearRampToValueAtTime` (sample-accurate) | Sample-accurate on all browsers with Web Audio          |
 
 Switch to `webaudio` for production DJ-style crossfades:
 

@@ -1,7 +1,7 @@
 ---
-title: "Preload and Transition Strategies"
-description: "setPreloadStrategy, setTransitionStrategy, and the built-in strategies."
-category: "Adapter Ports"
+title: 'Preload and Transition Strategies'
+description: 'setPreloadStrategy, setTransitionStrategy, and the built-in strategies.'
+category: 'Adapter Ports'
 order: 6
 draft: false
 ---
@@ -28,18 +28,18 @@ interface PreloadStrategy {
 }
 ```
 
-| Method | When called | Purpose |
-| --- | --- | --- |
-| `shouldPreload(context)` | Every `time` event while a next item is queued | Return `true` when prefetching should begin |
-| `assetsToPreload(item)` | Once when `shouldPreload` returns `true` | Return the ordered list of assets to prefetch |
-| `cancel()` | Cursor jump (shuffle, manual `current()`, early `next()`) | Abort any in-flight prefetch |
+| Method                   | When called                                               | Purpose                                       |
+| ------------------------ | --------------------------------------------------------- | --------------------------------------------- |
+| `shouldPreload(context)` | Every `time` event while a next item is queued            | Return `true` when prefetching should begin   |
+| `assetsToPreload(item)`  | Once when `shouldPreload` returns `true`                  | Return the ordered list of assets to prefetch |
+| `cancel()`               | Cursor jump (shuffle, manual `current()`, early `next()`) | Abort any in-flight prefetch                  |
 
 ### PreloadContext
 
 ```ts
 interface PreloadContext {
-  currentTime: number;   // seconds
-  duration: number;      // seconds (0 when not yet known)
+  currentTime: number; // seconds
+  duration: number; // seconds (0 when not yet known)
   nextItem: BasePlaylistItem | null;
 }
 ```
@@ -75,10 +75,7 @@ player.setup({
 ```ts
 interface TransitionStrategy {
   shouldTransition(context: TransitionContext): boolean;
-  execute(
-    context: TransitionContext,
-    backend: TransitionBackend,
-  ): Promise<void>;
+  execute(context: TransitionContext, backend: TransitionBackend): Promise<void>;
   cancel(): void;
 }
 ```
@@ -139,29 +136,29 @@ import {
 
 ## Config fields
 
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `preloadLeadSeconds` | `number` | `10` | Seconds before end to begin prefetching |
-| `crossfadeLeadSeconds` | `number` | `3` | Seconds before end to begin crossfade |
-| `crossfadeTailSeconds` | `number` | `3` | Seconds of audio overlap during crossfade |
-| `crossfadeEnabled` | `boolean` | `true` (music) / `false` (video) | Enable crossfade transition |
-| `preloadStrategy` | `PreloadStrategy` | `DefaultPreloadStrategy` | Custom preload strategy |
-| `transitionStrategy` | `TransitionStrategy` | Per-library default | Custom transition strategy |
+| Field                  | Type                 | Default                          | Description                               |
+| ---------------------- | -------------------- | -------------------------------- | ----------------------------------------- |
+| `preloadLeadSeconds`   | `number`             | `10`                             | Seconds before end to begin prefetching   |
+| `crossfadeLeadSeconds` | `number`             | `3`                              | Seconds before end to begin crossfade     |
+| `crossfadeTailSeconds` | `number`             | `3`                              | Seconds of audio overlap during crossfade |
+| `crossfadeEnabled`     | `boolean`            | `true` (music) / `false` (video) | Enable crossfade transition               |
+| `preloadStrategy`      | `PreloadStrategy`    | `DefaultPreloadStrategy`         | Custom preload strategy                   |
+| `transitionStrategy`   | `TransitionStrategy` | Per-library default              | Custom transition strategy                |
 
 ---
 
 ## Preload events
 
-| Event | Payload | When |
-| --- | --- | --- |
-| `preloadStart` | `{ item, assets }` | Prefetch began for next item |
-| `preloadProgress` | `{ item, loaded, total }` | Individual asset completed |
-| `preloadComplete` | `{ item }` | All assets fetched |
-| `preloadError` | `{ item, error }` | One or more assets failed (non-fatal) |
-| `transitionStart` | `{ outgoing, incoming }` | Transition window began |
-| `transitionProgress` | `{ outgoing, incoming, fraction }` | Per-frame progress |
-| `transitionComplete` | `{ from, to }` | Transition done |
-| `transitionCancelled` | `{ reason }` | Transition aborted |
+| Event                 | Payload                            | When                                  |
+| --------------------- | ---------------------------------- | ------------------------------------- |
+| `preloadStart`        | `{ item, assets }`                 | Prefetch began for next item          |
+| `preloadProgress`     | `{ item, loaded, total }`          | Individual asset completed            |
+| `preloadComplete`     | `{ item }`                         | All assets fetched                    |
+| `preloadError`        | `{ item, error }`                  | One or more assets failed (non-fatal) |
+| `transitionStart`     | `{ outgoing, incoming }`           | Transition window began               |
+| `transitionProgress`  | `{ outgoing, incoming, fraction }` | Per-frame progress                    |
+| `transitionComplete`  | `{ from, to }`                     | Transition done                       |
+| `transitionCancelled` | `{ reason }`                       | Transition aborted                    |
 
 ---
 

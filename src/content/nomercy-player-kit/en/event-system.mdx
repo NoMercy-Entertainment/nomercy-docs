@@ -1,7 +1,7 @@
 ---
-title: "Event System"
-description: "Typed EventMap, on/once/off/emit on the player and inside plugins, cancellable before* events, and cross-plugin event routing."
-category: "Event System"
+title: 'Event System'
+description: 'Typed EventMap, on/once/off/emit on the player and inside plugins, cancellable before* events, and cross-plugin event routing.'
+category: 'Event System'
 order: 5
 ---
 
@@ -43,7 +43,7 @@ Before-action events fire before the action executes. A listener can prevent the
 ```ts
 player.on('beforePlay', (event) => {
   if (!userIsLoggedIn()) {
-    event.preventDefault();   // cancel the play
+    event.preventDefault(); // cancel the play
   }
 });
 
@@ -55,23 +55,24 @@ player.on('beforeLoad', async (event) => {
   event.delay(
     new Promise((resolve) => {
       confirmDialog('Play this?', resolve);
-    })
+    }),
   );
 });
 ```
 
 `BeforeEvent<TData>` methods:
 
-| Method | Effect |
-|--------|--------|
-| `preventDefault()` | Skip the default action and its post-action event |
-| `isDefaultPrevented()` | Check if any listener prevented the action |
+| Method                       | Effect                                                            |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `preventDefault()`           | Skip the default action and its post-action event                 |
+| `isDefaultPrevented()`       | Check if any listener prevented the action                        |
 | `stopImmediatePropagation()` | Skip remaining listeners on this event (does not prevent default) |
-| `isPropagationStopped()` | Check if propagation was stopped |
-| `delay(promise)` | Gate the action on a promise; one rejection = `preventDefault` |
-| `isDelayed()` | Check if a delay was registered |
+| `isPropagationStopped()`     | Check if propagation was stopped                                  |
+| `delay(promise)`             | Gate the action on a promise; one rejection = `preventDefault`    |
+| `isDelayed()`                | Check if a delay was registered                                   |
 
 When an action is prevented, a paired `*Prevented` event fires:
+
 ```ts
 player.on('playPrevented', ({ reason }) => {
   // reason: 'listener-prevented' | 'delay-rejected' | 'delay-timeout'
@@ -102,14 +103,14 @@ player.on('plugin:equalizer:bandChanged', (event) => {
 
 Plugin events auto-namespaced to `plugin:<id>:<event>`. The base class auto-fires these for every plugin:
 
-| Event | Payload | When |
-|-------|---------|------|
-| `plugin:<id>:installed` | `{ id: string; version: string }` | After `use()` resolves |
-| `plugin:<id>:enabled` | `{ id: string }` | After `enable()` |
-| `plugin:<id>:disabled` | `{ id: string; reason: string }` | After `disable()` |
-| `plugin:<id>:opts:changed` | `{ id: string; opts: object }` | After `options(patch)` |
-| `plugin:<id>:disposed` | `{ id: string }` | After `dispose()` |
-| `plugin:<id>:failed` | `{ id: string; error: unknown }` | When `use()` rejects |
+| Event                      | Payload                           | When                   |
+| -------------------------- | --------------------------------- | ---------------------- |
+| `plugin:<id>:installed`    | `{ id: string; version: string }` | After `use()` resolves |
+| `plugin:<id>:enabled`      | `{ id: string }`                  | After `enable()`       |
+| `plugin:<id>:disabled`     | `{ id: string; reason: string }`  | After `disable()`      |
+| `plugin:<id>:opts:changed` | `{ id: string; opts: object }`    | After `options(patch)` |
+| `plugin:<id>:disposed`     | `{ id: string }`                  | After `dispose()`      |
+| `plugin:<id>:failed`       | `{ id: string; error: unknown }`  | When `use()` rejects   |
 
 ---
 
@@ -147,25 +148,25 @@ this.emit('fetched', { url: result.data.url });
 
 `dispatchBefore` returns `Promise<BeforeDispatchResult<TData>>`:
 
-| Field | Type | Meaning |
-|-------|------|---------|
-| `data` | `TData` | Possibly mutated by listeners |
-| `prevented` | `boolean` | `true` if any listener prevented or a delay rejected |
-| `reason` | `string` | `'listener-prevented'` \| `'delay-rejected'` \| `'delay-timeout'` |
-| `cause` | `unknown` | Underlying error when a delay rejected |
+| Field       | Type      | Meaning                                                           |
+| ----------- | --------- | ----------------------------------------------------------------- |
+| `data`      | `TData`   | Possibly mutated by listeners                                     |
+| `prevented` | `boolean` | `true` if any listener prevented or a delay rejected              |
+| `reason`    | `string`  | `'listener-prevented'` \| `'delay-rejected'` \| `'delay-timeout'` |
+| `cause`     | `unknown` | Underlying error when a delay rejected                            |
 
 ---
 
 ## Event naming conventions
 
-| Context | Pattern | Example |
-|---------|---------|---------|
-| Player core events | Bare camelCase | `play`, `pause`, `ready`, `time` |
-| Before-action events | `before<Action>` | `beforePlay`, `beforeLoad`, `beforeSeek` |
-| Post-prevent events | `<action>Prevented` | `playPrevented`, `loadPrevented` |
-| Plugin events | `plugin:<id>:<event>` (auto-applied by `this.emit`) | `plugin:equalizer:bandChanged` |
-| Subsystem events | `<subsystem>:<event>` | `backend:changed`, `auth:refreshed` |
-| Setup stage events | Bare camelCase | `setupStart`, `pluginsRegistered`, `playlistReady` |
+| Context              | Pattern                                             | Example                                            |
+| -------------------- | --------------------------------------------------- | -------------------------------------------------- |
+| Player core events   | Bare camelCase                                      | `play`, `pause`, `ready`, `time`                   |
+| Before-action events | `before<Action>`                                    | `beforePlay`, `beforeLoad`, `beforeSeek`           |
+| Post-prevent events  | `<action>Prevented`                                 | `playPrevented`, `loadPrevented`                   |
+| Plugin events        | `plugin:<id>:<event>` (auto-applied by `this.emit`) | `plugin:equalizer:bandChanged`                     |
+| Subsystem events     | `<subsystem>:<event>`                               | `backend:changed`, `auth:refreshed`                |
+| Setup stage events   | Bare camelCase                                      | `setupStart`, `pluginsRegistered`, `playlistReady` |
 
 Events fire **after** the state change they describe. Pre-action events use `before<X>` naming.
 
@@ -175,31 +176,31 @@ Events fire **after** the state change they describe. Pre-action events use `bef
 
 Key events from `BaseEventMap` (shared by both video and music players):
 
-| Event | Payload | Category |
-|-------|---------|---------|
-| `ready` | `void` | Lifecycle |
-| `setupStart` | `{ container: HTMLElement }` | Lifecycle |
-| `dispose` | `void` | Lifecycle |
-| `phase` | `{ from: PlayerPhase; to: PlayerPhase }` | Lifecycle |
-| `play` | `ActionOptions` | Transport |
-| `pause` | `ActionOptions` | Transport |
-| `stop` | `ActionOptions` | Transport |
-| `ended` | `void` | Transport |
-| `time` | `{ time: number }` | Time |
-| `seeked` | `{ time: number }` | Time |
-| `duration` | `{ duration: number }` | Time |
-| `progress` | `{ time: number; duration: number; percentage: number }` | Time |
-| `current` | `{ item: T \| undefined; index: number }` | Queue |
-| `queue` | `ReadonlyArray<T>` | Queue |
-| `queue:exhausted` | `void` | Queue |
-| `volume` | `{ level: number }` | Playback state |
-| `mute` | `{ muted: boolean }` | Playback state |
-| `error` | `PlayerErrorEvent` | Errors |
-| `fatal` | `PlayerErrorEvent` | Errors |
-| `warning` | `PlayerErrorEvent` | Errors |
-| `playlistResolving` | `{ url: string }` | Setup |
-| `playlistReady` | `{ length: number }` | Setup |
-| `playlistError` | `{ url: string; error: Error; code: string }` | Setup |
-| `auth:refreshed` | `{ token: string }` | Auth |
-| `auth:failed` | `{ error: unknown }` | Auth |
-| `playback:metrics` | `PlaybackMetrics` | Metrics |
+| Event               | Payload                                                  | Category       |
+| ------------------- | -------------------------------------------------------- | -------------- |
+| `ready`             | `void`                                                   | Lifecycle      |
+| `setupStart`        | `{ container: HTMLElement }`                             | Lifecycle      |
+| `dispose`           | `void`                                                   | Lifecycle      |
+| `phase`             | `{ from: PlayerPhase; to: PlayerPhase }`                 | Lifecycle      |
+| `play`              | `ActionOptions`                                          | Transport      |
+| `pause`             | `ActionOptions`                                          | Transport      |
+| `stop`              | `ActionOptions`                                          | Transport      |
+| `ended`             | `void`                                                   | Transport      |
+| `time`              | `{ time: number }`                                       | Time           |
+| `seeked`            | `{ time: number }`                                       | Time           |
+| `duration`          | `{ duration: number }`                                   | Time           |
+| `progress`          | `{ time: number; duration: number; percentage: number }` | Time           |
+| `current`           | `{ item: T \| undefined; index: number }`                | Queue          |
+| `queue`             | `ReadonlyArray<T>`                                       | Queue          |
+| `queue:exhausted`   | `void`                                                   | Queue          |
+| `volume`            | `{ level: number }`                                      | Playback state |
+| `mute`              | `{ muted: boolean }`                                     | Playback state |
+| `error`             | `PlayerErrorEvent`                                       | Errors         |
+| `fatal`             | `PlayerErrorEvent`                                       | Errors         |
+| `warning`           | `PlayerErrorEvent`                                       | Errors         |
+| `playlistResolving` | `{ url: string }`                                        | Setup          |
+| `playlistReady`     | `{ length: number }`                                     | Setup          |
+| `playlistError`     | `{ url: string; error: Error; code: string }`            | Setup          |
+| `auth:refreshed`    | `{ token: string }`                                      | Auth           |
+| `auth:failed`       | `{ error: unknown }`                                     | Auth           |
+| `playback:metrics`  | `PlaybackMetrics`                                        | Metrics        |

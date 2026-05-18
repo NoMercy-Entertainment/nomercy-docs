@@ -1,8 +1,8 @@
 ﻿---
-title: "Chapters"
-description: "VTT chapter loading via IChapterSource adapter, the chapter event, and the currentChapter() API."
+title: 'Chapters'
+description: 'VTT chapter loading via IChapterSource adapter, the chapter event, and the currentChapter() API.'
 draft: true
-category: "Plugins"
+category: 'Plugins'
 order: 11
 ---
 
@@ -23,10 +23,10 @@ player.setup({
       id: '1',
       url: 'https://cdn.example.com/ep1.m3u8',
       chapters: [
-        { id: 'cold-open', startTime: 0,    endTime: 90,  title: 'Cold Open' },
-        { id: 'act-1',     startTime: 90,   endTime: 900, title: 'Act 1' },
-        { id: 'act-2',     startTime: 900,  endTime: 1800, title: 'Act 2' },
-        { id: 'credits',   startTime: 1800, endTime: 2700, title: 'Credits' },
+        { id: 'cold-open', startTime: 0, endTime: 90, title: 'Cold Open' },
+        { id: 'act-1', startTime: 90, endTime: 900, title: 'Act 1' },
+        { id: 'act-2', startTime: 900, endTime: 1800, title: 'Act 2' },
+        { id: 'credits', startTime: 1800, endTime: 2700, title: 'Credits' },
       ],
     },
   ],
@@ -64,8 +64,8 @@ player.on('chapter', ({ index, title }) => {
 ## Chapter API
 
 ```ts
-player.chapters();          // Chapter[] — all chapters for the current item
-player.currentChapter();    // Chapter | undefined — active chapter at currentTime()
+player.chapters(); // Chapter[] — all chapters for the current item
+player.currentChapter(); // Chapter | undefined — active chapter at currentTime()
 ```
 
 `Chapter` shape:
@@ -73,8 +73,8 @@ player.currentChapter();    // Chapter | undefined — active chapter at current
 ```ts
 interface Chapter {
   id: string;
-  startTime: number;  // seconds
-  endTime: number;    // seconds
+  startTime: number; // seconds
+  endTime: number; // seconds
   title: string;
 }
 ```
@@ -101,7 +101,7 @@ class ApiChapterSource extends Plugin implements IChapterSource {
     const data = await this.fetch<ApiChapter[]>(`/api/chapters/${item.id}`, {
       responseType: 'json',
     });
-    return data.map(ch => ({
+    return data.map((ch) => ({
       id: String(ch.id),
       startTime: ch.start_ms / 1000,
       endTime: ch.end_ms / 1000,

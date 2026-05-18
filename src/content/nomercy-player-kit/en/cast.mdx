@@ -1,7 +1,7 @@
 ---
-title: "Cast and Remote Playback"
-description: "castState, transferTo, CastState enum, and the cast config."
-category: "Cast and Device"
+title: 'Cast and Remote Playback'
+description: 'castState, transferTo, CastState enum, and the cast config.'
+category: 'Cast and Device'
 order: 1
 draft: false
 ---
@@ -35,12 +35,12 @@ if (state === CastState.AVAILABLE) {
 
 Hand playback off to a remote target, or return it to local.
 
-| Target | Description |
-| --- | --- |
-| `'cast'` | Chromecast / Google Cast. SDK is injected on demand if `cast.autoLoad: true`; otherwise the script must be on the page already |
-| `'airplay'` | Safari / WebKit only. Opens the playback target picker via `webkitShowPlaybackTargetPicker` |
-| `'remote-playback'` | W3C RemotePlayback API (Chrome desktop / Android) |
-| `'local'` | Return playback to the local element; emits `castState: DISCONNECTED` |
+| Target              | Description                                                                                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `'cast'`            | Chromecast / Google Cast. SDK is injected on demand if `cast.autoLoad: true`; otherwise the script must be on the page already |
+| `'airplay'`         | Safari / WebKit only. Opens the playback target picker via `webkitShowPlaybackTargetPicker`                                    |
+| `'remote-playback'` | W3C RemotePlayback API (Chrome desktop / Android)                                                                              |
+| `'local'`           | Return playback to the local element; emits `castState: DISCONNECTED`                                                          |
 
 **Returns:** `Promise<void>`
 
@@ -48,15 +48,15 @@ Hand playback off to a remote target, or return it to local.
 
 **Throws:** `BrowserPolicyError` with a target-specific code when the target's API is unavailable:
 
-| Code | Cause |
-| --- | --- |
-| `core:policy/castUnavailable` | Cast SDK not loaded and `autoLoad` is false |
-| `core:policy/castLoadTimeout` | SDK load exceeded `loadTimeoutMs` |
-| `core:policy/castLoadFailed` | SDK refused to load |
-| `core:policy/castScriptLoadFailed` | Network or CSP blocked the script |
-| `core:policy/airplayUnavailable` | AirPlay is WebKit-only — not this browser |
+| Code                                    | Cause                                              |
+| --------------------------------------- | -------------------------------------------------- |
+| `core:policy/castUnavailable`           | Cast SDK not loaded and `autoLoad` is false        |
+| `core:policy/castLoadTimeout`           | SDK load exceeded `loadTimeoutMs`                  |
+| `core:policy/castLoadFailed`            | SDK refused to load                                |
+| `core:policy/castScriptLoadFailed`      | Network or CSP blocked the script                  |
+| `core:policy/airplayUnavailable`        | AirPlay is WebKit-only — not this browser          |
 | `core:policy/remotePlaybackUnavailable` | RemotePlayback API not present or no video element |
-| `core:policy/transferTargetUnknown` | Unrecognised target string |
+| `core:policy/transferTargetUnknown`     | Unrecognised target string                         |
 
 ```ts
 castButton.addEventListener('click', async () => {
@@ -78,14 +78,14 @@ player.on('castState', ({ state }) => {
 
 Passed to `setup({ cast: { ... } })`:
 
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `autoLoad` | `boolean` | `false` | Inject SDK on first `transferTo('cast')` |
-| `receiverApplicationId` | `string` | Google default receiver | Custom receiver app ID |
-| `autoJoinPolicy` | `'origin-scoped' \| 'tab-and-origin-scoped' \| 'page-scoped'` | `'origin-scoped'` | Auto-join policy for existing sessions |
-| `resumeSavedSession` | `boolean` | `true` | Resume the most recent saved session |
-| `scriptUrl` | `string` | Google CDN | Override the SDK script URL |
-| `loadTimeoutMs` | `number` | `10000` | Max ms to wait for SDK load |
+| Field                   | Type                                                          | Default                 | Description                              |
+| ----------------------- | ------------------------------------------------------------- | ----------------------- | ---------------------------------------- |
+| `autoLoad`              | `boolean`                                                     | `false`                 | Inject SDK on first `transferTo('cast')` |
+| `receiverApplicationId` | `string`                                                      | Google default receiver | Custom receiver app ID                   |
+| `autoJoinPolicy`        | `'origin-scoped' \| 'tab-and-origin-scoped' \| 'page-scoped'` | `'origin-scoped'`       | Auto-join policy for existing sessions   |
+| `resumeSavedSession`    | `boolean`                                                     | `true`                  | Resume the most recent saved session     |
+| `scriptUrl`             | `string`                                                      | Google CDN              | Override the SDK script URL              |
+| `loadTimeoutMs`         | `number`                                                      | `10000`                 | Max ms to wait for SDK load              |
 
 ```ts
 player.setup({
@@ -101,13 +101,13 @@ player.setup({
 
 ## CastState enum
 
-| Value | Meaning |
-| --- | --- |
-| `UNAVAILABLE` | No Cast/AirPlay/RemotePlayback APIs present |
-| `AVAILABLE` | At least one device is reachable; no active session |
-| `CONNECTING` | A session is being established |
-| `CONNECTED` | Session is active; playback is on the remote device |
-| `DISCONNECTED` | A session was active but has ended |
+| Value          | Meaning                                             |
+| -------------- | --------------------------------------------------- |
+| `UNAVAILABLE`  | No Cast/AirPlay/RemotePlayback APIs present         |
+| `AVAILABLE`    | At least one device is reachable; no active session |
+| `CONNECTING`   | A session is being established                      |
+| `CONNECTED`    | Session is active; playback is on the remote device |
+| `DISCONNECTED` | A session was active but has ended                  |
 
 ---
 

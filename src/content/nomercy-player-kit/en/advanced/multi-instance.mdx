@@ -1,7 +1,7 @@
 ---
-title: "Multi-Instance"
-description: "Running multiple players on one page — PiP + main player, watch-party tile grid, tab-leader pattern, and event-bus isolation between instances."
-category: "Advanced"
+title: 'Multi-Instance'
+description: 'Running multiple players on one page — PiP + main player, watch-party tile grid, tab-leader pattern, and event-bus isolation between instances.'
+category: 'Advanced'
 order: 75
 ---
 
@@ -93,19 +93,19 @@ const players = Array.from({ length: tileCount }, (_, index) => {
   });
 });
 
-await Promise.all(players.map(player => player.ready()));
+await Promise.all(players.map((player) => player.ready()));
 
 // Sync: when the first tile plays, play all others at the same position:
 players[0].on('play', () => {
   const time = players[0].currentTime();
-  players.slice(1).forEach(p => {
+  players.slice(1).forEach((p) => {
     p.currentTime(time); // sync position
     p.play();
   });
 });
 
 players[0].on('pause', () => {
-  players.slice(1).forEach(p => p.pause());
+  players.slice(1).forEach((p) => p.pause());
 });
 ```
 
@@ -170,7 +170,7 @@ class PlayerCoordinator {
     private primary: NMVideoPlayer,
     private secondary: NMMusicPlayer,
   ) {
-    primary.on('play',  () => secondary.pause());
+    primary.on('play', () => secondary.pause());
     primary.on('pause', () => secondary.play());
   }
 

@@ -1,7 +1,7 @@
 ﻿---
-title: "Performance"
-description: "Bundle-size tuning via subpath imports, tree-shake hits to avoid, memory budget for long sessions, leak-test harness, and a production checklist."
-category: "Advanced"
+title: 'Performance'
+description: 'Bundle-size tuning via subpath imports, tree-shake hits to avoid, memory budget for long sessions, leak-test harness, and a production checklist.'
+category: 'Advanced'
 order: 78
 ---
 
@@ -15,11 +15,11 @@ Read this when bundle size, memory usage, or long-session stability matter to yo
 
 ### What ships by default
 
-| Package | Core size (min+gzip) | With all built-in plugins |
-|---------|---------------------|--------------------------|
-| `nomercy-player-core` | ~18 kB | ~32 kB (kit + all adapters) |
-| `nomercy-video-player` | ~28 kB | ~95 kB (incl. hls.js, DesktopUiPlugin, SubtitleOverlayPlugin) |
-| `nomercy-music-player` | ~24 kB | ~60 kB (incl. WebAudioBackend, LyricsPlugin, EqualizerPlugin) |
+| Package                | Core size (min+gzip) | With all built-in plugins                                     |
+| ---------------------- | -------------------- | ------------------------------------------------------------- |
+| `nomercy-player-core`  | ~18 kB               | ~32 kB (kit + all adapters)                                   |
+| `nomercy-video-player` | ~28 kB               | ~95 kB (incl. hls.js, DesktopUiPlugin, SubtitleOverlayPlugin) |
+| `nomercy-music-player` | ~24 kB               | ~60 kB (incl. WebAudioBackend, LyricsPlugin, EqualizerPlugin) |
 
 These are rough estimates — the actual size depends on which plugins you register and how your bundler tree-shakes.
 
@@ -66,7 +66,7 @@ export default {
     rollupOptions: {
       output: {
         manualChunks: {
-          'hls': ['hls.js'],
+          hls: ['hls.js'],
         },
       },
     },
@@ -80,12 +80,12 @@ export default {
 
 These patterns prevent effective tree-shaking:
 
-| Pattern | Why it is a problem | Fix |
-|---------|-------------------|-----|
-| `import * as X from 'package'` | Marks every export as used | Use named imports |
-| Side-effect imports (`import 'package'`) | Bundler cannot know what is safe to drop | Only use for polyfills |
-| Dynamic access (`pkg[key]`)  | Bundler cannot statically analyze | Use a switch statement |
-| Re-exporting everything | Pulls full package into dependents | Export only what consumers need |
+| Pattern                                  | Why it is a problem                      | Fix                             |
+| ---------------------------------------- | ---------------------------------------- | ------------------------------- |
+| `import * as X from 'package'`           | Marks every export as used               | Use named imports               |
+| Side-effect imports (`import 'package'`) | Bundler cannot know what is safe to drop | Only use for polyfills          |
+| Dynamic access (`pkg[key]`)              | Bundler cannot statically analyze        | Use a switch statement          |
+| Re-exporting everything                  | Pulls full package into dependents       | Export only what consumers need |
 
 ---
 
@@ -102,11 +102,11 @@ Each player instance consumes memory for:
 
 Rough steady-state memory per player instance:
 
-| Configuration | Approx. memory |
-|-------------|---------------|
-| Video player, no plugins | ~8 MB |
-| Video player + DesktopUiPlugin | ~12 MB |
-| Music player + AudioGraphPlugin + EqualizerPlugin | ~20 MB |
+| Configuration                                                   | Approx. memory       |
+| --------------------------------------------------------------- | -------------------- |
+| Video player, no plugins                                        | ~8 MB                |
+| Video player + DesktopUiPlugin                                  | ~12 MB               |
+| Music player + AudioGraphPlugin + EqualizerPlugin               | ~20 MB               |
 | Video + DesktopUiPlugin + SubtitleOverlayPlugin + OctopusPlugin | ~40 MB (+ WASM heap) |
 
 For long sessions (6+ hours), watch for:

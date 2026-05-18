@@ -1,7 +1,7 @@
 ---
-title: "Plugin Registration"
-description: "addPlugin, getPlugin, getPluginById, removePlugin, plugins, enabledPlugins."
-category: "Plugins"
+title: 'Plugin Registration'
+description: 'addPlugin, getPlugin, getPluginById, removePlugin, plugins, enabledPlugins.'
+category: 'Plugins'
 order: 2
 draft: false
 ---
@@ -22,22 +22,22 @@ Register a plugin with the player. Returns the player for chaining.
 
 **Post-setup**: registration runs inline (fire-and-forget). Listen for `plugin:installed` or `plugin:failed` to know when it settled.
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `PluginClass` | `PluginCtorWithId` | A class with `static readonly id: string` |
-| `opts` | `P['opts']` | Typed options — inferred from the plugin class |
+| Parameter     | Type               | Description                                    |
+| ------------- | ------------------ | ---------------------------------------------- |
+| `PluginClass` | `PluginCtorWithId` | A class with `static readonly id: string`      |
+| `opts`        | `P['opts']`        | Typed options — inferred from the plugin class |
 
 **Returns:** `this` (the player instance)
 
 **Throws:**
 
-| Code | Cause |
-| --- | --- |
-| `core:lifecycle/use-plugin-after-dispose` | Called after `dispose()` |
-| `core:plugin/duplicate-id` | A plugin with the same id is already registered or queued |
-| `core:plugin/missing-dep` | `static requires` lists a plugin that is not registered (and not `optional`) |
-| `core:plugin/version-mismatch` | A required dependency's version is below `minVersion` |
-| `core:plugin/incompatible-core-version` | `static minCoreVersion` exceeds the running kit version |
+| Code                                      | Cause                                                                        |
+| ----------------------------------------- | ---------------------------------------------------------------------------- |
+| `core:lifecycle/use-plugin-after-dispose` | Called after `dispose()`                                                     |
+| `core:plugin/duplicate-id`                | A plugin with the same id is already registered or queued                    |
+| `core:plugin/missing-dep`                 | `static requires` lists a plugin that is not registered (and not `optional`) |
+| `core:plugin/version-mismatch`            | A required dependency's version is below `minVersion`                        |
+| `core:plugin/incompatible-core-version`   | `static minCoreVersion` exceeds the running kit version                      |
 
 ```ts
 import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
@@ -104,16 +104,16 @@ Registered plugins that are currently enabled, ordered by `static priority` desc
 
 ## Plugin static contract
 
-| Static field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Required. Unique identifier (`'vendor:name'` convention) |
-| `version` | `string` | Semver string for dependency checks |
-| `priority` | `number` | Higher = earlier in dispatch order |
-| `requires` | `RequireSpec[]` | Dependency declarations (class or `{ plugin, optional, minVersion }`) |
-| `replaces` | `string` | Id of the plugin this one replaces |
-| `minCoreVersion` | `string` | Minimum kit version required |
-| `advisories` | `PluginAdvisory[]` | Mutation advisory declarations |
-| `translations` | `Translations` | Translation bundle (eager or lazy via `translationsFromGlob`) |
+| Static field     | Type               | Description                                                           |
+| ---------------- | ------------------ | --------------------------------------------------------------------- |
+| `id`             | `string`           | Required. Unique identifier (`'vendor:name'` convention)              |
+| `version`        | `string`           | Semver string for dependency checks                                   |
+| `priority`       | `number`           | Higher = earlier in dispatch order                                    |
+| `requires`       | `RequireSpec[]`    | Dependency declarations (class or `{ plugin, optional, minVersion }`) |
+| `replaces`       | `string`           | Id of the plugin this one replaces                                    |
+| `minCoreVersion` | `string`           | Minimum kit version required                                          |
+| `advisories`     | `PluginAdvisory[]` | Mutation advisory declarations                                        |
+| `translations`   | `Translations`     | Translation bundle (eager or lazy via `translationsFromGlob`)         |
 
 ---
 

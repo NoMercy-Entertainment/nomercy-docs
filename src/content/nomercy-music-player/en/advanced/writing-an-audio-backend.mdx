@@ -1,7 +1,7 @@
 ---
-title: "Writing an Audio Backend"
-description: "Implementing IAudioBackend to replace AudioElementBackend or WebAudioBackend with a custom audio pipeline."
-category: "Advanced"
+title: 'Writing an Audio Backend'
+description: 'Implementing IAudioBackend to replace AudioElementBackend or WebAudioBackend with a custom audio pipeline.'
+category: 'Advanced'
 order: 65
 draft: false
 ---
@@ -17,7 +17,12 @@ For the general `IAudioBackend` interface reference, see [IAudioBackend](/nomerc
 ## Minimal implementation
 
 ```ts
-import type { IAudioBackend, BackendEvent, BackendState, BackendLoaderState } from '@nomercy-entertainment/nomercy-music-player';
+import type {
+  IAudioBackend,
+  BackendEvent,
+  BackendState,
+  BackendLoaderState,
+} from '@nomercy-entertainment/nomercy-music-player';
 
 type Listener = (data?: any) => void;
 
@@ -77,10 +82,18 @@ export class NativeAudioBackend implements IAudioBackend {
     NativeAudio.seek(t);
   }
 
-  duration(): number { return NativeAudio.duration(); }
-  buffered(): number { return NativeAudio.buffered(); }
-  bufferedRanges(): TimeRanges { return NativeAudio.bufferedRanges(); }
-  seekable(): TimeRanges { return NativeAudio.seekable(); }
+  duration(): number {
+    return NativeAudio.duration();
+  }
+  buffered(): number {
+    return NativeAudio.buffered();
+  }
+  bufferedRanges(): TimeRanges {
+    return NativeAudio.bufferedRanges();
+  }
+  seekable(): TimeRanges {
+    return NativeAudio.seekable();
+  }
 
   playbackRate(): number;
   playbackRate(rate: number): void;
@@ -98,49 +111,83 @@ export class NativeAudioBackend implements IAudioBackend {
     NativeAudio.setVolume(v);
   }
 
-  mute(): void { NativeAudio.mute(); }
-  unmute(): void { NativeAudio.unmute(); }
+  mute(): void {
+    NativeAudio.mute();
+  }
+  unmute(): void {
+    NativeAudio.unmute();
+  }
 
   // ── State ──────────────────────────────────────────────────────────────────
 
-  state(): BackendState { return this._state; }
+  state(): BackendState {
+    return this._state;
+  }
 
   // ── Graph (stubs — native bridge doesn't expose Web Audio) ────────────────
 
-  outputNode(ctx: AudioContext): AudioNode { return ctx.destination; }
-  analyserSource(ctx: AudioContext): AudioNode { return ctx.destination; }
+  outputNode(ctx: AudioContext): AudioNode {
+    return ctx.destination;
+  }
+  analyserSource(ctx: AudioContext): AudioNode {
+    return ctx.destination;
+  }
 
   // ── Raw / Capture ──────────────────────────────────────────────────────────
 
-  mediaElement(): HTMLMediaElement { throw new Error('No media element in native backend'); }
-  captureStream(): MediaStream { throw new Error('Not supported'); }
+  mediaElement(): HTMLMediaElement {
+    throw new Error('No media element in native backend');
+  }
+  captureStream(): MediaStream {
+    throw new Error('Not supported');
+  }
 
   // ── Routing ───────────────────────────────────────────────────────────────
 
-  async setSinkId(_deviceId: string): Promise<void> { /* no-op */ }
-  getSinkId(): string { return 'default'; }
+  async setSinkId(_deviceId: string): Promise<void> {
+    /* no-op */
+  }
+  getSinkId(): string {
+    return 'default';
+  }
 
   // ── DRM ───────────────────────────────────────────────────────────────────
 
-  mediaKeys(): MediaKeys | undefined { return undefined; }
-  async setMediaKeys(_keys: MediaKeys): Promise<void> { /* no-op */ }
-  outputProtectionState(): 'unrestricted' { return 'unrestricted'; }
+  mediaKeys(): MediaKeys | undefined {
+    return undefined;
+  }
+  async setMediaKeys(_keys: MediaKeys): Promise<void> {
+    /* no-op */
+  }
+  outputProtectionState(): 'unrestricted' {
+    return 'unrestricted';
+  }
 
   // ── Backpressure ──────────────────────────────────────────────────────────
 
-  pauseLoader(): void { /* no-op */ }
-  resumeLoader(): void { /* no-op */ }
-  loaderState(): BackendLoaderState { return 'running'; }
+  pauseLoader(): void {
+    /* no-op */
+  }
+  resumeLoader(): void {
+    /* no-op */
+  }
+  loaderState(): BackendLoaderState {
+    return 'running';
+  }
 
   // ── Crossfade ─────────────────────────────────────────────────────────────
   // Native backends that cannot dual-buffer should return false:
 
-  supportsCrossfade(): boolean { return false; }
+  supportsCrossfade(): boolean {
+    return false;
+  }
 
   async loadSecondary(_url: string): Promise<void> {
     throw new Error('Crossfade not supported by this backend');
   }
-  disposeSecondary(): void { /* no-op */ }
+  disposeSecondary(): void {
+    /* no-op */
+  }
   async primeSecondary(_seekMs?: number): Promise<void> {
     throw new Error('Crossfade not supported by this backend');
   }
@@ -149,7 +196,9 @@ export class NativeAudioBackend implements IAudioBackend {
   }
   secondaryGain(): number;
   secondaryGain(_value: number): void;
-  secondaryGain(_value?: number): number | void { return 0; }
+  secondaryGain(_value?: number): number | void {
+    return 0;
+  }
 
   // ── Events ────────────────────────────────────────────────────────────────
 
@@ -163,7 +212,7 @@ export class NativeAudioBackend implements IAudioBackend {
   }
 
   private fire(event: BackendEvent, data?: unknown): void {
-    this.listeners.get(event)?.forEach(fn => fn(data));
+    this.listeners.get(event)?.forEach((fn) => fn(data));
   }
 }
 ```

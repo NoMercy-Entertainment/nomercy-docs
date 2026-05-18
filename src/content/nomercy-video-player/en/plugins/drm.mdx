@@ -1,7 +1,7 @@
 ---
-title: "DRM"
-description: "The DrmPlugin — Widevine and PlayReady DRM."
-category: "Plugins"
+title: 'DRM'
+description: 'The DrmPlugin — Widevine and PlayReady DRM.'
+category: 'Plugins'
 order: 8
 draft: false
 ---
@@ -49,36 +49,36 @@ interface DrmOptions {
 }
 ```
 
-| Option | Type | Required | Description |
-|---|---|---|---|
-| `keySystem` | `string` | Yes | Key system ID — see table below |
-| `licenseUrl` | `string` | Yes | License server endpoint |
-| `certificate` | `ArrayBuffer \| string` | FairPlay only | Service certificate |
-| `customSignRequest` | `function` | No | Signs the license request (HMAC, custom headers) |
-| `transformLicenseRequest` | `function` | No | Transforms the challenge body before sending |
-| `transformLicenseResponse` | `function` | No | Transforms the license bytes received from the server |
-| `hdcpRequired` | `'type-0' \| 'type-1' \| 'none'` | No | Minimum HDCP level |
+| Option                     | Type                             | Required      | Description                                           |
+| -------------------------- | -------------------------------- | ------------- | ----------------------------------------------------- |
+| `keySystem`                | `string`                         | Yes           | Key system ID — see table below                       |
+| `licenseUrl`               | `string`                         | Yes           | License server endpoint                               |
+| `certificate`              | `ArrayBuffer \| string`          | FairPlay only | Service certificate                                   |
+| `customSignRequest`        | `function`                       | No            | Signs the license request (HMAC, custom headers)      |
+| `transformLicenseRequest`  | `function`                       | No            | Transforms the challenge body before sending          |
+| `transformLicenseResponse` | `function`                       | No            | Transforms the license bytes received from the server |
+| `hdcpRequired`             | `'type-0' \| 'type-1' \| 'none'` | No            | Minimum HDCP level                                    |
 
 ### Key system strings
 
-| DRM System | keySystem |
-|---|---|
-| Widevine | `'com.widevine.alpha'` |
-| FairPlay | `'com.apple.fps'` |
-| PlayReady | `'com.microsoft.playready'` |
+| DRM System | keySystem                   |
+| ---------- | --------------------------- |
+| Widevine   | `'com.widevine.alpha'`      |
+| FairPlay   | `'com.apple.fps'`           |
+| PlayReady  | `'com.microsoft.playready'` |
 
 ## Events
 
 ```ts
 interface DrmEvents {
   'key:requested': { sessionId: string; initData: ArrayBuffer };
-  'key:granted':   { sessionId: string };
-  'key:expired':   { sessionId: string };
-  'key:revoked':   { sessionId: string };
-  'key:error':     { sessionId: string; error: Error };
-  'output:restricted':  { reason: string };
-  'output:downgraded':  { from: string; to: string };
-  unsupported:     { reason: string };
+  'key:granted': { sessionId: string };
+  'key:expired': { sessionId: string };
+  'key:revoked': { sessionId: string };
+  'key:error': { sessionId: string; error: Error };
+  'output:restricted': { reason: string };
+  'output:downgraded': { from: string; to: string };
+  unsupported: { reason: string };
 }
 ```
 
@@ -94,11 +94,13 @@ const player = nmplayer('player')
     licenseUrl: 'https://license.example.com/widevine',
   })
   .setup({
-    playlist: [{
-      title: 'Protected content',
-      url: 'https://protected.cdn.your-domain.com/stream.m3u8',
-      drm: { keySystem: 'com.widevine.alpha' },
-    }],
+    playlist: [
+      {
+        title: 'Protected content',
+        url: 'https://protected.cdn.your-domain.com/stream.m3u8',
+        drm: { keySystem: 'com.widevine.alpha' },
+      },
+    ],
   });
 
 player.on('plugin:drm:key:granted', ({ sessionId }) => {

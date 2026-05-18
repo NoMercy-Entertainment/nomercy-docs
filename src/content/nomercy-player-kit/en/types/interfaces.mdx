@@ -1,7 +1,7 @@
 ---
-title: "Key Interfaces"
-description: "IPlayer, BasePlayerConfig, BaseEventMap, BasePlaylistItem, and more."
-category: "Types Reference"
+title: 'Key Interfaces'
+description: 'IPlayer, BasePlayerConfig, BaseEventMap, BasePlaylistItem, and more.'
+category: 'Types Reference'
 order: 4
 draft: false
 ---
@@ -35,7 +35,7 @@ Minimum surface both `NMMusicPlayer` and `NMVideoPlayer` satisfy. Plugins typed 
 interface IPlayer<E extends BaseEventMap = BaseEventMap> extends DispatchTarget {
   // Identity
   readonly playerId: string;
-  readonly id: string;           // alias for playerId
+  readonly id: string; // alias for playerId
   readonly container: HTMLElement;
 
   // Event system
@@ -182,17 +182,17 @@ interface BasePlayerConfig {
 
 ### Key config fields
 
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `auth` | `AuthConfig` | — | Bearer token, headers, transformUrl, signRequest, refresh hook |
-| `logLevel` | `LogLevel` | `'info'` | Verbosity threshold |
-| `baseUrl` | `string` | — | Prefixed to all relative media URLs |
-| `beforeEventTimeoutMs` | `number` | `10000` | Max wait for `delay()` promises in before-events |
-| `pluginInitTimeoutMs` | `number` | `5000` | Max wait for async `use()` per plugin |
-| `platform` | `Partial<IPlatform>` | `browserPlatform` | Swap wake-lock, network, fullscreen, PiP adapters |
-| `mutationGuards` | `MutationGuardConfig` | — | Which mutations emit `beforeMutation` |
-| `preloadStrategy` | `PreloadStrategy` | `DefaultPreloadStrategy` | When and what to buffer ahead |
-| `transitionStrategy` | `TransitionStrategy` | `GaplessTransitionStrategy` | How track boundaries feel |
+| Field                  | Type                  | Default                     | Description                                                    |
+| ---------------------- | --------------------- | --------------------------- | -------------------------------------------------------------- |
+| `auth`                 | `AuthConfig`          | —                           | Bearer token, headers, transformUrl, signRequest, refresh hook |
+| `logLevel`             | `LogLevel`            | `'info'`                    | Verbosity threshold                                            |
+| `baseUrl`              | `string`              | —                           | Prefixed to all relative media URLs                            |
+| `beforeEventTimeoutMs` | `number`              | `10000`                     | Max wait for `delay()` promises in before-events               |
+| `pluginInitTimeoutMs`  | `number`              | `5000`                      | Max wait for async `use()` per plugin                          |
+| `platform`             | `Partial<IPlatform>`  | `browserPlatform`           | Swap wake-lock, network, fullscreen, PiP adapters              |
+| `mutationGuards`       | `MutationGuardConfig` | —                           | Which mutations emit `beforeMutation`                          |
+| `preloadStrategy`      | `PreloadStrategy`     | `DefaultPreloadStrategy`    | When and what to buffer ahead                                  |
+| `transitionStrategy`   | `TransitionStrategy`  | `GaplessTransitionStrategy` | How track boundaries feel                                      |
 
 ---
 
@@ -211,7 +211,7 @@ interface AuthConfig {
   transformUrl?: (url: string) => string | Promise<string>;
   signRequest?: (request: Request) => Request | Promise<Request>;
   refreshOnUnauthenticated?: () => Promise<void>;
-  retryAfterRefresh?: number;   // default 1
+  retryAfterRefresh?: number; // default 1
 }
 ```
 
@@ -232,7 +232,7 @@ auth: {
 
 ```ts
 interface CastConfig {
-  autoLoad?: boolean;             // default false — auto-inject Cast SDK on first transferTo
+  autoLoad?: boolean; // default false — auto-inject Cast SDK on first transferTo
   receiverApplicationId?: string; // default: standard Google media receiver
 }
 ```
@@ -245,7 +245,7 @@ Passed to a library-specific DRM plugin (e.g. `DrmPlugin` in the video package),
 
 ```ts
 interface DrmConfig {
-  keySystem: string;         // e.g. 'com.widevine.alpha', 'com.apple.fps'
+  keySystem: string; // e.g. 'com.widevine.alpha', 'com.apple.fps'
   licenseUrl: string;
   certificate?: ArrayBuffer | string;
   customSignRequest?: (request: Request) => Request | Promise<Request>;
@@ -260,21 +260,21 @@ Complete event map emitted by every kit-based player. Library-specific maps (`Mu
 
 The table below shows the top-level groups. For the full per-event payload reference see [Events Reference](/player/kit/events-reference).
 
-| Group | Example keys |
-| --- | --- |
-| Setup lifecycle | `beforeSetup`, `setupStart`, `ready`, `setupError` |
-| Play-path | `beforePlay`, `play`, `playing`, `beforePause`, `pause`, `stop`, `ended` |
-| Seek | `beforeSeek`, `seeking`, `seeked` |
-| Mutation guards | `beforeMutation`, `mutationPrevented` |
-| Time | `time`, `duration`, `buffered` |
-| Volume / mode | `volume`, `mute`, `repeat`, `shuffle` |
-| Queue | `beforeQueueAdd`, `queueAdd`, `beforeQueueRemove`, `queueRemove`, `queueClear` |
-| Media tracks | `subtitle`, `audioTrack`, `quality`, `chapters` |
-| Network / visibility | `network:online`, `network:offline`, `network:slow`, `visibility:visible`, `visibility:hidden` |
-| Auth | `auth:refreshed`, `auth:refresh-failed` |
-| Cast | `cast`, `castState` |
-| Plugin | `plugin:registered`, `plugin:removed`, `plugin:enabled`, `plugin:disabled`, `plugin:error`, `plugin:warning` |
-| Error severity | `fatal`, `error`, `warning`, `info` |
+| Group                | Example keys                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Setup lifecycle      | `beforeSetup`, `setupStart`, `ready`, `setupError`                                                           |
+| Play-path            | `beforePlay`, `play`, `playing`, `beforePause`, `pause`, `stop`, `ended`                                     |
+| Seek                 | `beforeSeek`, `seeking`, `seeked`                                                                            |
+| Mutation guards      | `beforeMutation`, `mutationPrevented`                                                                        |
+| Time                 | `time`, `duration`, `buffered`                                                                               |
+| Volume / mode        | `volume`, `mute`, `repeat`, `shuffle`                                                                        |
+| Queue                | `beforeQueueAdd`, `queueAdd`, `beforeQueueRemove`, `queueRemove`, `queueClear`                               |
+| Media tracks         | `subtitle`, `audioTrack`, `quality`, `chapters`                                                              |
+| Network / visibility | `network:online`, `network:offline`, `network:slow`, `visibility:visible`, `visibility:hidden`               |
+| Auth                 | `auth:refreshed`, `auth:refresh-failed`                                                                      |
+| Cast                 | `cast`, `castState`                                                                                          |
+| Plugin               | `plugin:registered`, `plugin:removed`, `plugin:enabled`, `plugin:disabled`, `plugin:error`, `plugin:warning` |
+| Error severity       | `fatal`, `error`, `warning`, `info`                                                                          |
 
 ### BeforeEvent
 
@@ -320,9 +320,9 @@ Common options accepted by every transport and queue action.
 
 ```ts
 interface ActionOptions {
-  source?: ActionSource;   // 'user' | 'remote' | 'plugin' | string — default 'user'
-  silent?: boolean;        // skip lifecycle events and before* guards
-  autoplay?: boolean;      // call play() immediately after load resolves
+  source?: ActionSource; // 'user' | 'remote' | 'plugin' | string — default 'user'
+  silent?: boolean; // skip lifecycle events and before* guards
+  autoplay?: boolean; // call play() immediately after load resolves
 }
 ```
 
@@ -336,9 +336,9 @@ Options for `player.load(item, opts?)`. Extends `ActionOptions`.
 
 ```ts
 interface LoadOptions extends ActionOptions {
-  slot?: 'current' | 'next';   // default 'current'
-  startAt?: number;             // start position (seconds)
-  fadeIn?: number;              // fade-in duration (seconds); 0 = immediate
+  slot?: 'current' | 'next'; // default 'current'
+  startAt?: number; // start position (seconds)
+  fadeIn?: number; // fade-in duration (seconds); 0 = immediate
 }
 ```
 

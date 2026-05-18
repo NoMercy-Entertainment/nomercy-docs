@@ -80,13 +80,20 @@ function useVisibleSections(sectionStore: StoreApi<SectionState>) {
 
     function checkVisibleSections() {
       let { innerHeight, scrollY } = window
+      let scrollHeight = document.documentElement.scrollHeight
+      // Within ~120px of document bottom = treat the last heading in viewport
+      // as active. Otherwise "See also" at the page tail never highlights
+      // because there isn't enough content below it to push the heading past
+      // the 72px header threshold.
+      let atBottom = scrollY + innerHeight >= scrollHeight - 120
+
       // Fixed header sits ~72px tall — treat any heading scrolled above that
-      // line as "passed". Sidebar active-state = the last heading scrolled
-      // past, or the first heading if none have been passed yet. Mirrors how
-      // sticky-table-of-contents widgets feel everywhere else on the web.
+      // line as "passed" by the reader. Sidebar active-state = the last
+      // heading scrolled past, or the first heading if none have been passed.
       let headerThreshold = scrollY + 72
       let newVisibleSections: Array<string> = []
       let lastPassedId: string | null = null
+      let lastVisibleId: string | null = null
 
       for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
         let { id } = sections[sectionIndex]
@@ -99,20 +106,26 @@ function useVisibleSections(sectionStore: StoreApi<SectionState>) {
           lastPassedId = id
         }
 
-        // Track every heading whose anchor is anywhere in the viewport —
-        // useful for plugins that highlight all visible h2s. The "active"
-        // section for the sidebar is chosen below from lastPassedId.
+        // Heading anchor is anywhere in the viewport — track them all for
+        // consumers that want every visible h2.
         if (top >= scrollY && top <= scrollY + innerHeight) {
           newVisibleSections.push(id)
+          lastVisibleId = id
         }
       }
 
-      // Put the active section at index 0 so any consumer reading
-      // `visibleSections[0]` (current sidebar pattern) lands on it.
-      if (lastPassedId) {
-        newVisibleSections = [lastPassedId, ...newVisibleSections.filter((id) => id !== lastPassedId)]
-      } else if (newVisibleSections.length === 0 && sections[0]) {
-        newVisibleSections = [sections[0].id]
+      // Decide the active section:
+      //   - At document bottom → last heading currently visible (so the page
+      //     tail like "See also" highlights once the reader reaches it).
+      //   - Otherwise → last heading scrolled past the header threshold.
+      //   - Fallback → first heading on the page.
+      let activeId =
+        (atBottom && lastVisibleId) ||
+        lastPassedId ||
+        (sections[0]?.id ?? null)
+
+      if (activeId) {
+        newVisibleSections = [activeId, ...newVisibleSections.filter((id) => id !== activeId)]
       }
 
       setVisibleSections(newVisibleSections)

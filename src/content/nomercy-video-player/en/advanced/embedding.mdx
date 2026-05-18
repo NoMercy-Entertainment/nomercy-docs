@@ -1,7 +1,7 @@
 ﻿---
-title: "Embedding"
-description: "iframe embed mode, postMessage control protocol, parent-frame key handling, and autoplay-allow directive."
-category: "Advanced"
+title: 'Embedding'
+description: 'iframe embed mode, postMessage control protocol, parent-frame key handling, and autoplay-allow directive.'
+category: 'Advanced'
 order: 76
 ---
 
@@ -29,34 +29,46 @@ Use `EmbedPlugin` — it handles the full postMessage protocol (inbound commands
 <!-- embed.html -->
 <!DOCTYPE html>
 <html>
-<head>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; overflow: hidden; }
-    #player { width: 100vw; height: 100vh; }
-  </style>
-</head>
-<body>
-  <div id="player"></div>
+  <head>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #000;
+        overflow: hidden;
+      }
+      #player {
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="player"></div>
 
-  <script type="module">
-    import { nmplayer, DesktopUiPlugin, EmbedPlugin } from '@nomercy-entertainment/nomercy-video-player';
+    <script type="module">
+      import {
+        nmplayer,
+        DesktopUiPlugin,
+        EmbedPlugin,
+      } from '@nomercy-entertainment/nomercy-video-player';
 
-    const player = nmplayer('embed').setup({
-      container: document.getElementById('player'),
-      queue: [],
-    });
+      const player = nmplayer('embed').setup({
+        container: document.getElementById('player'),
+        queue: [],
+      });
 
-    player
-      .addPlugin(DesktopUiPlugin)
-      .addPlugin(EmbedPlugin, {
+      player.addPlugin(DesktopUiPlugin).addPlugin(EmbedPlugin, {
         allowedOrigins: ['https://yoursite.com', 'https://partner.example.com'],
         // forwardEvents defaults to: ['ready','play','pause','ended','time','volume','mute']
       });
 
-    await player.ready();
-  </script>
-</body>
+      await player.ready();
+    </script>
+  </body>
 </html>
 ```
 
@@ -66,17 +78,17 @@ Use `EmbedPlugin` — it handles the full postMessage protocol (inbound commands
 
 **Inbound commands (host → embed):**
 
-| `action` | Effect |
-|---------|--------|
-| `'play'` | `player.play()` |
-| `'pause'` | `player.pause()` |
-| `'stop'` | `player.stop()` |
-| `'seek'` | `player.currentTime(time)` |
-| `'volume'` | `player.volume(level)` — 0–100 scale |
-| `'mute'` | `player.mute()` |
-| `'unmute'` | `player.unmute()` |
-| `'next'` | `player.next()` |
-| `'previous'` | `player.previous()` |
+| `action`     | Effect                               |
+| ------------ | ------------------------------------ |
+| `'play'`     | `player.play()`                      |
+| `'pause'`    | `player.pause()`                     |
+| `'stop'`     | `player.stop()`                      |
+| `'seek'`     | `player.currentTime(time)`           |
+| `'volume'`   | `player.volume(level)` — 0–100 scale |
+| `'mute'`     | `player.mute()`                      |
+| `'unmute'`   | `player.unmute()`                    |
+| `'next'`     | `player.next()`                      |
+| `'previous'` | `player.previous()`                  |
 
 Message shape: `{ type: 'nm:command', action: '...', ...payload }`.
 
@@ -115,18 +127,27 @@ window.addEventListener('message', (event) => {
   // Wait for the iframe to load before sending commands:
   iframe.addEventListener('load', () => {
     // Load content:
-    iframe.contentWindow.postMessage({
-      command: 'load',
-      payload: {
-        queue: [{ id: '1', url: 'https://cdn.example.com/stream.m3u8', title: 'My Video' }],
+    iframe.contentWindow.postMessage(
+      {
+        command: 'load',
+        payload: {
+          queue: [{ id: '1', url: 'https://cdn.example.com/stream.m3u8', title: 'My Video' }],
+        },
       },
-    }, 'https://player.yoursite.com');
+      'https://player.yoursite.com',
+    );
   });
 
   // Control the player:
-  function play()  { sendCommand('play'); }
-  function pause() { sendCommand('pause'); }
-  function seek(t) { sendCommand('seek', { time: t }); }
+  function play() {
+    sendCommand('play');
+  }
+  function pause() {
+    sendCommand('pause');
+  }
+  function seek(t) {
+    sendCommand('seek', { time: t });
+  }
 
   function sendCommand(command, payload = {}) {
     iframe.contentWindow.postMessage({ command, payload }, 'https://player.yoursite.com');
@@ -155,10 +176,7 @@ window.addEventListener('message', (event) => {
 Browsers block autoplay with audio unless the user has interacted with the page. The `allow` attribute on the `<iframe>` grants the embedded player the same autoplay permission as the host:
 
 ```html
-<iframe
-  allow="autoplay; fullscreen; picture-in-picture"
-  ...
-></iframe>
+<iframe allow="autoplay; fullscreen; picture-in-picture" ...></iframe>
 ```
 
 Without `allow="autoplay"`, the player can only autoplay muted. If your use case requires autoplay with sound, the user must interact with the host page first (not just the iframe).
@@ -180,10 +198,7 @@ Fullscreen requires `allow="fullscreen"` on the iframe and `allowfullscreen` att
 Always validate `event.origin` in your `message` handler. Never use `'*'` as the target origin for sensitive commands (like loading authenticated content):
 
 ```ts
-const ALLOWED_ORIGINS = new Set([
-  'https://yoursite.com',
-  'https://app.yoursite.com',
-]);
+const ALLOWED_ORIGINS = new Set(['https://yoursite.com', 'https://app.yoursite.com']);
 
 window.addEventListener('message', (event) => {
   if (!ALLOWED_ORIGINS.has(event.origin)) return; // drop unknown origins

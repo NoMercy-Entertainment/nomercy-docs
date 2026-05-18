@@ -1,7 +1,7 @@
 ---
-title: "Video Backend"
-description: "The IVideoBackend adapter contract."
-category: "Adapters"
+title: 'Video Backend'
+description: 'The IVideoBackend adapter contract.'
+category: 'Adapters'
 order: 1
 draft: false
 ---
@@ -54,7 +54,11 @@ Pass `backendFactory` in `VideoPlayerConfig`. The factory receives the resolved 
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import type { VideoBackendFactory, IVideoBackend, VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+import type {
+  VideoBackendFactory,
+  IVideoBackend,
+  VideoPlayerConfig,
+} from '@nomercy-entertainment/nomercy-video-player';
 import type { BasePlaylistItem } from '@nomercy-entertainment/nomercy-player-core';
 
 class MyBackend implements IVideoBackend {
@@ -64,16 +68,32 @@ class MyBackend implements IVideoBackend {
     // mount url to a <video> element
   }
 
-  unload(): void { /* ... */ }
-  dispose(): void { /* ... */ }
+  unload(): void {
+    /* ... */
+  }
+  dispose(): void {
+    /* ... */
+  }
 
-  play(): Promise<void> { return Promise.resolve(); }
-  pause(): void { /* ... */ }
-  stop(): void { /* ... */ }
+  play(): Promise<void> {
+    return Promise.resolve();
+  }
+  pause(): void {
+    /* ... */
+  }
+  stop(): void {
+    /* ... */
+  }
 
-  currentTime(): number { return 0; }
-  currentTime(t: number): void { /* ... */ }
-  duration(): number { return 0; }
+  currentTime(): number {
+    return 0;
+  }
+  currentTime(t: number): void {
+    /* ... */
+  }
+  duration(): number {
+    return 0;
+  }
 
   // ... implement all IVideoBackend methods
 }
@@ -84,7 +104,11 @@ const factory: VideoBackendFactory = (kind, config) => {
 
 const player = nmplayer('player').setup({
   backendFactory: factory,
-  playlist: [{ url: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8' }],
+  playlist: [
+    {
+      url: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+    },
+  ],
 });
 ```
 
@@ -92,21 +116,21 @@ const player = nmplayer('player').setup({
 
 Backends emit through the `BackendEventPayload` map. The player's event bus subscribes to these and re-emits them as video player events where applicable:
 
-| Backend event | Description |
-|---|---|
-| `loadedmetadata` | Source loaded; includes `url`, `kind`, `duration` |
-| `canplay` | Enough data buffered to begin playback |
-| `playing` | Media is actively rendering (after buffer resolves) |
-| `waiting` | Buffering (forwarded to player `'waiting'`) |
-| `stalled` | Network stalled (forwarded to player `'stalled'`) |
-| `ended` | Playback reached the end |
-| `error` | A fatal error occurred |
-| `levels` | HLS quality levels available |
-| `level-switched` | ABR switched to a different quality level |
-| `audioTracks` | Audio track list available after manifest parse |
-| `subtitleCue` | Active subtitle cues changed |
-| `stream:error` | HLS non-fatal or escalated error with details |
-| `stream:recovering` | HLS error recovery attempt in progress |
+| Backend event       | Description                                         |
+| ------------------- | --------------------------------------------------- |
+| `loadedmetadata`    | Source loaded; includes `url`, `kind`, `duration`   |
+| `canplay`           | Enough data buffered to begin playback              |
+| `playing`           | Media is actively rendering (after buffer resolves) |
+| `waiting`           | Buffering (forwarded to player `'waiting'`)         |
+| `stalled`           | Network stalled (forwarded to player `'stalled'`)   |
+| `ended`             | Playback reached the end                            |
+| `error`             | A fatal error occurred                              |
+| `levels`            | HLS quality levels available                        |
+| `level-switched`    | ABR switched to a different quality level           |
+| `audioTracks`       | Audio track list available after manifest parse     |
+| `subtitleCue`       | Active subtitle cues changed                        |
+| `stream:error`      | HLS non-fatal or escalated error with details       |
+| `stream:recovering` | HLS error recovery attempt in progress              |
 
 ## See also
 

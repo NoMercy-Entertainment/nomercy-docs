@@ -1,7 +1,7 @@
 ---
-title: "Backends Overview"
-description: "Choosing between AudioElementBackend and WebAudioBackend — capabilities, crossfade accuracy, and platform constraints."
-category: "Backends"
+title: 'Backends Overview'
+description: 'Choosing between AudioElementBackend and WebAudioBackend — capabilities, crossfade accuracy, and platform constraints.'
+category: 'Backends'
 order: 32
 draft: false
 ---
@@ -21,6 +21,7 @@ Uses a native `<audio>` element for transport. Crossfade is driven by a `request
 Web Audio graph access is available lazily: a `MediaElementAudioSourceNode` is created the first time a plugin requests `outputNode()` or `analyserSource()`. You pay zero Web Audio overhead if no plugin requests the graph.
 
 **Choose this when:**
+
 - Running on iOS where `AudioContext` creation requires a user gesture
 - You need the safest possible compatibility
 - Crossfade timing accuracy of ±20 ms is acceptable
@@ -37,6 +38,7 @@ Routes audio through a full `AudioContext` graph. Crossfade uses `linearRampToVa
 HLS streams fall back to `MediaElementAudioSourceNode` even in `webaudio` mode, because `hls.js` requires a `<audio>` element. Pure file playback (MP3, AAC, FLAC, OGG) decodes through `AudioBufferSourceNode`.
 
 **Choose this when:**
+
 - You need sample-accurate crossfades
 - You are building a custom audio processing chain
 - `AudioGraphPlugin` and `EqualizerPlugin` are in use
@@ -45,15 +47,15 @@ HLS streams fall back to `MediaElementAudioSourceNode` even in `webaudio` mode, 
 
 ## Capability comparison
 
-| Capability | `audio-element` | `webaudio` |
-|-----------|----------------|-----------|
-| Default | Yes | No |
-| Crossfade accuracy | ~50 fps (RAF) | Sample-accurate |
-| EQ / effect chain | Via lazy MediaElementSourceNode | Full AudioContext graph |
-| HLS support | hls.js or native | hls.js or native (MediaElementSource) |
-| iOS compatibility | Full | Requires user gesture |
-| `setSinkId` (output routing) | Yes | Yes |
-| `captureStream()` | Yes | Yes |
+| Capability                   | `audio-element`                 | `webaudio`                            |
+| ---------------------------- | ------------------------------- | ------------------------------------- |
+| Default                      | Yes                             | No                                    |
+| Crossfade accuracy           | ~50 fps (RAF)                   | Sample-accurate                       |
+| EQ / effect chain            | Via lazy MediaElementSourceNode | Full AudioContext graph               |
+| HLS support                  | hls.js or native                | hls.js or native (MediaElementSource) |
+| iOS compatibility            | Full                            | Requires user gesture                 |
+| `setSinkId` (output routing) | Yes                             | Yes                                   |
+| `captureStream()`            | Yes                             | Yes                                   |
 
 ---
 

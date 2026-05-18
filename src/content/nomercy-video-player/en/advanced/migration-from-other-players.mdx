@@ -1,7 +1,7 @@
 ﻿---
-title: "Migrating from Other Players"
-description: "Migration notes from hls.js, video.js, Plyr, and Tone.js to the NoMercy Player SDK — concept mapping and API translation."
-category: "Advanced"
+title: 'Migrating from Other Players'
+description: 'Migration notes from hls.js, video.js, Plyr, and Tone.js to the NoMercy Player SDK — concept mapping and API translation.'
+category: 'Advanced'
 order: 79
 ---
 
@@ -17,16 +17,16 @@ hls.js is a low-level streaming library — it manages the `<video>` element and
 
 ### Concept mapping
 
-| hls.js | NoMercy video player |
-|--------|---------------------|
-| `new Hls()` | `nmplayer('id')` |
-| `hls.loadSource(url)` | `player.queue([{ url }])` |
-| `hls.attachMedia(video)` | `player.setup({ container })` |
-| `hls.on(Hls.Events.MANIFEST_PARSED, ...)` | `player.on('levels', ...)` |
-| `hls.on(Hls.Events.LEVEL_SWITCHED, ...)` | `player.on('level-switched', ...)` |
-| `hls.currentLevel = n` | `player.currentQuality(n)` |
-| `hls.autoLevelEnabled = false` | `player.currentQuality(-1)` to re-enable ABR |
-| `hls.levels` | `player.qualityLevels()` |
+| hls.js                                    | NoMercy video player                         |
+| ----------------------------------------- | -------------------------------------------- |
+| `new Hls()`                               | `nmplayer('id')`                             |
+| `hls.loadSource(url)`                     | `player.queue([{ url }])`                    |
+| `hls.attachMedia(video)`                  | `player.setup({ container })`                |
+| `hls.on(Hls.Events.MANIFEST_PARSED, ...)` | `player.on('levels', ...)`                   |
+| `hls.on(Hls.Events.LEVEL_SWITCHED, ...)`  | `player.on('level-switched', ...)`           |
+| `hls.currentLevel = n`                    | `player.currentQuality(n)`                   |
+| `hls.autoLevelEnabled = false`            | `player.currentQuality(-1)` to re-enable ABR |
+| `hls.levels`                              | `player.qualityLevels()`                     |
 
 ### Key differences
 
@@ -53,18 +53,18 @@ video.js is a full-featured player with its own plugin system and UI.
 
 ### Concept mapping
 
-| video.js | NoMercy video player |
-|----------|---------------------|
-| `videojs('player-id', options)` | `nmplayer('player-id').setup(options)` |
-| `player.src({ src, type })` | `player.queue([{ url, ... }])` |
-| `player.play()` / `player.pause()` | Same |
-| `player.currentTime()` / `player.currentTime(t)` | Same (getter/setter) |
-| `player.volume()` / `player.volume(v)` | Same |
-| `player.on(event, handler)` | Same |
-| `player.off(event, handler)` | Same |
-| `player.plugin('name', plugin)` | `player.addPlugin(PluginClass, options)` |
-| `player.videoWidth()` / `player.videoHeight()` | `player.videoWidth()` / `player.videoHeight()` |
-| `player.dispose()` | Same |
+| video.js                                         | NoMercy video player                           |
+| ------------------------------------------------ | ---------------------------------------------- |
+| `videojs('player-id', options)`                  | `nmplayer('player-id').setup(options)`         |
+| `player.src({ src, type })`                      | `player.queue([{ url, ... }])`                 |
+| `player.play()` / `player.pause()`               | Same                                           |
+| `player.currentTime()` / `player.currentTime(t)` | Same (getter/setter)                           |
+| `player.volume()` / `player.volume(v)`           | Same                                           |
+| `player.on(event, handler)`                      | Same                                           |
+| `player.off(event, handler)`                     | Same                                           |
+| `player.plugin('name', plugin)`                  | `player.addPlugin(PluginClass, options)`       |
+| `player.videoWidth()` / `player.videoHeight()`   | `player.videoWidth()` / `player.videoHeight()` |
+| `player.dispose()`                               | Same                                           |
 
 ### UI components
 
@@ -78,9 +78,11 @@ player.addRemoteTextTrack({ kind: 'subtitles', src, srclang: 'en' });
 
 // NoMercy player:
 player.setup({
-  queue: [{
-    subtitles: [{ id: 'en', language: 'en', label: 'English', file: src, kind: 'subtitles' }],
-  }],
+  queue: [
+    {
+      subtitles: [{ id: 'en', language: 'en', label: 'English', file: src, kind: 'subtitles' }],
+    },
+  ],
 });
 player.addPlugin(SubtitleOverlayPlugin);
 ```
@@ -93,17 +95,17 @@ Plyr is a minimal UI wrapper over the native `<video>` element. It has no HLS su
 
 ### Concept mapping
 
-| Plyr | NoMercy video player |
-|------|---------------------|
-| `new Plyr('#player', options)` | `nmplayer('id').setup({ container, ...options })` |
-| `player.play()` / `player.pause()` | Same |
-| `player.currentTime` (property) | `player.currentTime()` (method) |
-| `player.volume` (property, 0–1) | `player.volume()` (method, 0–1) |
-| `player.muted` (property) | `player.mute()` / `player.unmute()` / `player.toggleMute()` |
-| `player.fullscreen.enter()` | `player.fullscreenState(true)` |
-| `player.fullscreen.exit()` | `player.fullscreenState(false)` |
-| `player.on('play', cb)` | `player.on('play', cb)` |
-| `player.destroy()` | `player.dispose()` |
+| Plyr                               | NoMercy video player                                        |
+| ---------------------------------- | ----------------------------------------------------------- |
+| `new Plyr('#player', options)`     | `nmplayer('id').setup({ container, ...options })`           |
+| `player.play()` / `player.pause()` | Same                                                        |
+| `player.currentTime` (property)    | `player.currentTime()` (method)                             |
+| `player.volume` (property, 0–1)    | `player.volume()` (method, 0–1)                             |
+| `player.muted` (property)          | `player.mute()` / `player.unmute()` / `player.toggleMute()` |
+| `player.fullscreen.enter()`        | `player.fullscreenState(true)`                              |
+| `player.fullscreen.exit()`         | `player.fullscreenState(false)`                             |
+| `player.on('play', cb)`            | `player.on('play', cb)`                                     |
+| `player.destroy()`                 | `player.dispose()`                                          |
 
 ### HLS migration
 
@@ -140,11 +142,9 @@ const eq = new Tone.EQ3({ low: 3, mid: 0, high: -2 });
 const player = new Tone.Player(url).connect(eq);
 
 // NoMercy music player (EQ):
-player
-  .addPlugin(AudioGraphPlugin)
-  .addPlugin(EqualizerPlugin, {
-    presets: [{ name: 'Custom', bands: [3, 2, 1, 0, 0, 0, -1, -2, -2, -2] }],
-  });
+player.addPlugin(AudioGraphPlugin).addPlugin(EqualizerPlugin, {
+  presets: [{ name: 'Custom', bands: [3, 2, 1, 0, 0, 0, -1, -2, -2, -2] }],
+});
 
 const eq = player.getPlugin(EqualizerPlugin);
 await eq.setPreset('Custom');
@@ -156,10 +156,14 @@ If you used `Tone.Transport` to schedule playback events, replace it with the ki
 
 ```ts
 // Tone.js:
-Tone.Transport.scheduleRepeat(() => { /* tick */ }, '8n');
+Tone.Transport.scheduleRepeat(() => {
+  /* tick */
+}, '8n');
 
 // NoMercy player — use plugin interval:
-this.interval(() => { /* tick */ }, intervalMs);
+this.interval(() => {
+  /* tick */
+}, intervalMs);
 ```
 
 ### Key differences

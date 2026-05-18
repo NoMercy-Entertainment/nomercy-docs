@@ -1,7 +1,7 @@
 ---
-title: "Adapters"
-description: "The 28 kit adapter ports. Name, purpose, default implementation, and how to replace each one."
-category: "Adapter Ports"
+title: 'Adapters'
+description: 'The 28 kit adapter ports. Name, purpose, default implementation, and how to replace each one.'
+category: 'Adapter Ports'
 order: 3
 ---
 
@@ -18,16 +18,19 @@ The video player adds 4 video-specific ports. The music player adds 6 music-spec
 All ports are wired through `setup()`:
 
 ```ts
-import { LocalStorageBackend, MemoryStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
+import {
+  LocalStorageBackend,
+  MemoryStorageBackend,
+} from '@nomercy-entertainment/nomercy-player-core';
 import { browserPlatform } from '@nomercy-entertainment/nomercy-player-core';
 
 player.setup({
-  storage: new MemoryStorageBackend(),         // swap LocalStorage for in-memory
+  storage: new MemoryStorageBackend(), // swap LocalStorage for in-memory
   platform: {
     ...browserPlatform,
-    wakeLock: myNativeWakeLock,                // override one sub-port, keep the rest
+    wakeLock: myNativeWakeLock, // override one sub-port, keep the rest
   },
-  logger: myPinoLogger,                        // wire a Pino adapter
+  logger: myPinoLogger, // wire a Pino adapter
 });
 ```
 
@@ -37,22 +40,22 @@ player.setup({
 
 ### Core infrastructure
 
-| Port | Config key | Interface | Default | Replace when |
-|------|-----------|-----------|---------|-------------|
-| Storage | `storage` | `IStorage` | `LocalStorageBackend` | Need IndexedDB, remote persistence, or ephemeral test storage |
-| Logger | `logger` | `ILogger` | Console logger | Routing logs to Pino, Winston, or a remote sink |
-| Id generator | (internal) | `IIdGenerator` | Monotonic counter | Need globally unique ids (UUID, ULID) for distributed setups |
-| Event bus | (internal) | `IEventBus` | Default typed bus | Custom event routing or debugging instrumentation |
-| Lifecycle registry | (internal) | `ILifecycleRegistry` | Default registry | Custom plugin ordering or lifecycle observability |
-| Element factory | (internal) | `IElementFactory` | DOM factory | Non-browser rendering environments |
+| Port               | Config key | Interface            | Default               | Replace when                                                  |
+| ------------------ | ---------- | -------------------- | --------------------- | ------------------------------------------------------------- |
+| Storage            | `storage`  | `IStorage`           | `LocalStorageBackend` | Need IndexedDB, remote persistence, or ephemeral test storage |
+| Logger             | `logger`   | `ILogger`            | Console logger        | Routing logs to Pino, Winston, or a remote sink               |
+| Id generator       | (internal) | `IIdGenerator`       | Monotonic counter     | Need globally unique ids (UUID, ULID) for distributed setups  |
+| Event bus          | (internal) | `IEventBus`          | Default typed bus     | Custom event routing or debugging instrumentation             |
+| Lifecycle registry | (internal) | `ILifecycleRegistry` | Default registry      | Custom plugin ordering or lifecycle observability             |
+| Element factory    | (internal) | `IElementFactory`    | DOM factory           | Non-browser rendering environments                            |
 
 ### Auth and fetch
 
-| Port | Config key | Interface | Default | Replace when |
-|------|-----------|-----------|---------|-------------|
-| Auth config | `auth` | `AuthConfig` | None (unauthenticated) | Your media sources require authorization |
-| Fetch | (internal) | `IFetch` | `globalThis.fetch` | Injecting a mock fetch in tests or a custom fetch polyfill |
-| Retry policy | `retryPolicy` | `IRetryPolicy` | 3 retries, exponential backoff | Custom retry count, jitter, or circuit breaker |
+| Port         | Config key    | Interface      | Default                        | Replace when                                               |
+| ------------ | ------------- | -------------- | ------------------------------ | ---------------------------------------------------------- |
+| Auth config  | `auth`        | `AuthConfig`   | None (unauthenticated)         | Your media sources require authorization                   |
+| Fetch        | (internal)    | `IFetch`       | `globalThis.fetch`             | Injecting a mock fetch in tests or a custom fetch polyfill |
+| Retry policy | `retryPolicy` | `IRetryPolicy` | 3 retries, exponential backoff | Custom retry count, jitter, or circuit breaker             |
 
 ### Platform abstraction
 
@@ -62,52 +65,52 @@ The `platform` config key accepts an `IPlatform` bundle. Override individual sub
 platform: { ...browserPlatform, wakeLock: myNativeWakeLock }
 ```
 
-| Sub-port | Interface | Default | Replace when |
-|----------|-----------|---------|-------------|
-| Wake lock | `IPlatform.wakeLock` | Browser Wake Lock API | Capacitor, native shell |
-| Network monitor | `IPlatform.network` | Navigator connection API | Capacitor Network plugin |
-| Visibility monitor | `IPlatform.visibility` | Page Visibility API | Non-standard environments |
-| Capabilities probe | `IPlatform.capabilities` | MediaCapabilities API | Custom format support detection |
-| Fullscreen controller | `IPlatform.fullscreen` | Document Fullscreen API | Native fullscreen (video only) |
-| PiP controller | `IPlatform.pip` | HTMLVideoElement PiP | Native PiP (video only) |
+| Sub-port              | Interface                | Default                  | Replace when                    |
+| --------------------- | ------------------------ | ------------------------ | ------------------------------- |
+| Wake lock             | `IPlatform.wakeLock`     | Browser Wake Lock API    | Capacitor, native shell         |
+| Network monitor       | `IPlatform.network`      | Navigator connection API | Capacitor Network plugin        |
+| Visibility monitor    | `IPlatform.visibility`   | Page Visibility API      | Non-standard environments       |
+| Capabilities probe    | `IPlatform.capabilities` | MediaCapabilities API    | Custom format support detection |
+| Fullscreen controller | `IPlatform.fullscreen`   | Document Fullscreen API  | Native fullscreen (video only)  |
+| PiP controller        | `IPlatform.pip`          | HTMLVideoElement PiP     | Native PiP (video only)         |
 
 ### Streaming
 
-| Port | Config key | Interface | Default | Replace when |
-|------|-----------|-----------|---------|-------------|
+| Port            | Config key | Interface         | Default                     | Replace when                           |
+| --------------- | ---------- | ----------------- | --------------------------- | -------------------------------------- |
 | Stream registry | (internal) | `IStreamRegistry` | HLS + native stream sources | Adding a DASH or custom stream adapter |
 
 ### i18n
 
-| Port | Config key | Interface | Default | Replace when |
-|------|-----------|-----------|---------|-------------|
-| Translator | `translations` / `loadTranslations` | `ITranslator` | Built-in BCP-47 string resolver | Custom translation backend (i18next, Fluent) |
-| Language matcher | (internal) | `ILanguageMatcher` | BCP-47 matching | Stricter locale matching |
-| Translation loader | `loadTranslations` | `ITranslationLoader` | JSON file loader | Lazy load from CDN, merge from multiple sources |
+| Port               | Config key                          | Interface            | Default                         | Replace when                                    |
+| ------------------ | ----------------------------------- | -------------------- | ------------------------------- | ----------------------------------------------- |
+| Translator         | `translations` / `loadTranslations` | `ITranslator`        | Built-in BCP-47 string resolver | Custom translation backend (i18next, Fluent)    |
+| Language matcher   | (internal)                          | `ILanguageMatcher`   | BCP-47 matching                 | Stricter locale matching                        |
+| Translation loader | `loadTranslations`                  | `ITranslationLoader` | JSON file loader                | Lazy load from CDN, merge from multiple sources |
 
 ### Subtitles and cues
 
-| Port | Config key | Interface | Default | Replace when |
-|------|-----------|-----------|---------|-------------|
-| Cue parser registry | (internal) | `ICueParserRegistry` | VTT + LRC parsers | Adding SRT, TTML, or custom cue formats |
-| Subtitle renderer | (internal) | `ISubtitleRenderer` | DOM text overlay | `SubtitleOverlayPlugin` replaces this with a styled overlay |
+| Port                | Config key | Interface            | Default           | Replace when                                                |
+| ------------------- | ---------- | -------------------- | ----------------- | ----------------------------------------------------------- |
+| Cue parser registry | (internal) | `ICueParserRegistry` | VTT + LRC parsers | Adding SRT, TTML, or custom cue formats                     |
+| Subtitle renderer   | (internal) | `ISubtitleRenderer`  | DOM text overlay  | `SubtitleOverlayPlugin` replaces this with a styled overlay |
 
 ### Realtime
 
-| Port | Config key | Interface | Default | Replace when |
-|------|-----------|-----------|---------|-------------|
+| Port                     | Config key         | Interface                  | Default          | Replace when                                     |
+| ------------------------ | ------------------ | -------------------------- | ---------------- | ------------------------------------------------ |
 | Realtime channel factory | `websocketFactory` | `IRealtimeChannel` factory | Native WebSocket | SignalR, Socket.IO, or a custom realtime adapter |
 
 ### Miscellaneous
 
-| Port | Config key | Interface | Default | Replace when |
-|------|-----------|-----------|---------|-------------|
-| Clock | (internal) | `IClock` | `Date.now()` | Distributed time sync (NTP-adjusted clock for group listening) |
-| Class manager | (internal) | `IClassManager` | DOM classList API | Non-DOM class management (SSR, React Native) |
-| Media list | (internal) | `IMediaList` | Array-backed list | External data store |
-| Preload strategy | (internal) | `IPreloadStrategy` | Default lead-seconds preload | Custom buffer management |
-| URL resolver | (internal) | `IUrlResolver` | Base URL + category routing | Custom CDN URL signing or rewriting |
-| DRM config | `drm` | `IDrmConfig` | None | DRM-protected content (passed to `DrmPlugin`) |
+| Port             | Config key | Interface          | Default                      | Replace when                                                   |
+| ---------------- | ---------- | ------------------ | ---------------------------- | -------------------------------------------------------------- |
+| Clock            | (internal) | `IClock`           | `Date.now()`                 | Distributed time sync (NTP-adjusted clock for group listening) |
+| Class manager    | (internal) | `IClassManager`    | DOM classList API            | Non-DOM class management (SSR, React Native)                   |
+| Media list       | (internal) | `IMediaList`       | Array-backed list            | External data store                                            |
+| Preload strategy | (internal) | `IPreloadStrategy` | Default lead-seconds preload | Custom buffer management                                       |
+| URL resolver     | (internal) | `IUrlResolver`     | Base URL + category routing  | Custom CDN URL signing or rewriting                            |
+| DRM config       | `drm`      | `IDrmConfig`       | None                         | DRM-protected content (passed to `DrmPlugin`)                  |
 
 ---
 
@@ -123,16 +126,17 @@ import {
 } from '@nomercy-entertainment/nomercy-player-core';
 
 // Default — persists across sessions, shared across tabs:
-storage: new LocalStorageBackend()
+storage: new LocalStorageBackend();
 
 // Ephemeral — ideal for tests; no persistence, no cross-tab state:
-storage: new MemoryStorageBackend()
+storage: new MemoryStorageBackend();
 
 // High-capacity — for large datasets (EQ preset libraries, subtitle cache):
-storage: new IndexedDBBackend('my-player-db')
+storage: new IndexedDBBackend('my-player-db');
 ```
 
 All three implement `IStorage`:
+
 ```ts
 interface IStorage {
   get(key: string): string | null;
@@ -153,7 +157,7 @@ import type { IStorage } from '@nomercy-entertainment/nomercy-player-core';
 
 class RemoteStorageBackend implements IStorage {
   get(key: string): string | null {
-    return sessionStorage.getItem(key);  // or call your remote API synchronously
+    return sessionStorage.getItem(key); // or call your remote API synchronously
   }
   set(key: string, value: string): void {
     sessionStorage.setItem(key, value);
@@ -173,22 +177,22 @@ player.setup({ storage: new RemoteStorageBackend() });
 
 ## Video-specific ports (4)
 
-| Port | Config key | Default | Description |
-|------|-----------|---------|-------------|
-| Video backend | `backendFactory` | `Html5VideoBackend` | The `<video>` element wrapper |
-| Chapter source | `chapterSource` | `VttChapterSource` if `chapters` field set | Loads chapter data |
-| Thumbnail source | `thumbnailSource` | `VttSpriteThumbnailSource` if `previewSpriteUrl` set | Preview hover sprites |
-| Subtitle style store | `subtitleStyleStore` | `StorageBackedSubtitleStyleStore` | Persists user subtitle style preferences |
+| Port                 | Config key           | Default                                              | Description                              |
+| -------------------- | -------------------- | ---------------------------------------------------- | ---------------------------------------- |
+| Video backend        | `backendFactory`     | `Html5VideoBackend`                                  | The `<video>` element wrapper            |
+| Chapter source       | `chapterSource`      | `VttChapterSource` if `chapters` field set           | Loads chapter data                       |
+| Thumbnail source     | `thumbnailSource`    | `VttSpriteThumbnailSource` if `previewSpriteUrl` set | Preview hover sprites                    |
+| Subtitle style store | `subtitleStyleStore` | `StorageBackedSubtitleStyleStore`                    | Persists user subtitle style preferences |
 
 ---
 
 ## Music-specific ports (6)
 
-| Port | Config key | Default | Description |
-|------|-----------|---------|-------------|
-| Audio backend | `backendFactory` | `WebAudioBackend` | Dual-buffer WebAudio or `<audio>` element |
-| Playlist generator | `playlistGenerator` | Linear sequencer | Next-track selection algorithm |
-| Scrobbler | `scrobbler` | No-op | Last.fm / ListenBrainz / custom play reporting |
-| Lyric source | `lyricSource` | LRC file fetcher | Synced lyrics data provider |
-| Similarity engine | `similarityEngine` | None (consumer-required) | Powers smart shuffle and radio mode |
-| Now-playing art | `nowPlayingArt` | MediaSession default | Album art source for lock screen / notifications |
+| Port               | Config key          | Default                  | Description                                      |
+| ------------------ | ------------------- | ------------------------ | ------------------------------------------------ |
+| Audio backend      | `backendFactory`    | `WebAudioBackend`        | Dual-buffer WebAudio or `<audio>` element        |
+| Playlist generator | `playlistGenerator` | Linear sequencer         | Next-track selection algorithm                   |
+| Scrobbler          | `scrobbler`         | No-op                    | Last.fm / ListenBrainz / custom play reporting   |
+| Lyric source       | `lyricSource`       | LRC file fetcher         | Synced lyrics data provider                      |
+| Similarity engine  | `similarityEngine`  | None (consumer-required) | Powers smart shuffle and radio mode              |
+| Now-playing art    | `nowPlayingArt`     | MediaSession default     | Album art source for lock screen / notifications |

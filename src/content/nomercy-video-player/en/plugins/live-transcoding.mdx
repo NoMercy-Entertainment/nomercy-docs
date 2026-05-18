@@ -1,7 +1,7 @@
 ---
-title: "Live Transcoding"
-description: "The LiveTranscodingPlugin — server-side live transcode integration."
-category: "Plugins"
+title: 'Live Transcoding'
+description: 'The LiveTranscodingPlugin — server-side live transcode integration.'
+category: 'Plugins'
 order: 9
 draft: false
 ---
@@ -16,7 +16,10 @@ draft: false
 
 ```ts
 import { LiveTranscodingPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
-import type { LiveTranscodingOptions, LiveTranscodingEvents } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type {
+  LiveTranscodingOptions,
+  LiveTranscodingEvents,
+} from '@nomercy-entertainment/nomercy-video-player/plugins';
 ```
 
 ## What it does
@@ -50,23 +53,28 @@ interface LiveTranscodingOptions {
 }
 ```
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `controlUrl` | `string` | — | WebSocket URL of the transcoding server |
-| `wsUrl` | `string` | — | Alias for `controlUrl` |
-| `seekTimeoutMs` | `number` | `10000` | Seek gate timeout in milliseconds |
-| `preferredHeight` | `number` | — | Preferred output height hint sent to the encoder |
+| Option            | Type     | Default | Description                                      |
+| ----------------- | -------- | ------- | ------------------------------------------------ |
+| `controlUrl`      | `string` | —       | WebSocket URL of the transcoding server          |
+| `wsUrl`           | `string` | —       | Alias for `controlUrl`                           |
+| `seekTimeoutMs`   | `number` | `10000` | Seek gate timeout in milliseconds                |
+| `preferredHeight` | `number` | —       | Preferred output height hint sent to the encoder |
 
 ## Events
 
 ```ts
 interface LiveTranscodingEvents {
-  'job:started':        { jobId: string; sourceUrl: string };
-  'job:progress':       { jobId: string; transcodedSeconds: number; totalSeconds?: number; variantsReady: string[] };
-  'job:variant-ready':  { jobId: string; variant: string; bandwidth: number };
-  'job:ready-to-play':  { jobId: string };
-  'job:error':          { jobId: string; error: Error };
-  'job:complete':       { jobId: string };
+  'job:started': { jobId: string; sourceUrl: string };
+  'job:progress': {
+    jobId: string;
+    transcodedSeconds: number;
+    totalSeconds?: number;
+    variantsReady: string[];
+  };
+  'job:variant-ready': { jobId: string; variant: string; bandwidth: number };
+  'job:ready-to-play': { jobId: string };
+  'job:error': { jobId: string; error: Error };
+  'job:complete': { jobId: string };
   'backpressure:apply': { reason: 'buffer-full' | 'encoder-stall' };
   'backpressure:release': void;
 }
@@ -76,12 +84,12 @@ interface LiveTranscodingEvents {
 
 The server sends JSON messages over the WebSocket. The plugin recognises the following `type` values:
 
-| `type` | Effect |
-|---|---|
-| `'started'` | Emits `'job:started'`. Sets `currentJobId`. |
-| `'progress'` | Updates `transcodedTo` state. Emits `'job:progress'`. Releases any pending seek gate if the target is now reachable. |
-| `'ready-to-play'` | Emits `'job:ready-to-play'`. |
-| `'complete'` | Emits `'job:complete'`. |
+| `type`            | Effect                                                                                                               |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `'started'`       | Emits `'job:started'`. Sets `currentJobId`.                                                                          |
+| `'progress'`      | Updates `transcodedTo` state. Emits `'job:progress'`. Releases any pending seek gate if the target is now reachable. |
+| `'ready-to-play'` | Emits `'job:ready-to-play'`.                                                                                         |
+| `'complete'`      | Emits `'job:complete'`.                                                                                              |
 
 ## Registration
 
@@ -95,10 +103,12 @@ const player = nmplayer('player')
     seekTimeoutMs: 15_000,
   })
   .setup({
-    playlist: [{
-      title: 'Sintel',
-      url: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-    }],
+    playlist: [
+      {
+        title: 'Sintel',
+        url: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      },
+    ],
   });
 
 player.on('plugin:live-transcoding:job:progress', ({ transcodedSeconds }) => {

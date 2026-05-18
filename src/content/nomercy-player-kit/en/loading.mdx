@@ -1,7 +1,7 @@
 ---
-title: "Loading"
-description: "load, loadQueue, and resolveItemTrackUrls."
-category: "Tracks and Media"
+title: 'Loading'
+description: 'load, loadQueue, and resolveItemTrackUrls.'
+category: 'Tracks and Media'
 order: 3
 draft: false
 ---
@@ -19,6 +19,7 @@ Loading methods mount a single item or a remote playlist into the player. `load(
 Load a single playlist item into the player.
 
 **Before loading:**
+
 1. Dispatches `beforeLoad` — a listener may `preventDefault()`, which emits `loadPrevented` and returns without touching the backend.
 2. Resolves `item.url` through `auth.transformUrl` when configured.
 3. Resolves sidecar track URLs via `resolveItemTrackUrls` (subtitle, chapter file URLs are made absolute relative to `baseUrl`).
@@ -26,22 +27,24 @@ Load a single playlist item into the player.
 **Phase transitions:** the player enters `loading` while the backend mounts, then returns to `ready` on success. The transition is skipped when called during initial setup to avoid a flash.
 
 **After loading:**
+
 - If `opts.startAt` is set, seeks to that timestamp.
 - If `opts.fadeIn` is set, ramps volume from 0 to the current level over that many seconds.
 - Emits `mediaReady` on success.
 
-| Parameter | Type | Default | Description |
-| --- | --- | --- | --- |
-| `item.url` | `string` | — | Required. The playable media URL |
-| `opts.slot` | `'current' \| 'next'` | `'current'` | `'next'` preloads without interrupting playback |
-| `opts.startAt` | `number` | — | Start position in seconds |
-| `opts.fadeIn` | `number` | — | Volume fade-in duration in seconds |
-| `opts.source` | `ActionSource` | `'user'` | Source attribution |
-| `opts.autoplay` | `boolean` | `false` | Call `play()` after load resolves |
+| Parameter       | Type                  | Default     | Description                                     |
+| --------------- | --------------------- | ----------- | ----------------------------------------------- |
+| `item.url`      | `string`              | —           | Required. The playable media URL                |
+| `opts.slot`     | `'current' \| 'next'` | `'current'` | `'next'` preloads without interrupting playback |
+| `opts.startAt`  | `number`              | —           | Start position in seconds                       |
+| `opts.fadeIn`   | `number`              | —           | Volume fade-in duration in seconds              |
+| `opts.source`   | `ActionSource`        | `'user'`    | Source attribution                              |
+| `opts.autoplay` | `boolean`             | `false`     | Call `play()` after load resolves               |
 
 **Returns:** `Promise<void>`
 
 **Events emitted:**
+
 - `beforeLoad` — cancellable
 - `loadPrevented` — fires instead when prevented
 - `mediaReady` — fires after a successful load
@@ -59,7 +62,10 @@ await player.play();
 
 // load with resume position
 await player.load(
-  { id: 'cosmos', url: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films/Tears.of.Steel.(2012)/Tears.of.Steel.(2012).NoMercy.m3u8' },
+  {
+    id: 'cosmos',
+    url: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films/Tears.of.Steel.(2012)/Tears.of.Steel.(2012).NoMercy.m3u8',
+  },
   { startAt: 422, autoplay: true },
 );
 ```
@@ -72,14 +78,15 @@ Fetch a remote playlist URL and replace the current queue with the parsed result
 
 The request goes through the same auth pipeline as all other player fetches. When `parser` is omitted, the response body is parsed as JSON. Supply a custom parser for M3U, XSPF, or other playlist formats.
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `url` | `string` | Remote playlist URL |
-| `parser` | `(raw: string) => T[]` | Optional custom parser |
+| Parameter | Type                   | Description            |
+| --------- | ---------------------- | ---------------------- |
+| `url`     | `string`               | Remote playlist URL    |
+| `parser`  | `(raw: string) => T[]` | Optional custom parser |
 
 **Returns:** `Promise<void>`
 
 **Events emitted:**
+
 - `playlistResolving` with `{ url }` before the fetch
 - `playlistReady` with `{ length }` on success
 - `playlistResolveError` and `error` on failure (and re-throws)

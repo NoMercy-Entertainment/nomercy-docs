@@ -1,7 +1,7 @@
 ---
-title: "React Integration"
-description: "Using NMMusicPlayer in a React hook — useState, useEffect, cleanup, and context pattern."
-category: "Framework Integration"
+title: 'React Integration'
+description: 'Using NMMusicPlayer in a React hook — useState, useEffect, cleanup, and context pattern.'
+category: 'Framework Integration'
 order: 30
 draft: false
 ---
@@ -18,7 +18,10 @@ draft: false
 // hooks/useMusicPlayer.ts
 import { useState, useEffect, useRef } from 'react';
 import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
-import { AutoAdvancePlugin, MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+import {
+  AutoAdvancePlugin,
+  MediaSessionPlugin,
+} from '@nomercy-entertainment/nomercy-music-player/plugins';
 import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 
 export function useMusicPlayer() {
@@ -87,9 +90,7 @@ export function NowPlaying() {
         <div className="fill" style={{ width: `${progress}%` }} />
       </div>
 
-      <button onClick={() => void player.togglePlayback()}>
-        {isPlaying ? 'Pause' : 'Play'}
-      </button>
+      <button onClick={() => void player.togglePlayback()}>{isPlaying ? 'Pause' : 'Play'}</button>
       <button onClick={() => void player.previous()}>Prev</button>
       <button onClick={() => void player.next()}>Next</button>
     </div>
@@ -112,11 +113,7 @@ const PlayerContext = createContext<IMusicPlayer | null>(null);
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const playerRef = useRef(nmMPlayer('global').setup({ playlist: [] }));
-  return (
-    <PlayerContext.Provider value={playerRef.current}>
-      {children}
-    </PlayerContext.Provider>
-  );
+  return <PlayerContext.Provider value={playerRef.current}>{children}</PlayerContext.Provider>;
 }
 
 export function usePlayer(): IMusicPlayer {

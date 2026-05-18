@@ -1,7 +1,7 @@
 ---
-title: "Experimental API"
-description: "experimental.override, experimental.restore, and experimental.overrides."
-category: "Advanced"
+title: 'Experimental API'
+description: 'experimental.override, experimental.restore, and experimental.overrides.'
+category: 'Advanced'
 order: 2
 draft: false
 ---
@@ -22,20 +22,19 @@ Temporarily replace a player method with a custom implementation.
 
 The original method is captured on first call. Multiple overrides of the same method overwrite each other — the last writer wins. Returns a zero-arg disposer; call it to undo the override.
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `method` | `string` | Name of the method to override |
-| `fn` | `(...args: unknown[]) => unknown` | Replacement function (called with the player as `this`) |
+| Parameter | Type                              | Description                                             |
+| --------- | --------------------------------- | ------------------------------------------------------- |
+| `method`  | `string`                          | Name of the method to override                          |
+| `fn`      | `(...args: unknown[]) => unknown` | Replacement function (called with the player as `this`) |
 
 **Returns:** `() => void` — call to restore the original
 
 ```ts
-const restore = player.experimental.override('play', async function(...args) {
+const restore = player.experimental.override('play', async function (...args) {
   // custom logic before play
   console.log('play intercepted');
   // call through to the original
-  const orig = player.experimental.overrides()
-    .find(o => o.method === 'play');
+  const orig = player.experimental.overrides().find((o) => o.method === 'play');
   // NOTE: to call-through you'd need to capture the original before overriding
   // This is intentionally low-level — use beforePlay event instead when possible
 });

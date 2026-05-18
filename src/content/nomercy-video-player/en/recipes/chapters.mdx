@@ -1,7 +1,7 @@
 ﻿---
-title: "Chapters"
-description: "VTT chapter source, chapter UI overlay via DesktopUiPlugin, and programmatic chapter seek."
-category: "Recipes"
+title: 'Chapters'
+description: 'VTT chapter source, chapter UI overlay via DesktopUiPlugin, and programmatic chapter seek.'
+category: 'Recipes'
 order: 52
 ---
 
@@ -26,10 +26,10 @@ const player = nmplayer('main').setup({
       url: 'https://cdn.example.com/ep1.m3u8',
       chapters: [
         // Times are in seconds
-        { id: 'cold-open', startTime: 0,    endTime: 90,   title: 'Cold Open' },
-        { id: 'act-1',     startTime: 90,   endTime: 900,  title: 'Act 1' },
-        { id: 'act-2',     startTime: 900,  endTime: 1800, title: 'Act 2' },
-        { id: 'credits',   startTime: 1800, endTime: 2700, title: 'Credits' },
+        { id: 'cold-open', startTime: 0, endTime: 90, title: 'Cold Open' },
+        { id: 'act-1', startTime: 90, endTime: 900, title: 'Act 1' },
+        { id: 'act-2', startTime: 900, endTime: 1800, title: 'Act 2' },
+        { id: 'credits', startTime: 1800, endTime: 2700, title: 'Credits' },
       ],
     },
   ],
@@ -121,14 +121,19 @@ chapters.forEach((chapter, index) => {
 Load chapters from a database or API instead of a VTT file:
 
 ```ts
-import type { IChapterSource, Chapter, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+import type {
+  IChapterSource,
+  Chapter,
+  VideoPlaylistItem,
+} from '@nomercy-entertainment/nomercy-video-player';
 
 class ApiChapterSource implements IChapterSource {
   async load(item: VideoPlaylistItem): Promise<Chapter[]> {
     // item.id is the queue item id passed to the server
     const response = await fetch(`/api/chapters/${item.id}`);
-    const data: Array<{ id: number; start_ms: number; end_ms: number; name: string }> = await response.json();
-    return data.map(ch => ({
+    const data: Array<{ id: number; start_ms: number; end_ms: number; name: string }> =
+      await response.json();
+    return data.map((ch) => ({
       id: String(ch.id),
       startTime: ch.start_ms / 1000, // convert ms to seconds
       endTime: ch.end_ms / 1000,

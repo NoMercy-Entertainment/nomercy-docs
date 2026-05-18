@@ -1,7 +1,7 @@
 ---
-title: "Plugin Standard"
-description: "The contract every plugin in the NoMercy player ecosystem must follow. Required surface, naming conventions, lifecycle, error handling, and testing."
-category: "Plugins"
+title: 'Plugin Standard'
+description: 'The contract every plugin in the NoMercy player ecosystem must follow. Required surface, naming conventions, lifecycle, error handling, and testing.'
+category: 'Plugins'
 order: 1
 ---
 
@@ -26,6 +26,7 @@ static readonly minCoreVersion?: string; // optional minimum kit version
 ```
 
 Id conventions:
+
 - Kit-shipped plugins: bare kebab-case (`'lyrics'`, `'auto-advance'`)
 - Third-party / consumer plugins: `vendor:name` (`'nomercy:sync'`, `'fillz:winamp'`)
 
@@ -93,14 +94,14 @@ export type { MyPluginEvents };
 
 Standard events fired automatically by the base class for every plugin:
 
-| Event | Payload | When |
-|-------|---------|------|
-| `plugin:<id>:installed` | `{ id, version }` | After `use()` resolves |
-| `plugin:<id>:enabled` | `{ id }` | After `enable()` |
-| `plugin:<id>:disabled` | `{ id, reason }` | After `disable()` |
-| `plugin:<id>:opts:changed` | `{ id, opts }` | After `options(patch)` |
-| `plugin:<id>:disposed` | `{ id }` | After `dispose()` |
-| `plugin:<id>:failed` | `{ id, error }` | When `use()` rejects |
+| Event                      | Payload           | When                   |
+| -------------------------- | ----------------- | ---------------------- |
+| `plugin:<id>:installed`    | `{ id, version }` | After `use()` resolves |
+| `plugin:<id>:enabled`      | `{ id }`          | After `enable()`       |
+| `plugin:<id>:disabled`     | `{ id, reason }`  | After `disable()`      |
+| `plugin:<id>:opts:changed` | `{ id, opts }`    | After `options(patch)` |
+| `plugin:<id>:disposed`     | `{ id }`          | After `dispose()`      |
+| `plugin:<id>:failed`       | `{ id, error }`   | When `use()` rejects   |
 
 ### 1.6 Event listening
 
@@ -108,7 +109,9 @@ Two typed forms. Both auto-dispose when the plugin disposes. No untyped fallback
 
 ```ts
 // Player / core events:
-this.on('time', ({ time }) => { /* typed */ });
+this.on('time', ({ time }) => {
+  /* typed */
+});
 
 // Cross-plugin events — typed via imported class:
 this.on(EqualizerPlugin, 'bandChanged', (event) => {
@@ -128,10 +131,10 @@ const result = await this.dispatchBefore('beforeSetBand', { index, gain });
 
 ```ts
 interface BeforeEvent<TData> {
-  data: TData;                           // mutable — player reads back after dispatch
-  preventDefault(): void;                // skip the default action
+  data: TData; // mutable — player reads back after dispatch
+  preventDefault(): void; // skip the default action
   isDefaultPrevented(): boolean;
-  stopImmediatePropagation(): void;      // skip remaining listeners
+  stopImmediatePropagation(): void; // skip remaining listeners
   isPropagationStopped(): boolean;
   delay(promise: Promise<unknown>): void; // async-gate the action
   isDelayed(): boolean;
@@ -140,12 +143,12 @@ interface BeforeEvent<TData> {
 
 `dispatchBefore` returns `Promise<BeforeDispatchResult<TData>>`:
 
-| Field | Type | Meaning |
-|-------|------|---------|
-| `data` | `TData` | Possibly mutated by listeners |
-| `prevented` | `boolean` | True if any listener prevented or any delay rejected |
-| `reason` | `string` | `'listener-prevented'` or `'delay-rejected'` or `'delay-timeout'` |
-| `cause` | `unknown` | Underlying error when applicable |
+| Field       | Type      | Meaning                                                           |
+| ----------- | --------- | ----------------------------------------------------------------- |
+| `data`      | `TData`   | Possibly mutated by listeners                                     |
+| `prevented` | `boolean` | True if any listener prevented or any delay rejected              |
+| `reason`    | `string`  | `'listener-prevented'` or `'delay-rejected'` or `'delay-timeout'` |
+| `cause`     | `unknown` | Underlying error when applicable                                  |
 
 ### 1.8 Error escalation
 
@@ -178,8 +181,12 @@ class MyPlugin extends Plugin {
     this.addPlaybackHooks();
     this.addNavigationHooks();
   }
-  protected addPlaybackHooks() { /* ... */ }
-  protected addNavigationHooks() { /* ... */ }
+  protected addPlaybackHooks() {
+    /* ... */
+  }
+  protected addNavigationHooks() {
+    /* ... */
+  }
 }
 ```
 
@@ -223,14 +230,15 @@ Class refs only — type-safe, refactor-safe:
 ```ts
 class MyPlugin extends Plugin {
   static readonly requires = [
-    AudioGraphPlugin,                                    // required
-    { plugin: MediaSessionPlugin, optional: true },      // optional
-    { plugin: SpectrumPlugin, minVersion: '2.1.0' },    // version-pinned
+    AudioGraphPlugin, // required
+    { plugin: MediaSessionPlugin, optional: true }, // optional
+    { plugin: SpectrumPlugin, minVersion: '2.1.0' }, // version-pinned
   ];
 }
 ```
 
 Player at registration:
+
 - Required dep missing → throws `core:plugin/missing-dep`
 - Optional dep missing → debug warning; plugin runs
 - Version mismatch → throws `core:plugin/version-mismatch`
@@ -296,7 +304,7 @@ Mount names are scoped per plugin — `MessagePlugin`'s `'toast'` becomes `nmpla
 ### 3.4 Plugin-scoped storage
 
 ```ts
-this.storage.get('volume');   // reads 'nmplayer-<plugin-id>-volume'
+this.storage.get('volume'); // reads 'nmplayer-<plugin-id>-volume'
 this.storage.set('volume', 0.8);
 ```
 
@@ -312,25 +320,25 @@ this.logger.debug('something'); // outputs [nmplayer][my-plugin] something
 
 ### Method naming
 
-| Pattern | Example |
-|---------|---------|
-| Stateful getter/setter overload | `volume()` reads, `volume(v)` writes |
-| Action | `play()`, `pause()`, `crossfadeTo()` |
-| State enum | `playState()`, `shuffleState()` |
-| Boolean query | `isLeader()`, `isMuted()`, `hasListeners()` |
-| Collection mutators | `queueAppend`, `queueClear`, `queueRemove` |
-| Override hooks | `protected addX()` for groups, `protected getX()` for defaults |
-| Lifecycle (author) | `use()` to set up, `dispose()` to tear down (kit calls `initialize()` first — base class; do not override) |
+| Pattern                         | Example                                                                                                    |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Stateful getter/setter overload | `volume()` reads, `volume(v)` writes                                                                       |
+| Action                          | `play()`, `pause()`, `crossfadeTo()`                                                                       |
+| State enum                      | `playState()`, `shuffleState()`                                                                            |
+| Boolean query                   | `isLeader()`, `isMuted()`, `hasListeners()`                                                                |
+| Collection mutators             | `queueAppend`, `queueClear`, `queueRemove`                                                                 |
+| Override hooks                  | `protected addX()` for groups, `protected getX()` for defaults                                             |
+| Lifecycle (author)              | `use()` to set up, `dispose()` to tear down (kit calls `initialize()` first — base class; do not override) |
 
 ### Event naming
 
-| Context | Convention | Example |
-|---------|-----------|---------|
-| Player core events | Bare name | `play`, `pause`, `ready` |
-| Plugin events | `plugin:<id>:<event>` (auto-applied by `this.emit`) | `plugin:equalizer:bandChanged` |
-| Subsystem events | `<subsystem>:<event>` | `backend:changed`, `auth:refreshed` |
-| Stage events | Bare camelCase | `setupStart`, `pluginsRegistered` |
-| Lifecycle phase events | `before<X>` (pre) / bare `<X>` (post) | `beforePlay`, `play` |
+| Context                | Convention                                          | Example                             |
+| ---------------------- | --------------------------------------------------- | ----------------------------------- |
+| Player core events     | Bare name                                           | `play`, `pause`, `ready`            |
+| Plugin events          | `plugin:<id>:<event>` (auto-applied by `this.emit`) | `plugin:equalizer:bandChanged`      |
+| Subsystem events       | `<subsystem>:<event>`                               | `backend:changed`, `auth:refreshed` |
+| Stage events           | Bare camelCase                                      | `setupStart`, `pluginsRegistered`   |
+| Lifecycle phase events | `before<X>` (pre) / bare `<X>` (post)               | `beforePlay`, `play`                |
 
 ### Option key naming
 
@@ -376,9 +384,7 @@ Listen to the `phase` event for transitions: `{ from: PlayerPhase; to: PlayerPha
 `player.dispatching()` returns the active event chain:
 
 ```ts
-[] // no event in flight
-['beforePlay'] // inside a beforePlay listener
-['beforePlay', 'beforeMutation'] // nested
+[]['beforePlay'][('beforePlay', 'beforeMutation')]; // no event in flight // inside a beforePlay listener // nested
 ```
 
 ### 6.3 Plugin advisories
@@ -419,13 +425,13 @@ Options: `'retry-once'` | `'fallback'` | `'disable'` | `'ignore'`. Consumer over
 
 ### Dependency cascade
 
-| Dep event | Effect on dependents |
-|-----------|---------------------|
-| Dep never registered | `addPlugin(dependent)` throws synchronously |
-| Dep `use()` fails after dependent registered | Cascade-disable dependents |
-| Dep `disable()`'d | Cascade-disable dependents |
-| `removePlugin(dep)` with dependents registered | Throws unless `{ cascade: true }` |
-| Dep manually re-enabled | Dependents do NOT auto-re-enable |
+| Dep event                                      | Effect on dependents                        |
+| ---------------------------------------------- | ------------------------------------------- |
+| Dep never registered                           | `addPlugin(dependent)` throws synchronously |
+| Dep `use()` fails after dependent registered   | Cascade-disable dependents                  |
+| Dep `disable()`'d                              | Cascade-disable dependents                  |
+| `removePlugin(dep)` with dependents registered | Throws unless `{ cascade: true }`           |
+| Dep manually re-enabled                        | Dependents do NOT auto-re-enable            |
 
 ---
 

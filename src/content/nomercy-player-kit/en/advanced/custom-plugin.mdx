@@ -1,7 +1,7 @@
 ---
-title: "Custom Plugin"
-description: "Production-grade plugin development — state management, event listening, multi-instance safety, dispose contract, advisories, and a watch-party-lite worked example."
-category: "Advanced"
+title: 'Custom Plugin'
+description: 'Production-grade plugin development — state management, event listening, multi-instance safety, dispose contract, advisories, and a watch-party-lite worked example.'
+category: 'Advanced'
 order: 72
 ---
 
@@ -15,14 +15,14 @@ Read this when you are building a production plugin — something that will ship
 
 Every resource you acquire in `use()` must be released in `dispose()` — or through a managed helper. The kit provides helpers that auto-dispose so you don't have to track them manually:
 
-| Resource | Managed helper | Manual alternative |
-|---------|---------------|-------------------|
-| Event listeners | `this.on(...)` | `this.off(...)` in `dispose()` |
-| Timers | `this.timeout(ms, fn)` | `clearTimeout(id)` in `dispose()` |
-| Intervals | `this.interval(ms, fn)` | `clearInterval(id)` in `dispose()` |
-| Animation frames | `this.frame(fn)` | `cancelAnimationFrame(id)` in `dispose()` |
-| DOM nodes | `this.mount(className)` | `el.remove()` in `dispose()` |
-| External resources | None — you must clean up manually | WebSocket, Worker, etc. |
+| Resource           | Managed helper                    | Manual alternative                        |
+| ------------------ | --------------------------------- | ----------------------------------------- |
+| Event listeners    | `this.on(...)`                    | `this.off(...)` in `dispose()`            |
+| Timers             | `this.timeout(ms, fn)`            | `clearTimeout(id)` in `dispose()`         |
+| Intervals          | `this.interval(ms, fn)`           | `clearInterval(id)` in `dispose()`        |
+| Animation frames   | `this.frame(fn)`                  | `cancelAnimationFrame(id)` in `dispose()` |
+| DOM nodes          | `this.mount(className)`           | `el.remove()` in `dispose()`              |
+| External resources | None — you must clean up manually | WebSocket, Worker, etc.                   |
 
 If you create a `WebSocket` or `Worker` inside a plugin, close/terminate it in `dispose()`:
 
@@ -57,7 +57,11 @@ export class MyPlugin extends Plugin<NMVideoPlayer, MyOptions, {}> {
 Keep plugin state private and expose only what consumers need:
 
 ```ts
-export class PlaybackRatePlugin extends Plugin<NMVideoPlayer, PlaybackRateOptions, PlaybackRateEvents> {
+export class PlaybackRatePlugin extends Plugin<
+  NMVideoPlayer,
+  PlaybackRateOptions,
+  PlaybackRateEvents
+> {
   static readonly id = 'myapp:playback-rate';
   static readonly version = '1.0.0';
   static readonly description = 'Variable playback speed';
@@ -86,7 +90,9 @@ export class PlaybackRatePlugin extends Plugin<NMVideoPlayer, PlaybackRateOption
 
   private setRate(rate: number): void {
     this.currentRate = Math.max(0.25, Math.min(4.0, rate)); // clamp to safe range
-    this.player.container.querySelector('video')?.setAttribute('playbackRate', String(this.currentRate));
+    this.player.container
+      .querySelector('video')
+      ?.setAttribute('playbackRate', String(this.currentRate));
     this.storage.set('playback-rate', String(this.currentRate));
     this.emit('rateChanged', { rate: this.currentRate });
   }
@@ -195,7 +201,7 @@ import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
 
 interface WatchPartyOptions {
-  roomId: string;    // unique room identifier — all tabs with the same roomId sync
+  roomId: string; // unique room identifier — all tabs with the same roomId sync
   role?: 'leader' | 'follower'; // 'leader' emits, 'follower' obeys. Default: 'leader'
 }
 
@@ -204,7 +210,11 @@ interface WatchPartyEvents {
   roleChanged: { role: 'leader' | 'follower' };
 }
 
-export class WatchPartyLitePlugin extends Plugin<NMVideoPlayer, WatchPartyOptions, WatchPartyEvents> {
+export class WatchPartyLitePlugin extends Plugin<
+  NMVideoPlayer,
+  WatchPartyOptions,
+  WatchPartyEvents
+> {
   static readonly id = 'myapp:watch-party-lite';
   static readonly version = '1.0.0';
   static readonly description = 'Sync play/pause/seek across browser tabs';
@@ -284,21 +294,25 @@ import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testi
 import { assertNoListenerLeak } from '@nomercy-entertainment/nomercy-player-core/testing';
 import { WatchPartyLitePlugin } from './watch-party-lite';
 
-describePlugin(WatchPartyLitePlugin, { roomId: 'test-room', role: 'leader' }, ({ player, plugin }) => {
-  test('broadcasts play events', () => {
-    const synced: unknown[] = [];
-    player.on(WatchPartyLitePlugin, 'synced', (e) => synced.push(e));
+describePlugin(
+  WatchPartyLitePlugin,
+  { roomId: 'test-room', role: 'leader' },
+  ({ player, plugin }) => {
+    test('broadcasts play events', () => {
+      const synced: unknown[] = [];
+      player.on(WatchPartyLitePlugin, 'synced', (e) => synced.push(e));
 
-    player.emit('play');
+      player.emit('play');
 
-    expect(synced).toHaveLength(1);
-    expect(synced[0]).toMatchObject({ action: 'play' });
-  });
+      expect(synced).toHaveLength(1);
+      expect(synced[0]).toMatchObject({ action: 'play' });
+    });
 
-  test('no listener leak', () => {
-    assertNoListenerLeak(player, WatchPartyLitePlugin);
-  });
-});
+    test('no listener leak', () => {
+      assertNoListenerLeak(player, WatchPartyLitePlugin);
+    });
+  },
+);
 ```
 
 ---

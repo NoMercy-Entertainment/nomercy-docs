@@ -1,7 +1,7 @@
 ﻿---
-title: "Custom Adapters"
-description: "Writing custom ISubtitleStyleStore, IChapterSource, and IThumbnailSource adapters — IndexedDB, server-backed, and in-memory examples."
-category: "Advanced"
+title: 'Custom Adapters'
+description: 'Writing custom ISubtitleStyleStore, IChapterSource, and IThumbnailSource adapters — IndexedDB, server-backed, and in-memory examples.'
+category: 'Advanced'
 order: 75
 ---
 
@@ -18,7 +18,10 @@ The video player uses four adapter ports for pluggable storage and data loading.
 The default `StorageBackedSubtitleStyleStore` writes to `localStorage`. For larger style objects or cross-tab sync, use IndexedDB:
 
 ```ts
-import type { ISubtitleStyleStore, SubtitleStyle } from '@nomercy-entertainment/nomercy-video-player';
+import type {
+  ISubtitleStyleStore,
+  SubtitleStyle,
+} from '@nomercy-entertainment/nomercy-video-player';
 
 const DB_NAME = 'player-preferences';
 const STORE_NAME = 'subtitle-styles';
@@ -74,7 +77,11 @@ player.setup({
 When chapters come from an API, avoid refetching per-item with a simple cache:
 
 ```ts
-import type { IChapterSource, Chapter, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+import type {
+  IChapterSource,
+  Chapter,
+  VideoPlaylistItem,
+} from '@nomercy-entertainment/nomercy-video-player';
 
 class CachedApiChapterSource implements IChapterSource {
   private cache = new Map<string, Chapter[]>();
@@ -90,9 +97,10 @@ class CachedApiChapterSource implements IChapterSource {
 
     if (!response.ok) return []; // player handles empty chapters gracefully
 
-    const data: Array<{ id: string; start_ms: number; end_ms: number; title: string }> = await response.json();
+    const data: Array<{ id: string; start_ms: number; end_ms: number; title: string }> =
+      await response.json();
 
-    const chapters: Chapter[] = data.map(ch => ({
+    const chapters: Chapter[] = data.map((ch) => ({
       id: ch.id,
       startTime: ch.start_ms / 1000,
       endTime: ch.end_ms / 1000,
@@ -117,17 +125,23 @@ class CachedApiChapterSource implements IChapterSource {
 When your server generates preview sprites on demand instead of serving a static VTT file:
 
 ```ts
-import type { IThumbnailSource, ThumbnailFrame, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+import type {
+  IThumbnailSource,
+  ThumbnailFrame,
+  VideoPlaylistItem,
+} from '@nomercy-entertainment/nomercy-video-player';
 
 class ApiThumbnailSource implements IThumbnailSource {
-  async getFrameAtTime(item: VideoPlaylistItem, timeSeconds: number): Promise<ThumbnailFrame | null> {
-    const response = await fetch(
-      `/api/v1/thumbnails/${item.id}?t=${Math.floor(timeSeconds)}`,
-    );
+  async getFrameAtTime(
+    item: VideoPlaylistItem,
+    timeSeconds: number,
+  ): Promise<ThumbnailFrame | null> {
+    const response = await fetch(`/api/v1/thumbnails/${item.id}?t=${Math.floor(timeSeconds)}`);
 
     if (!response.ok) return null;
 
-    const data: { url: string; x: number; y: number; width: number; height: number } = await response.json();
+    const data: { url: string; x: number; y: number; width: number; height: number } =
+      await response.json();
 
     return {
       url: data.url,

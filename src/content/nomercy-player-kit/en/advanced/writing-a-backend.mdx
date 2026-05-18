@@ -1,7 +1,7 @@
 ---
-title: "Writing a Backend"
-description: "The BackendShape contract, kit call points, and wiring a custom backend into either the video or music player."
-category: "Advanced"
+title: 'Writing a Backend'
+description: 'The BackendShape contract, kit call points, and wiring a custom backend into either the video or music player.'
+category: 'Advanced'
 order: 73
 ---
 
@@ -108,15 +108,17 @@ export class MyNativeBackend implements IVideoBackend {
   attachEmitter(emitter: IBackendEmitter): void {
     this.emitter = emitter;
     // Wire native <video> events to the kit emitter:
-    this.video.addEventListener('play',     () => emitter.onPlay());
-    this.video.addEventListener('pause',    () => emitter.onPause());
-    this.video.addEventListener('ended',    () => emitter.onEnded());
+    this.video.addEventListener('play', () => emitter.onPlay());
+    this.video.addEventListener('pause', () => emitter.onPause());
+    this.video.addEventListener('ended', () => emitter.onEnded());
     this.video.addEventListener('timeupdate', () => emitter.onTimeUpdate(this.video.currentTime));
-    this.video.addEventListener('durationchange', () => emitter.onDurationChange(this.video.duration));
-    this.video.addEventListener('canplay',  () => emitter.onCanPlay());
-    this.video.addEventListener('waiting',  () => emitter.onBufferingStart());
-    this.video.addEventListener('playing',  () => emitter.onBufferingEnd());
-    this.video.addEventListener('seeked',   () => emitter.onSeeked());
+    this.video.addEventListener('durationchange', () =>
+      emitter.onDurationChange(this.video.duration),
+    );
+    this.video.addEventListener('canplay', () => emitter.onCanPlay());
+    this.video.addEventListener('waiting', () => emitter.onBufferingStart());
+    this.video.addEventListener('playing', () => emitter.onBufferingEnd());
+    this.video.addEventListener('seeked', () => emitter.onSeeked());
     this.video.addEventListener('volumechange', () =>
       emitter.onVolumeChange(this.video.volume, this.video.muted),
     );
@@ -125,29 +127,68 @@ export class MyNativeBackend implements IVideoBackend {
     });
   }
 
-  load(src: string): void   { this.video.src = src; }
-  destroy(): void           { this.video.src = ''; this.video.remove(); }
-  play(): Promise<void>     { return this.video.play(); }
-  pause(): void             { this.video.pause(); }
-  seek(time: number): void  { this.video.currentTime = time; }
+  load(src: string): void {
+    this.video.src = src;
+  }
+  destroy(): void {
+    this.video.src = '';
+    this.video.remove();
+  }
+  play(): Promise<void> {
+    return this.video.play();
+  }
+  pause(): void {
+    this.video.pause();
+  }
+  seek(time: number): void {
+    this.video.currentTime = time;
+  }
 
-  getCurrentTime(): number  { return this.video.currentTime; }
-  getDuration(): number     { return this.video.duration; }
-  getVolume(): number       { return this.video.volume; }
-  getPlaybackRate(): number { return this.video.playbackRate; }
-  isPaused(): boolean       { return this.video.paused; }
-  isEnded(): boolean        { return this.video.ended; }
-  isStalled(): boolean      { return this.video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA; }
+  getCurrentTime(): number {
+    return this.video.currentTime;
+  }
+  getDuration(): number {
+    return this.video.duration;
+  }
+  getVolume(): number {
+    return this.video.volume;
+  }
+  getPlaybackRate(): number {
+    return this.video.playbackRate;
+  }
+  isPaused(): boolean {
+    return this.video.paused;
+  }
+  isEnded(): boolean {
+    return this.video.ended;
+  }
+  isStalled(): boolean {
+    return this.video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA;
+  }
 
-  setVolume(value: number): void        { this.video.volume = value; }
-  setMuted(value: boolean): void        { this.video.muted = value; }
-  setPlaybackRate(rate: number): void   { this.video.playbackRate = rate; }
-  setCurrentTime(time: number): void    { this.video.currentTime = time; }
+  setVolume(value: number): void {
+    this.video.volume = value;
+  }
+  setMuted(value: boolean): void {
+    this.video.muted = value;
+  }
+  setPlaybackRate(rate: number): void {
+    this.video.playbackRate = rate;
+  }
+  setCurrentTime(time: number): void {
+    this.video.currentTime = time;
+  }
 
   // No ABR levels for native backend:
-  getQualityLevels(): QualityLevel[]    { return []; }
-  getCurrentQualityLevel(): number      { return -1; }
-  setQualityLevel(_index: number): void { /* no-op */ }
+  getQualityLevels(): QualityLevel[] {
+    return [];
+  }
+  getCurrentQualityLevel(): number {
+    return -1;
+  }
+  setQualityLevel(_index: number): void {
+    /* no-op */
+  }
 }
 ```
 
@@ -189,19 +230,21 @@ export class ShakaBackend implements IVideoBackend {
     this.emitter = emitter;
 
     // Wire native <video> events:
-    this.video.addEventListener('play',         () => emitter.onPlay());
-    this.video.addEventListener('pause',        () => emitter.onPause());
-    this.video.addEventListener('ended',        () => emitter.onEnded());
-    this.video.addEventListener('timeupdate',   () => emitter.onTimeUpdate(this.video.currentTime));
-    this.video.addEventListener('durationchange', () => emitter.onDurationChange(this.video.duration));
-    this.video.addEventListener('canplay',      () => emitter.onCanPlay());
-    this.video.addEventListener('waiting',      () => emitter.onBufferingStart());
-    this.video.addEventListener('playing',      () => emitter.onBufferingEnd());
-    this.video.addEventListener('seeked',       () => emitter.onSeeked());
+    this.video.addEventListener('play', () => emitter.onPlay());
+    this.video.addEventListener('pause', () => emitter.onPause());
+    this.video.addEventListener('ended', () => emitter.onEnded());
+    this.video.addEventListener('timeupdate', () => emitter.onTimeUpdate(this.video.currentTime));
+    this.video.addEventListener('durationchange', () =>
+      emitter.onDurationChange(this.video.duration),
+    );
+    this.video.addEventListener('canplay', () => emitter.onCanPlay());
+    this.video.addEventListener('waiting', () => emitter.onBufferingStart());
+    this.video.addEventListener('playing', () => emitter.onBufferingEnd());
+    this.video.addEventListener('seeked', () => emitter.onSeeked());
 
     // Shaka-specific events:
     this.shakaPlayer.addEventListener('variantchanged', () => {
-      const variant = this.shakaPlayer.getVariantTracks().find(t => t.active);
+      const variant = this.shakaPlayer.getVariantTracks().find((t) => t.active);
       if (variant) emitter.onLevelSwitched(variant.id);
     });
 
@@ -220,7 +263,7 @@ export class ShakaBackend implements IVideoBackend {
   }
 
   getQualityLevels(): QualityLevel[] {
-    return this.shakaPlayer.getVariantTracks().map(track => ({
+    return this.shakaPlayer.getVariantTracks().map((track) => ({
       id: track.id,
       width: track.width ?? 0,
       height: track.height ?? 0,
@@ -230,13 +273,13 @@ export class ShakaBackend implements IVideoBackend {
   }
 
   getCurrentQualityLevel(): number {
-    const active = this.shakaPlayer.getVariantTracks().find(t => t.active);
+    const active = this.shakaPlayer.getVariantTracks().find((t) => t.active);
     return active?.id ?? -1;
   }
 
   setQualityLevel(id: number): void {
     const tracks = this.shakaPlayer.getVariantTracks();
-    const target = tracks.find(t => t.id === id);
+    const target = tracks.find((t) => t.id === id);
     if (target) this.shakaPlayer.selectVariantTrack(target, true);
   }
 
@@ -246,20 +289,48 @@ export class ShakaBackend implements IVideoBackend {
   }
 
   // Delegate remaining methods to <video>:
-  play(): Promise<void>     { return this.video.play(); }
-  pause(): void             { this.video.pause(); }
-  seek(time: number): void  { this.video.currentTime = time; }
-  getCurrentTime(): number  { return this.video.currentTime; }
-  getDuration(): number     { return this.video.duration; }
-  getVolume(): number       { return this.video.volume; }
-  getPlaybackRate(): number { return this.video.playbackRate; }
-  isPaused(): boolean       { return this.video.paused; }
-  isEnded(): boolean        { return this.video.ended; }
-  isStalled(): boolean      { return this.video.readyState < 3; }
-  setVolume(v: number): void          { this.video.volume = v; }
-  setMuted(v: boolean): void          { this.video.muted = v; }
-  setPlaybackRate(r: number): void    { this.video.playbackRate = r; }
-  setCurrentTime(t: number): void     { this.video.currentTime = t; }
+  play(): Promise<void> {
+    return this.video.play();
+  }
+  pause(): void {
+    this.video.pause();
+  }
+  seek(time: number): void {
+    this.video.currentTime = time;
+  }
+  getCurrentTime(): number {
+    return this.video.currentTime;
+  }
+  getDuration(): number {
+    return this.video.duration;
+  }
+  getVolume(): number {
+    return this.video.volume;
+  }
+  getPlaybackRate(): number {
+    return this.video.playbackRate;
+  }
+  isPaused(): boolean {
+    return this.video.paused;
+  }
+  isEnded(): boolean {
+    return this.video.ended;
+  }
+  isStalled(): boolean {
+    return this.video.readyState < 3;
+  }
+  setVolume(v: number): void {
+    this.video.volume = v;
+  }
+  setMuted(v: boolean): void {
+    this.video.muted = v;
+  }
+  setPlaybackRate(r: number): void {
+    this.video.playbackRate = r;
+  }
+  setCurrentTime(t: number): void {
+    this.video.currentTime = t;
+  }
 }
 ```
 
