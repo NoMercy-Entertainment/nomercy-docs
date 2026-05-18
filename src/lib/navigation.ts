@@ -138,18 +138,23 @@ export async function getNavigation(): Promise<NavigationResult> {
   };
 }
 
+function stripLocalePrefix(slug: string): string {
+  return slug.replace(/^[a-z]{2}\//, '');
+}
+
 function groupByCategory(
   docs: Array<{ slug: string; data: { title: string; category?: string; order?: number } }>,
   baseHref: string
 ): NavGroup[] {
   const grouped = docs.reduce((acc, doc) => {
-    if (doc.slug === 'index') return acc;
+    const cleanSlug = stripLocalePrefix(doc.slug);
+    if (cleanSlug === 'index') return acc;
 
     const category = doc.data.category || 'General';
     if (!acc[category]) acc[category] = [];
     acc[category].push({
       title: doc.data.title,
-      href: `${baseHref}/${doc.slug}`.replace(/\/+/g, '/'),
+      href: `${baseHref}/${cleanSlug}`.replace(/\/+/g, '/'),
       order: doc.data.order ?? 999,
     });
     return acc;

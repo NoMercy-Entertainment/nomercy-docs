@@ -66,6 +66,7 @@ async function buildSearchIndex() {
 
         const slug = file
           .replace(/\.(md|mdx)$/, '')
+          .replace(/^[a-z]{2}\//, '')
           .replace(/\/index$/, '')
           .replace(/^index$/, '');
 
