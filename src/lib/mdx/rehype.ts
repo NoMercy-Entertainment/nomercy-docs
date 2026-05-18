@@ -52,7 +52,16 @@ function rehypeParseCodeBlocks() {
 // Dual-theme: One Light for light mode, One Dark Pro for dark.
 // shiki v3 emits inline color + `--shiki-dark:` style vars; CSS in global.css
 // switches between them on the .dark class.
-let highlighter: shiki.HighlighterGeneric<any, any> | null = null
+//
+// Highlighter is cached on globalThis so it survives Vite's per-worker module
+// re-evaluation during the Astro build. A module-scoped `let` re-initialises
+// every time the plugin module is re-loaded, which Astro does per content
+// collection — leaking a fresh highlighter instance per ~100 pages, eventually
+// blowing past shiki's 230+ singleton warning and into OOM territory.
+//
+// We cache the *promise*, not the resolved value, so concurrent first-page
+// renders await the same in-flight construction instead of racing to create
+// multiple highlighters before the cache is set.
 
 const LANGS = [
   'txt', 'plaintext', 'bash', 'sh', 'shell', 'powershell',
@@ -62,14 +71,25 @@ const LANGS = [
   'php', 'ruby', 'sql', 'astro', 'svelte', 'vue', 'dockerfile', 'diff', 'ini',
 ]
 
+const HIGHLIGHTER_KEY = Symbol.for('nomercy-docs.shiki-highlighter')
+type HighlighterPromise = Promise<shiki.HighlighterGeneric<any, any>>
+
+function getHighlighter(): HighlighterPromise {
+  const g = globalThis as unknown as Record<symbol, HighlighterPromise | undefined>
+  let cached = g[HIGHLIGHTER_KEY]
+  if (!cached) {
+    cached = shiki.createHighlighter({
+      themes: ['one-light', 'one-dark-pro'],
+      langs: LANGS,
+    })
+    g[HIGHLIGHTER_KEY] = cached
+  }
+  return cached
+}
+
 function rehypeShiki() {
   return async (tree: Root) => {
-    if (!highlighter) {
-      highlighter = await shiki.createHighlighter({
-        themes: ['one-light', 'one-dark-pro'],
-        langs: LANGS,
-      })
-    }
+    const highlighter = await getHighlighter()
 
     visit(tree, 'element', (node: Element) => {
       if (node.tagName !== 'pre' || node.children[0]?.type !== 'element') return
@@ -106,20 +126,18 @@ function rehypeShiki() {
       if (!LANGS.includes(syntaxLanguage)) {
         syntaxLanguage = 'txt'
       }
-      if (highlighter) {
-        const highlightedHtml = highlighter.codeToHtml(rawText, {
-          lang: syntaxLanguage,
-          themes: { light: 'one-light', dark: 'one-dark-pro' },
-          defaultColor: 'light',
-          structure: 'inline',
-        })
-        // Parse shiki's HTML into HAST and replace the code element's
-        // children with the parsed span tree. Round-tripping through a
-        // `data-highlighted` attribute double-encoded `<` chars and broke
-        // any code sample that contained literal `<` (HTML, JSX, Vue).
-        const fragment = fromHtml(highlightedHtml, { fragment: true })
-        codeNode.children = fragment.children as ElementContent[]
-      }
+      const highlightedHtml = highlighter.codeToHtml(rawText, {
+        lang: syntaxLanguage,
+        themes: { light: 'one-light', dark: 'one-dark-pro' },
+        defaultColor: 'light',
+        structure: 'inline',
+      })
+      // Parse shiki's HTML into HAST and replace the code element's
+      // children with the parsed span tree. Round-tripping through a
+      // `data-highlighted` attribute double-encoded `<` chars and broke
+      // any code sample that contained literal `<` (HTML, JSX, Vue).
+      const fragment = fromHtml(highlightedHtml, { fragment: true })
+      codeNode.children = fragment.children as ElementContent[]
     })
   }
 }
