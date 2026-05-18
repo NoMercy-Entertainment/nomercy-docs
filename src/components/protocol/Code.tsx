@@ -226,7 +226,7 @@ function CodePanel({
   }
 
   return (
-    <div className="group dark:bg-white/2.5">
+    <div className="group">
       <CodePanelHeader tag={tag} label={label} />
       <div className="relative">
         <pre className="shiki overflow-x-auto p-4 text-xs text-zinc-900 dark:text-white">{children}</pre>
@@ -556,7 +556,7 @@ export function CodeGroup({
           {codeBlocks.map((block, index) => (
             <div
               key={index}
-              className={`group dark:bg-white/2.5 tab-content`}
+              className={`group tab-content`}
               data-tab-content={index}
               style={{ display: index === 0 ? 'block' : 'none' }}
             >
@@ -608,7 +608,7 @@ export function CodeGroup({
               </h3>
             </div>
           )}
-          <div className="group dark:bg-white/2.5">
+          <div className="group">
             <div className="relative">
               {codeBlocks.length === 1 ? (
                 <>
