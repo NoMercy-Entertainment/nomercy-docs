@@ -181,4 +181,27 @@
   html {
     scroll-padding-top: 72px;
   }
+
+  /* Brand-coloured focus ring on any interactive element that hasn't
+     defined its own. Tailwind's `outline-none` everywhere kills the
+     browser default; this restores a visible indicator for keyboard
+     users without affecting mouse interaction. */
+  :focus-visible {
+    outline: 2px solid rgb(16 185 129);
+    outline-offset: 2px;
+  }
+
+  /* Respect the user's OS-level motion preference. Caps every
+     animation + transition to effectively zero, lets framer-motion's
+     MotionConfig pick up the same signal via JS. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }

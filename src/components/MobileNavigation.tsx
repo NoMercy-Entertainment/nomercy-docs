@@ -95,6 +95,7 @@ function MobileNavigationDialog({
 
         <TransitionChild>
           <motion.div
+            id="mobile-nav-panel"
             layoutScroll
             className="fixed top-14 bottom-0 left-0 w-full overflow-y-auto bg-white px-4 pt-6 pb-4 shadow-lg ring-1 shadow-zinc-900/10 ring-zinc-900/7.5 duration-500 ease-in-out data-closed:-translate-x-full min-[416px]:max-w-sm sm:px-6 sm:pb-10 dark:bg-zinc-900 dark:ring-zinc-800"
           >
@@ -133,6 +134,8 @@ export function MobileNavigation({ navigation = [], apiGroups = [], initialPathn
         type="button"
         className="relative flex size-6 items-center justify-center rounded-md transition hover:bg-zinc-900/5 dark:hover:bg-white/5"
         aria-label="Toggle navigation"
+        aria-expanded={isOpen ? 'true' : 'false'}
+        aria-controls="mobile-nav-panel"
         onClick={toggle}
       >
         <span className="absolute size-12 pointer-fine:hidden" />

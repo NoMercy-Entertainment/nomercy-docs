@@ -456,7 +456,7 @@ export function Navigation({
   const currentGroups = currentSection?.groups || [];
 
   return (
-    <nav className={className} {...props}>
+    <nav aria-label="Sidebar" className={className} {...props}>
       <ul role="list">
         {/* Section links at the top */}
         <li className="mb-6">

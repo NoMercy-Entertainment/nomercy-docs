@@ -125,7 +125,7 @@ export const Header = forwardRef<
         </CloseButton>
       </div>
       <div className="flex items-center gap-5">
-        <nav className="hidden md:block">
+        <nav aria-label="Product sections" className="hidden md:block">
           <ul role="list" className="flex items-center gap-5">
             {navigation.map((section) => (
               <TopLevelNavItem
