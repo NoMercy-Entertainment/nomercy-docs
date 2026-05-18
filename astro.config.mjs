@@ -13,6 +13,126 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://astro.build/config
 export default defineConfig({
+  redirects: {
+    // -----------------------------------------------------------------------
+    // /player/kit/ → /nomercy-player-kit/
+    // -----------------------------------------------------------------------
+    "/player/kit/": "/nomercy-player-kit/",
+    "/player/kit/adapters": "/nomercy-player-kit/adapters",
+    "/player/kit/auth-fetch": "/nomercy-player-kit/auth-fetch",
+    "/player/kit/errors": "/nomercy-player-kit/errors",
+    "/player/kit/event-system": "/nomercy-player-kit/event-system",
+    "/player/kit/i18n": "/nomercy-player-kit/i18n",
+    "/player/kit/lifecycle": "/nomercy-player-kit/lifecycle",
+    "/player/kit/metrics": "/nomercy-player-kit/metrics",
+    "/player/kit/plugins": "/nomercy-player-kit/plugins",
+    "/player/kit/quickstart": "/nomercy-player-kit/quickstart",
+    "/player/kit/testing": "/nomercy-player-kit/testing",
+
+    // -----------------------------------------------------------------------
+    // /player/ root pages → /nomercy-player-kit/
+    // -----------------------------------------------------------------------
+    "/player/": "/nomercy-player-kit/player-overview",
+    "/player/architecture": "/nomercy-player-kit/architecture",
+    "/player/faq": "/nomercy-player-kit/faq",
+    "/player/migration-v1-v2": "/nomercy-player-kit/migration-v1-v2",
+    "/player/plugin-authoring": "/nomercy-player-kit/plugin-authoring",
+    "/player/plugin-standard": "/nomercy-player-kit/plugin-standard",
+    "/player/quickstart": "/nomercy-player-kit/quickstart-kit",
+    "/player/troubleshooting": "/nomercy-player-kit/troubleshooting",
+    "/player/versioning": "/nomercy-player-kit/versioning",
+
+    // -----------------------------------------------------------------------
+    // /player/video/ → /nomercy-video-player/
+    // -----------------------------------------------------------------------
+    "/player/video/": "/nomercy-video-player/",
+    "/player/video/api-methods": "/nomercy-video-player/api-methods",
+    "/player/video/cast-sender": "/nomercy-video-player/cast-sender",
+    "/player/video/chapters": "/nomercy-video-player/chapters",
+    "/player/video/configuration": "/nomercy-video-player/configuration",
+    "/player/video/desktop-ui": "/nomercy-video-player/desktop-ui",
+    "/player/video/events": "/nomercy-video-player/events",
+    "/player/video/framework-react": "/nomercy-video-player/framework-react",
+    "/player/video/framework-vue": "/nomercy-video-player/framework-vue",
+    "/player/video/hls": "/nomercy-video-player/hls",
+    "/player/video/migration-v1-v2": "/nomercy-video-player/migration-v1-v2",
+    "/player/video/plugin-development": "/nomercy-video-player/plugin-development",
+    "/player/video/quickstart": "/nomercy-video-player/quickstart",
+    "/player/video/skipper": "/nomercy-video-player/skipper",
+    "/player/video/subtitle-overlay": "/nomercy-video-player/subtitle-overlay",
+
+    // -----------------------------------------------------------------------
+    // /player/music/ → /nomercy-music-player/
+    // -----------------------------------------------------------------------
+    "/player/music/": "/nomercy-music-player/",
+    "/player/music/api-methods": "/nomercy-music-player/api-methods",
+    "/player/music/configuration": "/nomercy-music-player/configuration",
+    "/player/music/crossfade": "/nomercy-music-player/crossfade",
+    "/player/music/equalizer": "/nomercy-music-player/equalizer",
+    "/player/music/events": "/nomercy-music-player/events",
+    "/player/music/framework-react": "/nomercy-music-player/framework-react",
+    "/player/music/framework-vue": "/nomercy-music-player/framework-vue",
+    "/player/music/lyrics": "/nomercy-music-player/lyrics",
+    "/player/music/migration-v1-v2": "/nomercy-music-player/migration-v1-v2",
+    "/player/music/plugin-development": "/nomercy-music-player/plugin-development",
+    "/player/music/quickstart": "/nomercy-music-player/quickstart",
+
+    // -----------------------------------------------------------------------
+    // /player/recipes/ — split by destination per R5 placements (git log)
+    // -----------------------------------------------------------------------
+    "/player/recipes/": "/nomercy-player-kit/recipes-index",
+    "/player/recipes/auth-and-tokens": "/nomercy-video-player/recipes/auth-and-tokens",
+    "/player/recipes/media-session": "/nomercy-video-player/recipes/media-session",
+    "/player/recipes/persistence": "/nomercy-video-player/recipes/persistence",
+    "/player/recipes/chapters": "/nomercy-video-player/recipes/chapters",
+    "/player/recipes/keyboard-shortcuts": "/nomercy-video-player/recipes/keyboard-shortcuts",
+    "/player/recipes/quality-selection": "/nomercy-video-player/recipes/quality-selection",
+    "/player/recipes/subtitles": "/nomercy-video-player/recipes/subtitles",
+    "/player/recipes/playlist-and-queue": "/nomercy-video-player/recipes/playlist-and-queue",
+    "/player/recipes/crossfade-and-gapless": "/nomercy-music-player/recipes/crossfade-and-gapless",
+    "/player/recipes/lyrics-and-equalizer": "/nomercy-music-player/recipes/lyrics-and-equalizer",
+
+    // -----------------------------------------------------------------------
+    // /player/advanced/ — split by destination per git log
+    // -----------------------------------------------------------------------
+    "/player/advanced/": "/nomercy-player-kit/advanced/",
+    "/player/advanced/custom-adapter": "/nomercy-player-kit/advanced/custom-adapter",
+    "/player/advanced/custom-plugin": "/nomercy-player-kit/advanced/custom-plugin",
+    "/player/advanced/multi-instance": "/nomercy-player-kit/advanced/multi-instance",
+    "/player/advanced/custom-backend": "/nomercy-player-kit/advanced/writing-a-backend",
+    "/player/advanced/distributed-playback": "/nomercy-video-player/advanced/distributed-playback",
+    "/player/advanced/embedding": "/nomercy-video-player/advanced/embedding",
+    "/player/advanced/migration-from-other-players": "/nomercy-video-player/advanced/migration-from-other-players",
+    "/player/advanced/performance": "/nomercy-video-player/advanced/performance",
+    "/player/advanced/server-side-rendering": "/nomercy-video-player/advanced/server-side-rendering",
+
+    // -----------------------------------------------------------------------
+    // /mediaserver/ → /nomercy-media-server/
+    // -----------------------------------------------------------------------
+    "/mediaserver/": "/nomercy-media-server/",
+    "/mediaserver/index": "/nomercy-media-server/",
+    "/mediaserver/configuration": "/nomercy-media-server/configuration",
+    "/mediaserver/overview": "/nomercy-media-server/overview",
+
+    // -----------------------------------------------------------------------
+    // /app/ → /nomercy-app-web/
+    // -----------------------------------------------------------------------
+    "/app/": "/nomercy-app-web/",
+    "/app/index": "/nomercy-app-web/",
+
+    // -----------------------------------------------------------------------
+    // Protocol-template archive pages → root (410 semantics not available in
+    // Astro redirects; 301 to / is the safe fallback for SEO)
+    // -----------------------------------------------------------------------
+    "/contacts": "/",
+    "/conversations": "/",
+    "/messages": "/",
+    "/groups": "/",
+    "/attachments": "/",
+    "/sdks": "/",
+    "/webhooks": "/",
+    "/quickstart": "/",
+  },
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
