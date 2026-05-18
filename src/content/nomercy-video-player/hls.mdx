@@ -1,0 +1,150 @@
+---
+title: "HLS"
+description: "HDR-aware ABR, quality level constraints, multi-monitor handling, and how hls.js is wired in."
+category: "Getting Started"
+order: 9
+---
+
+# HLS
+
+The video player uses hls.js for HLS playback. The kit's stream adapter wraps hls.js behind the `IVideoBackend` interface. HDR-aware ABR is automatic.
+
+---
+
+## How hls.js is bundled
+
+hls.js ships with `nomercy-video-player` as a regular dependency — installing the player installs hls.js too. You don't add it yourself:
+
+```
+npm install @nomercy-entertainment/nomercy-video-player@beta
+```
+
+The player loads hls.js via dynamic import on first HLS source, so it stays out of your initial bundle until you actually play `.m3u8`. On Safari / iOS, native HLS is used and hls.js is never instantiated.
+
+---
+
+## Adaptive bitrate (ABR)
+
+ABR is on by default. hls.js selects quality levels automatically based on estimated bandwidth.
+
+```ts
+player.setup({
+  defaultQuality: 'auto',  // default — ABR active
+});
+```
+
+Lock to a specific quality level (index into `qualityLevels()`):
+
+```ts
+player.currentQuality(2);   // lock to level index 2
+player.currentQuality(-1);  // back to auto
+```
+
+Listen for level changes:
+
+```ts
+player.on('level-switched', ({ level }) => {
+  console.log(`Switched to quality level ${level}`);
+});
+
+player.on('levels', ({ levels }) => {
+  // levels becomes available after the HLS manifest is parsed
+  levels.forEach((level, idx) => {
+    console.log(`Level ${idx}: ${level.width}x${level.height} @ ${level.bitrate} bps`);
+  });
+});
+```
+
+---
+
+## HDR-aware ABR
+
+On SDR displays, the player filters HDR levels out of the ABR selection pool. hls.js will not automatically promote to an HDR level when the display cannot render it.
+
+Detection is done once at setup via `MediaCapabilities.decodingInfo()`. No configuration is required. On HDR-capable displays, all levels are eligible.
+
+Multi-monitor handling: when a player window moves across displays (e.g. from an HDR monitor to an SDR one), the player re-evaluates display capabilities and constrains the ABR pool accordingly. The check runs on the `screen-change` platform event.
+
+---
+
+## Quality level shape
+
+`player.qualityLevels()` returns `QualityLevel[]`:
+
+```ts
+interface QualityLevel {
+  id: number;
+  width: number;
+  height: number;
+  bitrate: number;
+  label?: string;           // human-readable (e.g. '1080p')
+  hdr?: boolean;            // true if the level uses HDR color range
+  frameRate?: number;
+  videoCodec?: string;
+  audioCodec?: string;
+}
+```
+
+---
+
+## Auth on HLS segments
+
+The player's auth pipeline injects `Authorization: Bearer <token>` on every HLS manifest and segment request. No hls.js config needed — the `IVideoBackend` intercepts requests before they reach hls.js.
+
+See [Kit — Auth & Fetch](/player/kit/auth-fetch) for the full auth pipeline.
+
+---
+
+## Stream registration
+
+The player ships an HLS stream factory and a native stream factory. The stream registry picks the right one based on the URL and browser capabilities:
+
+- `.m3u8` URLs → HLS stream via hls.js
+- Other URLs → native `<video>` src
+
+Register additional stream types:
+
+```ts
+import { myDashStreamFactory } from './dash-adapter';
+
+player.registerStream(myDashStreamFactory, true); // true = prepend (higher priority)
+player.streams(); // ['dash', 'hls', 'native']
+```
+
+---
+
+## Custom backend
+
+For full control over the `<video>` element or for non-standard streaming protocols:
+
+```ts
+import type { IVideoBackend } from '@nomercy-entertainment/nomercy-video-player';
+
+class MyBackend implements IVideoBackend {
+  // ... implement the interface
+}
+
+player.setup({
+  backendFactory: (kind, config) => new MyBackend(config),
+});
+```
+
+---
+
+## Low-latency HLS
+
+hls.js supports low-latency HLS (LL-HLS). Configure via `backendFactory` to pass custom hls.js config:
+
+```ts
+import Hls from 'hls.js';
+
+player.setup({
+  backendFactory: (_kind, config) => {
+    const hls = new Hls({
+      lowLatencyMode: true,
+      backBufferLength: 30,
+    });
+    return new Html5VideoBackend(config.container, hls);
+  },
+});
+```

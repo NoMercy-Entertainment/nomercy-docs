@@ -1,0 +1,113 @@
+---
+title: "Metrics"
+description: "PlaybackMetrics shape, backend availability matrix, null-when-unavailable counters, and custom metric recording."
+category: "Metrics and Diagnostics"
+order: 10
+---
+
+# Metrics
+
+The player automatically tracks a set of playback metrics. Access them via `player.metrics()` or receive periodic updates via the `playback:metrics` event.
+
+---
+
+## Accessing metrics
+
+```ts
+const metrics = player.metrics();
+console.log(metrics.sessionDurationMs);
+console.log(metrics.rebufferRatio);
+
+// Guard before using nullable counters:
+if (metrics.droppedFrames !== null) {
+  console.log(`Dropped frames: ${metrics.droppedFrames}`);
+}
+```
+
+---
+
+## PlaybackMetrics reference
+
+`metrics()` always returns a `PlaybackMetrics` object. It never returns `null`. Individual counters that cannot be measured by the current backend return `null` for that field.
+
+| Counter | Type | Description |
+|---------|------|-------------|
+| `ttfb` | `number \| null` | Time-to-first-byte in ms from `load()` to first network response byte |
+| `ttff` | `number` | Time-to-first-frame in ms from `play()` to the `firstFrame` event |
+| `rebufferRatio` | `number` | Ratio of stalled time to total playback time (0–1) |
+| `avgBitrate` | `number \| null` | Average received bitrate over the session in bits/sec |
+| `droppedFrames` | `number \| null` | Cumulative dropped video frames |
+| `decoderStalls` | `number \| null` | Number of times the decoder stalled waiting for data |
+| `joinTime` | `number` | ms from page load to the first `play()` call (session join latency) |
+| `sessionDurationMs` | `number` | Total active playback time in this session in ms |
+| `[customMetric: string]` | `number \| null` | Extension slot — plugins publish namespaced counters here |
+
+---
+
+## Backend availability matrix
+
+| Counter | html5VideoBackend | html5AudioBackend (music) |
+|---------|-------------------|--------------------------|
+| `ttfb` | `null` — not wired | `null` |
+| `ttff` | `number` (from `firstFrame`) | `number` (from `firstFrame`) |
+| `rebufferRatio` | `number` (from `backend:waiting`) | `number` |
+| `avgBitrate` | `null` — not wired | `null` |
+| `droppedFrames` | `number` (from `getVideoPlaybackQuality()`) | `null` — no video element |
+| `decoderStalls` | `null` — not wired | `null` |
+| `joinTime` | `number` | `number` |
+| `sessionDurationMs` | `number` | `number` |
+
+`null` means the counter is structurally unavailable from that backend — it is not a temporary condition.
+
+---
+
+## Periodic metrics events
+
+The player emits `playback:metrics` on a configurable interval. Use this for server-side analytics ingestion:
+
+```ts
+player.on('playback:metrics', (metrics) => {
+  analytics.record({
+    sessionId: mySession.id,
+    ttff: metrics.ttff,
+    rebufferRatio: metrics.rebufferRatio,
+    sessionDurationMs: metrics.sessionDurationMs,
+  });
+});
+```
+
+Configure the interval via `setup({ metricsIntervalMs })`. Default is `10000` ms (10 seconds). Set to `0` to disable the periodic event.
+
+---
+
+## Custom metrics
+
+Plugins can write namespaced numeric counters into the metrics store:
+
+```ts
+class ScrobblePlugin extends Plugin {
+  private scrobbleCount = 0;
+
+  use(): void {
+    this.on('ended', () => {
+      this.scrobbleCount++;
+      this.player.recordMetric('nomercy:scrobble/count', this.scrobbleCount);
+    });
+  }
+}
+```
+
+Custom counters appear in `player.metrics()` and in the `playback:metrics` event payload under their key.
+
+---
+
+## `progress` vs `playback:metrics`
+
+Two separate throttled events serve different purposes:
+
+| Event | Interval | Use for |
+|-------|---------|---------|
+| `progress` | `metricsIntervalMs` (default 10s) | Server watch-position saves — contains `{ time, duration, percentage }` |
+| `playback:metrics` | `metricsIntervalMs` (same timer) | Analytics ingestion — contains the full `PlaybackMetrics` snapshot |
+
+Both fire on the same interval. `progress` is the lightweight event for position reporting. `playback:metrics` carries the full metrics object.

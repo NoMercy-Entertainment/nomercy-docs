@@ -1,0 +1,27 @@
+---
+import { getEntry } from 'astro:content';
+import MarkdownLayout from '../../layouts/MarkdownLayout.astro';
+import * as mdxComponents from '../../components/protocol';
+import PackageManagerSwitcher from '../../components/PackageManagerSwitcher.astro';
+
+const indexDoc = await getEntry('nomercy-player-kit', 'index');
+if (!indexDoc) {
+  return Astro.redirect('/nomercy-player-kit/quickstart');
+}
+
+const { Content, headings } = await indexDoc.render();
+const sections = indexDoc.data.sections || headings
+  .filter((h: any) => h.depth === 2)
+  .map((h: any) => ({ id: h.slug, title: h.text }));
+---
+
+<MarkdownLayout
+  title={indexDoc.data.title}
+  description={indexDoc.data.description}
+  sections={sections}
+>
+  <div class="mx-auto w-full max-w-3xl lg:max-w-5xl pt-4">
+    <PackageManagerSwitcher />
+  </div>
+  <Content components={mdxComponents} />
+</MarkdownLayout>

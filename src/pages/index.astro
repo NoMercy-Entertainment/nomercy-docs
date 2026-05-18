@@ -3,21 +3,16 @@ import { getEntry } from 'astro:content';
 import MarkdownLayout from '../layouts/MarkdownLayout.astro';
 import * as mdxComponents from '../components/protocol';
 
-// Get the index.mdx content
-const indexDoc = await getEntry('docs', 'index');
+const indexDoc = await getEntry('nomercy-api', 'index');
 if (!indexDoc) {
-  throw new Error('index.mdx not found');
+  throw new Error('nomercy-api/index.mdx not found');
 }
 
 const { Content, headings } = await indexDoc.render();
 
-// Use sections from frontmatter - these are required for client-side React components
-// like Guides and Resources which aren't extracted during server-side rendering
 const data = indexDoc.data as any;
 let sections = data.sections;
 
-// WORKAROUND: If sections aren't being read from frontmatter (schema validation issue),
-// use hardcoded fallback for the index page
 if (!sections || sections.length === 0) {
   sections = [
     { title: 'Documentation', id: 'documentation' },

@@ -1,0 +1,28 @@
+---
+import { getEntry } from 'astro:content';
+import MarkdownLayout from '../../layouts/MarkdownLayout.astro';
+import * as mdxComponents from '../../components/protocol';
+
+const indexDoc = await getEntry('nomercy-api', 'index');
+if (!indexDoc) {
+  return Astro.redirect('/nomercy-api/overview');
+}
+
+const { Content, headings } = await indexDoc.render();
+const data = indexDoc.data as any;
+let sections = data.sections;
+
+if (!sections || sections.length === 0) {
+  sections = headings
+    .filter((h: any) => h.depth === 2)
+    .map((h: any) => ({ id: h.slug, title: h.text }));
+}
+---
+
+<MarkdownLayout
+  title={indexDoc.data.title}
+  description={indexDoc.data.description}
+  sections={sections}
+>
+  <Content components={mdxComponents} />
+</MarkdownLayout>

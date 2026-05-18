@@ -1,0 +1,161 @@
+---
+title: "Plugin Development"
+description: "Writing plugins for nomercy-video-player v2. Video-specific concerns, typed events, and examples."
+category: "Getting Started"
+order: 6
+---
+
+# Plugin Development — Video Player
+
+Plugins for `nomercy-video-player` follow the same contract as the kit's plugin system. This page covers video-player-specific patterns. For the full plugin authoring guide, see [Plugin Authoring](/player/plugin-authoring).
+
+---
+
+## Typing against the video player
+
+Use `NMVideoPlayer<T>` as the `P` generic. This gives your plugin access to the full `VideoEventMap` and video-specific methods without casts:
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+interface WatchProgressOptions {
+  reportUrl: string;
+  saveIntervalMs?: number;  // default 5000
+}
+
+interface WatchProgressEvents {
+  'progress:saved': { itemId: string; timestamp: number; percentage: number };
+}
+
+export class WatchProgressPlugin extends Plugin<
+  NMVideoPlayer,
+  WatchProgressOptions,
+  WatchProgressEvents
+> {
+  static readonly id = 'nomercy:watch-progress';
+  static readonly version = '1.0.0';
+  static readonly description = 'Persists watch progress to the NoMercy server';
+
+  use(): void {
+    this.on('progress', ({ time, percentage }) => {
+      this.saveProgress(time, percentage);
+    });
+  }
+
+  dispose(): void {}
+
+  private async saveProgress(time: number, percentage: number): Promise<void> {
+    const item = this.player.current();
+    if (!item) return;
+
+    await this.fetch(this.opts.reportUrl, (r) => r.json(), {
+      method: 'POST',
+      body: JSON.stringify({ id: item.id, timestamp: Date.now(), percentage }),
+    });
+
+    this.emit('progress:saved', {
+      itemId: String(item.id),
+      timestamp: Date.now(),
+      percentage,
+    });
+  }
+}
+```
+
+---
+
+## Accessing video-specific methods
+
+Inside a plugin, `this.player` is typed as `NMVideoPlayer`. Video-specific methods are available directly:
+
+```ts
+use(): void {
+  this.on('current', ({ item }) => {
+    if (!item) return;
+    const subtitles = this.player.subtitles();
+    const audioTracks = this.player.audioTracks();
+    const quality = this.player.currentQuality();
+    this.reportTrackAvailability(subtitles.length, audioTracks.length);
+  });
+}
+```
+
+---
+
+## Listening to video-specific events
+
+```ts
+use(): void {
+  // Quality level changes:
+  this.on('level-switched', ({ level }) => {
+    this.logQualityChange(level);
+  });
+
+  // Subtitle cue stream — for custom rendering:
+  this.on('subtitleCue', ({ cues }) => {
+    this.renderCues(cues);
+  });
+
+  // Chapter changes:
+  this.on('chapter', ({ index, title }) => {
+    this.updateChapterDisplay(index, title);
+  });
+
+  // Back button pressed (UI plugin fires this):
+  this.on('back', () => {
+    this.router.back();
+  });
+}
+```
+
+---
+
+## Extending a built-in plugin
+
+Override `DesktopUiPlugin`'s key bindings without replacing the whole plugin:
+
+```ts
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+class MyKeyHandler extends KeyHandlerPlugin {
+  static readonly id = 'key-handler';  // same id = replaces the built-in
+
+  protected addPlaybackKeys(): void {
+    super.addPlaybackKeys();
+    // Add custom binding — 'n' for next episode
+    this.bind('n', (player) => player.next({ source: 'user' }));
+  }
+}
+
+player.addPlugin(MyKeyHandler);
+```
+
+---
+
+## Video playlist item type extension
+
+Extend `VideoPlaylistItem` with your own fields. The type threads through `current()`, `queue()`, and `beforeLoad`:
+
+```ts
+interface MyItem extends VideoPlaylistItem {
+  tmdbId: number;
+  rating: 'G' | 'PG' | 'R';
+}
+
+const player = nmplayer<MyItem>('main').setup({ ... });
+
+// Inside a plugin typed against NMVideoPlayer<MyItem>:
+this.on('current', ({ item }) => {
+  if (item) {
+    console.log(item.tmdbId);  // typed, no cast
+    console.log(item.rating);  // typed
+  }
+});
+```
+
+---
+
+## Full plugin standard
+
+See [Plugin Authoring](/player/plugin-authoring) for the complete contract: required static fields, lifecycle methods, error handling via `this.throw`/`this.report`, event namespacing, dependency declarations, advisories, and the conformance checklist.

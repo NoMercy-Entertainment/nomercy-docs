@@ -3,11 +3,10 @@ import { getCollection } from 'astro:content';
 import MarkdownLayout from '../layouts/MarkdownLayout.astro';
 import { Feedback } from '../components/protocol/Feedback';
 
-// Import MDX components
 import * as mdxComponents from '../components/protocol';
 
 export async function getStaticPaths() {
-  const docs = await getCollection('docs', ({ data }) => {
+  const docs = await getCollection('nomercy-api', ({ data }) => {
     return data.draft !== true;
   });
 
@@ -26,10 +25,8 @@ interface Props {
 const { doc } = Astro.props;
 const { Content, headings } = await doc.render();
 
-// Check if this is an MDX file (has wrapper) or regular markdown
 const isMdx = doc.id.endsWith('.mdx');
 
-// Use sections from frontmatter if available, otherwise extract from headings
 const sections = doc.data.sections || headings
   .filter((h: any) => h.depth === 2)
   .map((h: any) => ({

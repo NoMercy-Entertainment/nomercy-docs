@@ -1,0 +1,326 @@
+---
+title: "Configuration"
+description: "All options passed to nmplayer(id).setup(opts). Defaults, types, and examples."
+category: "Configuration"
+order: 3
+---
+
+# Configuration Reference
+
+All options passed to `nmplayer(id).setup(opts)`. Fields marked with a default show the value used when the option is omitted.
+
+---
+
+## Container
+
+### `container`
+
+```ts
+container?: HTMLElement
+```
+
+The DOM element the player mounts into. Required for any plugin that renders UI (`DesktopUiPlugin`, `OctopusPlugin`, `SubtitleOverlayPlugin`). The player itself renders nothing — the container is only needed by plugins.
+
+---
+
+## Playlist / queue
+
+### `queue` / `playlist`
+
+```ts
+queue?: T[] | string
+playlist?: T[] | string
+```
+
+Initial queue. Pass an array of `VideoPlaylistItem`-compatible objects, or a URL to fetch a JSON playlist. Both `queue` and `playlist` are accepted — they are aliases.
+
+```ts
+// Inline items
+player.setup({ queue: [{ id: '1', url: '...', title: 'My Video' }] });
+
+// URL-based — fetched with auth during setup
+player.setup({ queue: 'https://api.example.com/playlist.json' });
+```
+
+When a URL is provided, the player emits `playlistResolving` → `playlistReady` (or `playlistError`). The player always reaches `ready` — if the fetch fails, it starts with an empty queue.
+
+### `autoPlay`
+
+```ts
+autoPlay?: boolean
+```
+
+Start playback immediately after setup resolves. Default `false`.
+
+### `muted`
+
+```ts
+muted?: boolean
+```
+
+Start muted. Default `false`.
+
+### `preload`
+
+```ts
+preload?: 'auto' | 'metadata' | 'none'
+```
+
+Passed to the `<video>` element's `preload` attribute. Default: `'auto'`.
+
+---
+
+## Display
+
+### `controls`
+
+```ts
+controls?: boolean
+```
+
+Show the browser's native video controls. Default `false`. Do not combine with `DesktopUiPlugin` — the built-in UI replaces native controls.
+
+### `stretching`
+
+```ts
+stretching?: 'uniform' | 'fill' | 'exactfit' | 'none'
+```
+
+How the video fills its container. Default `'uniform'` (letterbox/pillarbox, preserving aspect ratio).
+
+| Value | Behavior |
+|-------|---------|
+| `'uniform'` | Preserve aspect ratio, fit inside container |
+| `'fill'` | Stretch to fill, ignore aspect ratio |
+| `'exactfit'` | Fit inside without cropping (may leave bars) |
+| `'none'` | No scaling applied |
+
+### `theaterDefault`
+
+```ts
+theaterDefault?: boolean
+```
+
+Start in theater mode. Default `false`.
+
+---
+
+## Playback rates
+
+### `playbackRates`
+
+```ts
+playbackRates?: number[]
+```
+
+Available playback rate options. Default: `[0.5, 0.75, 1.0, 1.25, 1.5, 2.0]`.
+
+---
+
+## Language and defaults
+
+### `defaultSubtitleLanguage`
+
+```ts
+defaultSubtitleLanguage?: string
+```
+
+BCP-47 language tag. The player auto-selects the first subtitle track matching this language when a new item loads. Example: `'en'`, `'nl'`, `'ja'`.
+
+### `defaultAudioLanguage`
+
+```ts
+defaultAudioLanguage?: string
+```
+
+BCP-47 language tag. Auto-selects the audio track matching this language. Falls back to the first available track.
+
+### `defaultQuality`
+
+```ts
+defaultQuality?: 'auto' | number
+```
+
+Initial quality level. `'auto'` enables hls.js ABR. A number sets a fixed level index. Default: `'auto'`.
+
+---
+
+## Image URLs
+
+### `imageBasePath`
+
+```ts
+imageBasePath?: string
+```
+
+Base URL prepended to relative `image`, `poster`, and `thumbnail` paths on playlist items. Useful for TMDB-style paths:
+
+```ts
+player.setup({
+  imageBasePath: 'https://image.tmdb.org/t/p/original',
+  queue: [{ id: '1', url: '...', poster: '/abc123.jpg' }],
+  // poster resolves to: https://image.tmdb.org/t/p/original/abc123.jpg
+});
+```
+
+Absolute URLs (any scheme) pass through unchanged.
+
+---
+
+## Auth
+
+### `auth`
+
+```ts
+auth?: {
+  bearerToken?: string | (() => string | Promise<string>);
+  refreshOnUnauthenticated?: () => Promise<string>;
+  signRequest?: (request: Request) => Request | Promise<Request>;
+  headers?: Record<string, string>;
+}
+```
+
+Auth pipeline for HLS manifest and segment requests. On 401, `refreshOnUnauthenticated` fires once and the request is retried. 403 propagates immediately.
+
+See [Kit — Auth & Fetch](/player/kit/auth-fetch) for full details.
+
+---
+
+## Backend
+
+### `backendFactory`
+
+```ts
+backendFactory?: (kind: VideoBackendKind, config: VideoPlayerConfig) => IVideoBackend
+```
+
+Custom video backend factory. Overrides the default `Html5VideoBackend`. Use to wire in a WebCodecs backend, a native-shell bridge, or a test stub.
+
+---
+
+## Storage
+
+### `storage`
+
+```ts
+storage?: IStorage
+```
+
+Plugin state persistence backend. Defaults to `LocalStorageBackend`. See [Kit — Adapters](/player/kit/adapters) for alternatives.
+
+---
+
+## Logging
+
+### `logLevel`
+
+```ts
+logLevel?: 'silent' | 'error' | 'warn' | 'info' | 'debug'
+```
+
+Log verbosity. Default: `'warn'`. Set to `'debug'` to see plugin-level events.
+
+### `logger`
+
+```ts
+logger?: ILogger
+```
+
+Custom logger. Defaults to the kit's console logger.
+
+### `debug`
+
+```ts
+debug?: boolean
+```
+
+Deprecated alias for `logLevel: 'debug'`. Use `logLevel` instead.
+
+---
+
+## Platform
+
+### `platform`
+
+```ts
+platform?: IPlatform
+```
+
+Platform abstraction bundle. Defaults to `browserPlatform`. Override individual sub-ports for Capacitor, Tauri, or Electron:
+
+```ts
+import { browserPlatform } from '@nomercy-entertainment/nomercy-player-core';
+
+player.setup({
+  platform: { ...browserPlatform, wakeLock: myNativeWakeLock },
+});
+```
+
+---
+
+## i18n
+
+### `language`
+
+```ts
+language?: string
+```
+
+Initial language (BCP-47). Default: `navigator.language`.
+
+### `translations`
+
+```ts
+translations?: Translations
+```
+
+Inline translation strings.
+
+### `loadTranslations`
+
+```ts
+loadTranslations?: (lang: string) => Promise<Translations>
+```
+
+Async translation loader.
+
+---
+
+## Metrics
+
+### `metricsIntervalMs`
+
+```ts
+metricsIntervalMs?: number
+```
+
+Interval for the `progress` and `playback:metrics` events (ms). Default: `10000`. Set to `0` to disable.
+
+---
+
+## Misc
+
+### `expose`
+
+```ts
+expose?: boolean
+```
+
+Expose the player on `window.__nmplayer_<id>` for debugging. Default `false`.
+
+### `baseUrl`
+
+```ts
+baseUrl?: string
+```
+
+Base URL prepended to relative media source URLs. Separate from `imageBasePath` — this covers audio/video sources, not artwork.
+
+### `disableControls` / `disableMediaControls`
+
+```ts
+disableControls?: boolean
+disableMediaControls?: boolean
+```
+
+Both disable browser native controls. Use `disableMediaControls` in new code — `disableControls` is a deprecated alias.

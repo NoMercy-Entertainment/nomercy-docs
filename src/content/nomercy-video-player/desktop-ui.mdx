@@ -1,0 +1,144 @@
+---
+title: "Desktop UI"
+description: "The DesktopUiPlugin — built-in player UI with seek bar, controls, menus, and keyboard/pointer interactions."
+category: "Plugins"
+order: 12
+---
+
+# Desktop UI Plugin
+
+`DesktopUiPlugin` is the built-in UI for `nomercy-video-player`. It mounts all player chrome — play/pause, seek bar, volume, fullscreen, PiP, subtitle and audio track menus, quality selector, chapter markers, keyboard shortcuts, and inactivity hiding.
+
+---
+
+## Adding the plugin
+
+```ts
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+player.addPlugin(DesktopUiPlugin);
+```
+
+No options are required. The UI auto-wires to all player events.
+
+---
+
+## How the UI works
+
+The UI is controlled entirely via CSS classes on `.nomercyplayer` (the player's container element). State classes reflect player state:
+
+| State | CSS class on `.nomercyplayer` |
+|-------|------------------------------|
+| Playing | `nm-playing` |
+| Paused | `nm-paused` |
+| Buffering | `nm-buffering` |
+| Ended | `nm-ended` |
+| Fullscreen | `nm-fullscreen` |
+| PiP active | `nm-pip` |
+| Theater mode | `nm-theater` |
+| Controls visible | `nm-controls-visible` |
+| Controls hidden (idle) | `nm-controls-hidden` |
+| Subtitles on | `nm-subtitles-on` |
+
+Do not add `nm-` or `nmplayer-` prefixed classes to child elements from outside the plugin. The plugin manages its own DOM.
+
+---
+
+## Controls layout
+
+The DesktopUiPlugin renders the following regions in the container:
+
+```
+.nomercyplayer
+  ├── .nm-overlay         — click/touch target layer
+  ├── .nm-controls        — bottom control bar
+  │     ├── .nm-seek      — seek bar + chapter markers + sprite thumbnail
+  │     ├── .nm-left      — play/pause, volume, time display, next/previous
+  │     └── .nm-right     — subtitle menu, audio menu, quality menu, PiP, theater, fullscreen
+  ├── .nm-title           — top bar: show title + episode info
+  └── .nm-spinner         — buffering indicator
+```
+
+---
+
+## Back button
+
+When at least one listener is registered for the `back` event, the UI shows a back button in the top-left corner:
+
+```ts
+player.on('back', () => {
+  router.back();
+});
+// DesktopUiPlugin checks hasListeners('back') at ready — back button appears
+```
+
+If no `back` listener is registered, the back button is not shown.
+
+---
+
+## Inactivity hiding
+
+Controls auto-hide after 4 seconds of inactivity. Mouse movement, keyboard input, or touch interaction resets the timer.
+
+---
+
+## Keyboard shortcuts
+
+Default bindings from `KeyHandlerPlugin` (included with `DesktopUiPlugin`):
+
+| Key | Action |
+|-----|--------|
+| Space / `k` | Toggle playback |
+| `f` | Toggle fullscreen |
+| `m` | Toggle mute |
+| `←` / `→` | Seek ±10 seconds |
+| `↑` / `↓` | Volume ±5 (0–100 scale) |
+| `c` | Cycle subtitle tracks |
+
+---
+
+## Plugin options
+
+```ts
+player.addPlugin(DesktopUiPlugin, {
+  controlsTimeoutMs: 4000,     // inactivity hide delay in ms. Default: 4000.
+  doubleClickMs: 300,          // double-click detection window. Default: 300.
+  seekStepSeconds: 10,         // arrow key seek step. Default: 10.
+  volumeStep: 5,               // volume arrow-key step on the 0-100 kit scale. Default: 5.
+});
+```
+
+---
+
+## Customizing the UI
+
+The UI uses standard DOM elements styled by the player's CSS. Override styles by targeting `.nomercyplayer` and its children in your app stylesheet.
+
+To replace specific behaviors without replacing the entire plugin, subclass and override the protected group methods:
+
+```ts
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+class MyDesktopUi extends DesktopUiPlugin {
+  static readonly id = 'desktop-ui';  // same id = replaces the built-in
+
+  protected addPlaybackHooks(): void {
+    super.addPlaybackHooks();
+    // add extra behavior
+  }
+}
+
+player.addPlugin(MyDesktopUi);
+```
+
+---
+
+## TV UI
+
+For 10-foot TV remote navigation, use `TvUiPlugin` instead. It is optimized for D-pad navigation and does not mount the desktop pointer-based controls.
+
+```ts
+import { TvUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+player.addPlugin(TvUiPlugin);
+```

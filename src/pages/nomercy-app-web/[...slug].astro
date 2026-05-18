@@ -1,0 +1,62 @@
+---
+import { getCollection } from 'astro:content';
+import MarkdownLayout from '../../layouts/MarkdownLayout.astro';
+import { Feedback } from '../../components/protocol/Feedback';
+import PageFooterNav from '../../components/PageFooterNav.astro';
+
+import * as mdxComponents from '../../components/protocol';
+
+export async function getStaticPaths() {
+  const docs = await getCollection('nomercy-app-web', ({ data }) => {
+    return data.draft !== true;
+  });
+
+  return docs
+    .filter(doc => doc.slug !== 'index')
+    .map(doc => ({
+      params: { slug: doc.slug },
+      props: { doc },
+    }));
+}
+
+interface Props {
+  doc: any;
+}
+
+const { doc } = Astro.props;
+const { Content, headings } = await doc.render();
+
+const isMdx = doc.id.endsWith('.mdx');
+
+const sections = doc.data.sections || headings
+  .filter((h: any) => h.depth === 2)
+  .map((h: any) => ({
+    id: h.slug,
+    title: h.text,
+  }));
+---
+
+<MarkdownLayout
+  title={doc.data.title}
+  description={doc.data.description}
+  sections={sections}
+>
+  {isMdx ? (
+    <>
+      <Content components={mdxComponents} />
+      <div class="mx-auto w-full max-w-3xl lg:max-w-5xl">
+        <PageFooterNav pathname={Astro.url.pathname} />
+      </div>
+    </>
+  ) : (
+    <article class="flex h-full flex-col pt-2 pb-10">
+      <div class="prose dark:prose-invert flex-auto [html_:where(&>*)]:mx-auto [html_:where(&>*)]:max-w-3xl lg:[html_:where(&>*)]:mx-[calc(50%-min(50%,var(--container-lg)))] lg:[html_:where(&>*)]:max-w-5xl">
+        <Content components={mdxComponents} />
+      </div>
+      <footer class="mx-auto mt-16 w-full max-w-3xl lg:max-w-5xl">
+        <PageFooterNav pathname={Astro.url.pathname} />
+        <Feedback client:load />
+      </footer>
+    </article>
+  )}
+</MarkdownLayout>

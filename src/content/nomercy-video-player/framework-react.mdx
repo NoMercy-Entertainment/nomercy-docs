@@ -1,0 +1,174 @@
+---
+title: "Framework — React"
+description: "Integrating nomercy-video-player with React. useRef pattern, useEffect cleanup, and shared player instance."
+category: "Getting Started"
+order: 8
+---
+
+# Video Player — React Integration
+
+---
+
+## useRef + useEffect pattern
+
+The player is a class instance — do not put it in `useState` (React would compare it by equality on every render, triggering unnecessary re-renders). Use `useRef` to hold the instance.
+
+```tsx
+// components/VideoPlayer.tsx
+import { useRef, useEffect } from 'react';
+import { nmplayer, DesktopUiPlugin, AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player';
+import type { NMVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+interface VideoPlayerProps {
+  items: VideoPlaylistItem[];
+}
+
+export function VideoPlayer({ items }: VideoPlayerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<NMVideoPlayer | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const player = nmplayer('main').setup({
+      container: containerRef.current,
+      queue: items,
+    });
+
+    player
+      .addPlugin(DesktopUiPlugin)
+      .addPlugin(AutoAdvancePlugin);
+
+    playerRef.current = player;
+
+    player.ready().then(() => player.play());
+
+    return () => {
+      player.dispose();
+      playerRef.current = null;
+    };
+  }, []); // run once on mount
+
+  // Update queue when items prop changes
+  useEffect(() => {
+    playerRef.current?.queue(items);
+  }, [items]);
+
+  return <div ref={containerRef} style={{ width: '100%', aspectRatio: '16/9' }} />;
+}
+```
+
+---
+
+## Reactive state with useState
+
+Subscribe to player events in a separate `useEffect`:
+
+```tsx
+import { useState, useEffect } from 'react';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+function usePlayerState(player: NMVideoPlayer | null) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    if (!player) return;
+
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onTime = ({ time }: { time: number }) => setCurrentTime(time);
+    const onDuration = ({ duration: d }: { duration: number }) => setDuration(d);
+
+    player.on('play', onPlay);
+    player.on('pause', onPause);
+    player.on('time', onTime);
+    player.on('duration', onDuration);
+
+    return () => {
+      player.off('play', onPlay);
+      player.off('pause', onPause);
+      player.off('time', onTime);
+      player.off('duration', onDuration);
+    };
+  }, [player]);
+
+  return { isPlaying, currentTime, duration };
+}
+```
+
+---
+
+## Shared player via module singleton
+
+Create the player once outside the component tree:
+
+```ts
+// lib/player.ts
+import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+export const player = nmplayer('global');
+
+export async function initPlayer(container: HTMLElement) {
+  player.setup({ container, queue: [] });
+  player.addPlugin(DesktopUiPlugin);
+  await player.ready();
+}
+```
+
+In any component:
+
+```ts
+import { player } from '@/lib/player';
+
+player.on('current', ({ item }) => { /* ... */ });
+```
+
+---
+
+## Next.js / SSR
+
+The player requires browser APIs. Use dynamic import with `ssr: false`:
+
+```tsx
+import dynamic from 'next/dynamic';
+
+const VideoPlayer = dynamic(
+  () => import('@/components/VideoPlayer').then(m => m.VideoPlayer),
+  { ssr: false }
+);
+
+export default function Page() {
+  return <VideoPlayer items={[...]} />;
+}
+```
+
+Or wrap initialization in `useEffect` — React only runs `useEffect` on the client.
+
+---
+
+## Controls component
+
+```tsx
+function Controls({ player }: { player: NMVideoPlayer | null }) {
+  const { isPlaying, currentTime, duration } = usePlayerState(player);
+
+  const percentage = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  return (
+    <div>
+      <button onClick={() => isPlaying ? player?.pause() : player?.play()}>
+        {isPlaying ? 'Pause' : 'Play'}
+      </button>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={percentage}
+        onChange={e => player?.seekByPercentage(Number(e.target.value) / 100)}
+      />
+    </div>
+  );
+}
+```

@@ -1,0 +1,207 @@
+---
+title: "Playlist and Queue"
+description: "Queue operations (append, prepend, insert, remove, shuffle, sort), peek next/prev, repeat modes, and the AutoAdvancePlugin."
+category: "Recipes"
+order: 54
+---
+
+# Playlist and Queue
+
+Read this when you need queue manipulation beyond the basic `queue([...])` call in the quickstart — inserting tracks mid-stream, implementing a shuffle toggle, peek-ahead for preloading, or custom repeat behaviour.
+
+The queue API is identical on video and music players. Examples use the music player but every method applies to both.
+
+---
+
+## Queue basics
+
+```ts
+import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player';
+
+const player = nmMPlayer('main').setup({
+  queue: [track1, track2, track3], // initial queue
+});
+
+// Replace the entire queue:
+player.queue([trackA, trackB, trackC]);
+
+// Read the queue (returns a readonly snapshot):
+const tracks = player.queue();
+console.log(tracks.length); // 3
+```
+
+---
+
+## Append, prepend, and insert
+
+```ts
+// Add to the end:
+player.queueAppend(track4);
+
+// Add at the front (plays after the current track ends via AutoAdvancePlugin):
+player.queuePrepend(track5);
+
+// Insert at a specific index:
+player.queueInsert(track6, 2); // inserts before index 2
+```
+
+---
+
+## Remove and move
+
+```ts
+// Remove by item id:
+player.queueRemove('track-id-3');
+
+// Move a track from one position to another:
+player.queueMove(0, 4); // move index 0 to index 4
+```
+
+---
+
+## Jump to a track
+
+```ts
+// Set current item by id or by object reference:
+player.current(track2);
+
+// Jump to index:
+player.seekToIndex(2);
+
+// Read current item:
+const nowPlaying = player.current();
+```
+
+---
+
+## Peek next and previous
+
+Peek is read-only — it does not change playback:
+
+```ts
+const next = player.peekNext();     // next item in queue | undefined
+const prev = player.peekPrevious(); // previous item | undefined
+
+// Use peek for preloading artwork before a crossfade:
+player.on('trackEndingSoon', async ({ remaining }) => {
+  const upcoming = player.peekNext();
+  if (upcoming) await prefetchArtwork(upcoming);
+});
+```
+
+---
+
+## Shuffle
+
+```ts
+import { ShuffleState } from '@nomercy-entertainment/nomercy-music-player';
+
+player.shuffleState(ShuffleState.On);
+player.shuffleState(ShuffleState.Off);
+
+// Read state:
+const shuffled = player.shuffleState(); // ShuffleState.On | ShuffleState.Off
+
+// Listen for changes:
+player.on('shuffle', ({ state }) => {
+  updateShuffleButton(state === ShuffleState.On);
+});
+```
+
+When shuffle is on, `peekNext()` returns the next shuffled item.
+
+---
+
+## Repeat modes
+
+```ts
+import { RepeatState } from '@nomercy-entertainment/nomercy-music-player';
+
+player.repeatState(RepeatState.Off);  // no repeat
+player.repeatState(RepeatState.One);  // repeat the current track
+player.repeatState(RepeatState.All);  // repeat the entire queue
+
+// Read state:
+const repeat = player.repeatState();
+
+player.on('repeat', ({ state }) => {
+  updateRepeatButton(state);
+});
+```
+
+`AutoAdvancePlugin` respects repeat state — it calls `player.restart()` when `RepeatState.One` is set and a track ends.
+
+---
+
+## AutoAdvancePlugin
+
+`AutoAdvancePlugin` drives automatic advancement when a track ends. Without it, the player stops at the end of each track.
+
+```ts
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player';
+
+player.addPlugin(AutoAdvancePlugin, {
+  crossfadeOnEnd: false,    // set true to use crossfade instead of immediate next()
+});
+```
+
+On the video player, import from `@nomercy-entertainment/nomercy-video-player`:
+
+```ts
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+player.addPlugin(AutoAdvancePlugin);
+// When the current video ends, player.next() is called automatically
+```
+
+---
+
+## Sorting the queue
+
+The player does not ship a built-in sort method — sort the array before setting it:
+
+```ts
+const sorted = [...player.queue()].sort((a, b) => a.name.localeCompare(b.name));
+player.queue(sorted);
+```
+
+For in-place shuffling, use Fisher-Yates before setting:
+
+```ts
+function shuffle<T>(array: T[]): T[] {
+  const out = [...array];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+player.queue(shuffle(player.queue() as MusicPlaylistItem[]));
+```
+
+This is a blunt replacement — the active track is preserved because the player matches by `id`.
+
+---
+
+## Queue events
+
+```ts
+player.on('current', ({ item, index }) => {
+  // fires when the active track changes
+  nowPlayingDisplay.textContent = item.name;
+});
+
+player.on('queue', ({ queue }) => {
+  // fires when the queue array changes (append, remove, reorder, replace)
+  renderQueueList(queue);
+});
+```
+
+---
+
+## What to read next
+
+- [Recipes: Crossfade and Gapless](/player/recipes/crossfade-and-gapless) — smooth transitions between queue items
+- [Recipes: Persistence](/player/recipes/persistence) — save and restore queue position across page loads
+- [Music — API Methods](/player/music/api-methods) — full queue method reference

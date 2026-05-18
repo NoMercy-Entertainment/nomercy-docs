@@ -2,7 +2,7 @@
 
 import clsx from 'clsx';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { forwardRef } from 'react';
+import React, { forwardRef } from 'react';
 
 import { Button } from './protocol/Button';
 import { Logo } from './Logo';
@@ -45,15 +45,22 @@ const Link = ({ href, className, children, ...props }: { href: string; className
 function TopLevelNavItem({
   href,
   children,
+  isActive,
 }: {
   href: string;
   children: React.ReactNode;
+  isActive?: boolean;
 }) {
   return (
     <li>
       <Link
         href={href}
-        className="text-sm/5 text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+        className={clsx(
+          'text-sm/5 transition',
+          isActive
+            ? 'text-emerald-500 dark:text-emerald-400'
+            : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
+        )}
       >
         {children}
       </Link>
@@ -73,6 +80,11 @@ export const Header = forwardRef<
 >(function Header({ className, navigation = [], apiGroups = [], initialPathname, ...props }, ref) {
   let { isOpen: mobileNavIsOpen } = useMobileNavigationStore();
   let isInsideMobileNavigation = useIsInsideMobileNavigation();
+
+  const [pathname, setPathname] = React.useState(initialPathname ?? '/');
+  React.useEffect(() => {
+    setPathname(window.location.pathname);
+  }, []);
 
   let { scrollY } = useScroll();
   let bgOpacityLight = useTransform(scrollY, [0, 72], ['50%', '90%']);
@@ -114,10 +126,16 @@ export const Header = forwardRef<
       </div>
       <div className="flex items-center gap-5">
         <nav className="hidden md:block">
-          <ul role="list" className="flex items-center gap-8">
-            <TopLevelNavItem href="/app">App</TopLevelNavItem>
-            <TopLevelNavItem href="/mediaserver">Media Server</TopLevelNavItem>
-            <TopLevelNavItem href="/">API</TopLevelNavItem>
+          <ul role="list" className="flex items-center gap-5">
+            {navigation.map((section) => (
+              <TopLevelNavItem
+                key={section.href}
+                href={section.href}
+                isActive={pathname.startsWith('/' + section.href.split('/')[1])}
+              >
+                {section.title}
+              </TopLevelNavItem>
+            ))}
           </ul>
         </nav>
         <div className="hidden md:block md:h-5 md:w-px md:bg-zinc-900/10 md:dark:bg-white/15" />

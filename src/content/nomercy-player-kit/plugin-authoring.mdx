@@ -1,0 +1,323 @@
+---
+title: "Plugin Authoring"
+description: "How to write a plugin for the NoMercy Player SDK. Lifecycle, events, error handling, advisories, and the conformance checklist."
+category: "Getting Started"
+order: 3
+---
+
+# Plugin Authoring
+
+Plugins are the extension point for the Player SDK. Every feature beyond core transport lives in a plugin — the built-in UI, EQ, lyrics, skip markers, Chromecast handoff. Your app-specific features follow the same contract.
+
+For the locked conformance document that lint rules enforce, see [Plugin Standard](/player/plugin-standard).
+
+---
+
+## Before you write a plugin
+
+Decide which layer your plugin belongs to:
+
+- **Layer 4 (built-in)** — generic domain behavior. No NoMercy server URLs, no SignalR, no app tokens. Should work for any consumer.
+- **Layer 5 (consumer)** — your app-specific glue. Can import from anywhere.
+
+Both layers use the same `Plugin<P, O, E>` base class. The distinction is what they import and what goes in their options.
+
+---
+
+## Minimal plugin skeleton
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+interface ScrobbleOptions {
+  endpoint: string;
+  minWatchedPercent?: number; // default 0.5
+}
+
+interface ScrobbleEvents {
+  'scrobbled': { itemId: string; watchedPercent: number };
+  'scrobbleFailed': { itemId: string; reason: string };
+}
+
+export class ScrobblePlugin extends Plugin<NMVideoPlayer, ScrobbleOptions, ScrobbleEvents> {
+  static readonly id = 'nomercy:scrobble';
+  static readonly version = '1.0.0';
+  static readonly description = 'Reports watch progress to the NoMercy server';
+
+  use(): void {
+    this.on('progress', ({ percentage }) => {
+      const threshold = this.opts.minWatchedPercent ?? 0.5;
+      if (percentage >= threshold) {
+        this.scrobble(percentage);
+      }
+    });
+  }
+
+  dispose(): void {
+    // this.on listeners auto-dispose — nothing extra needed here
+  }
+
+  private async scrobble(percentage: number): Promise<void> {
+    const item = this.player.current();
+    if (!item) return;
+
+    try {
+      await this.fetch(this.opts.endpoint, (r) => r.json(), {
+        method: 'POST',
+        body: JSON.stringify({ id: item.id, percentage }),
+      });
+      this.emit('scrobbled', { itemId: String(item.id), watchedPercent: percentage });
+    } catch (error) {
+      this.report({
+        severity: 'warning',
+        code: `${ScrobblePlugin.id}/fetch-failed`,
+        message: 'Scrobble request failed',
+      });
+      this.emit('scrobbleFailed', { itemId: String(item.id), reason: String(error) });
+    }
+  }
+}
+
+export type { ScrobbleEvents };
+```
+
+Usage:
+
+```ts
+player
+  .addPlugin(ScrobblePlugin, { endpoint: '/api/v1/progress' });
+
+player.on(ScrobblePlugin, 'scrobbled', ({ itemId, watchedPercent }) => {
+  console.log(`Scrobbled ${itemId} at ${watchedPercent * 100}%`);
+});
+```
+
+---
+
+## Identity fields
+
+Every plugin must declare three static fields:
+
+```ts
+static readonly id = 'vendor:name';         // kebab-case. Bare for kit plugins, vendor:name for third-party
+static readonly version = '1.0.0';           // semver string
+static readonly description = 'One-liner';   // shown in error messages and plugin listings
+```
+
+The `id` is the globally unique key. Kit-shipped plugins use bare kebab-case (`'equalizer'`, `'auto-advance'`). Third-party plugins must use a vendor prefix (`'nomercy:sync'`, `'fillz:winamp'`).
+
+---
+
+## Lifecycle
+
+`use()` is called during `player.setup()`. Return a `Promise<void>` if you need to load config or register async resources — `ready` fires only after all plugins' `use()` promises resolve.
+
+```ts
+async use(): Promise<void> {
+  const config = await this.fetch(this.opts.configUrl, (r) => r.json());
+  this.applyConfig(config);
+  this.on('current', ({ item }) => this.loadMetadata(item));
+}
+```
+
+`dispose()` is called on `player.dispose()` or `player.removePlugin()`. All timers, intervals, animation frames, and DOM mounts registered through the plugin's helper methods (`this.timeout`, `this.interval`, `this.frame`, `this.mount`) auto-dispose — you only need to explicitly clean up external resources.
+
+---
+
+## Event listening
+
+Always use `this.on(...)` inside a plugin, never `player.on(...)`. The `this.on` form auto-disposes with the plugin.
+
+```ts
+// Player events:
+this.on('time', ({ time }) => this.updateDisplay(time));
+
+// Cross-plugin events (typed via class reference):
+this.on(EqualizerPlugin, 'bandChanged', ({ index, gain }) => {
+  this.syncBand(index, gain);
+});
+```
+
+`off`, `once`, and `hasListeners` have the same overloaded shapes.
+
+---
+
+## Emitting events
+
+```ts
+// Fire-and-forget (auto-namespaced to plugin:<id>:<name>):
+this.emit('scrobbled', { itemId: '123', watchedPercent: 0.85 });
+
+// Cancellable before-action:
+const result = await this.dispatchBefore('beforeSyncEq', { index, gain });
+if (result.prevented) return;
+this.applyBand(result.data.index, result.data.gain);
+this.emit('bandChanged', result.data);
+```
+
+---
+
+## Error handling
+
+Never throw raw errors or call `player.emit('error', ...)` directly.
+
+```ts
+// Non-recoverable — plugin fails, marks itself disabled. Player continues.
+this.throw({
+  severity: 'fatal',
+  code: 'nomercy:scrobble/connection-lost',
+  message: 'Cannot reach scrobble endpoint',
+});
+
+// Recoverable — operation fails, plugin keeps running.
+this.throw({
+  severity: 'error',
+  code: 'nomercy:scrobble/fetch-failed',
+  message: 'Scrobble request returned an error',
+});
+
+// Degradation warning — plugin survives, caller continues.
+this.report({
+  severity: 'warning',
+  code: 'nomercy:scrobble/rate-limited',
+  message: 'Scrobble rate-limited, will retry',
+});
+```
+
+---
+
+## Static error recovery
+
+Declare a recovery policy to control what happens when a specific error code is emitted by the player or by a dependency:
+
+```ts
+static readonly onError: Record<string, PluginRecoveryAction> = {
+  'core:cue/load-failed': 'retry-once',
+  'core:auth/forbidden': 'disable',
+  'nomercy:scrobble/fetch-failed': 'ignore',
+};
+```
+
+Options: `'retry-once'` | `'fallback'` | `'disable'` | `'ignore'`. The player's `setup({ errorPolicy })` can override these per-consumer.
+
+---
+
+## Plugin dependencies
+
+Declare required or optional plugin dependencies using class references — never string ids:
+
+```ts
+static readonly requires = [
+  AudioGraphPlugin,                                   // required
+  { plugin: MediaSessionPlugin, optional: true },     // optional — plugin still runs without it
+  { plugin: SpectrumPlugin, minVersion: '2.1.0' },   // version-pinned
+];
+```
+
+---
+
+## Phase advisories
+
+Declare which phases are safe for each method. The kit surfaces these as warnings in development:
+
+```ts
+static readonly advisories: PluginAdvisory[] = [
+  {
+    method: 'scrobble',
+    duringPhase: ['idle', 'setup'],
+    severity: 'warning',
+    reason: 'no-item-loaded',
+    message: 'Scrobble called before any item is loaded — will be a no-op.',
+  },
+];
+```
+
+---
+
+## Plugin replacement and extension
+
+**Replace** a built-in plugin with the same id:
+
+```ts
+class MyMediaSession extends MediaSessionPlugin {
+  static readonly id = 'media-session';
+  static readonly replaces = 'media-session';
+
+  protected getMetadata(item: VideoPlaylistItem): MediaMetadata {
+    return new MediaMetadata({ title: item.localizedTitle });
+  }
+}
+player.addPlugin(MyMediaSession);
+```
+
+**Extend** without replacing:
+
+```ts
+class MyKeyHandler extends KeyHandlerPlugin {
+  static readonly id = 'my-key-handler';
+
+  protected addPlaybackKeys(): void {
+    super.addPlaybackKeys();
+    this.bind('p', (p) => p.play());
+  }
+}
+```
+
+---
+
+## DOM and storage
+
+```ts
+use(): void {
+  const root = this.mount('toast');   // returns a div appended to player.container
+                                       // auto-removed on dispose
+  this.storage.set('volume', 0.8);    // key namespaced to nmplayer-<id>-volume
+  this.storage.get('volume');
+}
+```
+
+---
+
+## Testing
+
+```ts
+import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
+import { assertNoListenerLeak } from '@nomercy-entertainment/nomercy-player-core/testing';
+
+describePlugin(ScrobblePlugin, ({ player, plugin }) => {
+  test('emits scrobbled after progress threshold', async () => {
+    const events: unknown[] = [];
+    player.on(ScrobblePlugin, 'scrobbled', (e) => events.push(e));
+
+    player.emit('progress', { time: 90, duration: 100, percentage: 0.9 });
+
+    await vi.waitFor(() => events.length > 0);
+    expect(events[0]).toMatchObject({ watchedPercent: 0.9 });
+  });
+
+  test('no listener leak', () => {
+    assertNoListenerLeak(player, ScrobblePlugin);
+  });
+});
+```
+
+`describePlugin` provides a fresh player with the plugin registered and auto-disposes in `afterEach`.
+
+---
+
+## Conformance checklist
+
+Before shipping a plugin:
+
+- `static readonly id` is vendored (`vendor:name`)
+- `static readonly version` is a valid semver string
+- `static readonly description` is a one-liner
+- `use()` and `dispose()` are defined or inherited
+- All listeners use `this.on(...)` (never `player.on(...)`)
+- All timers use `this.timeout(...)` / `this.interval(...)` / `this.frame(...)`
+- All errors use `this.throw(...)` / `this.report(...)`
+- Every mutator has a paired reader
+- Plugin's `E` generic is declared and exported
+- `static requires` is declared when depending on other plugins
+- Tests cover behavior and `assertNoListenerLeak`

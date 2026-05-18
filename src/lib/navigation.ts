@@ -19,145 +19,160 @@ export interface NavSection {
   order?: number;
 }
 
-/**
- * Navigation result including sections and API groups
- */
+export type Product =
+  | 'nomercy-media-server'
+  | 'nomercy-app-web'
+  | 'nomercy-app-android'
+  | 'nomercy-player-kit'
+  | 'nomercy-video-player'
+  | 'nomercy-music-player'
+  | 'nomercy-api';
+
+export interface ProductNavigation {
+  product: Product;
+  label: string;
+  href: string;
+  sections: NavGroup[];
+}
+
 export interface NavigationResult {
   sections: NavSection[];
   apiGroups: NavGroup[];
+  products: ProductNavigation[];
 }
 
-/**
- * Generate navigation structure from all content collections
- * Returns navigation organized by collection (App, Media Server) and separate API groups
- */
+const PRODUCTS: Array<{ product: Product; label: string; collection: string; href: string; order: number }> = [
+  { product: 'nomercy-media-server',  label: 'Server',    collection: 'nomercy-media-server',  href: '/nomercy-media-server/overview',  order: 1 },
+  { product: 'nomercy-app-web',       label: 'Web App',   collection: 'nomercy-app-web',        href: '/nomercy-app-web/overview',        order: 2 },
+  { product: 'nomercy-app-android',   label: 'Android',   collection: 'nomercy-app-android',    href: '/nomercy-app-android/overview',    order: 3 },
+  { product: 'nomercy-player-kit',    label: 'Kit',       collection: 'nomercy-player-kit',     href: '/nomercy-player-kit/overview',     order: 4 },
+  { product: 'nomercy-video-player',  label: 'Video',     collection: 'nomercy-video-player',   href: '/nomercy-video-player/overview',   order: 5 },
+  { product: 'nomercy-music-player',  label: 'Music',     collection: 'nomercy-music-player',   href: '/nomercy-music-player/overview',   order: 6 },
+  { product: 'nomercy-api',           label: 'API',       collection: 'nomercy-api',            href: '/nomercy-api/overview',            order: 7 },
+];
+
+const categoryOrder: Record<string, number> = {
+  'Getting Started': 1,
+  'Overview': 2,
+  'Setup': 3,
+  'Browsing': 4,
+  'Watching & Listening': 5,
+  'Watching Video': 6,
+  'Listening to Music': 7,
+  'Preferences': 8,
+  'Dashboard (Admin)': 9,
+  'Notifications & Background': 10,
+  'Lifecycle': 11,
+  'Playback Control': 12,
+  'Queue': 13,
+  'Tracks and Media': 14,
+  'State': 15,
+  'Auth and Fetch': 16,
+  'Event System': 17,
+  'Plugins': 18,
+  'Adapter Ports': 19,
+  'Internationalisation': 20,
+  'Metrics and Diagnostics': 21,
+  'Cast and Device': 22,
+  'DOM Utilities': 23,
+  'Types Reference': 24,
+  'Configuration': 25,
+  'API Methods': 26,
+  'Events': 27,
+  'Playlist Item': 28,
+  'HLS': 29,
+  'Framework Integration': 30,
+  'Writing Plugins': 31,
+  'Backends': 32,
+  'Adapters': 33,
+  'Recipes': 40,
+  'The CLI': 41,
+  'Media': 42,
+  'Encoding': 43,
+  'Remote Access & Sync': 44,
+  'Maintenance': 45,
+  'Troubleshooting': 50,
+  'Advanced': 60,
+  'Reference': 70,
+  'Guides': 75,
+  'General': 80,
+  'Resources': 85,
+  'Migration': 90,
+  'Other': 999,
+};
+
 export async function getNavigation(): Promise<NavigationResult> {
-  // Fetch all collections in parallel
-  const [appDocs, mediaserverDocs, playerDocs, docs] = await Promise.all([
-    getCollection('app', ({ data }) => data.draft !== true).catch(() => []),
-    getCollection('mediaserver', ({ data }) => data.draft !== true).catch(() => []),
-    getCollection('player', ({ data }) => data.draft !== true).catch(() => []),
-    getCollection('docs', ({ data }) => data.draft !== true).catch(() => []),
-  ]);
+  const results = await Promise.all(
+    PRODUCTS.map(async (meta) => {
+      try {
+        const entries = await getCollection(meta.collection as any, ({ data }: any) => data.draft !== true);
+        const groups = groupByCategory(entries, `/${meta.collection}`);
+        return {
+          product: meta.product,
+          label: meta.label,
+          href: meta.href,
+          groups,
+        };
+      } catch {
+        return { product: meta.product, label: meta.label, href: meta.href, groups: [] };
+      }
+    })
+  );
 
-  const sections: NavSection[] = [];
-
-  // App Documentation Section
-  if (appDocs.length > 0) {
-    const appGroups = groupByCategory(appDocs, '/app');
-    sections.push({
-      title: 'App',
-      href: '/app',
-      groups: appGroups,
-      order: 1,
-    });
-  }
-
-  // Media Server Documentation Section
-  if (mediaserverDocs.length > 0) {
-    const serverGroups = groupByCategory(mediaserverDocs, '/mediaserver');
-    sections.push({
-      title: 'Media Server',
-      href: '/mediaserver',
-      groups: serverGroups,
-      order: 2,
-    });
-  }
-
-  // Player SDK Documentation Section
-  if (playerDocs.length > 0) {
-    const playerGroups = groupByCategory(playerDocs, '/player');
-    sections.push({
-      title: 'Player SDK',
-      href: '/player',
-      groups: playerGroups,
-      order: 3,
-    });
-  }
-
-  // API Documentation groups (shown directly in sidebar, not as a section)
-  const apiGroups = docs.length > 0 ? groupByCategory(docs, '') : [];
+  const sections: NavSection[] = results.map((r, i) => ({
+    title: r.label,
+    href: r.href,
+    groups: r.groups,
+    order: PRODUCTS[i].order,
+  }));
 
   return {
     sections: sections.sort((a, b) => (a.order ?? 999) - (b.order ?? 999)),
-    apiGroups,
+    apiGroups: results.find(r => r.product === 'nomercy-api')?.groups ?? [],
+    products: results.map((r) => ({
+      product: r.product,
+      label: r.label,
+      href: r.href,
+      sections: r.groups,
+    })),
   };
 }
 
-/**
- * Group documents by category and sort them
- */
 function groupByCategory(
   docs: Array<{ slug: string; data: { title: string; category?: string; order?: number } }>,
   baseHref: string
 ): NavGroup[] {
-  // Group by category
-  const groupedDocs = docs.reduce((acc, doc) => {
-    // Skip index files from being listed as links (they're the section landing pages)
+  const grouped = docs.reduce((acc, doc) => {
     if (doc.slug === 'index') return acc;
 
     const category = doc.data.category || 'General';
-    if (!acc[category]) {
-      acc[category] = [];
-    }
+    if (!acc[category]) acc[category] = [];
     acc[category].push({
       title: doc.data.title,
       href: `${baseHref}/${doc.slug}`.replace(/\/+/g, '/'),
-      order: doc.data.order || 999,
+      order: doc.data.order ?? 999,
     });
     return acc;
   }, {} as Record<string, NavLink[]>);
 
-  // Sort links within each group by order
-  Object.keys(groupedDocs).forEach((key) => {
-    groupedDocs[key].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-  });
+  Object.values(grouped).forEach(links => links.sort((a, b) => (a.order ?? 999) - (b.order ?? 999)));
 
-  // Define category order (customize as needed)
-  const categoryOrder: Record<string, number> = {
-    'Getting Started': 1,
-    'Overview': 2,
-    'Guides': 3,
-    'General': 4,
-    'Kit': 10,
-    'Video Player': 20,
-    'Video Plugins': 25,
-    'Music Player': 30,
-    'Music Plugins': 35,
-    'Configuration': 40,
-    'Adapters': 41,
-    'Plugins': 42,
-    'Recipes': 50,
-    'Advanced': 60,
-    'Resources': 70,
-    'Reference': 80,
-    'Plugin Standard': 85,
-    'Migration': 90,
-    'Other': 999,
-  };
-
-  // Convert to NavGroup array and sort
-  const navigation: NavGroup[] = Object.keys(groupedDocs)
-    .map((category) => ({
+  return Object.keys(grouped)
+    .map(category => ({
       title: category,
-      links: groupedDocs[category],
+      links: grouped[category],
       order: categoryOrder[category] ?? 50,
     }))
     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-
-  return navigation;
 }
 
-/**
- * Get navigation for a specific section (for sidebar context)
- */
-export async function getNavigationForSection(section: 'app' | 'mediaserver' | 'player' | 'docs'): Promise<NavGroup[]> {
-  const collectionName = section;
-  const baseHref = section === 'docs' ? '' : `/${section}`;
+export async function getNavigationForProduct(product: Product): Promise<NavGroup[]> {
+  const meta = PRODUCTS.find(p => p.product === product);
+  if (!meta) return [];
 
   try {
-    const docs = await getCollection(collectionName, ({ data }) => data.draft !== true);
-    return groupByCategory(docs, baseHref);
+    const entries = await getCollection(meta.collection as any, ({ data }: any) => data.draft !== true);
+    return groupByCategory(entries, `/${meta.collection}`);
   } catch {
     return [];
   }
@@ -169,15 +184,8 @@ export interface TocItem {
   depth: number;
 }
 
-/**
- * Extract table of contents from markdown headings
- */
 export function getTocFromHeadings(headings: { depth: number; slug: string; text: string }[]): TocItem[] {
   return headings
-    .filter((heading) => heading.depth >= 2 && heading.depth <= 3)
-    .map((heading) => ({
-      id: heading.slug,
-      title: heading.text,
-      depth: heading.depth,
-    }));
+    .filter(h => h.depth >= 2 && h.depth <= 3)
+    .map(h => ({ id: h.slug, title: h.text, depth: h.depth }));
 }

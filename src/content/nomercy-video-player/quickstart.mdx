@@ -1,0 +1,211 @@
+---
+title: "Quick Start"
+description: "Install nomercy-video-player, create a working HLS player with transport controls — copy-paste runs as-is."
+category: "Getting Started"
+order: 2
+---
+
+# Video Player — Quick Start
+
+Read this if you are setting up the video player for the first time. The snippets below are verified — copy them into a fresh project and they run.
+
+**Success looks like:** the player mounts to your container element, loads the HLS stream, and starts playing on `ready`. No errors in the browser console. The seek bar, play/pause, volume, and fullscreen controls appear (from `DesktopUiPlugin`).
+
+---
+
+## Install
+
+```
+npm install @nomercy-entertainment/nomercy-video-player@beta
+```
+
+`hls.js` ships with the player — no separate install needed. The player loads it lazily the first time you point at an HLS (`.m3u8`) source.
+
+---
+
+## Minimal working player
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { VideoPlayerConfig, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+const items: VideoPlaylistItem[] = [
+  {
+    id: 'sintel',
+    title: 'Sintel',
+    url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+    image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+    duration: 888,
+    tracks: [
+      { id: 0, label: 'English', file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt', language: 'eng', kind: 'subtitles' },
+      { id: 1, file: '/Sintel.(2010)/chapters.vtt', kind: 'chapters' },
+    ],
+  },
+];
+
+const config: VideoPlayerConfig = {
+  basePath: 'https://raw.githubusercontent.com/NoMercy-Entertainment/media/master/Films/Films',
+  imageBasePath: 'https://image.tmdb.org/t/p',
+  playlist: items,
+};
+
+const player = nmplayer('nomercy-player')
+  .addPlugin(DesktopUiPlugin)
+  .setup(config);
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+The `DesktopUiPlugin` mounts the full built-in UI — play/pause, seek bar, volume, fullscreen, subtitle and quality menus. Remove it if you are building a custom UI.
+
+The inline `playlist:` array is auto-queued during setup. `current(0, { autoplay: true })` selects the first item and starts playback in sequence.
+
+---
+
+## Auto-advance
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin, AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('main')
+  .addPlugin(DesktopUiPlugin)
+  .addPlugin(AutoAdvancePlugin)
+  .setup({
+    basePath: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playlist: [
+      { id: 'sintel', title: 'Sintel', url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8', duration: 888 },
+      { id: 'cosmos', title: 'Cosmos Laundromat', url: '/Cosmos.Laundromat.(2015)/Cosmos.Laundromat.(2015).NoMercy.m3u8', duration: 724 },
+      { id: 'bbb',    title: 'Big Buck Bunny',    url: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8', duration: 596 },
+    ],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+When episode 1 ends, `AutoAdvancePlugin` calls `player.next()` automatically.
+
+---
+
+## Basic transport controls
+
+```ts
+player.play();
+player.pause();
+player.stop();
+player.next();
+player.previous();
+player.seekToIndex(2);       // jump to the third item (0-based)
+player.currentTime(120);     // seek to 2:00
+player.volume(60);            // 0-100
+player.mute();
+player.unmute();
+player.toggleMute();
+player.fullscreenState(true);
+player.pipState(true);
+```
+
+---
+
+## Auth-protected HLS
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('main').setup({
+  playlist: [{ id: '1', url: 'https://protected.cdn.your-domain.com/stream.m3u8' }],
+  auth: {
+    bearerToken: () => myAuth.getAccessToken(),
+    refreshOnUnauthenticated: async () => {
+      await myAuth.refresh();
+      return myAuth.getAccessToken();
+    },
+  },
+});
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+The player injects `Authorization: Bearer <token>` on every HLS manifest and segment request. On 401, `refreshOnUnauthenticated` fires once and the request is retried. 403 propagates — the player never retries a 403.
+
+---
+
+## Subtitles and multi-language audio
+
+Pass subtitle tracks per playlist item:
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('main').setup({
+  basePath: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  defaultSubtitleLanguage: 'eng',
+  playlist: [
+    {
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      duration: 888,
+      tracks: [
+        { id: 0, kind: 'subtitles', language: 'eng', label: 'English', file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt' },
+        { id: 1, kind: 'subtitles', language: 'dut', label: 'Dutch',   file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.dut.full.vtt' },
+        { id: 2, kind: 'chapters',  file: '/Sintel.(2010)/chapters.vtt' },
+      ],
+    },
+  ],
+});
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+For ASS/SSA subtitles with full typesetting, add `OctopusPlugin` from the `/plugins` subpath — see [Subtitle Overlay](/player/video/subtitle-overlay).
+
+---
+
+## CDN embed (no bundler)
+
+The IIFE bundle exposes a `nmplayer` global. Built-in plugins are not included in the IIFE bundle — install via npm and use ESM when you need them.
+
+```html
+<div id="player" style="width:100%;aspect-ratio:16/9;background:#000"></div>
+<script src="https://cdn.jsdelivr.net/npm/@nomercy-entertainment/nomercy-video-player@beta/dist/nomercy-video-player.iife.js"></script>
+<script>
+  var player = window.nmplayer('player').setup({
+    basePath: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playlist: [{
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      duration: 888,
+    }],
+  });
+
+  player.on('ready', function () {
+    player.current(0, { autoplay: true });
+  });
+</script>
+```
+
+---
+
+## What to read next
+
+- [Configuration](/player/video/configuration) — every config option and default
+- [API Methods](/player/video/api-methods) — full method reference
+- [Events](/player/video/events) — all events and payload shapes
+- [HLS](/player/video/hls) — ABR, HDR-aware quality levels, multi-monitor
+- [Subtitle Overlay](/player/video/subtitle-overlay) — VTT + ASS/SSA rendering
+- [Desktop UI](/player/video/desktop-ui) — built-in UI plugin details
+- [Recipes: Subtitles](/player/recipes/subtitles) — multi-language subtitles, ASS/SSA, style customization
+- [Recipes: Chapters](/player/recipes/chapters) — chapter markers on the seek bar
+- [Recipes: Quality Selection](/player/recipes/quality-selection) — manual ABR override, HDR-aware menus
+- [Recipes: Auth and Tokens](/player/recipes/auth-and-tokens) — token refresh and 401/403 handling

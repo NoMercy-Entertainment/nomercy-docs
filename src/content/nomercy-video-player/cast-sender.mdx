@@ -1,0 +1,90 @@
+---
+title: "Cast Sender"
+description: "The CastSenderPlugin for Chromecast handoff from the video player."
+category: "Plugins"
+order: 13
+---
+
+# Cast Sender Plugin
+
+`CastSenderPlugin` handles Chromecast sender integration — device discovery, session management, and playback handoff from the video player to a Cast receiver.
+
+---
+
+## Setup
+
+```ts
+import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+player.addPlugin(CastSenderPlugin, {
+  receiverApplicationId: 'CC1AD845',  // default media receiver
+});
+```
+
+The Google Cast SDK script must be loaded before the plugin's `use()` runs:
+
+```html
+<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+```
+
+---
+
+## Handoff
+
+```ts
+// Initiate cast
+player.transferTo({ type: 'chromecast', deviceId: sessionId });
+
+// Check cast state
+player.castState(); // 'connecting' | 'connected' | 'disconnected' | 'unavailable'
+```
+
+When a Cast session is active, the player routes playback to the receiver. Local playback pauses automatically.
+
+---
+
+## Cast state events
+
+Listen via the player's standard event API:
+
+```ts
+player.on('cast:connected', ({ deviceName }) => {
+  showCastBanner(deviceName);
+});
+
+player.on('cast:disconnected', () => {
+  hideCastBanner();
+});
+```
+
+---
+
+## Plugin options
+
+```ts
+interface CastSenderOptions {
+  receiverApplicationId: string;   // Cast app ID
+  resumeLocalOnDisconnect?: boolean; // Resume local playback when Cast ends. Default: true.
+  autoJoin?: boolean;              // Auto-join existing Cast sessions. Default: true.
+}
+```
+
+---
+
+## Custom receiver
+
+If you have a custom Cast receiver app, pass its application id:
+
+```ts
+player.addPlugin(CastSenderPlugin, {
+  receiverApplicationId: 'ABCD1234',
+});
+```
+
+The receiver must support the same playlist item shape (`url`, `title`, `subtitles`, etc.) or a mapped equivalent. Coordinate with your receiver implementation.
+
+---
+
+## nomercy-cast-player
+
+The NoMercy cast receiver (`nomercy-cast-player`) is a Vue 3 app designed to work with this plugin. It is slated for a full rewrite to v2 in a future release.

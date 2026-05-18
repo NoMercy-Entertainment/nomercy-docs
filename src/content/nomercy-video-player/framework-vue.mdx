@@ -1,0 +1,150 @@
+---
+title: "Framework — Vue"
+description: "Integrating nomercy-video-player with Vue 3. shallowRef pattern, composable, event cleanup."
+category: "Getting Started"
+order: 7
+---
+
+# Video Player — Vue 3 Integration
+
+---
+
+## The shallowRef pattern
+
+The player instance must be wrapped in `shallowRef`, not `ref`. The player is a class instance with many methods — deep reactivity (`ref`) will try to make every property reactive, which triggers proxies on internal state. Use `shallowRef` so Vue tracks the reference without proxying the instance.
+
+```ts
+// composables/useVideoPlayer.ts
+import { shallowRef, onUnmounted } from 'vue';
+import { nmplayer, DesktopUiPlugin, AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+export function useVideoPlayer(containerId: string) {
+  const player = shallowRef(
+    nmplayer('main').setup({
+      container: document.getElementById(containerId)!,
+      queue: [],
+    })
+  );
+
+  player.value
+    .addPlugin(DesktopUiPlugin)
+    .addPlugin(AutoAdvancePlugin);
+
+  onUnmounted(() => {
+    player.value.dispose();
+  });
+
+  return { player };
+}
+```
+
+---
+
+## Component example
+
+```vue
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue';
+import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+const containerRef = ref<HTMLDivElement>();
+let player: NMVideoPlayer | null = null;
+
+const isPlaying = ref(false);
+const currentTime = ref(0);
+
+onMounted(async () => {
+  if (!containerRef.value) return;
+
+  player = nmplayer('main').setup({
+    container: containerRef.value,
+    queue: [{ id: '1', url: '...', title: 'Demo' }],
+  });
+
+  player.addPlugin(DesktopUiPlugin);
+
+  player.on('play', () => { isPlaying.value = true; });
+  player.on('pause', () => { isPlaying.value = false; });
+  player.on('time', ({ time }) => { currentTime.value = time; });
+
+  await player.ready();
+});
+
+onUnmounted(() => {
+  player?.dispose();
+});
+</script>
+
+<template>
+  <div>
+    <div ref="containerRef" style="width: 100%; aspect-ratio: 16/9;" />
+    <div>
+      <button @click="isPlaying ? player?.pause() : player?.play()">
+        {{ isPlaying ? 'Pause' : 'Play' }}
+      </button>
+      <span>{{ Math.floor(currentTime) }}s</span>
+    </div>
+  </div>
+</template>
+```
+
+---
+
+## Shared player across components
+
+Create the player once and export the ref:
+
+```ts
+// lib/player.ts
+import { shallowRef } from 'vue';
+import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+export const player = shallowRef(nmplayer('global'));
+
+// Call setup() once after the DOM is ready (e.g., in App.vue onMounted):
+export async function initPlayer(container: HTMLElement) {
+  player.value.setup({ container, queue: [] });
+  player.value.addPlugin(DesktopUiPlugin);
+  await player.value.ready();
+}
+```
+
+Import in any component:
+
+```ts
+import { player } from '@/lib/player';
+
+player.value.on('current', ({ item }) => { /* ... */ });
+```
+
+---
+
+## Queue updates from Pinia / Vuex
+
+```ts
+import { watch } from 'vue';
+import { usePlayerStore } from '@/stores/player';
+import { player } from '@/lib/player';
+
+const store = usePlayerStore();
+
+watch(() => store.queue, (newQueue) => {
+  player.value.queue(newQueue);
+}, { deep: true });
+```
+
+---
+
+## Nuxt / SSR
+
+The player requires browser APIs. Wrap initialization in `onMounted` or use `client:only`:
+
+```ts
+// In onMounted — player will not be created during SSR
+onMounted(() => {
+  player.value = nmplayer('main').setup({ ... });
+});
+```
+
+Or use a `<ClientOnly>` wrapper component around the player component.
