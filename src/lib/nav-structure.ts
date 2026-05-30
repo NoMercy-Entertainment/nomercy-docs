@@ -100,7 +100,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Writing Plugins", pages: ['plugin-development'] },
     { group: "Backends", pages: ['backends/overview', 'backends/audio-element', 'backends/web-audio', 'backends/backend-interface'] },
     { group: "Adapters", pages: ['adapters/lyric-source', 'adapters/scrobbler', 'adapters/now-playing-art', 'adapters/playlist-generator'] },
-    { group: "Recipes", pages: ['recipes/playlist-and-queue', 'recipes/crossfade-and-gapless', 'recipes/lyrics-and-equalizer'] },
+    { group: "Recipes", pages: ['recipes/overview', 'recipes/playlist-and-queue', 'recipes/crossfade-and-gapless', 'recipes/lyrics-and-equalizer'] },
     { group: "Troubleshooting", pages: ['troubleshooting'] },
     { group: "Advanced", pages: ['advanced/crossfade-tuning', 'advanced/equalizer-customization', 'advanced/lyrics-sync-deep-dive', 'advanced/custom-plugin', 'advanced/writing-an-audio-backend'] },
     { group: "Reference", pages: ['faq'] },
