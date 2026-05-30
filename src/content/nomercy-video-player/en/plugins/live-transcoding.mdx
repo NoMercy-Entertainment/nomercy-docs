@@ -6,6 +6,8 @@ draft: false
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/live-transcoding/index.ts */}
 
+`LiveTranscodingPlugin` coordinates the player with a server-side transcoder that encodes video on-demand, segment by segment. Register it when your backend transcodes to HLS in real time and the player needs to gate playback until segments are available. Without a `controlUrl` the plugin is completely inert and safe to ship in all configurations.
+
 ## Plugin id
 
 `'live-transcoding'`
@@ -51,12 +53,14 @@ interface LiveTranscodingOptions {
 }
 ```
 
-| Option            | Type     | Default | Description                                      |
-| ----------------- | -------- | ------- | ------------------------------------------------ |
-| `controlUrl`      | `string` | —       | WebSocket URL of the transcoding server          |
-| `wsUrl`           | `string` | —       | Alias for `controlUrl`                           |
-| `seekTimeoutMs`   | `number` | `10000` | Seek gate timeout in milliseconds                |
-| `preferredHeight` | `number` | —       | Preferred output height hint sent to the encoder |
+| Option                | Type     | Default | Description                                                              |
+| --------------------- | -------- | ------- | ------------------------------------------------------------------------ |
+| `controlUrl`          | `string` | —       | WebSocket URL of the transcoding server                                  |
+| `wsUrl`               | `string` | —       | Alias for `controlUrl`                                                   |
+| `pollIntervalMs`      | `number` | —       | Polling fallback interval in ms for environments without WebSocket       |
+| `resumeAheadSeconds`  | `number` | —       | Seconds of buffer beyond `currentTime` required before resuming after backpressure |
+| `seekTimeoutMs`       | `number` | `10000` | Max ms to wait for the transcoder to reach the seek target               |
+| `preferredHeight`     | `number` | —       | Preferred output height hint sent to the encoder                         |
 
 ## Events
 
@@ -77,6 +81,17 @@ interface LiveTranscodingEvents {
   'backpressure:release': void;
 }
 ```
+
+| Event                    | Payload                                                                          | Description                                               |
+| ------------------------ | -------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `'job:started'`          | `{ jobId: string; sourceUrl: string }`                                           | Transcoding job accepted by the server                    |
+| `'job:progress'`         | `{ jobId, transcodedSeconds, totalSeconds?, variantsReady }`                     | Transcoder write head advanced; seek gate may release     |
+| `'job:variant-ready'`    | `{ jobId: string; variant: string; bandwidth: number }`                          | A quality variant is ready to stream                      |
+| `'job:ready-to-play'`    | `{ jobId: string }`                                                              | Enough segments available to begin playing                |
+| `'job:error'`            | `{ jobId: string; error: Error }`                                                | Transcoding error from the server                         |
+| `'job:complete'`         | `{ jobId: string }`                                                              | Transcoding job finished                                  |
+| `'backpressure:apply'`   | `{ reason: 'buffer-full' \| 'encoder-stall' }`                                   | Loader paused due to buffer or encoder stall              |
+| `'backpressure:release'` | `void`                                                                           | Backpressure lifted; loading resumes                      |
 
 ## Server message protocol
 

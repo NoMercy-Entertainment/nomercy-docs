@@ -4,6 +4,8 @@ description: 'Autonomous queue advance — preload, crossfade, and custom ended/
 draft: false
 ---
 
+{/* Source: packages/nomercy-music-player-v2/src/plugins/auto-advance/index.ts */}
+
 # AutoAdvancePlugin
 
 Autonomous-advance plugin. Listens to the player's `ended` event to advance the queue, and to `trackEndingSoon` to optionally preload the next track and/or initiate a crossfade.
@@ -13,6 +15,8 @@ Do not register this plugin when your app drives the player from a WebSocket or 
 ```ts
 import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
+
+Plugin id: `'auto-advance'`
 
 ---
 
@@ -37,32 +41,12 @@ player.addPlugin(AutoAdvancePlugin, {
 
 ## Options
 
-```ts
-interface AutoAdvanceOptions {
-  enabled?: boolean;
-  preloadNext?: boolean;
-  crossfade?: boolean;
-  crossfadeDuration?: number;
-}
-```
-
-### `enabled`
-
-Master toggle. Default: `true`. Set to `false` to pause all auto-advance behavior without removing the plugin.
-
-### `preloadNext`
-
-When `true`, the plugin calls `player.load(next, { slot: 'next' })` on the `trackEndingSoon` event. This buffers the next track before it is needed. Default: `false`.
-
-### `crossfade`
-
-When `true`, the plugin calls `player.crossfadeTo(next, { duration: crossfadeDuration })` on the `trackEndingSoon` event. Default: `false`.
-
-### `crossfadeDuration`
-
-Crossfade duration **in seconds** used when `crossfade: true`. Default: `0` (instant cut).
-
-Set this to match or be less than `trackEndingSoonThreshold` from the player config.
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `enabled` | `boolean` | `true` | Master toggle. Set to `false` to pause all auto-advance behaviour without removing the plugin. |
+| `preloadNext` | `boolean` | `false` | When `true`, calls `player.load(next, { slot: 'next' })` on the `trackEndingSoon` event, buffering the next track before it is needed. |
+| `crossfade` | `boolean` | `false` | When `true`, calls `player.crossfadeTo(next, { duration: crossfadeDuration })` on the `trackEndingSoon` event. |
+| `crossfadeDuration` | `number` | `0` | Crossfade duration in seconds when `crossfade: true`. `0` means an instant cut. Set this to match or be less than `trackEndingSoonThreshold` in the player config. |
 
 ---
 

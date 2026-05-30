@@ -6,6 +6,8 @@ draft: false
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/drm/index.ts */}
 
+`DrmPlugin` handles EME (Encrypted Media Extensions) license acquisition for Widevine, FairPlay, and PlayReady protected streams. Register it when your media requires DRM — it probes for EME support at startup, exits cleanly in environments without it (JSDOM, SSR), and handles the full key-session lifecycle automatically.
+
 ## Plugin id
 
 `'drm'`
@@ -79,6 +81,17 @@ interface DrmEvents {
   unsupported: { reason: string };
 }
 ```
+
+| Event                 | Payload                                         | Description                                          |
+| --------------------- | ----------------------------------------------- | ---------------------------------------------------- |
+| `'key:requested'`     | `{ sessionId: string; initData: ArrayBuffer }`  | Key-session handshake initiated                      |
+| `'key:granted'`       | `{ sessionId: string }`                         | License acquired; content can be decrypted           |
+| `'key:expired'`       | `{ sessionId: string }`                         | License expired; re-acquisition required             |
+| `'key:revoked'`       | `{ sessionId: string }`                         | License revoked by the license server                |
+| `'key:error'`         | `{ sessionId: string; error: Error }`           | License acquisition or key-session error             |
+| `'output:restricted'` | `{ reason: string }`                            | HDCP output restriction enforced                     |
+| `'output:downgraded'` | `{ from: string; to: string }`                  | Output protection level downgraded                   |
+| `'unsupported'`       | `{ reason: string }`                            | EME not available; plugin exits cleanly              |
 
 ## Registration
 

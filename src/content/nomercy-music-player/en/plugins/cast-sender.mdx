@@ -1,18 +1,22 @@
 ---
 title: 'CastSenderPlugin'
-description: 'Chromecast sender for music — MusicTrackMediaMetadata, audio/mpeg default content type, and kit Cast lifecycle.'
+description: 'Chromecast sender for music — options, cast events, MusicTrackMediaMetadata mapping, and audio/mpeg default content type.'
 draft: false
 ---
 
+{/* Source: packages/nomercy-music-player-v2/src/plugins/cast-sender/index.ts + packages/nomercy-player-kit/src/plugins/cast-sender/index.ts */}
+
 # CastSenderPlugin
 
-Music Chromecast sender. A thin specialization of the kit's shared `CastSenderPlugin` that adapts music-specific fields (`name`, `artistTracks`, `albumTracks`, `cover`) to `MusicTrackMediaMetadata` and sets `'audio/mpeg'` as the default content type.
+Music Chromecast sender. A thin specialisation of the kit's shared `CastSenderPlugin` that adapts music-specific fields (`name`, `artistTracks`, `albumTracks`, `cover`) to `MusicTrackMediaMetadata` and sets `'audio/mpeg'` as the default content type.
 
-All Cast session lifecycle (SDK probe, session negotiation, `RemotePlayer` event mirroring, forward/rewind helpers, resume-on-disconnect) is handled by the kit base class.
+All Cast session lifecycle — SDK probe, session negotiation, `RemotePlayer` event mirroring, forward/rewind helpers, resume-on-disconnect — is handled by the kit base class.
 
 ```ts
 import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
+
+Plugin id: `'cast-sender'`
 
 ---
 
@@ -22,30 +26,63 @@ import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-music-player/pl
 const player = nmMPlayer('main').addPlugin(CastSenderPlugin).setup({ playlist: myTracks });
 ```
 
+With options:
+
+```ts
+player.addPlugin(CastSenderPlugin, {
+  chromecastAppId: 'MY_RECEIVER_APP_ID',
+  resumeLocalOnDisconnect: true,
+});
+```
+
+---
+
+## Options
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `chromecastAppId` | `string` | `undefined` | Chromecast receiver app id. When omitted, the Cast SDK uses the default media receiver. |
+| `enableAirPlay` | `boolean` | `undefined` | Whether AirPlay is allowed (Safari only). |
+| `customReceiverNamespace` | `string` | `undefined` | Custom receiver namespace for messages sent to the receiver. |
+| `resumeLocalOnDisconnect` | `boolean` | `true` | Resume local playback after the receiver disconnects, restoring the receiver's last `currentTime` and play/pause state. |
+| `defaultContentType` | `string` | `'audio/mpeg'` | Override the default MIME type sent to the Cast SDK. The music subclass defaults this to `'audio/mpeg'`. Override per-item by setting `contentType` on the playlist item. |
+| `live` | `boolean` | `false` | Treat the source as a live (unbounded) stream. |
+
+---
+
+## Events
+
+| Event | Payload | Description |
+| ----- | ------- | ----------- |
+| `cast:available` | `{ devices: number }` | The Cast SDK has detected at least one Chromecast device. |
+| `cast:connecting` | `{ deviceName: string }` | A Cast session is being established. |
+| `cast:connected` | `{ deviceName: string }` | A Cast session is active on the named device. |
+| `cast:disconnected` | `void` | The Cast session ended. |
+| `cast:error` | `{ error: Error }` | A Cast error occurred (e.g. session refused, network loss). |
+| `cast:remote-state` | `{ time: number; state: 'playing' \| 'paused' \| 'buffering' }` | The receiver's playback state was mirrored to the local player. |
+| `cast:media-changed` | `{ contentId: string }` | The receiver loaded a different media item. |
+| `unsupported` | `{ reason: string }` | The Cast SDK is unavailable in this browser (Firefox, non-Chromium). |
+
+Listen using the namespaced string form:
+
+```ts
+player.on('plugin:cast-sender:cast:connected', ({ deviceName }) => {
+  showCastBadge(deviceName);
+});
+```
+
 ---
 
 ## Metadata mapping
 
-| `MusicPlaylistItem` field               | `MusicTrackMediaMetadata` field |
-| --------------------------------------- | ------------------------------- |
-| `name`                                  | `title`                         |
-| `artistTracks[].name` joined with `, `  | `artist`                        |
-| `albumTracks[0].name`                   | `albumName`                     |
-| `cover` (resolved via `resolveUrl`)     | `images[0].url`                 |
+| `MusicPlaylistItem` field | `MusicTrackMediaMetadata` field |
+| ------------------------- | ------------------------------- |
+| `name` | `title` |
+| `artistTracks[].name` joined with `, ` | `artist` |
+| `albumTracks[0].name` | `albumName` |
+| `cover` (resolved via `resolveUrl`) | `images[0].url` |
 
 When `MusicTrackMediaMetadata` is not available from the Cast SDK, the plugin falls back to `GenericMediaMetadata`.
-
----
-
-## Default content type
-
-The plugin returns `'audio/mpeg'` as the default content type for music items. The Cast SDK uses this when building the `MediaInfo` object. Override per-item by including a `contentType` field on the playlist item.
-
----
-
-## Cast session events
-
-All Cast session events are namespaced under `plugin:cast-sender:*`. See the kit's `CastSenderPlugin` documentation for the full event list.
 
 ---
 
@@ -60,7 +97,7 @@ import {
 } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
 const player = nmMPlayer('main')
-  .addPlugin(CastSenderPlugin)
+  .addPlugin(CastSenderPlugin, { resumeLocalOnDisconnect: true })
   .addPlugin(AutoAdvancePlugin)
   .addPlugin(MediaSessionPlugin)
   .setup({

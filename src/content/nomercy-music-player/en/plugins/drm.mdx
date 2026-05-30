@@ -1,48 +1,50 @@
 ---
 title: 'DrmPlugin'
-description: 'DRM-protected audio streams — roadmapped for v2.1. Calling use() throws NotImplementedError.'
+description: 'DRM-protected audio streams (Widevine, FairPlay, PlayReady) — roadmapped for v2.1. Calling use() throws NotImplementedError.'
 draft: false
 ---
 
+{/* Source: packages/nomercy-music-player-v2/src/plugins/drm/index.ts */}
+
 # DrmPlugin
 
-EME-based DRM for music streams. **Roadmapped for v2.1.** Calling `addPlugin(DrmPlugin)` followed by `setup()` will cause `use()` to throw `NotImplementedError`.
+EME-based DRM for music streams. Handles Widevine, FairPlay, and PlayReady key system coordination for DRM-protected audio.
+
+**Status: roadmapped for v2.1.** The plugin is exported so consumers can inspect the error and the public surface is reserved. Calling `addPlugin(DrmPlugin)` followed by `setup()` causes `use()` to throw `NotImplementedError`.
 
 ```ts
 import { DrmPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
 
+Plugin id: `'music-drm'`
+
+Do not register this plugin in production.
+
 ---
 
 ## Planned options
 
-```ts
-interface DrmOptions {
-  keySystem: string; // e.g. 'com.widevine.alpha'
-  licenseUrl: string;
-  certificate?: ArrayBuffer | string;
-  customSignRequest?: (request: Request) => Request | Promise<Request>;
-  transformLicenseRequest?: (challenge: ArrayBuffer) => ArrayBuffer | Promise<ArrayBuffer>;
-  transformLicenseResponse?: (response: ArrayBuffer) => ArrayBuffer | Promise<ArrayBuffer>;
-}
-```
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `keySystem` | `string` | — | EME key system identifier. E.g. `'com.widevine.alpha'`, `'com.apple.fps'`, `'com.microsoft.playready'`. Required. |
+| `licenseUrl` | `string` | — | License server URL. Required. |
+| `certificate` | `ArrayBuffer \| string` | `undefined` | Service certificate for FairPlay (optional for Widevine/PlayReady). |
+| `customSignRequest` | `(request: Request) => Request \| Promise<Request>` | `undefined` | Optional request signer for license calls (HMAC, token injection, etc.). |
+| `transformLicenseRequest` | `(challenge: ArrayBuffer) => ArrayBuffer \| Promise<ArrayBuffer>` | `undefined` | Optional license request body transformer. |
+| `transformLicenseResponse` | `(response: ArrayBuffer) => ArrayBuffer \| Promise<ArrayBuffer>` | `undefined` | Optional license response body transformer. |
 
 ---
 
 ## Planned events
 
-| Event               | Payload                                        |
-| ------------------- | ---------------------------------------------- |
-| `key:requested`     | `{ sessionId: string; initData: ArrayBuffer }` |
-| `key:granted`       | `{ sessionId: string }`                        |
-| `key:expired`       | `{ sessionId: string }`                        |
-| `key:revoked`       | `{ sessionId: string }`                        |
-| `key:error`         | `{ sessionId: string; error: Error }`          |
-| `output:restricted` | `{ reason: string }`                           |
-| `unsupported`       | `{ reason: string }`                           |
+| Event | Payload | Description |
+| ----- | ------- | ----------- |
+| `key:requested` | `{ sessionId: string; initData: ArrayBuffer }` | EME key session was created and a license request was sent. |
+| `key:granted` | `{ sessionId: string }` | License granted — decryption is active. |
+| `key:expired` | `{ sessionId: string }` | Key session expired. |
+| `key:revoked` | `{ sessionId: string }` | Key session was revoked. |
+| `key:error` | `{ sessionId: string; error: Error }` | License acquisition failed. |
+| `output:restricted` | `{ reason: string }` | HDCP or output protection policy blocked playback. |
+| `unsupported` | `{ reason: string }` | The key system is not supported in this environment. |
 
----
-
-## Status
-
-Not available. Do not register this plugin in production.
+The options and events documented here describe the planned v2.1 API and may change before release.

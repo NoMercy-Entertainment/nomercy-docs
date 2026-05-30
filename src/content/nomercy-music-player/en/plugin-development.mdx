@@ -1,10 +1,34 @@
 ---
 title: 'Writing Plugins'
-description: 'Writing music-context plugins — Plugin base class, lifecycle hooks, this.player typed as NMMusicPlayer, event and emit patterns.'
+description: 'Writing music-context plugins — plugin catalog, Plugin base class, lifecycle hooks, this.player typed as NMMusicPlayer, event and emit patterns.'
 draft: false
 ---
 
 # Writing Plugins
+
+## Plugin catalog
+
+All plugins importable from `@nomercy-entertainment/nomercy-music-player/plugins`:
+
+| Plugin | id | What it does |
+| ------ | -- | ------------ |
+| `AutoAdvancePlugin` | `auto-advance` | Advances the queue on `ended`; optionally preloads and crossfades on `trackEndingSoon`. |
+| `LyricsPlugin` | `lyrics` | Fetches and time-syncs lyrics via the cue parser registry; fires `line` / `lineEnter` / `lineExit`. |
+| `CastSenderPlugin` | `cast-sender` | Chromecast sender — music-specific metadata + `audio/mpeg` content type; full session lifecycle from the kit. |
+| `MediaSessionPlugin` | `media-session` | Publishes track metadata and artwork to the OS Media Session API (lock screen, notification panel). |
+| `MusicUiPlugin` | `music-ui` | Self-contained HTML transport overlay — album art, track info, seek bar, controls, volume. |
+| `KeyHandlerPlugin` | `key-handler` | Keyboard shortcuts: space, arrows, m (kit) + n, p, r, s (music-specific). |
+| `TabLeaderPlugin` | `tab-leader` | Web Locks single-tab-active enforcer — only one tab plays at a time. |
+| `MessagePlugin` | `message` | Toast and persistent overlay surface — `show()`, `queue()`, `displayPersistent()`. |
+| `EmbedPlugin` | `embed` | `postMessage` bridge for host-page ↔ iframe player communication. |
+| `AudioGraphPlugin` | `audio-graph` | Web Audio `AudioContext` owner — prerequisite for all graph plugins. (from kit) |
+| `EqualizerPlugin` | `equalizer` | 10-band parametric EQ with pre-gain, built-in presets, and persistence. (from kit) |
+| `SpectrumPlugin` | `spectrum` | Frequency-domain visualiser data via the shared `AnalyserNode`. (from kit) |
+| `MixerPlugin` | `mixer` | Per-channel gain and panning. (from kit) |
+| `CanvasPlugin` | `canvas` | `<canvas>` RAF renderer — plug custom `CanvasRenderFn` for visualisations. (from kit) |
+| `GroupListeningPlugin` | `group-listening` | Synchronised multi-client listening. Roadmapped v2.1 — throws `NotImplementedError`. |
+| `DrmPlugin` | `music-drm` | EME (Widevine / FairPlay / PlayReady). Roadmapped v2.1 — throws `NotImplementedError`. |
+| `LiveTranscodingPlugin` | `live-transcoding` | Server-coordinated live transcoding with backpressure. Roadmapped v2.1 — throws `NotImplementedError`. |
 
 Music plugins extend the kit's `Plugin` base class with `NMMusicPlayer<any>` as the player type. This gives you typed access to all music-specific methods (`backend()`, `crossfadeTo()`, `isTransitioning()`) through `this.player`.
 

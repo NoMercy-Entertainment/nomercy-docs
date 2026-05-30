@@ -55,11 +55,13 @@ import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugin
 
 const lyricsEl = document.getElementById('lyrics')!;
 
-// Build lyric sheet when loaded:
-player.on('plugin:lyrics:loaded', () => {
-  const lyricsPlugin = player.getPlugin(LyricsPlugin)!;
-  const cues = lyricsPlugin.all();
-  lyricsEl.innerHTML = cues.map((cue, i) => `<p data-i="${i}">${cue.payload.text}</p>`).join('');
+// Build lyric sheet on first line event (cues are available from all() at this point):
+player.on('plugin:lyrics:lineEnter', () => {
+  if (lyricsEl.children.length === 0) {
+    const lyricsPlugin = player.getPlugin(LyricsPlugin)!;
+    const cues = lyricsPlugin.all();
+    lyricsEl.innerHTML = cues.map((cue, index) => `<p data-index="${index}">${cue.payload.text}</p>`).join('');
+  }
 });
 
 // Highlight active line:

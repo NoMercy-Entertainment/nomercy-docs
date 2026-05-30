@@ -6,6 +6,8 @@ draft: false
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/desktop-ui/index.ts */}
 
+`DesktopUiPlugin` is the full video player controls overlay for pointer-driven environments. Register it as the primary UI plugin for web desktop and mobile PWA deployments. It mounts a complete DOM control set — top bar, progress bar with chapter markers and sprite thumbnails, control buttons, and menu panes — and includes `KeyHandlerPlugin` automatically.
+
 ## Plugin id
 
 `'desktop-ui'`
@@ -72,6 +74,49 @@ interface DesktopUiOptions {
   buttons?: DesktopUiButtonOptions;
 }
 ```
+
+| Option                | Type                    | Default | Description                                                          |
+| --------------------- | ----------------------- | ------- | -------------------------------------------------------------------- |
+| `hideTitle`           | `boolean`               | `false` | Hide the top-bar title column (title + show info)                    |
+| `disableClickToPause` | `boolean`               | `false` | Suppress click/tap on the video area toggling pause                  |
+| `inactivityMs`        | `number`                | `4000`  | Milliseconds of pointer/keyboard inactivity before controls hide     |
+| `imageBaseUrl`        | `string`                | —       | Base URL prepended to relative image paths rendered in the UI        |
+| `buttons`             | `DesktopUiButtonOptions` | see below | Per-button visibility overrides                                   |
+
+### DesktopUiButtonOptions
+
+All fields are `boolean | undefined`. Omitting a field keeps the built-in default.
+
+Default-ON buttons (visible unless set to `false`):
+
+| Button        | Description                                   |
+| ------------- | --------------------------------------------- |
+| `play`        | Play/pause toggle                             |
+| `mute`        | Mute toggle icon                              |
+| `volume`      | Volume slider                                 |
+| `fullscreen`  | Fullscreen toggle                             |
+| `settings`    | Settings/gear button                          |
+| `chapterPrev` | Previous chapter (hidden when no chapters)    |
+| `chapterNext` | Next chapter (hidden when no chapters)        |
+| `next`        | Next queue item (shown when queue > 1 item)   |
+| `previous`    | Previous queue item (shown when queue > 1)    |
+
+Default-OFF buttons (hidden unless set to `true`):
+
+| Button         | Description                              |
+| -------------- | ---------------------------------------- |
+| `theater`      | Theater mode toggle                      |
+| `pip`          | Picture-in-Picture toggle                |
+| `speed`        | Playback speed menu                      |
+| `quality`      | Quality level menu                       |
+| `subtitles`    | Subtitle track menu                      |
+| `audio`        | Audio track menu                         |
+| `playlist`     | Playlist panel                           |
+| `seekBack`     | Seek backward button (±10 s)             |
+| `seekForward`  | Seek forward button (±10 s)              |
+| `aspectRatio`  | Aspect ratio menu                        |
+
+`seekBack`/`seekForward` default to `false` because ±10 s seek is available via `TouchZonesPlugin` (double-tap) and `KeyHandlerPlugin` (ArrowLeft/Right) — the chapter navigation buttons are the unique control-bar value.
 
 ## Registration
 

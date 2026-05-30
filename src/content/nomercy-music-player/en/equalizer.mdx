@@ -1,8 +1,10 @@
 ---
 title: 'Equalizer'
-description: '10-band parametric EQ via EqualizerPlugin and AudioGraphPlugin — setup, band manipulation, presets, and persistence.'
+description: '10-band parametric EQ via EqualizerPlugin and AudioGraphPlugin — setup, band manipulation, presets, persistence, and all events.'
 draft: false
 ---
+
+{/* Source: packages/nomercy-player-kit/src/plugins/equalizer/index.ts (re-exported via music player) */}
 
 # Equalizer
 
@@ -24,6 +26,21 @@ const player = nmMPlayer('main')
 ```
 
 19 built-in presets are included (Classical, Club, Dance, Flat, Rock, Pop, and more). Pass `presets` in options to extend or override them.
+
+---
+
+## Options
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `bands` | `ReadonlyArray<EqBand>` | 10 standard frequencies + pre-gain | Initial band layout. Element 0 must be `{ frequency: 'Pre', gain }`. |
+| `preset` | `string` | `undefined` | Name of a built-in or custom preset to apply immediately on `use()`. |
+| `presets` | `ReadonlyArray<EqPreset>` | `undefined` | Additional or replacement presets merged into the catalogue. Built-ins remain unless overridden by name. |
+| `sliderValues` | `EqSliderValues` | `undefined` | Override min/max/step ranges for slider helper methods. Default ±12 dB for bands, −1 to +3 for pre-gain. |
+| `persistKey` | `string` | `undefined` | Storage key for automatic persistence. Band state, selected preset, and custom presets are saved on every change and restored on `use()`. |
+| `autoLoad` | `boolean` | `true` | Read persisted state on `use()`. Set to `false` to always start from `bands` / `preset` opts. |
+| `autoSave` | `boolean` | `true` when `persistKey` is set | Persist state after every `band()` / `preGain()` / `preset()` call. |
+| `smoothingTimeConstantSeconds` | `number` | `0.05` | Time constant (seconds) for `AudioParam.setTargetAtTime` gain ramps. Smaller = snappier; larger = silkier transitions. |
 
 ---
 
@@ -88,17 +105,30 @@ eq.addCustomPreset({
 
 ---
 
-## EQ change event
+## Events
+
+| Event | Payload | Description |
+| ----- | ------- | ----------- |
+| `ready` | `void` | Fired at end of `use()` once the filter chain is wired and any persisted state is restored. |
+| `band:changed` | `{ band: EqBand }` | Fired when a single band's gain changes. |
+| `preset:changed` | `{ name: string \| undefined }` | Fired when a preset is applied or cleared. `name` is `undefined` after `reset()`. |
+| `change` | `{ bands: EqBand[]; selectedPreset: string \| undefined }` | Aggregate event after any mutation — carries the full band snapshot. |
+| `saved` | `void` | Fired after state is successfully written to storage. |
 
 ```ts
-// Fires for every band change — carries the updated EqBand:
+// Fires for every band change:
 player.on('plugin:equalizer:band:changed', ({ band }) => {
   updateSlider(band);
 });
 
-// Fires after any mutation — carries the full band snapshot:
+// Fires after any mutation:
 player.on('plugin:equalizer:change', ({ bands, selectedPreset }) => {
   renderEqState(bands, selectedPreset);
+});
+
+// Fires when a preset is selected or cleared:
+player.on('plugin:equalizer:preset:changed', ({ name }) => {
+  highlightPreset(name);
 });
 ```
 

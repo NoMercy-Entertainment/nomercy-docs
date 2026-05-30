@@ -84,6 +84,37 @@ Every plugin must satisfy the conformance checklist in the [Plugin Standard](/no
 
 ---
 
+## Built-in kit plugin catalog
+
+These twelve plugins ship in `@nomercy-entertainment/nomercy-player-core`. None are registered automatically.
+
+| Plugin | What it does | Import |
+| --- | --- | --- |
+| `AudioGraphPlugin` | Creates and owns the `AudioContext` + signal chain. Required by all other audio plugins. | `@nomercy-entertainment/nomercy-player-core` |
+| `CanvasPlugin` | Mounts a shared `<canvas>` and runs the RAF render loop. Required by visualization plugins. | `@nomercy-entertainment/nomercy-player-core` |
+| `CastSenderPlugin` | Chromecast Web Sender SDK bridge — forwards player state to a Cast receiver and mirrors it back. | `@nomercy-entertainment/nomercy-player-core` |
+| `EqualizerPlugin` | 10-band parametric EQ with pre-gain, named presets, and persistence. Requires `AudioGraphPlugin`. | `@nomercy-entertainment/nomercy-player-core` |
+| `MixerPlugin` | Master gain (`GainNode`) + stereo pan (`StereoPannerNode`) with persistence. Requires `AudioGraphPlugin`. | `@nomercy-entertainment/nomercy-player-core` |
+| `SpectrumPlugin` | FFT analyser — emits `frame` events with frequency, waveform, and band-energy data. Requires `AudioGraphPlugin`. | `@nomercy-entertainment/nomercy-player-core` |
+| `VisualizationPlugin` | Abstract base class for canvas visualizations. Subclass and override `render(ctx, frame)`. Requires `CanvasPlugin` + `SpectrumPlugin`. | `@nomercy-entertainment/nomercy-player-core` |
+| `EmbedPlugin` | `postMessage` bridge between a host page and a player running inside an `<iframe>`. | `@nomercy-entertainment/nomercy-player-core` |
+| `KeyHandlerPlugin` | Keyboard binding router. Default bindings: Space, Arrow keys, `m`. Configurable scope and cooldown. | `@nomercy-entertainment/nomercy-player-core/plugins/key-handler` |
+| `MediaSessionPlugin` | Wires `navigator.mediaSession` — OS lock-screen controls, hardware media keys, Now Playing artwork. | `@nomercy-entertainment/nomercy-player-core/plugins/media-session` |
+| `MessagePlugin` | Toast notification overlay with transient, persistent, and queued modes. | `@nomercy-entertainment/nomercy-player-core/plugins/message` |
+| `TabLeaderPlugin` | Web Locks–based cross-tab election so only one tab plays at a time. | `@nomercy-entertainment/nomercy-player-core/plugins/tab-leader` |
+
+---
+
+## Plugin vs adapter — when to use which
+
+Use a **plugin** when you want to add behaviour: responding to events, managing audio nodes, drawing to a canvas, intercepting keyboard input. Plugins live inside the player lifecycle and are disposed automatically.
+
+Use an **adapter** (port swap) when you want to replace an infrastructure dependency: a different storage backend, a custom fetch implementation, a native realtime transport. Adapters are wired at `setup()` time and define what the kit uses internally, not what it does.
+
+A common pattern: write a plugin that reads from a custom storage backend you wired as an adapter. The plugin adds behaviour; the adapter changes where state lives.
+
+---
+
 ## Where to go next
 
 | Goal | Page |
@@ -92,5 +123,6 @@ Every plugin must satisfy the conformance checklist in the [Plugin Standard](/no
 | Browse all kit-shipped plugins | [Built-in Kit Plugins](/nomercy-player-kit/plugins-builtin) |
 | Write your own plugin | [Plugin Authoring](/nomercy-player-kit/plugin-authoring) |
 | Read the locked conformance standard | [Plugin Standard](/nomercy-player-kit/plugin-standard) |
+| Browse adapter ports | [Adapter Ports](/nomercy-player-kit/adapters) |
 | Browse video-player plugins | [Video Player section](/nomercy-video-player) |
 | Browse music-player plugins | [Music Player section](/nomercy-music-player) |

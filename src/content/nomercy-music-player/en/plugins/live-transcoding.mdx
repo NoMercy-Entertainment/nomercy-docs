@@ -1,48 +1,50 @@
 ---
 title: 'LiveTranscodingPlugin'
-description: 'Server-side live transcode integration with loader backpressure — roadmapped for v2.1.'
+description: 'Server-side live transcode integration with segment-ready gating and loader backpressure — roadmapped for v2.1.'
 draft: false
 ---
 
+{/* Source: packages/nomercy-music-player-v2/src/plugins/live-transcoding/index.ts */}
+
 # LiveTranscodingPlugin
 
-Server-coordinated live transcoding with segment-ready gating and loader backpressure. **Roadmapped for v2.1.** Calling `addPlugin(LiveTranscodingPlugin)` followed by `setup()` will cause `use()` to throw `NotImplementedError`.
+Server-coordinated live transcoding with segment-ready gating and loader backpressure. Gates playback until the transcoder has produced enough buffer and instructs the backend to pause segment fetching when the buffer is full.
+
+**Status: roadmapped for v2.1.** The plugin is exported so consumers can inspect the error and the public surface is reserved. Calling `addPlugin(LiveTranscodingPlugin)` followed by `setup()` causes `use()` to throw `NotImplementedError`.
 
 ```ts
 import { LiveTranscodingPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
 
+Plugin id: `'live-transcoding'`
+
+Do not register this plugin in production.
+
 ---
 
 ## Planned options
 
-```ts
-interface LiveTranscodingOptions {
-  wsUrl: string;
-  pollIntervalMs?: number;
-  resumeAheadSeconds?: number;
-  seekTimeoutMs?: number;
-}
-```
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `wsUrl` | `string` | — | Server endpoint that owns the transcoding job lifecycle. Required. |
+| `pollIntervalMs` | `number` | `undefined` | Optional polling fallback interval (ms) for environments without WebSocket support. |
+| `resumeAheadSeconds` | `number` | `undefined` | Seconds of buffer that must exist beyond `currentTime` before resuming playback after a stall. |
+| `seekTimeoutMs` | `number` | `undefined` | When seeking, maximum milliseconds to wait for the transcoder to reach the target position. |
 
 ---
 
 ## Planned events
 
-| Event                  | Payload                                                               |
-| ---------------------- | --------------------------------------------------------------------- |
-| `job:started`          | `{ jobId: string; sourceUrl: string }`                                |
-| `job:progress`         | `{ jobId: string; transcodedSeconds: number; totalSeconds?: number }` |
-| `job:ready-to-play`    | `{ jobId: string }`                                                   |
-| `job:error`            | `{ jobId: string; error: Error }`                                     |
-| `job:complete`         | `{ jobId: string }`                                                   |
-| `segment:ready`        | `{ time: number }`                                                    |
-| `backpressure:apply`   | `{ reason: 'buffer-full' \| 'encoder-stall' }`                        |
-| `backpressure:release` | `undefined`                                                           |
-| `unsupported`          | `{ reason: string }`                                                  |
+| Event | Payload | Description |
+| ----- | ------- | ----------- |
+| `job:started` | `{ jobId: string; sourceUrl: string }` | A transcoding job was created on the server. |
+| `job:progress` | `{ jobId: string; transcodedSeconds: number; totalSeconds?: number }` | Transcoding progress update. |
+| `job:ready-to-play` | `{ jobId: string }` | Enough segments are ready — playback can start. |
+| `job:error` | `{ jobId: string; error: Error }` | The transcoding job failed. |
+| `job:complete` | `{ jobId: string }` | All segments are available. |
+| `segment:ready` | `{ time: number }` | A new segment is available at `time` seconds. |
+| `backpressure:apply` | `{ reason: 'buffer-full' \| 'encoder-stall' }` | Loader fetching was paused. |
+| `backpressure:release` | `void` | Loader fetching resumed. |
+| `unsupported` | `{ reason: string }` | The server protocol or environment is unsupported. |
 
----
-
-## Status
-
-Not available. Do not register this plugin in production.
+The options and events documented here describe the planned v2.1 API and may change before release.

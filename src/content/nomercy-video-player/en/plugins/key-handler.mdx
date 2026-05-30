@@ -6,6 +6,8 @@ draft: false
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/key-handler/index.ts */}
 
+`KeyHandlerPlugin` is the video-player's keyboard binding layer. It subclasses the kit's base `KeyHandlerPlugin` and adds the full v1 binding set — playback, modifier-aware seeks, volume, chapters, subtitle/audio cycling, fullscreen, speed, frame advance, and TV color buttons. Register it on any deployment where keyboard control is needed; `DesktopUiPlugin` bundles it automatically, so register it separately only when building a custom UI without `DesktopUiPlugin`.
+
 ## Plugin id
 
 `'video-key-handler'`
@@ -40,6 +42,38 @@ The plugin binds the following groups by default:
 | Aspect ratio   | `a`, `BrowserFavorites` → `cycleAspectRatio()`                                      |
 | Stop           | `s`                                                                                 |
 | Help           | `?` → emits `'plugin:desktop-ui:shortcuts-toggle'`                                  |
+
+## Options
+
+`KeyHandlerPlugin` inherits `KeyHandlerOptions` from the kit base class. No video-specific options are added.
+
+```ts
+interface KeyHandlerOptions<P> {
+  /** Where the keydown listener is attached. Default 'document'. */
+  scope?: 'document' | 'container' | HTMLElement;
+  /** Extra bindings merged on top of the default groups. Same combo wins over the default. */
+  bindings?: Record<string, (player: P) => void>;
+  /** When false, default bindings are cleared before opts.bindings is applied. Default true. */
+  extend?: boolean;
+  /** Gate predicate — return false to suppress all key handling for that event. */
+  when?: (e: KeyboardEvent) => boolean;
+  /** Minimum milliseconds between consecutive fires of the same key. Default 300. */
+  cooldownMs?: number;
+  /** When true, hardware media keys (MediaPlay, MediaPause, etc.) are silently ignored. Default false. */
+  disableMediaControls?: boolean;
+}
+```
+
+| Option                 | Type                              | Default      | Description                                                              |
+| ---------------------- | --------------------------------- | ------------ | ------------------------------------------------------------------------ |
+| `scope`                | `'document' \| 'container' \| HTMLElement` | `'document'` | Where the keydown listener is attached                      |
+| `bindings`             | `Record<string, fn>`              | `{}`         | Additional combos merged on top of the video default groups              |
+| `extend`               | `boolean`                         | `true`       | `false` clears all defaults before `bindings` is applied                 |
+| `when`                 | `(e: KeyboardEvent) => boolean`   | —            | Return `false` to suppress all keys for that event                       |
+| `cooldownMs`           | `number`                          | `300`        | Minimum ms between consecutive fires of the same key                     |
+| `disableMediaControls` | `boolean`                         | `false`      | Suppress hardware media key handling (MediaPlay, MediaPause, etc.)       |
+
+The `disableControls` and `disableMediaControls` flags in `VideoPlayerConfig` are also respected — pass them in `setup()` rather than in the plugin options when the intent is to disable globally.
 
 ## Registration
 

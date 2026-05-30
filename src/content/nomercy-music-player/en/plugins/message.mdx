@@ -1,16 +1,22 @@
 ---
 title: 'MessagePlugin'
-description: "Cross-tab and cross-frame messaging — direct re-export of the kit's MessagePlugin."
+description: 'Toast and overlay-message surface — transient show/queue and persistent displayPersistent/removePersistent modes.'
 draft: false
 ---
 
+{/* Source: packages/nomercy-player-kit/src/plugins/message/index.ts (re-exported verbatim by music player) */}
+
 # MessagePlugin
 
-Cross-tab and cross-frame messaging. Direct re-export of the kit's `MessagePlugin` — no music-specific overrides.
+Toast and overlay-message surface for the player. UI plugins and consumers call `show('text')` to display transient notifications; the plugin handles timing and teardown automatically. Also supports persistent named overlays for blocking states such as an autoplay-blocked "Tap to play" prompt.
+
+This plugin is a direct re-export of the kit's `MessagePlugin` — no music-specific overrides.
 
 ```ts
 import { MessagePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
+
+Plugin id: `'message'`
 
 ---
 
@@ -20,8 +26,122 @@ import { MessagePlugin } from '@nomercy-entertainment/nomercy-music-player/plugi
 player.addPlugin(MessagePlugin);
 ```
 
+With options:
+
+```ts
+player.addPlugin(MessagePlugin, {
+  durationMs: 4000,
+  mountSelector: '#my-player-toast',
+});
+```
+
+---
+
+## Options
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `durationMs` | `number` | `3000` | Default display duration in milliseconds for transient toasts. Applies when `show()`, `displayMessage()`, or `queue()` items do not specify their own duration. |
+| `mountSelector` | `string` | `undefined` | CSS selector used to locate an existing element in which to mount the toast surface. When absent the plugin creates a `<div>` inside the player container. |
+
+---
+
+## Methods
+
+### `show(text, ms?)`
+
+```ts
+show(text: string, ms?: number): void
+```
+
+Display a transient toast. Any current toast is replaced immediately and its timer cancelled. The toast hides after `ms` milliseconds (default `3000`).
+
+### `hide()`
+
+```ts
+hide(): void
+```
+
+Hide the current transient toast and cancel any pending auto-hide timer.
+
+### `displayMessage(data, ms?)`
+
+```ts
+displayMessage(data: string | { text: string; durationMs?: number }, ms?: number): void
+```
+
+Structured alias for `show()`. Accepts a plain string or a `{ text, durationMs? }` object. Prefer `show()` for new call sites.
+
+### `queue(messages)`
+
+```ts
+queue(messages: ReadonlyArray<string | { text: string; durationMs?: number }>): void
+```
+
+Play a sequence of messages back-to-back, each displayed for its own duration. Calling `queue()` again or `clear()` cancels any in-flight sequence.
+
+### `clear()`
+
+```ts
+clear(): void
+```
+
+Cancel any in-flight `queue()`, hide the current toast, and reset all pending timers. Persistent messages are unaffected.
+
+### `displayPersistent(text, id)`
+
+```ts
+displayPersistent(text: string, id: string): void
+```
+
+Display a persistent overlay message that stays until `removePersistent(id)` is called. If a persistent message with the same `id` already exists its text is updated in place without re-creating the element.
+
+The element carries `role="status"` and `aria-live="polite"` for screen readers.
+
+### `removePersistent(id)`
+
+```ts
+removePersistent(id: string): void
+```
+
+Remove a persistent message by its `id`. No-ops when no message with that id exists.
+
+---
+
+## Accessibility
+
+The toast surface carries `role="status"` and `aria-live="polite"` so screen readers announce updates without stealing focus.
+
+---
+
+## Example
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { MessagePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+const player = nmMPlayer('main')
+  .addPlugin(MessagePlugin, { durationMs: 3000 })
+  .setup({ playlist: myTracks });
+
+const msg = player.getPlugin(MessagePlugin)!;
+
+// Simple toast:
+msg.show('Track added to queue');
+
+// Sequence:
+msg.queue([
+  'Shuffling playlist…',
+  { text: 'Done!', durationMs: 1500 },
+]);
+
+// Persistent "tap to play" prompt (autoplay blocked):
+msg.displayPersistent('Tap to start playback', 'autoplay-blocked');
+player.on('play', () => msg.removePersistent('autoplay-blocked'));
+```
+
 ---
 
 ## See also
 
-- [Player Kit — MessagePlugin](/nomercy-player-kit/plugins-builtin) — full options and event reference
+- [Player Kit — MessagePlugin](/nomercy-player-kit/plugins-builtin) — full kit plugin documentation

@@ -6,6 +6,8 @@ draft: false
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/cast-sender/index.ts */}
 
+`CastSenderPlugin` is the Chromecast/Google Cast sender for `nomercy-video-player`. Register it to add a Cast button to your player — it manages the full CAF session lifecycle, mirrors remote-player state back to the local event bus, and resumes local playback automatically when the Cast session ends.
+
 ## Plugin id
 
 `'cast-sender'`
@@ -41,14 +43,27 @@ The Google Cast SDK script must be loaded before the plugin's `use()` runs:
 
 ## Options
 
-`CastSenderOptions` is defined in `@nomercy-entertainment/nomercy-player-core`. Key fields:
+`CastSenderOptions` is defined in `@nomercy-entertainment/nomercy-player-core`.
 
-| Option                    | Type      | Default | Description                                                                        |
-| ------------------------- | --------- | ------- | ---------------------------------------------------------------------------------- |
-| `chromecastAppId`         | `string`  | —       | Chromecast receiver app ID. Defaults to the built-in NoMercy receiver app ID.      |
-| `resumeLocalOnDisconnect` | `boolean` | `true`  | Resume local playback after Cast disconnects, restoring the receiver's last position |
-| `enableAirPlay`           | `boolean` | `false` | Allow AirPlay sender on Safari                                                     |
-| `live`                    | `boolean` | `false` | Treat the stream as a live (unbounded) source                                      |
+```ts
+interface CastSenderOptions {
+  chromecastAppId?: string;
+  enableAirPlay?: boolean;
+  customReceiverNamespace?: string;
+  resumeLocalOnDisconnect?: boolean;
+  defaultContentType?: string;
+  live?: boolean;
+}
+```
+
+| Option                      | Type      | Default | Description                                                                        |
+| --------------------------- | --------- | ------- | ---------------------------------------------------------------------------------- |
+| `chromecastAppId`           | `string`  | —       | Chromecast receiver app ID. Leave unset to use the built-in NoMercy receiver.      |
+| `enableAirPlay`             | `boolean` | `false` | Allow AirPlay sender on Safari                                                     |
+| `customReceiverNamespace`   | `string`  | —       | Custom CAF namespace for receiver messages                                         |
+| `resumeLocalOnDisconnect`   | `boolean` | `true`  | Resume local playback after Cast disconnects, restoring the receiver's last position |
+| `defaultContentType`        | `string`  | `'video/mp4'` | Default MIME type when the playlist item has no `mime` field                 |
+| `live`                      | `boolean` | `false` | Treat the stream as a live (unbounded) source                                      |
 
 ## Events
 

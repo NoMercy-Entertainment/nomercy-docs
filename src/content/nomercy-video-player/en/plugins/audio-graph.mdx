@@ -4,7 +4,9 @@ description: 'The AudioGraphPlugin — Web Audio API graph access.'
 draft: false
 ---
 
-{/* Source: packages/nomercy-player-kit/src/plugins/audio-graph/index.ts — re-exported from nomercy-player-core */}
+{/* Source: packages/nomercy-player-kit/src/plugins/audio-graph/index.ts — re-exported verbatim from nomercy-video-player */}
+
+`AudioGraphPlugin` is the foundation for every Web Audio feature in the player. Register it before `EqualizerPlugin`, `MixerPlugin`, or `SpectrumPlugin` — it creates the `AudioContext`, wraps the backend's media element in a `MediaElementAudioSourceNode`, and owns the signal chain that downstream plugins extend. Without `AudioGraphPlugin`, the other Web Audio plugins are inert.
 
 ## Plugin id
 
@@ -64,6 +66,12 @@ interface AudioGraphOptions {
 }
 ```
 
+| Option        | Type                                                     | Default     | Description                                                                 |
+| ------------- | -------------------------------------------------------- | ----------- | --------------------------------------------------------------------------- |
+| `latencyHint` | `AudioContextLatencyCategory`                            | `'playback'` | Latency hint for the `AudioContext` — `'playback'` for video, `'interactive'` for low-latency |
+| `fftSize`     | `256 \| 512 \| 1024 \| 2048 \| 4096 \| 8192 \| 16384`  | `2048`      | FFT size for the shared `AnalyserNode` (higher = finer frequency resolution) |
+| `smoothing`   | `number`                                                 | `0.8`       | Smoothing time constant 0–1 for the analyser; higher values lag more        |
+
 ## Events
 
 ```ts
@@ -78,6 +86,13 @@ interface AudioGraphEvents {
   unsupported: { reason: string };
 }
 ```
+
+| Event              | Payload                    | Description                                                            |
+| ------------------ | -------------------------- | ---------------------------------------------------------------------- |
+| `'context:ready'`  | `{ sampleRate: number }`   | `AudioContext` is live and the baseline chain is connected             |
+| `'context:closed'` | `void`                     | Context closed on dispose or browser suspension                        |
+| `'chain:rebuilt'`  | `void`                     | Effect list changed; downstream plugins re-link their own nodes        |
+| `'unsupported'`    | `{ reason: string }`       | `AudioContext` unavailable in this environment; plugin is inert        |
 
 ## Registration
 

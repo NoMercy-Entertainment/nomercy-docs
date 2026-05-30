@@ -6,6 +6,8 @@ draft: false
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/octopus/index.ts */}
 
+`OctopusPlugin` provides high-fidelity ASS/SSA subtitle rendering via a WASM build of libass. Register it instead of (or alongside) `SubtitleOverlayPlugin` when your media library includes anime or any content with styled `.ass`/`.ssa` subtitle tracks. The renderer loads lazily on first use so it does not increase your initial bundle.
+
 ## Plugin id
 
 `'octopus'`
@@ -60,6 +62,19 @@ interface OctopusOptions {
   debug?: boolean;
 }
 ```
+
+| Option             | Type                                        | Default       | Description                                                              |
+| ------------------ | ------------------------------------------- | ------------- | ------------------------------------------------------------------------ |
+| `workerUrl`        | `string`                                    | bundled path  | URL for the modern WASM worker script                                    |
+| `legacyWorkerUrl`  | `string`                                    | —             | URL for the legacy (non-WASM) worker for browsers without WebAssembly    |
+| `fallbackFont`     | `string`                                    | —             | Font URL used when a requested font is not in the item's `fonts` list    |
+| `fonts`            | `string[]`                                  | `[]`          | Static font URLs preloaded for every item (supplements per-item fonts)   |
+| `targetFps`        | `number`                                    | —             | Renderer target FPS; leave unset to let the library choose               |
+| `renderMode`       | `'wasm-blend' \| 'js-blend' \| 'lossy'`     | `'wasm-blend'` | Render quality/performance trade-off mode                               |
+| `lazyFileLoading`  | `boolean`                                   | `false`       | Fetch subtitle chunks lazily — useful for very large ASS files           |
+| `prescaleFactor`   | `number`                                    | —             | Internal scaler ratio; leave unset for default scaling                   |
+| `renderAhead`      | `number`                                    | `10`          | Frames pre-computed ahead of `currentTime`; higher = smoother heavy effects |
+| `debug`            | `boolean`                                   | `false`       | Enable debug logging in the libass WASM worker                           |
 
 ## Registration
 

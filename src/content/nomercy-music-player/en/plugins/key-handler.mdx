@@ -1,16 +1,20 @@
 ---
 title: 'KeyHandlerPlugin'
-description: 'Keyboard shortcuts for music transport — space, arrows, m, n, p, r, s.'
+description: 'Keyboard shortcuts for music transport — options, key bindings table (space, arrows, m, n, p, r, s), and scope configuration.'
 draft: false
 ---
 
+{/* Source: packages/nomercy-music-player-v2/src/plugins/key-handler/index.ts + packages/nomercy-player-kit/src/plugins/key-handler/index.ts */}
+
 # KeyHandlerPlugin
 
-Music-specific keyboard handler. Inherits all kit defaults and adds music-specific bindings for track navigation, repeat, and shuffle.
+Music-specific keyboard handler. Inherits all kit defaults (space, arrow keys, m) and adds music-specific bindings for track navigation, repeat, and shuffle.
 
 ```ts
 import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
+
+Plugin id: `'key-handler'`
 
 ---
 
@@ -20,28 +24,75 @@ import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-music-player/pl
 const player = nmMPlayer('main').addPlugin(KeyHandlerPlugin).setup({ playlist: myTracks });
 ```
 
+With options:
+
+```ts
+player.addPlugin(KeyHandlerPlugin, {
+  scope: 'document',
+  cooldownMs: 300,
+});
+```
+
+---
+
+## Options
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `scope` | `'document' \| 'container' \| HTMLElement` | `'document'` | Where the `keydown` listener is attached. `'document'` listens globally. `'container'` listens only when the player container or a child has focus. Pass an `HTMLElement` to use a custom target. |
+| `bindings` | `Record<string, (player) => void>` | `{}` | Extra bindings merged on top of the defaults. Key is a combo string (`'Space'`, `'ctrl+k'`, `'shift+ArrowLeft'`). When the same combo appears in defaults and here, this map wins. |
+| `extend` | `boolean` | `true` | When `false`, all default bindings are cleared before `bindings` is applied. Use to build a fully custom binding set. |
+| `when` | `(e: KeyboardEvent) => boolean` | `undefined` | Gate predicate. Return `false` to suppress all key handling for that event — useful during modals or chat overlays. |
+| `cooldownMs` | `number` | `300` | Minimum milliseconds between consecutive fires of the same key. Prevents rapid-fire seeks from a held key. Set to `0` to disable throttling. |
+| `disableMediaControls` | `boolean` | `false` | When `true`, W3C hardware media keys (`MediaPlay`, `MediaPause`, `MediaStop`, `MediaTrackNext`, `MediaTrackPrevious`, etc.) are silently ignored. |
+
 ---
 
 ## Key bindings
 
-| Key          | Action                               |
-| ------------ | ------------------------------------ |
-| `Space`      | Toggle play/pause                    |
-| `ArrowRight` | Skip forward                         |
-| `ArrowLeft`  | Skip backward                        |
-| `ArrowUp`    | Volume up                            |
-| `ArrowDown`  | Volume down                          |
-| `m`          | Toggle mute                          |
-| `n`          | Next track                           |
-| `p`          | Previous track                       |
-| `r`          | Cycle repeat (off → all → one → off) |
-| `s`          | Toggle shuffle (on/off)              |
+### Kit defaults (inherited)
 
-The kit's base bindings (space, arrows, m) are inherited from `BaseKeyHandler`. The music-specific keys (n, p, r, s) are added by this subclass.
+| Key | Action |
+| --- | ------ |
+| `Space` | Toggle play/pause |
+| `ArrowRight` | Forward 5 seconds |
+| `ArrowLeft` | Rewind 5 seconds |
+| `ArrowUp` | Volume up |
+| `ArrowDown` | Volume down |
+| `m` | Toggle mute |
+
+### Music-specific bindings (added by this subclass)
+
+| Key | Action |
+| --- | ------ |
+| `n` | Next track |
+| `p` | Previous track |
+| `r` | Cycle repeat (off → all → one → off) |
+| `s` | Toggle shuffle on/off |
+
+---
+
+## Example
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+const player = nmMPlayer('main')
+  .addPlugin(KeyHandlerPlugin, {
+    scope: 'container',
+    bindings: {
+      // Add a custom shortcut:
+      'l': (p) => { p.forward(30); },
+      'j': (p) => { p.rewind(10); },
+    },
+  })
+  .setup({ playlist: myTracks });
+```
 
 ---
 
 ## See also
 
-- [Player Kit — KeyHandlerPlugin](/nomercy-player-kit/plugins-builtin) — base binding interface, custom binding registration
+- [Player Kit — KeyHandlerPlugin](/nomercy-player-kit/plugins-builtin) — base binding interface, `bind()`, full combo format
 - [MusicUiPlugin](/nomercy-music-player/plugins/music-ui) — visual transport controls

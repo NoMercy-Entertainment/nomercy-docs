@@ -4,46 +4,48 @@ description: 'Synchronized multi-client playback — roadmapped for v2.1. Callin
 draft: false
 ---
 
+{/* Source: packages/nomercy-music-player-v2/src/plugins/group-listening/index.ts */}
+
 # GroupListeningPlugin
 
-Synchronized multi-client listening (NoMercy Connect watch-party parity for music). This plugin is **roadmapped for v2.1** and is not yet functional. Calling `addPlugin(GroupListeningPlugin)` followed by `setup()` will cause `use()` to throw `NotImplementedError`.
+Synchronized multi-client listening (NoMercy Connect watch-party parity for music). Server-coordinated lockstep transport with drift correction and DJ-role election.
+
+**Status: roadmapped for v2.1.** The plugin is exported so consumers can inspect the error and the public surface is reserved. Calling `addPlugin(GroupListeningPlugin)` followed by `setup()` causes `use()` to throw `NotImplementedError`.
 
 ```ts
 import { GroupListeningPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
 
+Plugin id: `'group-listening'`
+
+Do not register this plugin in production.
+
 ---
 
 ## Planned options
 
-```ts
-interface GroupListeningOptions {
-  wsUrl: string;
-  sessionId?: string;
-  driftThresholdMs?: number; // default 80
-  maxRateAdjust?: number; // default 0.05 (±5%)
-  canControl?: boolean; // DJ role, default true
-}
-```
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `wsUrl` | `string` | — | Server endpoint for room/session sync. Required. |
+| `sessionId` | `string` | `undefined` | Optional room/session id this client joins. |
+| `driftThresholdMs` | `number` | `80` | Acceptable drift in milliseconds before correcting. |
+| `maxRateAdjust` | `number` | `0.05` | Max playback-rate adjustment factor when correcting drift (±5%). |
+| `canControl` | `boolean` | `true` | Whether this client can issue control actions (DJ role). |
 
 ---
 
 ## Planned events
 
-| Event               | Payload                                                                                           |
-| ------------------- | ------------------------------------------------------------------------------------------------- |
-| `session:joined`    | `{ sessionId: string; participants: number }`                                                     |
-| `session:left`      | `undefined`                                                                                       |
-| `sync:applied`      | `{ source: 'remote'; action: 'play' \| 'pause' \| 'seek' \| 'next' \| 'previous'; from: string }` |
-| `sync:broadcast`    | `{ action: string; payload: unknown }`                                                            |
-| `sync:drift`        | `{ deltaMs: number }`                                                                             |
-| `sync:participants` | `{ count: number }`                                                                               |
-| `role:dj-acquired`  | `{ id: string }`                                                                                  |
-| `role:dj-lost`      | `undefined`                                                                                       |
-| `unsupported`       | `{ reason: string }`                                                                              |
+| Event | Payload | Description |
+| ----- | ------- | ----------- |
+| `session:joined` | `{ sessionId: string; participants: number }` | Successfully joined a session. |
+| `session:left` | `void` | Left the session. |
+| `sync:applied` | `{ source: 'remote'; action: 'play' \| 'pause' \| 'seek' \| 'next' \| 'previous'; from: string }` | A remote sync action was applied locally. |
+| `sync:broadcast` | `{ action: string; payload: unknown }` | A control action was broadcast to the session. |
+| `sync:drift` | `{ deltaMs: number }` | Clock drift was detected and is being corrected. |
+| `sync:participants` | `{ count: number }` | Participant count changed. |
+| `role:dj-acquired` | `{ id: string }` | This client acquired the DJ role. |
+| `role:dj-lost` | `void` | This client lost the DJ role. |
+| `unsupported` | `{ reason: string }` | Server protocol or environment is unsupported. |
 
----
-
-## Status
-
-Not available. Do not register this plugin in production. The options and events documented here describe the planned API and may change before the v2.1 release.
+The options and events documented here describe the planned v2.1 API and may change before release.

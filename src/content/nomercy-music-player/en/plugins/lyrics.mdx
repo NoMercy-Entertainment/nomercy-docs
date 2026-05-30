@@ -1,8 +1,10 @@
 ---
 title: 'LyricsPlugin'
-description: 'LRC lyric sync with CueTracker — fetchLyrics(), current(), all(), clear(), and the line/lineEnter/lineExit/loaded events.'
+description: 'LRC lyric sync with CueTracker — fetchLyrics(), current(), all(), clear(), and line/lineEnter/lineExit events.'
 draft: false
 ---
+
+{/* Source: packages/nomercy-music-player-v2/src/plugins/lyrics/index.ts */}
 
 # LyricsPlugin
 
@@ -11,6 +13,8 @@ Synced-lyrics plugin. On every `current` event, resolves the track's `lyricsUrl`
 ```ts
 import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
+
+Plugin id: `'lyrics'`
 
 ---
 
@@ -33,24 +37,10 @@ player.addPlugin(LyricsPlugin, {
 
 ## Options
 
-```ts
-interface LyricsOptions {
-  getLyricsUrl?: (track: MusicPlaylistItem) => string | undefined;
-  autoFetch?: boolean;
-}
-```
-
-### `getLyricsUrl`
-
-Custom resolver. Receives the current `MusicPlaylistItem` and returns a URL string or `undefined`. When provided, this takes precedence over `track.lyricsUrl`.
-
-Use this when your lyrics are stored under a URL pattern derived from the track ID or when you need to sign the URL before fetching.
-
-### `autoFetch`
-
-Whether to fetch lyrics automatically on every `current` event. Default: `true`.
-
-Set to `false` when you want manual control via `fetchLyrics(url)`.
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `getLyricsUrl` | `(track: MusicPlaylistItem) => string \| undefined` | `undefined` | Custom resolver. When provided, takes precedence over `track.lyricsUrl`. Use when lyrics are stored under a URL pattern derived from the track id or when you need to sign the URL. |
+| `autoFetch` | `boolean` | `true` | Automatically fetch lyrics on every `current` event. Set to `false` when you want manual control via `fetchLyrics(url)`. |
 
 ---
 
@@ -148,29 +138,6 @@ Fires when a cue becomes active. Mirrors the `CueTracker` `enter` event.
 
 Fires when a cue goes inactive. Use to dim or remove highlight from the previous line.
 
-### `loaded`
-
-```ts
-'loaded': undefined
-```
-
-Fires after a successful fetch and parse. By this point, `all()` returns the full cue list and `current()` returns the active line if playback is already mid-track.
-
-### `enabled`
-
-```ts
-'enabled': undefined
-```
-
-Fires when the plugin is enabled.
-
-### `disabled`
-
-```ts
-'disabled': undefined
-```
-
-Fires when the plugin is disabled.
 
 ---
 
@@ -221,12 +188,14 @@ const player = nmMPlayer('main')
 
 const lyricsEl = document.getElementById('lyrics')!;
 
-// Render the full lyric sheet when loaded:
-player.on('plugin:lyrics:loaded', () => {
-  const cues = player.getPlugin(LyricsPlugin)!.all();
-  lyricsEl.innerHTML = cues
-    .map((cue, i) => `<p data-index="${i}">${cue.payload.text}</p>`)
-    .join('');
+// Render the full lyric sheet when the first line fires (lyrics are ready):
+player.on('plugin:lyrics:lineEnter', () => {
+  if (lyricsEl.children.length === 0) {
+    const cues = player.getPlugin(LyricsPlugin)!.all();
+    lyricsEl.innerHTML = cues
+      .map((cue, index) => `<p data-index="${index}">${cue.payload.text}</p>`)
+      .join('');
+  }
 });
 
 // Highlight active line:

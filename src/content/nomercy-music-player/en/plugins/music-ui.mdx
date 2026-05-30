@@ -4,6 +4,8 @@ description: 'Built-in music transport UI overlay — album art, track info, see
 draft: false
 ---
 
+{/* Source: packages/nomercy-music-player-v2/src/plugins/music-ui/index.ts */}
+
 # MusicUiPlugin
 
 Plugin-driven transport UI overlay for `NMMusicPlayer`. Mounts a self-contained HTML overlay inside the kit-managed `.nomercymusicplayer` container. State classes on the container (`.playing`, `.paused`, `.muted`, `.buffering`) are applied by the kit automatically.
@@ -11,6 +13,8 @@ Plugin-driven transport UI overlay for `NMMusicPlayer`. Mounts a self-contained 
 ```ts
 import { MusicUiPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
+
+Plugin id: `'music-ui'`
 
 ---
 
@@ -39,54 +43,16 @@ player.addPlugin(MusicUiPlugin, {
 
 ## Options
 
-```ts
-interface MusicUiOptions {
-  showAlbumArt?: boolean;
-  showTrackInfo?: boolean;
-  showProgress?: boolean;
-  showVolume?: boolean;
-  showShuffle?: boolean;
-  showRepeat?: boolean;
-  showSpeed?: boolean;
-  volumeSlider?: 'horizontal' | 'vertical' | 'auto';
-}
-```
-
-### `showAlbumArt`
-
-Show the album art section. Default: `true`.
-
-### `showTrackInfo`
-
-Show the title / artist / album block. Default: `true`.
-
-### `showProgress`
-
-Show the progress / seek bar row with current time and duration. Default: `true`.
-
-### `showVolume`
-
-Show the volume button and slider. Default: `true`.
-
-### `showShuffle`
-
-Show the shuffle toggle button. Default: `true`.
-
-### `showRepeat`
-
-Show the repeat mode button. Default: `true`.
-
-### `showSpeed`
-
-Show the playback-speed button. Default: `false`.
-
-### `volumeSlider`
-
-Volume slider orientation:
-
-- `'horizontal'` — always-visible inline slider
-- `'vertical'` — popup slider above the mute button, toggle on click
-- `'auto'` — vertical when width ≤ 520 px or on a touch-only device (default)
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `showAlbumArt` | `boolean` | `true` | Show the album art section. |
+| `showTrackInfo` | `boolean` | `true` | Show the title / artist / album block. |
+| `showProgress` | `boolean` | `true` | Show the progress / seek bar row with current time and duration. |
+| `showVolume` | `boolean` | `true` | Show the volume button and slider. |
+| `showShuffle` | `boolean` | `true` | Show the shuffle toggle button. |
+| `showRepeat` | `boolean` | `true` | Show the repeat mode button. |
+| `showSpeed` | `boolean` | `false` | Show the playback-speed button. Most music listeners do not want speed control; opt in explicitly. |
+| `volumeSlider` | `'horizontal' \| 'vertical' \| 'auto'` | `'auto'` | Volume slider orientation. `'horizontal'` — always-visible inline slider. `'vertical'` — popup slider above the mute button, toggled on click. `'auto'` — vertical when container width ≤ 520 px or on a touch-only device. |
 
 ---
 
@@ -95,21 +61,32 @@ Volume slider orientation:
 ```
 .nmmusic-ui
   ├─ .nmmusic-art
+  │   ├─ img.nmmusic-art-img
+  │   └─ .nmmusic-art-placeholder
   ├─ .nmmusic-track-info
+  │   ├─ p.nmmusic-track-title
+  │   ├─ p.nmmusic-track-artist
+  │   └─ p.nmmusic-track-album
   ├─ .nmmusic-progress-row
-  │   ├─ .nmmusic-time.nmmusic-current-time
+  │   ├─ span.nmmusic-time.nmmusic-current-time
   │   ├─ .nmmusic-seek-bar [role=slider]
   │   │   ├─ .nmmusic-seek-buffer
   │   │   ├─ .nmmusic-seek-fill
   │   │   └─ .nmmusic-seek-thumb
-  │   └─ .nmmusic-time.nmmusic-duration-time
+  │   └─ span.nmmusic-time.nmmusic-duration-time
   └─ .nmmusic-controls-row
-      ├─ .nmmusic-btn[data-action=shuffle]
-      ├─ .nmmusic-btn[data-action=previous]
+      ├─ .nmmusic-btn[data-action=shuffle]    (priority 3)
+      ├─ .nmmusic-btn[data-action=previous]   (priority 2)
       ├─ .nmmusic-btn.nmmusic-play-btn
-      ├─ .nmmusic-btn[data-action=next]
-      ├─ .nmmusic-btn[data-action=repeat]
+      ├─ .nmmusic-btn[data-action=next]       (priority 2)
+      ├─ .nmmusic-btn[data-action=repeat]     (priority 3)
+      ├─ .nmmusic-btn.nmmusic-speed-btn       (hidden unless showSpeed: true)
       └─ .nmmusic-volume-group
+          ├─ .nmmusic-btn[data-action=mute]
+          ├─ input.nmmusic-vol-slider
+          └─ .nmmusic-vol-slider-vertical     (vertical mode popup)
+              ├─ input.nmmusic-vol-slider-vertical-input
+              └─ button.nmmusic-vol-popup-mute
 ```
 
 Override the visual appearance via CSS targeting these class names. The plugin injects minimal default styles — you can override any property without specificity fights.
@@ -130,14 +107,13 @@ Fires when the user drags or clicks the seek bar. `time` is the target position 
 
 ## Responsive priority
 
-Controls collapse at narrow widths via CSS container queries:
+Controls collapse at narrow widths via CSS container queries (lower number = higher priority = visible longer):
 
-| Priority       | Controls        |
-| -------------- | --------------- |
-| Always visible | Play/pause      |
-| Priority 2     | Previous, Next  |
-| Priority 3     | Shuffle, Repeat |
-| Priority 4     | Volume          |
+| `data-priority` | Controls | Behaviour |
+| --------------- | -------- | --------- |
+| `0` (none) | Play/pause, mute | Always visible |
+| `2` | Previous, Next | Hide at narrower widths |
+| `3` | Shuffle, Repeat, Speed | Hide at narrowest widths |
 
 ---
 

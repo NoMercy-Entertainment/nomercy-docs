@@ -4,6 +4,8 @@ description: 'Full method table for IAudioBackend — lifecycle, transport, time
 draft: false
 ---
 
+{/* Source: packages/nomercy-music-player-v2/src/adapters/audio-backend/IAudioBackend.ts */}
+
 # IAudioBackend
 
 Concrete contract every audio backend implements. The player calls these methods; plugins tap `outputNode()` and `analyserSource()` to build effect chains.
@@ -350,13 +352,15 @@ Read or write the secondary's gain (0–1). Returns 0 when no secondary is alloc
 ### `on(event, fn)`
 
 ```ts
-on(event: BackendEvent, fn: (data?: any) => void): void
-off(event: BackendEvent, fn: (data?: any) => void): void
+on<E extends BackendEvent>(event: E, fn: (data?: BackendEventPayload[E]) => void): void
+off<E extends BackendEvent>(event: E, fn: (data?: BackendEventPayload[E]) => void): void
 ```
 
-Backend events are forwarded to the player's event bus by `_wireBackend`. You typically subscribe to player-level events (`player.on(...)`) rather than backend-level events directly.
+Backend events are forwarded to the player's event bus by the player's wiring layer. Subscribe to player-level events (`player.on(...)`) rather than backend-level events directly.
 
 `BackendEvent` values: `'loadstart' | 'loadedmetadata' | 'canplay' | 'play' | 'playing' | 'pause' | 'ended' | 'timeupdate' | 'waiting' | 'stalled' | 'ratechange' | 'encrypted' | 'error' | 'backend:loading' | 'backend:loaded'`
+
+`backend:loading` payload: `{ url: string; kind: AudioBackendKind }`. `backend:loaded` payload: `{ url: string; kind: AudioBackendKind; duration: number }`. All DOM-bridge events carry the original `Event` object.
 
 ---
 

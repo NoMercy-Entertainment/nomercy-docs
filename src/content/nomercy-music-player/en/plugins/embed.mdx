@@ -1,16 +1,22 @@
 ---
 title: 'EmbedPlugin'
-description: "iframe embed and postMessage control — direct re-export of the kit's EmbedPlugin."
+description: 'iframe embed and postMessage bridge — inbound nm:command dispatch and outbound nm:event forwarding. Options, commands, events, and extension hooks.'
 draft: false
 ---
 
+{/* Source: packages/nomercy-player-kit/src/plugins/embed/index.ts (re-exported verbatim by music player) */}
+
 # EmbedPlugin
 
-Iframe embed and `postMessage` control surface. This is a direct re-export of the kit's `EmbedPlugin` — no music-specific overrides.
+Cross-origin embed bridge. Handles the full `postMessage` protocol between a host page and a player running in an `<iframe>`. Listens on `window` for inbound `nm:command` messages, validates the origin, and dispatches them to the player. Subscribes to player events and forwards them to the host page as `nm:event` messages.
+
+This plugin is a direct re-export of the kit's `EmbedPlugin` — no music-specific overrides.
 
 ```ts
 import { EmbedPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
+
+Plugin id: `'embed'`
 
 ---
 
@@ -20,8 +26,145 @@ import { EmbedPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins
 player.addPlugin(EmbedPlugin);
 ```
 
+With options:
+
+```ts
+player.addPlugin(EmbedPlugin, {
+  allowedOrigins: ['https://mysite.com'],
+  forwardEvents: ['play', 'pause', 'ended', 'time'],
+});
+```
+
+---
+
+## Options
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `allowedOrigins` | `string \| string[]` | `[]` | Allowed origin(s) for inbound `nm:command` messages. `'*'` accepts any origin (development only). An empty list — or when omitted — rejects all inbound commands. Prefer an explicit list in production. |
+| `forwardEvents` | `ReadonlyArray<'ready' \| 'play' \| 'pause' \| 'ended' \| 'time' \| 'volume' \| 'mute' \| 'error'>` | `['ready','play','pause','ended','time','volume','mute']` | Player event names to forward to the host page as `nm:event` postMessages. |
+| `applyIframeTweaks` | `boolean` | `true` when inside a nested browsing context | Apply iframe-appropriate UI adjustments. Defaults to `true` when the player detects it is inside an `<iframe>`. |
+
+---
+
+## Inbound commands (host → embed)
+
+The host page sends commands as `postMessage` objects of type `EmbedCommand`:
+
+| `action` | Extra fields | Description |
+| -------- | ------------ | ----------- |
+| `'play'` | — | Calls `player.play()` |
+| `'pause'` | — | Calls `player.pause()` |
+| `'stop'` | — | Calls `player.stop()` |
+| `'seek'` | `time: number` | Calls `player.currentTime(time)` |
+| `'volume'` | `level: number` | Calls `player.volume(level)` |
+| `'mute'` | — | Calls `player.mute()` |
+| `'unmute'` | — | Calls `player.unmute()` |
+| `'next'` | — | Calls `player.next()` |
+| `'previous'` | — | Calls `player.previous()` |
+
+All commands share the shape `{ type: 'nm:command', action: '...' }`.
+
+---
+
+## Outbound events (embed → host)
+
+The plugin forwards selected player events as `{ type: 'nm:event', name: '...', ... }` messages. All forwarded events share the `type: 'nm:event'` envelope:
+
+| `name` | Additional fields | Description |
+| ------ | ----------------- | ----------- |
+| `'ready'` | — | Player is ready to play |
+| `'play'` | — | Playback started |
+| `'pause'` | — | Playback paused |
+| `'ended'` | — | Track ended |
+| `'time'` | `time: number; duration: number` | Periodic time update |
+| `'volume'` | `level: number` | Volume changed |
+| `'mute'` | `muted: boolean` | Mute state changed |
+| `'error'` | `code: string; severity: string; message?: string` | Player error |
+
+---
+
+## Required `<iframe>` attributes
+
+```html
+<iframe
+  src="https://player.mysite.com/embed"
+  allow="autoplay; fullscreen; picture-in-picture; encrypted-media;
+         accelerometer; gyroscope; web-share; clipboard-write"
+  allowfullscreen
+  loading="lazy"
+></iframe>
+```
+
+`autoplay` is load-bearing: without it `MediaSession` never activates and OS-level controls (lock screen, Bluetooth) will not appear even if `MediaSessionPlugin` is registered.
+
+---
+
+## Methods
+
+### `sendToHost(message)`
+
+```ts
+sendToHost(message: EmbedEventMessage): void
+```
+
+Send a structured event message to the host page via `window.parent.postMessage`. When exactly one origin is listed in `allowedOrigins`, the message is pinned to that origin. Swallows cross-origin `DOMException`.
+
+### `allowedOrigins()`
+
+```ts
+allowedOrigins(): readonly string[]
+allowedOrigins(origins: string | string[]): void
+```
+
+Read or update the allowed-origins list at runtime. Mutations do not affect in-flight message validation until the next message arrives.
+
+---
+
+## Host page example
+
+```js
+// Host page:
+const iframe = document.getElementById('music-player');
+
+// Send a command:
+iframe.contentWindow.postMessage(
+  { type: 'nm:command', action: 'play' },
+  'https://player.mysite.com',
+);
+
+// Receive events:
+window.addEventListener('message', (event) => {
+  if (event.origin !== 'https://player.mysite.com') return;
+  if (event.data?.type === 'nm:event') {
+    console.log('Player event:', event.data.name, event.data);
+  }
+});
+```
+
+---
+
+## Embedded player example
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { EmbedPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+const player = nmMPlayer('main')
+  .addPlugin(EmbedPlugin, {
+    allowedOrigins: ['https://mysite.com'],
+  })
+  .setup({ playlist: myTracks });
+```
+
+---
+
+## Security
+
+When exactly one origin is listed in `allowedOrigins`, outbound postMessages are pinned to that origin. When multiple are listed or `'*'` is used, outbound messages use `'*'` as the target. Always pin to a single origin in production.
+
 ---
 
 ## See also
 
-- [Player Kit — EmbedPlugin](/nomercy-player-kit/plugins-builtin) — full options, commands, and event reference
+- [Player Kit — EmbedPlugin](/nomercy-player-kit/plugins-builtin) — extension hooks: `handleCommand()`, `formatEvent()`, `isOriginAllowed()`

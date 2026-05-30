@@ -10,6 +10,8 @@ draft: false
 
 The kit ships twelve opt-in plugins. None are registered automatically — add only what you need. Eight are re-exported from the main `@nomercy-entertainment/nomercy-player-core` barrel. Four use dedicated subpath imports.
 
+Each plugin entry below follows the same shape: what it does, its plugin id, import path, options table (every field from the source `Options` interface), events table, a registration example, and public methods where the plugin exposes them.
+
 ---
 
 ## Main barrel exports
@@ -18,84 +20,210 @@ Import from `@nomercy-entertainment/nomercy-player-core`.
 
 ### AudioGraphPlugin
 
-**Import:** `import { AudioGraphPlugin, audioGraphPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+**Plugin id:** `'audio-graph'` | **Import:** `import { AudioGraphPlugin, audioGraphPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
-Foundation plugin that owns the Web Audio signal chain. Every other audio plugin in the kit (EqualizerPlugin, SpectrumPlugin, VisualizationPlugin, MixerPlugin) requires this one to be registered first.
+Foundation plugin that owns the Web Audio signal chain. Every other audio plugin in the kit (`EqualizerPlugin`, `SpectrumPlugin`, `VisualizationPlugin`, `MixerPlugin`) requires this one to be registered first.
 
-On `use()` it creates (or reuses) an `AudioContext`, wraps the backend's media element in a `MediaElementAudioSourceNode`, and wires the baseline chain: `source → destination`. Subsequent plugins extend the chain via `insertEffect()`.
+On `use()` it creates (or reuses) an `AudioContext`, wraps the backend's media element in a `MediaElementAudioSourceNode`, and wires the baseline chain: `source → destination`. Subsequent plugins extend the chain via `insertEffect()`. The chain topology is:
+
+```
+[media element / backend output]
+  └─ source node
+      ├─ (parallel tap) → shared AnalyserNode   (read by SpectrumPlugin)
+      ├─ preEffects[0..n]                        (e.g. EQ BiquadFilters)
+      └─ postEffects[0..n]                       (e.g. MixerPlugin gain/pan)
+          └─ AudioContext.destination
+```
 
 **Options (`AudioGraphOptions`):**
 
-| Field | Type | Default | Description |
+| Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `latencyHint` | `AudioContextLatencyCategory` | `'playback'` | Context latency hint |
-| `fftSize` | `256 \| 512 \| ... \| 16384` | `2048` | FFT size for the shared analyser (1024 bins) |
-| `smoothing` | `number` | `0.8` | Smoothing time constant 0–1 |
+| `latencyHint` | `AudioContextLatencyCategory` | `'playback'` | Hint passed to `new AudioContext({ latencyHint })`. Use `'interactive'` when round-trip latency matters (e.g. live instruments). |
+| `fftSize` | `256 \| 512 \| 1024 \| 2048 \| 4096 \| 8192 \| 16384` | `2048` | FFT size for the shared `AnalyserNode` tapped by `SpectrumPlugin`. Higher = finer frequency resolution, lower time resolution. |
+| `smoothing` | `number` | `0.8` | Smoothing time constant (0–1) for the shared analyser. Higher values make spectrum output lag behind transients. |
 
 **Events (`AudioGraphEvents`):**
 
 | Event | Payload | When |
 | --- | --- | --- |
-| `context:ready` | `{ sampleRate }` | AudioContext created and chain wired |
-| `context:closed` | `void` | Context closed (dispose or browser suspend) |
-| `chain:rebuilt` | `void` | Chain reconnected after an effect insert/remove |
-| `unsupported` | `{ reason }` | Web Audio not available |
+| `context:ready` | `{ sampleRate: number }` | `AudioContext` created and baseline chain wired |
+| `context:closed` | `void` | Context closed on dispose or browser suspend |
+| `chain:rebuilt` | `void` | Chain reconnected after an effect insert or remove |
+| `unsupported` | `{ reason: string }` | `AudioContext` not available; plugin will not activate |
+
+**Registration example:**
+
+```ts
+import { AudioGraphPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+player.addPlugin(AudioGraphPlugin, { latencyHint: 'playback', fftSize: 2048 });
+```
+
+**Public methods:**
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `context()` | `() => AudioContext` | Returns the player's `AudioContext`. Creates one if called before `use()`. |
+| `analyserSource()` | `() => AnalyserNode` | Returns the shared `AnalyserNode` tapped parallel to the source. Created on first call and reused. |
+| `outputNode()` | `() => AudioNode` | Returns the last node in the effect chain, wired directly to `destination`. |
+| `insertEffect()` | `(node: AudioNode, position?: 'pre' \| 'post') => AudioNode` | Appends an effect node and triggers a chain rebuild. `'pre'` inserts before post-effects (e.g. EQ); `'post'` is default. |
+| `removeEffect()` | `(node: AudioNode) => void` | Removes an effect node and rebuilds the chain. |
+| `pre()` | `(node: AudioNode) => AudioNode` | Shorthand for `insertEffect(node, 'pre')`. |
+| `post()` | `(node: AudioNode) => AudioNode` | Shorthand for `insertEffect(node, 'post')`. |
+| `route()` | `(from: AudioNode, to: AudioNode) => void` | Manually connects two nodes outside the managed chain. Connections are cleaned up on dispose. |
+| `unroute()` | `(from: AudioNode, to: AudioNode) => void` | Disconnects a previously routed node pair. |
 
 ---
 
 ### CanvasPlugin
 
-**Import:** `import { CanvasPlugin, canvasPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+**Plugin id:** `'canvas'` | **Import:** `import { CanvasPlugin, canvasPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
-Provides a managed `<canvas>` overlay with a RAF-driven render loop. Visualization plugins build on top of this rather than managing their own canvas.
+Mounts a single `<canvas>` into the player container and runs the shared RAF render loop. Visualization plugins register per-frame callbacks via `addRenderer()` rather than managing their own canvases. Without this plugin no canvas is created and no animation frames are requested — zero cost when not used.
 
-**Options (`CanvasOptions`):** canvas element dimensions, layer z-index.
+**Options (`CanvasOptions`):**
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `mount` | `string \| HTMLElement` | player container | Where to mount the canvas. Accepts a CSS selector or an element reference. |
+| `width` | `number` | container `clientWidth` | Fixed logical width in CSS pixels. Setting both `width` and `height` disables `ResizeObserver` tracking. |
+| `height` | `number` | container `clientHeight` | Fixed logical height in CSS pixels. See `width`. |
+| `fps` | `number` | `60` | Target frames per second. Actual FPS is limited by the display refresh rate. |
+| `pixelRatio` | `number` | `devicePixelRatio` | Bitmap resolution multiplier. Pass `2` for Retina output. |
+| `compositeMode` | `'clear' \| 'composite'` | `'clear'` | `'clear'` — canvas is cleared at the start of each frame. `'composite'` — renderers accumulate on top of each other. |
+
+**Events (`CanvasEvents`):**
+
+| Event | Payload | When |
+| --- | --- | --- |
+| `mounted` | `{ width: number; height: number }` | After `use()` mounts the canvas and applies the initial size |
+| `resized` | `{ width: number; height: number }` | Whenever the canvas is resized (ResizeObserver or `size(w, h)`) |
+| `frame` | `{ deltaMs: number; time: number }` | After all registered renderers have run on each RAF tick |
+
+**Registration example:**
+
+```ts
+import { CanvasPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+player.addPlugin(CanvasPlugin, { fps: 60, compositeMode: 'clear' });
+
+const canvas = player.getPlugin(CanvasPlugin);
+const stop = canvas.addRenderer((ctx, deltaMs) => {
+  ctx.fillStyle = '#ff0000';
+  ctx.fillRect(0, 0, 10, 10);
+});
+// Remove when no longer needed:
+stop();
+```
+
+**Public methods:**
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `canvas()` | `() => HTMLCanvasElement` | Returns the mounted `<canvas>` element. Throws before `use()`. |
+| `context()` | `() => CanvasRenderingContext2D` | Returns the cached 2D rendering context. |
+| `addRenderer()` | `(fn: CanvasRenderFn) => () => void` | Register a per-frame render callback. Returns an unregister function. |
+| `removeRenderer()` | `(fn: CanvasRenderFn) => void` | Remove a previously registered callback. |
+| `size()` | `() => { width: number; height: number }` | Read the current logical canvas size. |
+| `size(w, h)` | `(width: number, height: number) => void` | Write a manual size override. Emits `resized`. |
+| `resize()` | `() => void` | Force a resize recalculation from the mount element's `clientWidth`/`clientHeight`. |
 
 ---
 
 ### CastSenderPlugin
 
-**Import:** `import { CastSenderPlugin, castSenderPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+**Plugin id:** `'cast-sender'` | **Import:** `import { CastSenderPlugin, castSenderPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
-Coordinates the Cast Web Sender SDK with the player's state machine. Wraps the core `transferTo('cast')` surface and emits higher-level events for Cast UI components.
+Chromecast Web Sender SDK bridge. Forwards `current`, `play`, `pause`, `stop`, `seek`, `volume`, and `mute` player events to the active Cast session via `RemotePlayerController`. Mirrors receiver state back to the player. In non-Chromium browsers (or when the Cast SDK is absent) the bridge stays passive — `connect()` throws `BrowserPolicyError` and all forwarders no-op.
 
-**Options (`CastSenderOptions`):** receiver application id, SDK script URL, timeout.
+This is a **base class**. The video and music player packages each ship a thin subclass that overrides `defaultContentType()` and `buildMetadata()` for their media type.
 
-**Events (`CastSenderEvents`):** mirrors the `castState` event with plugin-namespaced identifiers.
+**Options (`CastSenderOptions`):**
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `chromecastAppId` | `string` | — | Chromecast app id passed to the Cast SDK. |
+| `enableAirPlay` | `boolean` | — | Whether AirPlay is allowed (Safari only). |
+| `customReceiverNamespace` | `string` | — | Custom receiver namespace for messages. |
+| `resumeLocalOnDisconnect` | `boolean` | `true` | Resume local playback after the receiver disconnects, restoring the receiver's last `currentTime` and play/pause state. |
+| `defaultContentType` | `string` | subclass default | Content type when the playlist item lacks `mime`/`contentType`. |
+| `live` | `boolean` | `false` | Treat the source as a live (unbounded) stream. |
+
+**Events (`CastSenderEvents`):**
+
+| Event | Payload | When |
+| --- | --- | --- |
+| `cast:available` | `{ devices: number }` | Cast devices discovered |
+| `cast:connecting` | `{ deviceName: string }` | Session request initiated |
+| `cast:connected` | `{ deviceName: string }` | Session established |
+| `cast:disconnected` | `void` | Session ended (by user or receiver) |
+| `cast:error` | `{ error: Error }` | SDK error during connect or media load |
+| `cast:remote-state` | `{ time: number; state: 'playing' \| 'paused' \| 'buffering' }` | Receiver play/pause state changed |
+| `cast:media-changed` | `{ contentId: string }` | Receiver loaded a different content id than local |
+| `unsupported` | `{ reason: string }` | Cast SDK absent (non-Chromium browser) |
+
+**Registration example:**
+
+```ts
+import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+player.addPlugin(CastSenderPlugin, {
+  chromecastAppId: 'YOUR_APP_ID',
+  resumeLocalOnDisconnect: true,
+});
+
+const cast = player.getPlugin(CastSenderPlugin);
+await cast.connect(); // opens device picker
+```
+
+**Public methods:**
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `isConnected()` | `() => boolean` | Returns `true` while a Cast session is established. |
+| `connect()` | `() => Promise<void>` | Opens the Cast device picker. Emits `cast:connected` on success. Throws `BrowserPolicyError` when the SDK is absent. |
+| `disconnect()` | `() => void` | Ends the current session. Emits `cast:disconnected`. |
 
 ---
 
 ### EqualizerPlugin
 
-**Import:** `import { EqualizerPlugin, equalizerPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+**Plugin id:** `'equalizer'` | **Import:** `import { EqualizerPlugin, equalizerPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
-Multi-band parametric EQ using Web Audio `BiquadFilterNode` chains. Requires `AudioGraphPlugin`.
+10-band parametric EQ with pre-gain, built-in named presets, custom presets, and persistence. Inserts a `GainNode` (pre-gain) followed by 10 peaking `BiquadFilterNode`s into the audio graph as `'post'` effects. Requires `AudioGraphPlugin`.
 
 **Options (`EqualizerOptions`):**
 
-| Field | Type | Default | Description |
+| Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `bands` | `ReadonlyArray<EqBand>` | Default 10-band layout | Band layout; index 0 is the pre-gain pseudo-band |
-| `preset` | `string` | — | Named preset to apply on `use()` |
-| `presets` | `ReadonlyArray<EqPreset>` | — | Additional or replacement presets |
-| `persistKey` | `string` | — | Storage key for automatic state persistence |
+| `bands` | `ReadonlyArray<EqBand>` | 10-band layout + pre-gain | Band layout. Index 0 must be `{ frequency: 'Pre', gain }`. |
+| `preset` | `string` | — | Named preset to apply immediately on `use()`. |
+| `presets` | `ReadonlyArray<EqPreset>` | — | Additional or replacement presets merged into the catalogue. |
+| `sliderValues` | `EqSliderValues` | built-in ±12 dB ranges | Override min/max/step ranges for slider helper methods. |
+| `persistKey` | `string` | — | Storage key for automatic persistence of bands, active preset, and custom presets. |
+| `autoLoad` | `boolean` | `true` | Read persisted state on `use()`. Set to `false` to always start from `bands`/`preset` opts. |
+| `autoSave` | `boolean` | `true` when `persistKey` set | Persist state after every `band()` / `preGain()` / `preset()` call. |
+| `smoothingTimeConstantSeconds` | `number` | `0.05` | Time constant (seconds) for `AudioParam.setTargetAtTime` gain ramps. |
 
 **Events (`EqualizerEvents`):**
 
 | Event | Payload | When |
 | --- | --- | --- |
-| `ready` | `void` | Chain wired and initial state applied |
+| `ready` | `void` | Filter chain wired and initial state applied |
 | `band:changed` | `{ band: EqBand }` | Single band gain updated |
-| `preset:changed` | `{ name: string \| undefined }` | Preset applied or cleared |
-| `change` | `{ bands, selectedPreset }` | Full snapshot after any mutation |
+| `preset:changed` | `{ name: string \| undefined }` | Preset applied or cleared (`undefined` after `reset()`) |
+| `change` | `{ bands: EqBand[]; selectedPreset: string \| undefined }` | Full snapshot after any mutation |
 | `saved` | `void` | State written to storage |
+
+**Registration example:**
 
 ```ts
 import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
 
 player
   .addPlugin(AudioGraphPlugin, { latencyHint: 'playback' })
-  .addPlugin(EqualizerPlugin);
+  .addPlugin(EqualizerPlugin, { persistKey: 'player-eq' });
 
 const eq = player.getPlugin(EqualizerPlugin);
 eq?.band('Pre', 3.0);  // set pre-gain to +3 dB
@@ -104,74 +232,118 @@ eq?.band(32, 4.0);     // set 32 Hz band to +4 dB
 eq?.preset('Rock');
 ```
 
+**Public methods:**
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `bands()` | `() => EqBand[]` | Snapshot of all bands. Index 0 is always the `'Pre'` pseudo-band. |
+| `preGain()` | `() => number` | Read current pre-gain value. |
+| `preGain(gain)` | `(gain: number \| string) => void` | Set pre-gain. Values within ±0.05 snap to `0`. Clears active preset. |
+| `band(freq)` | `(freq: EqBandFrequency) => number` | Read gain for a band by frequency. |
+| `band(target)` | `(target: EqBand) => void` | Set gain using an `EqBand` object. |
+| `band(freq, gain)` | `(freq: EqBandFrequency, gain: number \| string) => void` | Set gain for a band. Clears active preset. |
+| `q(freq)` | `(freq: number) => number` | Read the Q factor of a band. |
+| `q(freq, value)` | `(freq: number, value: number) => void` | Set the Q factor. Values below `0.0001` are clamped. |
+| `preset()` | `() => string \| undefined` | Read the active preset name. |
+| `preset(target)` | `(target: EqPreset \| string) => void` | Apply a preset by name or object. |
+| `presets()` | `() => EqPreset[]` | All available presets (built-ins + custom + opts.presets). |
+| `addCustomPreset(preset)` | `(preset: EqPreset) => void` | Add or replace a runtime custom preset. |
+| `removePreset(name)` | `(name: string) => void` | Remove a custom preset by name. |
+| `reset()` | `() => void` | Reset all bands to initial values and clear the active preset. |
+| `save()` | `() => void` | Explicitly write state to storage. No-op without `persistKey`. |
+| `restore()` | `() => void` | Read and apply persisted state immediately. No-op without `persistKey`. |
+| `sliderValues()` | `() => EqSliderValues` | Active slider range config for pre-gain and frequency bands. |
+| `bandSliderMin(freq)` | `(freq: EqBandFrequency) => number` | Minimum raw gain for a range input. |
+| `bandSliderMax(freq)` | `(freq: EqBandFrequency) => number` | Maximum raw gain for a range input. |
+| `bandSliderStep(freq)` | `(freq: EqBandFrequency) => number` | Step increment for a range input. |
+| `bandSliderValue(freq)` | `(freq: EqBandFrequency) => number` | Current band gain mapped to a 0–100 percentage for a range input. |
+
 ---
 
 ### MixerPlugin
 
-**Import:** `import { MixerPlugin, mixerPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+**Plugin id:** `'mixer'` | **Import:** `import { MixerPlugin, mixerPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
-Per-channel gain control (`GainNode`) built on the audio graph. Useful for cross-fading between two sources or building a stem mixer. Requires `AudioGraphPlugin`.
+Master gain (`GainNode`) and stereo pan (`StereoPannerNode`) stage in the audio graph. Sits at the end of the chain just before `AudioContext.destination`. Requires `AudioGraphPlugin`.
 
-**Options (`MixerOptions`):** `gain` (dB, 0 = unity), `pan` (±1), `maxGainDb`, `persistKey`.
+**Options (`MixerOptions`):**
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `gain` | `number` | `0` | Initial gain in dB. `0` = unity gain. Positive boosts, negative attenuates. |
+| `pan` | `number` | `0` | Initial stereo pan. `-1` = full left, `0` = centre, `1` = full right. Values outside ±1 are clamped. |
+| `persistKey` | `string` | — | Storage key for automatic persistence of gain, pan, and mute state. |
+| `maxGainDb` | `number` | `24` | Symmetric dB ceiling. Calls outside ±`maxGainDb` are silently clamped. |
+| `smoothingTimeConstantSeconds` | `number` | `0.02` | Time constant (seconds) for `AudioParam.setTargetAtTime` gain ramps. |
+
+**Events (`MixerEvents`):**
+
+| Event | Payload | When |
+| --- | --- | --- |
+| `gain:changed` | `{ gain: number }` | Gain set (clamped dB value) |
+| `pan:changed` | `{ pan: number }` | Pan set (clamped ±1 value) |
+| `mute:changed` | `{ muted: boolean }` | Mute state toggled |
+| `saved` | `void` | State written to storage |
+
+**Registration example:**
 
 ```ts
 import { AudioGraphPlugin, MixerPlugin } from '@nomercy-entertainment/nomercy-player-core';
 
 player
   .addPlugin(AudioGraphPlugin)
-  .addPlugin(MixerPlugin, { gain: 0 }); // 0 dB = unity
+  .addPlugin(MixerPlugin, { gain: 0, persistKey: 'player-mixer' });
 
 const mixer = player.getPlugin(MixerPlugin);
-mixer?.gain(6);  // +6 dB
-mixer?.gain();   // read current gain in dB
-mixer?.pan(-0.5); // pan left
+mixer?.gain(6);     // +6 dB boost
+mixer?.gain();      // read current gain in dB
+mixer?.pan(-0.5);   // pan slightly left
+mixer?.muted(true); // mute
 ```
+
+**Public methods:**
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `gain()` | `() => number` | Read current gain in dB. |
+| `gain(dB)` | `(dB: number) => void` | Set master gain. Values outside ±`maxGainDb` are clamped. Emits `gain:changed`. |
+| `pan()` | `() => number` | Read current pan (-1..1). |
+| `pan(value)` | `(value: number) => void` | Set stereo pan. Values outside ±1 are clamped. Emits `pan:changed`. |
+| `muted()` | `() => boolean` | Returns `true` when the mixer is muted. |
+| `muted(value)` | `(value: boolean) => void` | Set mute state. Ramps gain to `0` or back. Emits `mute:changed`. |
+| `save()` | `() => void` | Explicitly write state to storage. No-op without `persistKey`. Emits `saved`. |
 
 ---
 
 ### SpectrumPlugin
 
-**Import:** `import { SpectrumPlugin, spectrumPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+**Plugin id:** `'spectrum'` | **Import:** `import { SpectrumPlugin, spectrumPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
-Reads frequency-domain and waveform data from the shared `AnalyserNode` provided by `AudioGraphPlugin` and emits a `frame` event on every RAF tick. Requires `AudioGraphPlugin`.
+FFT analyser that produces per-frame frequency, waveform, and band-energy data. Acquires the shared `AnalyserNode` from `AudioGraphPlugin` and emits a `frame` event on every RAF tick. `VisualizationPlugin` subclasses consume these frames. Requires `AudioGraphPlugin`.
 
 **Options (`SpectrumOptions`):**
 
-| Field | Type | Default | Description |
+| Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| `fftSize` | `512 \| 1024 \| 2048 \| 4096` | inherits from `AudioGraphPlugin` | FFT size for the `AnalyserNode` |
-| `smoothingTimeConstant` | `number` | inherits (usually `0.8`) | Smoothing 0–1; higher = more lag |
-| `frameRate` | `number` | RAF rate | Reserved for future pacing control |
+| `fftSize` | `512 \| 1024 \| 2048 \| 4096` | inherits from `AudioGraphPlugin` (usually `2048`) | FFT size for the `AnalyserNode`. Higher = finer frequency resolution, lower time resolution. |
+| `smoothingTimeConstant` | `number` | inherits from shared analyser (usually `0.8`) | Smoothing 0–1. Higher values make spectrum output lag behind transients. |
+| `frameRate` | `number` | RAF rate | Reserved for future frame-rate pacing control. Currently unused. |
 
 **Events (`SpectrumEvents`):**
 
 | Event | Payload | When |
 | --- | --- | --- |
-| `frame` | `{ frame: VisualizationFrame; energy: { bass, mid, treble } }` | Every RAF tick |
-| `opts:changed` | `SpectrumOptions` | After `options(partial)` |
+| `frame` | `{ frame: VisualizationFrame; energy: { bass: number; mid: number; treble: number } }` | Every RAF tick |
+| `opts:changed` | `SpectrumOptions` | After `options(partial)` is called on this plugin |
 
-**Public API:**
-
-| Method | Description |
-| --- | --- |
-| `currentFrame()` | Returns the most recent `VisualizationFrame`; triggers an eager tick on first call |
-| `analyser()` | Returns the live `AnalyserNode` for direct buffer access |
-| `bandEnergy(loHz, hiHz)` | Average FFT magnitude in the given range, normalised to 0–1 |
-| `registerBeatProvider(fn)` | Register a `() => { beat?: boolean; bpm?: number }` poller |
-| `fftSize()` / `fftSize(size)` | Read or change FFT size at runtime |
-| `smoothingTimeConstant()` / `smoothingTimeConstant(v)` | Read or change smoothing at runtime |
+**Registration example:**
 
 ```ts
-import {
-  AudioGraphPlugin,
-  SpectrumPlugin,
-} from '@nomercy-entertainment/nomercy-player-core';
+import { AudioGraphPlugin, SpectrumPlugin } from '@nomercy-entertainment/nomercy-player-core';
 
 player
   .addPlugin(AudioGraphPlugin)
   .addPlugin(SpectrumPlugin, { fftSize: 2048 });
-
-const spectrum = player.getPlugin(SpectrumPlugin);
 
 player.on('plugin:spectrum:frame', ({ frame, energy }) => {
   drawBars(frame.frequency);
@@ -179,25 +351,144 @@ player.on('plugin:spectrum:frame', ({ frame, energy }) => {
 });
 ```
 
+**Public methods:**
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `analyser()` | `() => AnalyserNode` | Returns the live `AnalyserNode`. Throws before `use()`. |
+| `currentFrame()` | `() => VisualizationFrame` | Returns the most recent frame. Triggers an eager tick on first call. |
+| `bandEnergy(loHz, hiHz)` | `(loHz: number, hiHz: number) => number` | Average FFT magnitude in the given frequency range, normalised to 0–1. Returns `0` when the analyser is unavailable. |
+| `registerBeatProvider(fn)` | `(fn: () => { beat?: boolean; bpm?: number }) => void` | Register a beat/BPM provider polled every frame tick. |
+| `fftSize()` | `() => 256 \| 512 \| 1024 \| 2048 \| 4096 \| undefined` | Read current FFT size. |
+| `fftSize(size)` | `(size: 256 \| 512 \| 1024 \| 2048 \| 4096) => void` | Change FFT size at runtime; reallocates buffers. |
+| `smoothingTimeConstant()` | `() => number \| undefined` | Read current smoothing time constant. |
+| `smoothingTimeConstant(v)` | `(value: number) => void` | Change smoothing at runtime. |
+
 ---
 
 ### VisualizationPlugin
 
-**Import:** `import { VisualizationPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+**Plugin id:** `'visualization'` (base; subclasses must override) | **Import:** `import { VisualizationPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
-Base class for custom audio visualizations. Wraps `SpectrumPlugin` and provides a `render(frame: VisualizationFrame)` hook. Subclass and override `render` to draw into a canvas.
+Abstract base class for canvas-based audio visualizations. Subclass it, override `render(ctx, frame)`, and register with the player. The base class handles wiring `CanvasPlugin` and `SpectrumPlugin` together so every `render()` call receives a fresh `VisualizationFrame`. Requires `CanvasPlugin` and `SpectrumPlugin`.
 
-**Options (`VisualizationOptions`):** canvas target, frame rate.
+**Options (`VisualizationOptions`):**
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `clearBeforeRender` | `boolean` | `false` | Clear the canvas before calling `render()`. Normally the canvas plugin handles clearing via `compositeMode: 'clear'`. Set this only when this specific visualizer needs an independent clear pass. |
+| `tick` | `'frame' \| 'time'` | `'frame'` | Render-loop pacing. Only `'frame'` (driven by the canvas RAF loop) is active; `'time'` is reserved for future use. |
+
+**Events (`VisualizationEvents`):**
+
+| Event | Payload | When |
+| --- | --- | --- |
+| `unsupported` | `{ reason: string }` | Emitted during `use()` when `CanvasPlugin` or `SpectrumPlugin` is unavailable |
+| `rendered` | `{ frame: VisualizationFrame }` | After each `render()` call completes |
+
+**Registration example:**
+
+```ts
+import {
+  AudioGraphPlugin,
+  CanvasPlugin,
+  SpectrumPlugin,
+  VisualizationPlugin,
+} from '@nomercy-entertainment/nomercy-player-core';
+
+class MyBars extends VisualizationPlugin {
+  static override readonly id = 'myapp:bars';
+
+  protected override render(ctx: CanvasRenderingContext2D, frame) {
+    for (let i = 0; i < frame.frequency.length; i++) {
+      const height = (frame.frequency[i] / 255) * ctx.canvas.height;
+      ctx.fillStyle = `hsl(${i * 2}, 100%, 50%)`;
+      ctx.fillRect(i * 3, ctx.canvas.height - height, 2, height);
+    }
+  }
+}
+
+player
+  .addPlugin(AudioGraphPlugin)
+  .addPlugin(SpectrumPlugin)
+  .addPlugin(CanvasPlugin)
+  .addPlugin(MyBars);
+```
+
+**Public methods:**
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `currentFrame()` | `() => VisualizationFrame \| undefined` | Returns the most recent frame passed to `render()`, or `undefined` before the first tick. |
+
+**Override hooks (protected):**
+
+| Hook | When called | Purpose |
+| --- | --- | --- |
+| `render(ctx, frame)` | Every RAF tick | Required. Draw your visualization here. |
+| `setup(ctx)` | Once before first `render()` | Optional. One-time setup (e.g. create ImageData, textures). |
+| `onResize(w, h)` | Canvas resized | Optional. Invalidate size-dependent caches. |
+| `onBeat(data)` | Beat provider fires | Optional. React to beat events without re-slicing FFT data. |
+
+A working reference implementation — `WaveformVisualization` (id `'fillz:waveform'`) — ships in the same module and strokes the time-domain waveform as an oscilloscope line.
 
 ---
 
 ### EmbedPlugin
 
-**Import:** `import { EmbedPlugin, embedPlugin } from '@nomercy-entertainment/nomercy-player-core'`
+**Plugin id:** `'embed'` | **Import:** `import { EmbedPlugin, embedPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
-Cross-origin `postMessage` bridge for embedding the player inside an iframe. Translates kit events to structured `EmbedEventMessage` payloads and processes `EmbedCommand` messages from the host page.
+Cross-origin `postMessage` bridge for embedding the player inside an `<iframe>`. Listens on `window` for inbound `nm:command` messages from the host page, validates origins, and dispatches to the player. Subscribes to player events and forwards them outward as `nm:event` messages.
 
-**Options (`EmbedOptions`):** `allowedOrigins` (string or string[] of trusted origins), `forwardEvents` (player event names to forward outward), `applyIframeTweaks` (compact UI when embedded).
+**Required `<iframe>` attributes for full functionality:**
+
+```html
+<iframe
+  src="..."
+  allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+  allowfullscreen
+></iframe>
+```
+
+`autoplay` is load-bearing: without it `MediaSessionPlugin` never activates, so OS-level controls never appear.
+
+**Options (`EmbedOptions`):**
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `allowedOrigins` | `string \| string[]` | — | Allowed origin(s) for inbound `nm:command` messages. `'*'` accepts all (development only). Omitting the option rejects all inbound commands. |
+| `forwardEvents` | `ReadonlyArray<'ready' \| 'play' \| 'pause' \| 'ended' \| 'time' \| 'volume' \| 'mute'>` | `['ready', 'play', 'pause', 'ended', 'time', 'volume', 'mute']` | Player event names to forward to the host page as `nm:event` messages. |
+| `applyIframeTweaks` | `boolean` | `true` when inside an iframe | Apply iframe-appropriate UI adjustments (smaller controls, no popout button). |
+
+**Inbound commands (`EmbedCommand`):** `play`, `pause`, `stop`, `seek` (with `time`), `volume` (with `level`), `mute`, `unmute`, `next`, `previous`.
+
+**Outbound events (`EmbedEventMessage`):** `ready`, `play`, `pause`, `ended`, `time` (with `time`+`duration`), `volume` (with `level`), `mute` (with `muted`), `error` (with `code`+`severity`).
+
+**Registration example:**
+
+```ts
+import { EmbedPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+// Inside the iframe:
+player.addPlugin(EmbedPlugin, {
+  allowedOrigins: 'https://example.com',
+});
+
+// On the host page:
+const iframe = document.querySelector('iframe');
+iframe.contentWindow.postMessage({ type: 'nm:command', action: 'play' }, 'https://player.example.com');
+window.addEventListener('message', (e) => {
+  if (e.data.type === 'nm:event') console.log(e.data.name, e.data);
+});
+```
+
+**Public methods:**
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `sendToHost(message)` | `(message: EmbedEventMessage) => void` | Send a structured event to the host page via `window.parent.postMessage`. |
+| `allowedOrigins()` | `() => readonly string[]` | Read the current allowed-origins list. |
+| `allowedOrigins(origins)` | `(origins: string \| string[]) => void` | Replace the allowed-origins list at runtime. |
 
 ---
 
@@ -207,25 +498,77 @@ These four plugins are not in the main barrel. Use their dedicated subpath impor
 
 ### KeyHandlerPlugin
 
-**Import:** `import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/key-handler'`
+**Plugin id:** `'key-handler'` | **Import:** `import { KeyHandlerPlugin, keyHandlerPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/key-handler'`
 
-Keyboard shortcut handler. Default bindings: space (play/pause), arrow keys (seek), `m` (mute), `f` (fullscreen — video only).
+Keyboard binding router. Attaches a single `keydown` listener to the configured scope and dispatches events to registered combo callbacks. Keys silently no-op when the event target is an `<input>`, `<textarea>`, `<select>`, or `contenteditable` element.
+
+**Default bindings:**
+
+| Combo | Action |
+| --- | --- |
+| `Space` | `player.togglePlayback()` |
+| `ArrowLeft` | `player.rewind(5)` |
+| `ArrowRight` | `player.forward(5)` |
+| `ArrowUp` | `player.volumeUp()` |
+| `ArrowDown` | `player.volumeDown()` |
+| `m` | `player.toggleMute()` |
+| `MediaPlay` | `player.play()` |
+| `MediaPause` | `player.pause()` |
+| `MediaPlayPause` | `player.togglePlayback()` |
+| `MediaStop` | `player.stop()` (fallback to `pause()`) |
+| `MediaRewind` | `player.rewind(5)` |
+| `MediaFastForward` | `player.forward(5)` |
+| `MediaTrackNext` | `player.next?.()` |
+| `MediaTrackPrevious` | `player.previous?.()` |
+
+**Options (`KeyHandlerOptions`):**
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `scope` | `'document' \| 'container' \| HTMLElement` | `'document'` | Where the `keydown` listener is attached. `'container'` only fires when the player container or a child has focus. |
+| `bindings` | `Record<string, (player: P) => void>` | — | Extra bindings merged on top of defaults. Same-combo entries here win. |
+| `extend` | `boolean` | `true` | `false` — clears defaults before applying `opts.bindings`. Use to build a fully custom binding set from scratch. |
+| `when` | `(e: KeyboardEvent) => boolean` | — | Gate predicate. Return `false` to suppress all key handling for that event (e.g. during modals). |
+| `cooldownMs` | `number` | `300` | Minimum milliseconds between consecutive fires of the same key. Set to `0` to disable. |
+| `disableMediaControls` | `boolean` | `false` | When `true`, hardware media keys (`MediaPlay`, etc.) are silently ignored. |
+
+**Registration example:**
 
 ```ts
 import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/key-handler';
 
-player.addPlugin(KeyHandlerPlugin);
+player.addPlugin(KeyHandlerPlugin, {
+  scope: 'container',
+  bindings: {
+    'f': (p) => p.requestFullscreen?.(),
+    'shift+ArrowLeft': (p) => p.rewind(30),
+  },
+});
 ```
 
-Customize bindings by subclassing and overriding `addPlaybackKeys()`.
+**Public methods:**
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `bind(combo, fn)` | `(combo: string, fn: (p: P) => void) => void` | Register a handler. Same combo replaces the previous. |
+| `unbind(combo)` | `(combo: string) => void` | Remove a handler. No-op when not present. |
+| `replace(combo, fn)` | `(combo: string, fn: (p: P) => void) => void` | Semantic alias for `bind()`. |
+| `bindings()` | `() => ReadonlyMap<string, (p: P) => void>` | Snapshot of the active binding map. |
+| `scope()` | `() => EventTarget` | Returns the `EventTarget` the listener is attached to. |
 
 ---
 
 ### MediaSessionPlugin
 
-**Import:** `import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session'`
+**Plugin id:** `'media-session'` | **Import:** `import { MediaSessionPlugin, mediaSessionPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session'`
 
-Wires the browser Media Session API — lock-screen controls, notification artwork, and chapter markers. Reads `item.title`, `item.artist` / `item.name`, `item.poster` / `item.image` from the current queue item automatically. Override `getMetadata()` by subclassing.
+Bridges the player's transport state to the operating system via `navigator.mediaSession`. Provides lock-screen artwork, hardware media key handling, Bluetooth remote controls, and OS Now Playing widgets. Silently no-ops in environments without `navigator.mediaSession` (Node, JSDOM, older WebViews).
+
+Automatically wires on `use()`: `current` → pushes metadata; `play`/`pause`/`ended` → `playbackState`; `time`/`seek` → `setPositionState`. OS action handlers registered: `play`, `pause`, `stop`, `previoustrack`, `nexttrack`, `seekbackward`, `seekforward`, `seekto`.
+
+**Options (`MediaSessionOptions`):** none. The interface is empty, reserved for future options.
+
+**Registration example:**
 
 ```ts
 import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session';
@@ -233,59 +576,143 @@ import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-player-core/p
 player.addPlugin(MediaSessionPlugin);
 ```
 
-Self-disables gracefully on browsers without `navigator.mediaSession`.
+**Public methods:**
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `metadata()` | `() => MediaSessionMetadata \| undefined` | Read the last metadata pushed to the OS. |
+| `metadata(meta)` | `(meta: MediaSessionMetadata) => void` | Write metadata to `navigator.mediaSession`. Constructs a `MediaMetadata` object. |
+| `clearMetadata()` | `() => void` | Clear `navigator.mediaSession.metadata`. Called automatically when the current item clears. |
+
+**Override hooks (protected):**
+
+| Hook | Purpose |
+| --- | --- |
+| `getMetadata(item)` | Extract `{ title?, artist?, album? }` from a playlist item. Override to map custom item shapes. Artwork is resolved separately. |
+| `addPlaybackActions()` | Register `play`, `pause`, `stop` OS action handlers. |
+| `addNavigationActions()` | Register `previoustrack`, `nexttrack` OS action handlers. |
+| `addSeekActions()` | Register `seekbackward`, `seekforward`, `seekto` OS action handlers. |
+| `setPlaybackState(state)` | Push a state to `navigator.mediaSession.playbackState`. Override to route to a native bridge. |
+| `updatePositionState(position)` | Push a position update via `setPositionState`. Skips when `duration` is not finite positive. |
 
 ---
 
 ### MessagePlugin
 
-**Import:** `import { MessagePlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/message'`
+**Plugin id:** `'message'` | **Import:** `import { MessagePlugin, messagePlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/message'`
 
-In-player toast notification overlay. Requires a container element.
+Toast and overlay-message surface for the player. UI plugins and consumers call `show('text')` to display a transient notification. The plugin manages timing and teardown automatically. The toast surface carries `role="status"` and `aria-live="polite"` for screen reader compatibility.
+
+Two modes: **transient** (`show`, `queue`) — auto-hides after a duration; **persistent** (`displayPersistent`, `removePersistent`) — stays until explicitly removed.
+
+**Options (`MessageOptions`):**
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `durationMs` | `number` | `3000` | Default display duration in milliseconds for transient toasts. Per-message `durationMs` overrides this. |
+| `mountSelector` | `string` | — | CSS selector for an existing element in which to mount the toast surface. When absent, a `<div>` is created inside the player container. |
+
+**Registration example:**
 
 ```ts
 import { MessagePlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/message';
 
-player.addPlugin(MessagePlugin);
+player.addPlugin(MessagePlugin, { durationMs: 3000 });
 
 const msg = player.getPlugin(MessagePlugin);
 msg?.show('Subtitle track loaded');
-msg?.show('Buffering…', { durationMs: 0 }); // durationMs: 0 = stays until dismissed
-msg?.dismiss();
+msg?.show('Buffering…', 0);  // 0 ms = stays until dismissed or replaced
+msg?.hide();
+msg?.queue(['Loading…', { text: 'Almost there!', durationMs: 1500 }, 'Done.']);
 ```
+
+**Public methods:**
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `show(text, ms?)` | `(text: string, ms?: number) => void` | Display a transient toast. Replaces any current toast. `ms` defaults to `opts.durationMs` (3000). |
+| `hide()` | `() => void` | Hide the current toast and cancel its timer. |
+| `displayMessage(data, ms?)` | `(data: string \| { text: string; durationMs?: number }, ms?: number) => void` | Compatibility method — prefer `show()` for new code. |
+| `queue(messages)` | `(messages: ReadonlyArray<string \| { text: string; durationMs?: number }>) => void` | Play a sequence of messages back-to-back. Calling again cancels the previous run. |
+| `clear()` | `() => void` | Cancel any in-flight queue, hide the current toast, and reset all timers. Does not affect persistent messages. |
+| `displayPersistent(text, id)` | `(text: string, id: string) => void` | Display a persistent overlay. Updates text if `id` already exists. |
+| `removePersistent(id)` | `(id: string) => void` | Remove a persistent message by id. |
 
 ---
 
 ### TabLeaderPlugin
 
-**Import:** `import { TabLeaderPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/tab-leader'`
+**Plugin id:** `'tab-leader'` | **Import:** `import { TabLeaderPlugin, tabLeaderPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/tab-leader'`
 
-Single-tab coordination — designates one tab as leader for shared state. Used by `GroupListeningPlugin`.
+Web Locks–based cross-tab leader election. Only one tab on the same origin holds the named lock at a time. When a second tab calls `requestLock()`, it queues behind the current holder; the browser hands the lock over when the first tab releases it or is closed.
+
+Browser support: Web Locks (Chrome 69+, Firefox 96+, Safari 15.4+). In environments without `navigator.locks` the plugin emits `unsupported` and becomes a no-op — playback is unaffected.
+
+**Options (`TabLeaderOptions`):**
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `onLost` | `'pause' \| 'mute'` | `'pause'` | What to do when this tab loses leadership. `'mute'` silences audio but continues playback. |
+| `handoffOnVisible` | `boolean` | `true` | When `true`, attempts to reclaim leadership whenever the tab becomes visible. |
+| `getLockKey` | `() => string` | `() => 'nomercy-player-leader'` | Override the Web Locks key. Provide a function returning a per-player or per-session key to scope leadership to a specific player. |
+
+**Events (`TabLeaderEvents`):**
+
+| Event | Payload | When |
+| --- | --- | --- |
+| `leader-acquired` | `void` | This tab acquired the leader lock |
+| `leader-released` | `void` | This tab voluntarily released the lock |
+| `leader-lost` | `{ reason: 'visibility' \| 'request' \| 'browser' }` | Leadership lost involuntarily |
+| `leader-requested` | `void` | A lock-acquire attempt has begun |
+| `unsupported` | `void` | Web Locks API not available |
+
+**Registration example:**
 
 ```ts
 import { TabLeaderPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/tab-leader';
 
-player.addPlugin(TabLeaderPlugin);
+player.addPlugin(TabLeaderPlugin, {
+  getLockKey: () => `nomercy-leader-${serverId}`,
+  onLost: 'pause',
+});
 
 const leader = player.getPlugin(TabLeaderPlugin);
 leader?.isLeader(); // boolean
+
+player.on('plugin:tab-leader:leader-lost', () => player.pause());
 ```
+
+**Public methods:**
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `isLeader()` | `() => boolean` | Returns `true` when this tab holds the leader lock. |
+| `requestLock()` | `() => Promise<void>` | Request the leader lock. Resolves once granted. Returns the existing pending promise when an election is already in progress. |
+| `releaseLock()` | `() => void` | Voluntarily release the lock so another tab can take over. |
+| `requestLeadership()` | `() => Promise<boolean>` | Alias for `requestLock()` returning `true` when leadership was acquired. |
+| `releaseLeadership()` | `() => void` | Alias for `releaseLock()`. |
 
 ---
 
-## Registration example
+## Audio chain registration order
+
+Audio plugins must be registered in dependency order: `AudioGraphPlugin` first, then the plugins that depend on it.
 
 ```ts
 import {
   AudioGraphPlugin,
+  CanvasPlugin,
   EqualizerPlugin,
+  MixerPlugin,
   SpectrumPlugin,
 } from '@nomercy-entertainment/nomercy-player-core';
 
 player
   .addPlugin(AudioGraphPlugin, { latencyHint: 'playback' })
-  .addPlugin(EqualizerPlugin)
-  .addPlugin(SpectrumPlugin);
+  .addPlugin(EqualizerPlugin, { persistKey: 'player-eq' })
+  .addPlugin(MixerPlugin, { gain: 0 })
+  .addPlugin(SpectrumPlugin, { fftSize: 2048 })
+  .addPlugin(CanvasPlugin);
 ```
 
 ---
