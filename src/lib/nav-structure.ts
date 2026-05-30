@@ -48,7 +48,8 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Troubleshooting", pages: ['troubleshooting'] },
   ],
   'nomercy-player-kit': [
-    { group: "Getting Started", pages: ['overview', 'architecture', 'quickstart', 'versioning'] },
+    { group: "Getting Started", pages: ['overview', 'quickstart', 'versioning'] },
+    { group: "Foundations", pages: ['architecture', 'foundations/plugins-and-adapters'] },
     { group: "Lifecycle", pages: ['lifecycle', 'setup', 'dispose'] },
     { group: "Playback Control", pages: ['transport', 'seeking', 'time', 'volume'] },
     { group: "Queue", pages: ['queue', 'queue-navigation', 'backlog', 'playlist-item'] },

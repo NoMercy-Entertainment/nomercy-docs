@@ -5,13 +5,13 @@ description: 'The 28 kit adapter ports. Name, purpose, default implementation, a
 
 # Kit Adapter Ports
 
-We provide the adapter pattern so you can change how the player behaves whenever you have a need that's a bit unique, something that shouldn't be the default for everyone. Every piece here, like where state gets saved, how the player talks to a server, or which clock it reads, already has a sensible default wired in. You only reach for an adapter when that default doesn't fit you.
+Most of what the player does, it does a default way: settings go to the browser, servers get plain fetch and WebSocket, time comes from the system clock. Those defaults are fine for almost everyone, which is why they're the defaults. An adapter is how you change one when "almost everyone" isn't you.
 
-Say you want the player to remember resume positions and volume on your own server instead of in the browser, so they follow your users from their phone to their TV. You don't fork anything or go digging through player internals for that. You write a small storage adapter that reads and writes against your API, hand it to `setup()`, and everything else carries on exactly as before. The player never knows where the bytes actually go, it just asks the port and gets an answer.
+Say your users hop between their phone and their TV, and you want their resume position and volume to follow them. The browser's storage can't do that, but the storage port can: you write a small adapter that reads and writes against your own server, pass it to `setup()`, and nothing else in the player changes. It never learns where the data lives, it just asks the port and trusts the answer.
 
-That's really all a port is: a clearly defined slot with a default sitting in it. Swapping what's in the slot is how you make the player yours without making it everyone's.
+So a port is a labelled slot with a working default already in it. Swapping the slot is how you bend the player to your case without forcing that choice on everyone else.
 
-This is also the line between an adapter and a plugin. If you're changing how something the player already does works on the inside, that's a port swap. If you're adding something new for the player to do, like an equalizer or a skip button, that's a [plugin](/nomercy-player-kit/plugins).
+Adapters are one of the two ways to extend the player; the other is plugins, which add new behavior instead of swapping existing behavior. [Plugins and adapters](/nomercy-player-kit/foundations/plugins-and-adapters) covers when to reach for each.
 
 The kit gives you 28 of these ports. The video player adds 4 more and the music player adds 6, each covered on their own pages; this one is for the 28 kit-level ports. For the library ports see [Video configuration](/nomercy-video-player/configuration) and [Music configuration](/nomercy-music-player/configuration).
 
