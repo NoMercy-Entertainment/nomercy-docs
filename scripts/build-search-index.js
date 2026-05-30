@@ -2,6 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import { glob } from 'glob';
 import matter from 'gray-matter';
+import { readNavLookup } from './_nav-manifest.mjs';
+
+// Section grouping and ordering come from the nav manifest, not page frontmatter.
+const navLookup = readNavLookup();
 
 // All content directories to index
 const contentDirs = [
@@ -65,6 +69,7 @@ async function buildSearchIndex() {
         const excerpt = textContent.substring(0, 300).trim();
 
         const slug = file
+          .split(path.sep).join('/')
           .replace(/\.(md|mdx)$/, '')
           .replace(/^[a-z]{2}\//, '')
           .replace(/\/index$/, '')
@@ -73,18 +78,19 @@ async function buildSearchIndex() {
         const url = slug ? `${baseUrl}/${slug}` : baseUrl || '/';
 
         const section = productLabels[product] || product;
+        const placement = navLookup[product]?.get(slug);
 
         documents.push({
           id: `${baseUrl}/${file}`.replace(/^\//, ''),
           title: data.title || slug.replace(/-/g, ' '),
           description: data.description || excerpt,
-          category: data.category || section,
+          category: placement?.category ?? section,
           section,
           product,
           tags: data.tags || [],
           url,
           content: textContent.toLowerCase(),
-          order: data.order || 999,
+          order: placement?.order ?? 999,
         });
       }
     }

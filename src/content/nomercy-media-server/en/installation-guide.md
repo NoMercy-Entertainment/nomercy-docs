@@ -1,8 +1,6 @@
 ---
 title: Installation Guide
 description: Complete step-by-step guide for installing NoMercy.
-category: "Getting Started"
-order: 1
 ---
 
 ## Installation Requirements

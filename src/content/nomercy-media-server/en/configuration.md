@@ -1,8 +1,6 @@
 ---
 title: MediaServer Configuration
 description: How to configure NoMercy MediaServer using startup flags, environment variables, and the in-app web UI.
-category: "Configuration"
-order: 1
 ---
 
 ## There Is No Config File

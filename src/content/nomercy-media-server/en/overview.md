@@ -1,8 +1,6 @@
 ---
 title: MediaServer Overview
 description: Comprehensive overview of NoMercy MediaServer component.
-category: "Getting Started"
-order: 1
 ---
 
 ## What is MediaServer?

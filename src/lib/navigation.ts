@@ -1,4 +1,5 @@
 import { getCollection } from 'astro:content';
+import { navStructure } from './nav-structure';
 
 export interface NavLink {
   title: string;
@@ -51,62 +52,12 @@ const PRODUCTS: Array<{ product: Product; label: string; collection: string; hre
   { product: 'nomercy-api',           label: 'API',       collection: 'nomercy-api',            href: '/nomercy-api/overview',            order: 7 },
 ];
 
-const categoryOrder: Record<string, number> = {
-  'Getting Started': 1,
-  'Overview': 2,
-  'Setup': 3,
-  'Browsing': 4,
-  'Watching & Listening': 5,
-  'Watching Video': 6,
-  'Listening to Music': 7,
-  'Preferences': 8,
-  'Dashboard (Admin)': 9,
-  'Notifications & Background': 10,
-  'Lifecycle': 11,
-  'Playback Control': 12,
-  'Queue': 13,
-  'Tracks and Media': 14,
-  'State': 15,
-  'Auth and Fetch': 16,
-  'Event System': 17,
-  'Plugins': 18,
-  'Adapter Ports': 19,
-  'Internationalisation': 20,
-  'Metrics and Diagnostics': 21,
-  'Cast and Device': 22,
-  'DOM Utilities': 23,
-  'Types Reference': 24,
-  'Configuration': 25,
-  'API Methods': 26,
-  'Events': 27,
-  'Playlist Item': 28,
-  'HLS': 29,
-  'Framework Integration': 30,
-  'Writing Plugins': 31,
-  'Backends': 32,
-  'Adapters': 33,
-  'Recipes': 40,
-  'The CLI': 41,
-  'Media': 42,
-  'Encoding': 43,
-  'Remote Access & Sync': 44,
-  'Maintenance': 45,
-  'Troubleshooting': 50,
-  'Advanced': 60,
-  'Reference': 70,
-  'Guides': 75,
-  'General': 80,
-  'Resources': 85,
-  'Migration': 90,
-  'Other': 999,
-};
-
 export async function getNavigation(): Promise<NavigationResult> {
   const results = await Promise.all(
     PRODUCTS.map(async (meta) => {
       try {
         const entries = await getCollection(meta.collection as any, ({ data }: any) => data.draft !== true);
-        const groups = groupByCategory(entries, `/${meta.collection}`);
+        const groups = buildGroups(meta.collection, entries);
         return {
           product: meta.product,
           label: meta.label,
@@ -140,42 +91,56 @@ export async function getNavigation(): Promise<NavigationResult> {
 
 function stripLocalePrefix(slug: string): string {
   // Astro flattens `en/index.mdx` to bare `en` (drops the trailing /index),
-  // and `en/<page>.mdx` to `en/<page>`. Strip both shapes so the en/ locale
-  // never leaks into sidebar hrefs or sneaks past the index-filter below.
+  // and `en/<page>.mdx` to `en/<page>`. Strip both shapes so the slug matches
+  // the manifest keys, which are stored without the locale prefix.
   if (/^[a-z]{2}$/.test(slug)) return '';
   return slug.replace(/^[a-z]{2}\//, '');
 }
 
-function groupByCategory(
-  docs: Array<{ slug: string; data: { title: string; category?: string; order?: number } }>,
-  baseHref: string
+// Build the sidebar groups for one collection from the manifest in nav-structure.ts.
+// Group order and page order are the array order in the manifest — frontmatter `order`
+// and `category` are not consulted. Titles come from each entry's frontmatter `title`.
+// Any non-draft page not listed in the manifest is surfaced under "Other" so it never
+// vanishes silently; `npm run check:nav` turns that case into a build failure.
+function buildGroups(
+  collection: string,
+  docs: Array<{ slug: string; data: { title: string } }>
 ): NavGroup[] {
-  const grouped = docs.reduce((acc, doc) => {
-    const cleanSlug = stripLocalePrefix(doc.slug);
-    // Skip locale root (collection landing) AND any section root like
-    // `advanced/index` — these are reachable from the parent and shouldn't
-    // appear twice in the sidebar.
-    if (cleanSlug === '' || cleanSlug === 'index' || cleanSlug.endsWith('/index')) return acc;
+  const bySlug = new Map<string, { title: string }>();
+  for (const doc of docs) {
+    const slug = stripLocalePrefix(doc.slug);
+    if (slug === '' || slug === 'index' || slug.endsWith('/index')) continue;
+    bySlug.set(slug, doc.data);
+  }
 
-    const category = doc.data.category || 'General';
-    if (!acc[category]) acc[category] = [];
-    acc[category].push({
-      title: doc.data.title,
-      href: `${baseHref}/${cleanSlug}`.replace(/\/+/g, '/'),
-      order: doc.data.order ?? 999,
+  const used = new Set<string>();
+  const groups: NavGroup[] = (navStructure[collection] ?? []).map((group, index) => ({
+    title: group.group,
+    order: index,
+    links: group.pages.flatMap((slug) => {
+      const data = bySlug.get(slug);
+      if (!data) return [];
+      used.add(slug);
+      return [{
+        title: data.title,
+        href: `/${collection}/${slug}`.replace(/\/+/g, '/'),
+      }];
+    }),
+  })).filter((group) => group.links.length > 0);
+
+  const orphans = [...bySlug.keys()].filter((slug) => !used.has(slug));
+  if (orphans.length > 0) {
+    groups.push({
+      title: 'Other',
+      order: groups.length,
+      links: orphans.map((slug) => ({
+        title: bySlug.get(slug)!.title,
+        href: `/${collection}/${slug}`.replace(/\/+/g, '/'),
+      })),
     });
-    return acc;
-  }, {} as Record<string, NavLink[]>);
+  }
 
-  Object.values(grouped).forEach(links => links.sort((a, b) => (a.order ?? 999) - (b.order ?? 999)));
-
-  return Object.keys(grouped)
-    .map(category => ({
-      title: category,
-      links: grouped[category],
-      order: categoryOrder[category] ?? 50,
-    }))
-    .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+  return groups;
 }
 
 export async function getNavigationForProduct(product: Product): Promise<NavGroup[]> {
@@ -184,7 +149,7 @@ export async function getNavigationForProduct(product: Product): Promise<NavGrou
 
   try {
     const entries = await getCollection(meta.collection as any, ({ data }: any) => data.draft !== true);
-    return groupByCategory(entries, `/${meta.collection}`);
+    return buildGroups(meta.collection, entries);
   } catch {
     return [];
   }
