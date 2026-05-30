@@ -8,7 +8,15 @@ draft: false
 
 # Equalizer
 
-10-band parametric EQ provided by `EqualizerPlugin` (re-exported from the kit). Import it from `@nomercy-entertainment/nomercy-music-player/plugins`. This page is a quick reference. For the advanced guide see [Equalizer Customization](/nomercy-music-player/advanced/equalizer-customization).
+10-band parametric EQ provided by `EqualizerPlugin` (re-exported from the kit). Import it from `@nomercy-entertainment/nomercy-music-player/plugins`.
+
+---
+
+## The idea
+
+The equalizer is a set of tone controls you drop into the audio while it's playing. The actual audio plumbing lives in `AudioGraphPlugin`, the part that holds the `AudioContext` and wires everything together, so you add that one first. The equalizer just hooks its ten filters into that chain, and there is nothing to shape until the chain exists, which is the whole reason for the ordering.
+
+Most of the time you won't be touching bands from code. You put the sliders in front of your users and let them play. Each band pushes one frequency up or down by up to 12 dB, and pre-gain pulls the whole signal down a little so big boosts don't distort. The presets are just handy starting points we ship so nobody has to dial in "Rock" by hand. Set a `persistKey` and the plugin remembers wherever they leave it. Everything below is the reference for when you want finer control.
 
 ---
 
