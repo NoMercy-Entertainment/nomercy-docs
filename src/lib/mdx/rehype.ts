@@ -110,7 +110,7 @@ function rehypeShiki() {
       // mis-tokenize html / vue blocks whose value contained literal
       // `<script>` substrings, dropping every shiki span inside.
       node.properties['data-code-raw'] = rawText
-      node.properties.className = ['shiki', 'overflow-x-auto', 'p-4', 'text-xs']
+      node.properties.className = ['shiki', 'overflow-x-auto', 'px-5', 'py-4', 'text-xs', 'leading-relaxed']
       delete node.properties.style
       delete node.properties.tabindex
       if (existingDataTitle) {
@@ -126,6 +126,9 @@ function rehypeShiki() {
       if (!LANGS.includes(syntaxLanguage)) {
         syntaxLanguage = 'txt'
       }
+      // Dual theme: One Light in light mode, One Dark Pro in dark mode. Shiki
+      // emits the light hex inline and a --shiki-dark var; global.css swaps to
+      // the dark var under .dark.
       const highlightedHtml = highlighter.codeToHtml(rawText, {
         lang: syntaxLanguage,
         themes: { light: 'one-light', dark: 'one-dark-pro' },
@@ -140,6 +143,19 @@ function rehypeShiki() {
       codeNode.children = fragment.children as ElementContent[]
     })
   }
+}
+
+// Display names for the code-block header bar.
+const LANGUAGE_NAMES: Record<string, string> = {
+  js: 'JavaScript', jsx: 'JavaScript', javascript: 'JavaScript',
+  ts: 'TypeScript', tsx: 'TypeScript', typescript: 'TypeScript',
+  json: 'JSON', jsonc: 'JSON', yaml: 'YAML', toml: 'TOML', ini: 'INI',
+  html: 'HTML', xml: 'XML', css: 'CSS', scss: 'SCSS', md: 'Markdown', mdx: 'MDX',
+  bash: 'Shell', sh: 'Shell', shell: 'Shell', powershell: 'PowerShell',
+  python: 'Python', rust: 'Rust', go: 'Go', csharp: 'C#', cs: 'C#',
+  java: 'Java', kotlin: 'Kotlin', swift: 'Swift', php: 'PHP', ruby: 'Ruby',
+  sql: 'SQL', astro: 'Astro', svelte: 'Svelte', vue: 'Vue',
+  dockerfile: 'Dockerfile', diff: 'Diff', txt: 'Code', plaintext: 'Code',
 }
 
 function rehypeWrapCodeBlocks() {
@@ -170,8 +186,11 @@ function rehypeWrapCodeBlocks() {
       const { node, parent, index } = nodesToWrap[i]
       const dataTitle = node.properties?.['data-title'] as string | undefined
       const code = (node.properties?.['data-code-raw'] as string | undefined) ?? (node.properties?.code as string | undefined)
+      const lang = (node.properties?.['data-language'] as string | undefined)?.toLowerCase() ?? 'txt'
+      // Header label: explicit title wins, else the language display name.
+      const headerLabel = dataTitle || LANGUAGE_NAMES[lang] || lang.toUpperCase() || 'Code'
 
-      // Create wrapper structure
+      // Create wrapper structure — theme-aware (One Light / One Dark Pro).
       const wrapper: Element = {
         type: 'element',
         tagName: 'div',
@@ -188,22 +207,20 @@ function rehypeWrapCodeBlocks() {
 
       const notProseDiv = wrapper.children[0] as Element
 
-      // Add title header if present
-      if (dataTitle) {
-        notProseDiv.children.push({
+      // Always show a header bar with the filename/title or language name.
+      notProseDiv.children.push({
+        type: 'element',
+        tagName: 'div',
+        properties: {
+          className: ['flex', 'items-center', 'gap-2', 'border-b', 'border-zinc-200', 'bg-zinc-100', 'px-5', 'py-2.5', 'dark:border-white/10', 'dark:bg-white/2.5'],
+        },
+        children: [{
           type: 'element',
-          tagName: 'div',
-          properties: {
-            className: ['flex', 'min-h-[calc(--spacing(12)+1px)]', 'flex-wrap', 'items-start', 'gap-x-4', 'border-b', 'border-zinc-200', 'bg-zinc-100', 'px-4', 'dark:border-zinc-800', 'dark:bg-transparent'],
-          },
-          children: [{
-            type: 'element',
-            tagName: 'h3',
-            properties: { className: ['mr-auto', 'pt-3', 'text-xs', 'font-semibold', 'text-zinc-700', 'dark:text-white'] },
-            children: [{ type: 'text', value: dataTitle }]
-          }]
-        })
-      }
+          tagName: 'span',
+          properties: { className: ['font-mono', 'text-xs', 'text-zinc-500', 'dark:text-zinc-400'] },
+          children: [{ type: 'text', value: headerLabel }]
+        }]
+      })
 
       // Add code block with copy button
       notProseDiv.children.push({
@@ -218,7 +235,10 @@ function rehypeWrapCodeBlocks() {
             {
               type: 'element',
               tagName: 'div',
-              properties: { className: ['[&>pre]:!m-0', '[&>pre]:!border-0'] },
+              // Padding is forced here via the child combinator because the
+              // pre's own className does not survive the Astro MDX `pre`
+              // component override.
+              properties: { className: ['[&>pre]:!m-0', '[&>pre]:!border-0', '[&>pre]:!px-5', '[&>pre]:!py-4', '[&>pre]:!leading-relaxed'] },
               children: [node]
             },
             {
@@ -226,7 +246,7 @@ function rehypeWrapCodeBlocks() {
               tagName: 'button',
               properties: {
                 type: 'button',
-                className: ['group/button', 'absolute', 'top-3.5', 'right-4', 'overflow-hidden', 'rounded-full', 'py-1', 'pl-2', 'pr-3', 'text-2xs', 'font-medium', 'opacity-0', 'backdrop-blur', 'transition', 'focus:opacity-100', 'group-hover:opacity-100', 'bg-zinc-900/5', 'hover:bg-zinc-900/10', 'dark:bg-white/5', 'dark:hover:bg-white/10'],
+                className: ['group/button', 'absolute', 'top-3', 'right-3', 'overflow-hidden', 'rounded-lg', 'py-1', 'pl-2', 'pr-3', 'text-2xs', 'font-medium', 'opacity-0', 'backdrop-blur', 'transition', 'focus:opacity-100', 'group-hover:opacity-100', 'bg-zinc-900/5', 'hover:bg-zinc-900/10', 'ring-1', 'ring-zinc-900/10', 'dark:bg-white/5', 'dark:hover:bg-white/10', 'dark:ring-white/10'],
                 'data-code': code || '',
               },
               children: [{
