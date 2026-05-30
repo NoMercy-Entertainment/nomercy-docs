@@ -17,8 +17,6 @@ import {
   useRef,
   useState,
 } from 'react'
-import Highlighter from 'react-highlight-words'
-
 import { useMobileNavigationStore } from './MobileNavigation'
 
 // Define Result type for our search
@@ -254,14 +252,25 @@ function LoadingIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   )
 }
 
+// Inline case-insensitive highlighter — replaces react-highlight-words (a CJS dep
+// that pulled a second React copy into SSR and logged "Invalid hook call").
 function HighlightQuery({ text, query }: { text: string; query: string }) {
+  const trimmed = query.trim()
+  if (!trimmed) return <>{text}</>
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'))
   return (
-    <Highlighter
-      highlightClassName="underline bg-transparent text-emerald-500"
-      searchWords={[query]}
-      autoEscape={true}
-      textToHighlight={text}
-    />
+    <>
+      {parts.map((part, index) =>
+        part.toLowerCase() === trimmed.toLowerCase() ? (
+          <mark key={index} className="bg-transparent text-emerald-600 underline dark:text-emerald-400">
+            {part}
+          </mark>
+        ) : (
+          part
+        ),
+      )}
+    </>
   )
 }
 
