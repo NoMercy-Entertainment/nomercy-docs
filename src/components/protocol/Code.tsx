@@ -647,10 +647,13 @@ export function Code({
   return <code {...props}>{children}</code>;
 }
 
+// Pass-through. The code-block chrome (rounded container, optional title header,
+// copy button) is added at HAST level by rehypeWrapCodeBlocks, so the React `pre`
+// mapping only needs to render the highlighted <pre>. Wrapping in CodeGroup here
+// would double the chrome. The `::code-group` directive still uses CodeGroup.
 export function Pre({
   children,
   ...props
-}: React.ComponentPropsWithoutRef<typeof CodeGroup>) {
-  // Always wrap in CodeGroup to handle both single and multiple code blocks
-  return <CodeGroup {...props}>{children}</CodeGroup>;
+}: React.ComponentPropsWithoutRef<'pre'>) {
+  return <pre {...props}>{children}</pre>;
 }

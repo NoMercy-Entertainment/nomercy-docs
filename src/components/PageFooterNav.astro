@@ -1,7 +1,7 @@
 ---
 // Next / previous page navigation at the bottom of every docs page.
-// Reads the navigation tree for the current section, finds the current
-// page's position, and renders Prev / Next links to the surrounding pages.
+// Prev/Next stay WITHIN the current product — never cross into another product —
+// and the list is deduped so a page can never link to itself.
 
 import { getNavigation } from '../lib/navigation';
 
@@ -12,33 +12,30 @@ interface Props {
 const { pathname } = Astro.props;
 const { sections } = await getNavigation();
 
-// Flatten all (section.title, group, links) into one ordered list of pages.
+const normalize = (path: string) => path.replace(/\/+$/, '') || '/';
+const normalized = normalize(pathname);
+
+// The current product = first path segment (e.g. /nomercy-video-player/...).
+const productPrefix = '/' + (normalized.split('/').filter(Boolean)[0] ?? '');
+const section = sections.find((candidate) => candidate.href.startsWith(productPrefix + '/'));
+
+// Flatten ONLY this product's pages, in sidebar order, deduped by href. The
+// product landing (/overview) already appears as a group link, so we don't add
+// section.href separately — that was the source of self-referencing prev/next.
 type FlatPage = { href: string; title: string; sectionTitle: string };
 const flat: FlatPage[] = [];
+const seen = new Set<string>();
 
-const sortedSections = [...sections].sort(
-  (a, b) => (a.order ?? 999) - (b.order ?? 999),
-);
-
-for (const section of sortedSections) {
-  // Each section's index page is itself a navigable destination.
-  flat.push({ href: section.href, title: section.title, sectionTitle: section.title });
-  const sortedGroups = [...section.groups].sort(
-    (a, b) => (a.order ?? 999) - (b.order ?? 999),
-  );
-  for (const group of sortedGroups) {
-    const sortedLinks = [...group.links].sort(
-      (a, b) => (a.order ?? 999) - (b.order ?? 999),
-    );
-    for (const link of sortedLinks) {
-      flat.push({ href: link.href, title: link.title, sectionTitle: section.title });
-    }
+for (const group of section?.groups ?? []) {
+  for (const link of group.links) {
+    const key = normalize(link.href);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    flat.push({ href: link.href, title: link.title, sectionTitle: group.title });
   }
 }
 
-// Normalize pathname (drop trailing slash for matching).
-const normalized = pathname.replace(/\/$/, '') || '/';
-const idx = flat.findIndex((p) => p.href.replace(/\/$/, '') === normalized);
+const idx = flat.findIndex((page) => normalize(page.href) === normalized);
 
 const prev = idx > 0 ? flat[idx - 1] : null;
 const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null;

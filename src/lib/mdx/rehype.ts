@@ -152,6 +152,12 @@ function rehypeWrapCodeBlocks() {
         node.tagName === 'pre' &&
         parent &&
         index !== null &&
+        // Only wrap standalone code blocks. Skip pre's inside a JSX component
+        // (e.g. the `::code-group` <CodeGroup>, type 'mdxJsxFlowElement'), which
+        // owns its own chrome — wrapping them would nest two containers. Root- and
+        // element-parented pre's are the standalone ones we want to wrap.
+        parent.type !== 'mdxJsxFlowElement' &&
+        parent.type !== 'mdxJsxTextElement' &&
         // Check that parent is not already a code wrapper div
         !(parent.tagName === 'div' && Array.isArray(parent.properties?.className) && parent.properties.className.includes('my-6'))
       ) {
@@ -370,19 +376,18 @@ function rehypeAddMDXExports(getExports: (tree: any) => Record<string, string>) 
   }
 }
 
-// rehypeWrapCodeBlocks is intentionally NOT in the pipeline. The React
-// `CodeGroup` (in src/components/protocol/Code.tsx) owns the rounded /
-// ringed wrapper, the panel header (title row + tabs), and the copy
-// button. Running both produced two nested `my-6 rounded-2xl ring-1
-// shadow-md` containers around every code block — the visible "box in a
-// box" Stoney flagged. The HAST-level wrapper was the fallback for when
-// `mdx({ optimize: true })` bypassed MDX components; that flag is now
-// off, so the React layer is the single source of code-block chrome.
+// rehypeWrapCodeBlocks owns the code-block chrome (rounded/ringed container,
+// optional title header, and the copy button wired by CodeHighlighter via
+// `data-code`). It runs at HAST level so the chrome is static HTML and works
+// without hydrating a React component per block. The React `Pre` mapping is a
+// pass-through (Code.tsx) so the chrome is emitted exactly once — no box-in-box.
+// It skips pre's inside a <CodeGroup> (guard above), which renders its own tabs.
 
 export const rehypePlugins = [
   mdxAnnotations.rehype,
   rehypeParseCodeBlocks,
   rehypeShiki,
+  rehypeWrapCodeBlocks,
   rehypeTableLabels,
   rehypeSlugify,
   [
