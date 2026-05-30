@@ -146,10 +146,12 @@ When the player emits a `time` event, the tracker scans the cue list and fires `
 `LyricsPlugin` reports (not throws) when no parser is found or the fetch fails:
 
 ```ts
-// Listen to plugin:failed to detect parse/fetch failures:
-player.on('plugin:lyrics:failed' as any, (event: unknown) => {
-  console.warn('Lyrics failed:', event);
-  showNoLyricsMessage();
+// Listen to player errors with a lyrics-specific code:
+player.on('error', (event) => {
+  if (event.code === 'plugin:lyrics/fetch-failed' || event.code === 'plugin:lyrics/no-parser') {
+    console.warn('Lyrics failed:', event.message);
+    showNoLyricsMessage();
+  }
 });
 ```
 

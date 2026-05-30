@@ -1,147 +1,98 @@
 ---
-title: 'Built-in Plugins'
-description: 'Plugins shipped inside @nomercy-entertainment/nomercy-player-core. Library-specific plugins (video, music) live in their own packages — see the per-library plugin pages.'
+title: 'Plugin System Overview'
+description: 'What plugins are, the five-layer model, how kit plugins differ from library plugins and consumer plugins, and where to find each.'
 category: 'Plugins'
-order: 4
+order: 1
 ---
 
-# Built-in Plugins
+# Plugin System Overview
 
-These plugins ship inside the kit (`@nomercy-entertainment/nomercy-player-core`). All are opt-in — none are registered automatically.
-
-Per-library plugins are NOT covered here:
-
-- Video player plugins (DesktopUi, SubtitleOverlay, Octopus, Skipper, CastSender, DRM, LiveTranscoding, TouchZones, TvUi, ...) — see [Video Player → Plugin Development](/nomercy-video-player/plugin-development) and the dedicated pages for [Desktop UI](/nomercy-video-player/desktop-ui), [Subtitle Overlay](/nomercy-video-player/subtitle-overlay), [Chapters](/nomercy-video-player/chapters), [Cast Sender](/nomercy-video-player/cast-sender), [Skipper](/nomercy-video-player/skipper).
-- Music player plugins (MusicUi, Lyrics, AutoAdvance, GroupListening, CrossfadePlugin, ...) — see [Music Player → Plugin Development](/nomercy-music-player/plugin-development) and the dedicated pages for [Crossfade](/nomercy-music-player/crossfade), [Equalizer](/nomercy-music-player/equalizer), [Lyrics](/nomercy-music-player/lyrics).
+Plugins are the extension mechanism for the Player SDK. Every feature beyond core transport lives in a plugin — the built-in UI, equalizer, lyrics, skip markers, Chromecast handoff, and your own app-specific logic.
 
 ---
 
-## Kit plugins (nomercy-player-core)
+## What a plugin is
 
-Install: `npm install @nomercy-entertainment/nomercy-player-core@beta`. Import names below come from the installed package — no `@beta` suffix in your code.
+A plugin is a class that extends `Plugin<P, O, E>`:
 
-### AudioGraphPlugin
+- `P` — the player type it targets (`IPlayer<BaseEventMap>` for kit-level plugins, `NMVideoPlayer` or `NMMusicPlayer` for library-specific plugins)
+- `O` — the options the plugin accepts
+- `E` — the typed events the plugin emits
 
-Builds a Web Audio graph routed through the player's audio context. Required by `EqualizerPlugin` and `SpectrumPlugin`.
+The base class provides managed resources: `this.on`, `this.timeout`, `this.interval`, `this.frame`, `this.mount`, `this.fetch`, `this.storage`. All of these auto-dispose when the plugin is disposed — no manual cleanup needed for resources acquired through these methods.
+
+---
+
+## Layer placement
+
+The [five-layer model](/nomercy-player-kit/architecture) determines where a plugin belongs:
+
+| Layer | Type | Rule |
+| --- | --- | --- |
+| 4 | Built-in plugin | Ships in a package. Generic behavior — no server URLs, no app tokens. Works for any consumer. |
+| 5 | Consumer plugin | Your app. Can import from anywhere. Contains NoMercy server endpoints, SignalR, auth tokens. |
+
+Both layers use the same `Plugin<P, O, E>` base class. The distinction is purely what they import and what goes in their options.
+
+---
+
+## Plugin scopes
+
+Plugins live at three different scopes:
+
+### Kit plugins
+
+Shipped inside `@nomercy-entertainment/nomercy-player-core`. These are generic audio, visualization, DOM, and coordination plugins that work with any player built on the kit. Most are in the main barrel export; a few use subpath exports.
+
+See [Built-in Kit Plugins](/nomercy-player-kit/plugins-builtin) for the full catalogue.
+
+### Library plugins
+
+Shipped inside `@nomercy-entertainment/nomercy-video-player` or `@nomercy-entertainment/nomercy-music-player`. These are domain-specific — `DesktopUiPlugin`, `SubtitleOverlayPlugin`, `OctopusPlugin`, `Skipper`, `CastSenderPlugin` live in the video player package. `LyricsPlugin`, `CrossfadePlugin`, `AutoAdvancePlugin`, `GroupListeningPlugin` live in the music player package.
+
+See the [Video Player](/nomercy-video-player) and [Music Player](/nomercy-music-player) sections for their plugin pages.
+
+### Consumer plugins
+
+Written by you. Named with a vendor prefix (`'nomercy:sync'`, `'myapp:scrobble'`). These live in your application codebase at layer 5.
+
+See [Plugin Authoring](/nomercy-player-kit/plugin-authoring) for how to write one.
+
+---
+
+## Registration and lookup
 
 ```ts
-player.addPlugin(AudioGraphPlugin);
-```
+import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
 
-### EqualizerPlugin
+// Register:
+player.addPlugin(EqualizerPlugin);
 
-10-band parametric equalizer. Requires `AudioGraphPlugin`.
-
-```ts
-player.addPlugin(AudioGraphPlugin);
-player.addPlugin(EqualizerPlugin, { bands: 10 });
-
+// Look up by class (preferred — fully typed):
 const eq = player.getPlugin(EqualizerPlugin);
-eq.setBand(0, 3.0); // band index 0, +3 dB
-eq.getBand(0); // 3.0
-eq.loadPreset('bass-boost');
+eq?.band(0, 3.0);
+
+// Look up by string id (use when class is not in scope):
+const eq = player.getPluginById('equalizer');
 ```
 
-Key events: `bandChanged`, `presetLoaded`, `beforeSetBand`.
-
-### SpectrumPlugin
-
-Real-time frequency spectrum analysis via `AnalyserNode`. Requires `AudioGraphPlugin`.
-
-```ts
-player.addPlugin(AudioGraphPlugin);
-player.addPlugin(SpectrumPlugin, { fftSize: 2048, smoothingTimeConstant: 0.85 });
-
-const spectrum = player.getPlugin(SpectrumPlugin);
-spectrum.getFloatFrequencyData(floatArray);
-spectrum.getByteFrequencyData(byteArray);
-```
-
-### MixerPlugin
-
-Per-track gain control. Requires `AudioGraphPlugin`.
-
-```ts
-player.addPlugin(AudioGraphPlugin);
-player.addPlugin(MixerPlugin);
-
-const mixer = player.getPlugin(MixerPlugin);
-mixer.gain(0.8); // set master gain
-mixer.gain(); // read master gain
-```
-
-### MediaSessionPlugin
-
-Wires the browser Media Session API — lock screen controls, notification artwork, and chapter markers.
-
-```ts
-player.addPlugin(MediaSessionPlugin);
-```
-
-Reads `item.title`, `item.artist` / `item.name`, `item.poster` / `item.image` automatically. Override `getMetadata()` via subclass.
-
-### KeyHandlerPlugin
-
-Keyboard shortcut handler. Default bindings: space (play/pause), arrow keys (seek), `m` (mute), `f` (fullscreen — video only).
-
-```ts
-player.addPlugin(KeyHandlerPlugin);
-```
-
-Customize bindings by subclassing and overriding `addPlaybackKeys()`.
-
-### MessagePlugin
-
-In-player toast notification overlay. Requires a container element.
-
-```ts
-player.addPlugin(MessagePlugin);
-
-const msg = player.getPlugin(MessagePlugin);
-msg.show('Subtitle track loaded');
-msg.show('Buffering…', { duration: 0 }); // duration: 0 = stays until dismissed
-msg.dismiss();
-```
-
-### TabLeaderPlugin
-
-Single-tab coordination — designates one tab as leader for shared state. Used by `GroupListeningPlugin`.
-
-```ts
-player.addPlugin(TabLeaderPlugin);
-
-const leader = player.getPlugin(TabLeaderPlugin);
-leader.isLeader(); // boolean
-```
-
-### EmbedPlugin
-
-Manages the player inside an iframe embed context — postMessage bridge between the embedded player and a host page.
-
-```ts
-player.addPlugin(EmbedPlugin);
-```
-
-### CanvasPlugin
-
-Provides a managed `<canvas>` overlay on the player container. Used by visualization plugins.
-
-```ts
-player.addPlugin(CanvasPlugin);
-```
-
-### VisualizationPlugin
-
-Base class for canvas visualizations. Extend to create custom visualizers.
-
-### CastSenderPlugin (kit)
-
-Chromecast sender logic. The video-player package ships a video-aware subclass.
+For the full registration API see [Plugin Registration](/nomercy-player-kit/plugin-registration).
 
 ---
 
-## Next steps
+## Plugin contract
 
-- Building your own plugin? See [Plugin Authoring](/nomercy-player-kit/plugin-authoring) for the API contract.
-- Need a video-specific plugin (Desktop UI, subtitles, chapters, casting)? See the [Video Player section](/nomercy-video-player).
-- Need a music-specific plugin (Crossfade, EQ, Lyrics)? See the [Music Player section](/nomercy-music-player).
+Every plugin must satisfy the conformance checklist in the [Plugin Standard](/nomercy-player-kit/plugin-standard). The standard is enforced by lint rules in the kit.
+
+---
+
+## Where to go next
+
+| Goal | Page |
+| --- | --- |
+| Register, look up, or remove a plugin | [Plugin Registration](/nomercy-player-kit/plugin-registration) |
+| Browse all kit-shipped plugins | [Built-in Kit Plugins](/nomercy-player-kit/plugins-builtin) |
+| Write your own plugin | [Plugin Authoring](/nomercy-player-kit/plugin-authoring) |
+| Read the locked conformance standard | [Plugin Standard](/nomercy-player-kit/plugin-standard) |
+| Browse video-player plugins | [Video Player section](/nomercy-video-player) |
+| Browse music-player plugins | [Music Player section](/nomercy-music-player) |

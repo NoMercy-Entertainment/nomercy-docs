@@ -34,7 +34,7 @@ export class MyMusicPlugin extends Plugin<NMMusicPlayer<any>, MyMusicOptions> {
       if (item) {
         console.log('Now playing:', item.name);
         // Access music-specific fields:
-        console.log('Artist:', item.artist_track?.[0]?.name);
+        console.log('Artist:', item.artistTracks?.[0]?.name);
       }
     });
 
@@ -79,7 +79,10 @@ override use(): void {
     const next = this.player.peekNext();
     if (!next || this.player.isTransitioning()) return;
 
-    void this.player.crossfadeTo(next, { duration: 3, curve: 'equal-power' })
+    void this.player.crossfadeTo(next, {
+      duration: 3,
+      curve: 'equal-power',
+    })
       .catch(err => this.logger.warn('crossfadeTo failed', err));
   });
 }
@@ -105,12 +108,15 @@ export class BeatDetectorPlugin extends Plugin<NMMusicPlayer<any>, {}, BeatEvent
 
   private async detectBeat(): Promise<void> {
     // … analysis …
-    this.emit('beat:detected', { bpm: 128, confidence: 0.92 });
+    this.emit('beat:detected', {
+      bpm: 128,
+      confidence: 0.92,
+    });
   }
 }
 
 // Usage:
-player.on(BeatDetectorPlugin, 'beat:detected', ({ bpm, confidence }) => {
+player.on('plugin:beat-detector:beat:detected', ({ bpm, confidence }) => {
   console.log(`BPM: ${bpm} (${(confidence * 100).toFixed(0)}% confidence)`);
 });
 ```

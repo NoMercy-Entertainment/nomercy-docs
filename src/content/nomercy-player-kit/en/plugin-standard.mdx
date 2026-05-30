@@ -1,8 +1,8 @@
 ---
 title: 'Plugin Standard'
 description: 'The contract every plugin in the NoMercy player ecosystem must follow. Required surface, naming conventions, lifecycle, error handling, and testing.'
-category: 'Plugins'
-order: 1
+category: 'Writing Plugins'
+order: 2
 ---
 
 # Plugin Standard — v1.0
@@ -79,7 +79,7 @@ this.emit('dataFetched', { count: 5 });
 const result = await this.dispatchBefore('beforeSetBand', { index, gain });
 if (result.prevented) return;
 this.applyBand(result.data.index, result.data.gain);
-this.emit('bandChanged', result.data);
+this.emit('band:changed', result.data);
 ```
 
 Export your plugin's event map type alongside the class:
@@ -114,8 +114,8 @@ this.on('time', ({ time }) => {
 });
 
 // Cross-plugin events — typed via imported class:
-this.on(EqualizerPlugin, 'bandChanged', (event) => {
-  // event.data is typed from EqualizerPlugin's E generic
+this.on(EqualizerPlugin, 'band:changed', ({ band }) => {
+  // band is EqBand, typed from EqualizerPlugin's E generic
 });
 ```
 
@@ -156,16 +156,32 @@ Never throw raw errors or call `player.emit('error', ...)` directly:
 
 ```ts
 // Fatal — plugin fails, marks itself disabled. Player survives.
-this.throw({ severity: 'fatal', code: 'my-plugin/connection-lost', message: '...' });
+this.throw({
+  severity: 'fatal',
+  code: 'my-plugin/connection-lost',
+  message: '...',
+});
 
 // Non-fatal — operation fails, plugin keeps running.
-this.throw({ severity: 'error', code: 'my-plugin/fetch-failed', message: '...' });
+this.throw({
+  severity: 'error',
+  code: 'my-plugin/fetch-failed',
+  message: '...',
+});
 
 // Degradation — plugin survives, caller continues.
-this.report({ severity: 'warning', code: 'my-plugin/rate-limited', message: '...' });
+this.report({
+  severity: 'warning',
+  code: 'my-plugin/rate-limited',
+  message: '...',
+});
 
 // Observability.
-this.report({ severity: 'info', code: 'my-plugin/cache-hit', message: '...' });
+this.report({
+  severity: 'info',
+  code: 'my-plugin/cache-hit',
+  message: '...',
+});
 ```
 
 ---
@@ -250,7 +266,7 @@ async setBand(index: number, gain: number) {
   const result = await this.dispatchBefore('beforeSetBand', { index, gain });
   if (result.prevented) return;
   this.applyBand(result.data.index, result.data.gain);
-  this.emit('bandChanged', result.data);
+  this.emit('band:changed', result.data);
 }
 ```
 
@@ -335,7 +351,7 @@ this.logger.debug('something'); // outputs [nmplayer][my-plugin] something
 | Context                | Convention                                          | Example                             |
 | ---------------------- | --------------------------------------------------- | ----------------------------------- |
 | Player core events     | Bare name                                           | `play`, `pause`, `ready`            |
-| Plugin events          | `plugin:<id>:<event>` (auto-applied by `this.emit`) | `plugin:equalizer:bandChanged`      |
+| Plugin events          | `plugin:<id>:<event>` (auto-applied by `this.emit`) | `plugin:equalizer:band:changed`     |
 | Subsystem events       | `<subsystem>:<event>`                               | `backend:changed`, `auth:refreshed` |
 | Stage events           | Bare camelCase                                      | `setupStart`, `pluginsRegistered`   |
 | Lifecycle phase events | `before<X>` (pre) / bare `<X>` (post)               | `beforePlay`, `play`                |
@@ -495,7 +511,7 @@ import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testi
 describePlugin(MyPlugin, ({ player, plugin }) => {
   test('emits dataFetched on track change', async () => {
     const events: unknown[] = [];
-    player.on(MyPlugin, 'dataFetched', (e) => events.push(e));
+    player.on('plugin:my-plugin:dataFetched', (e) => events.push(e));
     player.current({ id: '1', name: 'Track', url: '...' });
     await vi.waitFor(() => events.length > 0);
     expect(events[0]).toMatchObject({ count: expect.any(Number) });

@@ -1,4 +1,4 @@
-﻿---
+---
 title: 'Migrating from Other Players'
 description: 'Migration notes from hls.js, video.js, Plyr, and Tone.js to the NoMercy Player SDK — concept mapping and API translation.'
 category: 'Advanced'
@@ -100,7 +100,7 @@ Plyr is a minimal UI wrapper over the native `<video>` element. It has no HLS su
 | `new Plyr('#player', options)`     | `nmplayer('id').setup({ container, ...options })`           |
 | `player.play()` / `player.pause()` | Same                                                        |
 | `player.currentTime` (property)    | `player.currentTime()` (method)                             |
-| `player.volume` (property, 0–1)    | `player.volume()` (method, 0–1)                             |
+| `player.volume` (property, 0–1)    | `player.volume()` (method, 0–100)                           |
 | `player.muted` (property)          | `player.mute()` / `player.unmute()` / `player.toggleMute()` |
 | `player.fullscreen.enter()`        | `player.fullscreenState(true)`                              |
 | `player.fullscreen.exit()`         | `player.fullscreenState(false)`                             |
@@ -142,12 +142,15 @@ const eq = new Tone.EQ3({ low: 3, mid: 0, high: -2 });
 const player = new Tone.Player(url).connect(eq);
 
 // NoMercy music player (EQ):
-player.addPlugin(AudioGraphPlugin).addPlugin(EqualizerPlugin, {
-  presets: [{ name: 'Custom', bands: [3, 2, 1, 0, 0, 0, -1, -2, -2, -2] }],
-});
+player
+  .addPlugin(AudioGraphPlugin)
+  .addPlugin(EqualizerPlugin, {
+    preset: 'Rock',
+  });
 
 const eq = player.getPlugin(EqualizerPlugin);
-await eq.setPreset('Custom');
+eq?.band(70, 4.875);   // boost 70 Hz
+eq?.preset('Rock');    // or apply by name
 ```
 
 ### Tone.js for scheduling
@@ -179,4 +182,4 @@ this.interval(() => {
 - [Video Quick Start](/nomercy-video-player/quickstart) — minimal working player in under 30 lines
 - [Music Quick Start](/nomercy-music-player/quickstart) — minimal working music player
 - [Player migration guide (v1 → v2)](/nomercy-video-player/migration-v1-v2) — if you were on the v1 NoMercy player
-- [Advanced: Custom Backend](/nomercy-video-player/advanced/writing-a-video-backend) — if you need to preserve hls.js direct access
+- [Advanced: Custom Backend](/nomercy-video-player/adapters/video-backend) — if you need to preserve hls.js direct access

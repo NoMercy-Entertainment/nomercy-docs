@@ -131,7 +131,7 @@ The kit automatically reads and writes `volume`, `shuffleState`, `repeatState`, 
 3. Listen to `lineEnter` for the active line.
 
 ```ts
-player.on(LyricsPlugin, 'lineEnter', ({ text }) => {
+player.on('plugin:lyrics:lineEnter', ({ text }) => {
   document.getElementById('lyric-line').textContent = text;
 });
 ```
@@ -147,9 +147,9 @@ Yes. Register a `CueParser`:
 ```ts
 player.registerCueParser({
   id: 'my-format',
-  test: (url) => url.endsWith('.txt'),
+  canParse: (url) => url.endsWith('.txt'),
   parse: (text) => {
-    // Return CueEntry[]
+    // Return CueList
   },
 });
 ```
@@ -169,14 +169,14 @@ const player = nmMPlayer('main')
   .setup({ playlist: [] });
 ```
 
-`EqualizerPlugin` and `SpectrumPlugin` are exported from `nomercy-player-core` (the kit). Import paths:
+`EqualizerPlugin` and `SpectrumPlugin` are re-exported from the music player's `/plugins` subpath for ergonomic imports:
 
 ```ts
 import {
   AudioGraphPlugin,
   EqualizerPlugin,
   SpectrumPlugin,
-} from '@nomercy-entertainment/nomercy-player-core/plugins';
+} from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
 
 ---

@@ -35,12 +35,43 @@ The back button in the top bar only renders when at least one `'back'` event lis
 
 Hover thumbnails on the progress bar use the `previewSpriteUrl` from the active playlist item automatically — no extra configuration needed.
 
+## CSS state classes
+
+State CSS classes are applied to `.nomercyplayer` (the player's container element):
+
+| State                  | CSS class on `.nomercyplayer` |
+| ---------------------- | ----------------------------- |
+| Playing                | `nm-playing`                  |
+| Paused                 | `nm-paused`                   |
+| Buffering              | `nm-buffering`                |
+| Ended                  | `nm-ended`                    |
+| Fullscreen             | `nm-fullscreen`               |
+| PiP active             | `nm-pip`                      |
+| Theater mode           | `nm-theater`                  |
+| Controls visible       | `nm-controls-visible`         |
+| Controls hidden (idle) | `nm-controls-hidden`          |
+| Subtitles on           | `nm-subtitles-on`             |
+
+Do not add `nm-` or `nmplayer-` prefixed classes to child elements from outside the plugin.
+
+## Inactivity hiding
+
+Controls auto-hide after 4 seconds of inactivity. Mouse movement, keyboard input, or touch interaction resets the timer.
+
 ## Options
 
 ```ts
 interface DesktopUiOptions {
-  // No consumer-configurable options in this release.
-  // All UI behaviour adapts to the player state automatically.
+  /** Hide the title bar at the top of the player. Default: false. */
+  hideTitle?: boolean;
+  /** Disable click/tap on the video area to toggle pause. Default: false. */
+  disableClickToPause?: boolean;
+  /** Milliseconds of inactivity before controls hide. Default: 4000. */
+  inactivityMs?: number;
+  /** Base URL prepended to relative image paths in the player UI. */
+  imageBaseUrl?: string;
+  /** Per-button opt-in / opt-out overrides. */
+  buttons?: DesktopUiButtonOptions;
 }
 ```
 
@@ -98,6 +129,51 @@ overlay
           ├─ left controls (play, prev, next, time, volume)
           ├─ center (space)
           └─ right controls (speed, quality, subtitles, audio, playlist, theater, pip, fullscreen)
+```
+
+## Default keyboard shortcuts
+
+`KeyHandlerPlugin` is included with `DesktopUiPlugin`. Default bindings:
+
+| Key         | Action                  |
+| ----------- | ----------------------- |
+| Space / `k` | Toggle playback         |
+| `f`         | Toggle fullscreen       |
+| `m`         | Toggle mute             |
+| `←` / `→`   | Seek ±10 seconds        |
+| `↑` / `↓`   | Volume ±5 (0–100 scale) |
+| `c`         | Cycle subtitle tracks   |
+| `?`         | Toggle shortcut sheet   |
+
+## Customizing the UI
+
+The UI uses standard DOM elements styled by the player's CSS. Override styles by targeting `.nomercyplayer` and its children in your app stylesheet.
+
+To replace specific behaviors without replacing the entire plugin, subclass and override the protected group methods:
+
+```ts
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+class MyDesktopUi extends DesktopUiPlugin {
+  static readonly id = 'desktop-ui';
+
+  protected addPlaybackHooks(): void {
+    super.addPlaybackHooks();
+    // add extra behavior
+  }
+}
+
+player.addPlugin(MyDesktopUi);
+```
+
+## TV UI
+
+For 10-foot TV remote navigation, use `TvUiPlugin` instead. It is optimized for D-pad navigation and does not mount the desktop pointer-based controls.
+
+```ts
+import { TvUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+player.addPlugin(TvUiPlugin);
 ```
 
 ## UX rules

@@ -73,14 +73,6 @@ Fires when `repeatState()` changes.
 
 Fires when `shuffleState()` changes.
 
-### `eq:change`
-
-```ts
-'eq:change': { band: number; gain: number }
-```
-
-Fires when a single EQ band changes. `band` is the zero-based band index; `gain` is the new value in dB.
-
 ### `backend:changed`
 
 ```ts
@@ -215,6 +207,24 @@ From inside a plugin, always use `this.on(...)` rather than `player.on(...)` —
 
 ---
 
+## EQ events (EqualizerPlugin)
+
+`EqualizerPlugin` emits events namespaced as `plugin:equalizer:<event>`. Subscribe via the string form on `player.on()`:
+
+```ts
+player.on('plugin:equalizer:band:changed', ({ band }) => {
+  updateSlider(band.frequency, band.gain);
+});
+
+player.on('plugin:equalizer:change', ({ bands, selectedPreset }) => {
+  renderFullEqState(bands, selectedPreset);
+});
+```
+
+These are `EqualizerPlugin` events, not `MusicEventMap` events.
+
+---
+
 ## Plugin events
 
 Plugin events are namespaced under `plugin:<id>:<event>`. Examples:
@@ -226,12 +236,8 @@ Plugin events are namespaced under `plugin:<id>:<event>`. Examples:
 | `plugin:lyrics:lineExit`  | `{ text: string }` |
 | `plugin:lyrics:loaded`    | `undefined`        |
 
-Listen using the class form for full type inference:
-
 ```ts
-import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
-
-player.on(LyricsPlugin, 'line', ({ text }) => {
+player.on('plugin:lyrics:line', ({ text }) => {
   updateLyricsDisplay(text);
 });
 ```

@@ -132,6 +132,33 @@ plugin.fetchSkipFile(url: string): Promise<SkipperEntry[]>
 
 Fetch and parse a JSON skip file from `url`. The file must be an array of `{ type: SkipperKind; start: number; end: number }` objects. Useful when skip data is stored server-side separately from the playlist item.
 
+## Building a skip button
+
+```ts
+const skipPlugin = player.getPlugin(SkipperPlugin);
+
+player.on('plugin:skipper:skipper:available', ({ kind }) => {
+  skipButton.style.display = 'block';
+  skipButton.textContent = kind === 'intro' ? 'Skip Intro' : 'Skip Credits';
+  skipButton.onclick = () => skipPlugin?.skip(kind);
+});
+
+player.on('plugin:skipper:skipper:hidden', () => {
+  skipButton.style.display = 'none';
+});
+```
+
+## DesktopUiPlugin integration
+
+`DesktopUiPlugin` renders a "Skip Intro" / "Skip Credits" button automatically when `SkipperPlugin` is registered and the current time is inside a marked range. No additional wiring needed.
+
+```ts
+const player = nmplayer('player')
+  .addPlugin(DesktopUiPlugin)
+  .addPlugin(SkipperPlugin)
+  .setup({ ... });
+```
+
 ## See also
 
 - [VideoPlaylistItem — skippers field](/nomercy-video-player/playlist-item)

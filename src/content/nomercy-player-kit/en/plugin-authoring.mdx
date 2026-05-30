@@ -1,8 +1,8 @@
 ---
 title: 'Plugin Authoring'
 description: 'How to write a plugin for the NoMercy Player SDK. Lifecycle, events, error handling, advisories, and the conformance checklist.'
-category: 'Getting Started'
-order: 3
+category: 'Writing Plugins'
+order: 1
 ---
 
 # Plugin Authoring
@@ -87,7 +87,7 @@ Usage:
 ```ts
 player.addPlugin(ScrobblePlugin, { endpoint: '/api/v1/progress' });
 
-player.on(ScrobblePlugin, 'scrobbled', ({ itemId, watchedPercent }) => {
+player.on('plugin:scrobble:scrobbled', ({ itemId, watchedPercent }) => {
   console.log(`Scrobbled ${itemId} at ${watchedPercent * 100}%`);
 });
 ```
@@ -133,8 +133,8 @@ Always use `this.on(...)` inside a plugin, never `player.on(...)`. The `this.on`
 this.on('time', ({ time }) => this.updateDisplay(time));
 
 // Cross-plugin events (typed via class reference):
-this.on(EqualizerPlugin, 'bandChanged', ({ index, gain }) => {
-  this.syncBand(index, gain);
+this.on(EqualizerPlugin, 'band:changed', ({ band }) => {
+  this.syncBand(band);
 });
 ```
 
@@ -152,7 +152,7 @@ this.emit('scrobbled', { itemId: '123', watchedPercent: 0.85 });
 const result = await this.dispatchBefore('beforeSyncEq', { index, gain });
 if (result.prevented) return;
 this.applyBand(result.data.index, result.data.gain);
-this.emit('bandChanged', result.data);
+this.emit('band:changed', result.data);
 ```
 
 ---
@@ -287,7 +287,7 @@ import { assertNoListenerLeak } from '@nomercy-entertainment/nomercy-player-core
 describePlugin(ScrobblePlugin, ({ player, plugin }) => {
   test('emits scrobbled after progress threshold', async () => {
     const events: unknown[] = [];
-    player.on(ScrobblePlugin, 'scrobbled', (e) => events.push(e));
+    player.on('plugin:scrobble:scrobbled', (e) => events.push(e));
 
     player.emit('progress', { time: 90, duration: 100, percentage: 0.9 });
 

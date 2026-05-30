@@ -114,6 +114,8 @@ Be careful with singletons:
 ```ts
 // Bad — global mutable singleton shared across all instances:
 const globalState = { activePlayer: null as NMVideoPlayer | null };
+// Good
+const globalState: { activePlayer: NMVideoPlayer | null } = { activePlayer: null };
 
 // Good — state is per-instance via this:
 class MyPlugin extends Plugin<...> {
@@ -300,7 +302,7 @@ describePlugin(
   ({ player, plugin }) => {
     test('broadcasts play events', () => {
       const synced: unknown[] = [];
-      player.on(WatchPartyLitePlugin, 'synced', (e) => synced.push(e));
+      player.on('plugin:watch-party-lite:synced', (e) => synced.push(e));
 
       player.emit('play');
 

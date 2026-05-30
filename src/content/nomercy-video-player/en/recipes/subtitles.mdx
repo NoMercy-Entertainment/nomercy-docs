@@ -1,4 +1,4 @@
-﻿---
+---
 title: 'Subtitles'
 description: 'VTT default rendering, ASS/SSA via OctopusPlugin with dynamic load, multi-language switching, and style customization.'
 category: 'Recipes'
@@ -18,20 +18,25 @@ Read this when you need subtitle rendering beyond the bare minimum in the quicks
 `SubtitleOverlayPlugin` renders WebVTT cues as styled DOM text over the video. It is the lightest option and works without any extra dependencies.
 
 ```ts
-import { nmplayer, SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 const player = nmplayer('main').setup({
   container: document.getElementById('player')!,
-  defaultSubtitleLanguage: 'en', // auto-activates this language on load
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  defaultSubtitleLanguage: 'en',
   queue: [
     {
-      id: '1',
-      url: 'https://cdn.example.com/ep1.m3u8',
+      id: 'sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
       subtitles: [
-        // Each track needs an id, language code, label, and file URL
-        { id: 'en', language: 'en', label: 'English', file: '/subs/ep1.en.vtt', kind: 'subtitles' },
-        { id: 'nl', language: 'nl', label: 'Dutch', file: '/subs/ep1.nl.vtt', kind: 'subtitles' },
-        { id: 'de', language: 'de', label: 'German', file: '/subs/ep1.de.vtt', kind: 'subtitles' },
+        {
+          id: 'en',
+          language: 'en',
+          label: 'English',
+          file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
+          kind: 'subtitles',
+        },
       ],
     },
   ],
@@ -75,12 +80,6 @@ player.on('subtitle', ({ index }) => {
 
 Use `OctopusPlugin` when you need full ASS/SSA typesetting — custom fonts, karaoke effects, complex positioning, motion. It loads `@nomercy-entertainment/nomercy-subtitle-octopus` at runtime via a dynamic import.
 
-**Install the optional dependency:**
-
-```
-npm install @nomercy-entertainment/nomercy-subtitle-octopus
-```
-
 **Copy worker files to your public directory** (Vite example):
 
 ```ts
@@ -105,35 +104,43 @@ export default {
 **Register the plugin:**
 
 ```ts
-import { nmplayer, OctopusPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { OctopusPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 const player = nmplayer('main').setup({
   container: document.getElementById('player')!,
   defaultSubtitleLanguage: 'en',
   queue: [
     {
-      id: '1',
-      url: 'https://cdn.example.com/ep1.m3u8',
+      id: 'rail-wars',
+      url: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Anime/Rail.Wars!.(2014)/Rail.Wars!.S00E00/Rail.Wars!.(2014).S00E00.NoMercy.m3u8',
       subtitles: [
-        // Use kind: 'ass' for ASS/SSA tracks
-        { id: 'en', language: 'en', label: 'English', file: '/subs/ep1.en.ass', kind: 'ass' },
-        { id: 'nl', language: 'nl', label: 'Dutch', file: '/subs/ep1.nl.ass', kind: 'ass' },
+        {
+          id: 'en',
+          language: 'en',
+          label: 'English (ASS)',
+          file: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Anime/Rail.Wars!.(2014)/Rail.Wars!.S00E00/subtitles/Rail.Wars!.(2014).S00E00.NoMercy.eng.full.ass',
+          kind: 'ass',
+        },
       ],
-      // Font manifest — embed font names referenced by the ASS file
-      tracks: [{ kind: 'fonts', file: '/fonts/ep1-fonts.json' }],
+      fonts: [
+        {
+          file: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Anime/Rail.Wars!.(2014)/Rail.Wars!.S00E00/fonts.json',
+        },
+      ],
     },
   ],
 });
 
 player.addPlugin(OctopusPlugin, {
-  workerUrl: '/static/subtitles-octopus-worker.js', // WASM worker (modern browsers)
-  legacyWorkerUrl: '/static/subtitles-octopus-worker-legacy.js', // asm.js fallback
-  fallbackFont: '/static/fonts/Roboto.ttf', // font used when ASS font is missing
-  targetFps: 24, // rendering frame rate
+  workerUrl: '/static/subtitles-octopus-worker.js',
+  legacyWorkerUrl: '/static/subtitles-octopus-worker-legacy.js',
+  fallbackFont: '/static/fonts/Roboto.ttf',
+  targetFps: 24,
 });
 ```
 
-If `@nomercy-entertainment/nomercy-subtitle-octopus` is not installed, the plugin falls back to no rendering (no error thrown). Enable `logLevel: 'debug'` on the player to confirm the fallback path.
+`nomercy-subtitle-octopus` ships as a dependency of `nomercy-video-player`. The plugin loads it lazily — if it cannot be resolved at runtime (e.g. bundler exclusion), it falls back to no rendering with no error thrown. Enable `logLevel: 'debug'` to confirm the fallback path.
 
 ---
 
@@ -143,8 +150,8 @@ The font manifest is a JSON array. The plugin fetches each font before first ren
 
 ```json
 [
-  { "file": "https://cdn.example.com/fonts/NotoSans.ttf", "mimeType": "font/ttf" },
-  { "file": "https://cdn.example.com/fonts/ScriptBold.otf", "mimeType": "font/otf" }
+  { "file": "https://your-domain.com/fonts/NotoSans.ttf", "mimeType": "font/ttf" },
+  { "file": "https://your-domain.com/fonts/ScriptBold.otf", "mimeType": "font/otf" }
 ]
 ```
 
@@ -180,12 +187,12 @@ import type {
 } from '@nomercy-entertainment/nomercy-video-player';
 
 class RemoteSubtitleStyleStore implements ISubtitleStyleStore {
-  async get(): Promise<SubtitleStyle | null> {
+  async load(): Promise<SubtitleStyle | null> {
     const response = await fetch('/api/user/subtitle-style');
     return response.ok ? response.json() : null;
   }
 
-  async set(style: SubtitleStyle): Promise<void> {
+  async save(style: SubtitleStyle): Promise<void> {
     await fetch('/api/user/subtitle-style', {
       method: 'PUT',
       body: JSON.stringify(style),

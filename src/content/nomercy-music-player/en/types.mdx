@@ -22,8 +22,8 @@ interface MusicPlaylistItem extends BasePlaylistItem {
   name: string;
   url?: string;
   cover?: string;
-  artist_track?: ArtistRef[];
-  album_track?: AlbumRef[];
+  artistTracks?: ArtistRef[];
+  albumTracks?: AlbumRef[];
   lyricsUrl?: string;
   duration?: number;
 }
@@ -82,7 +82,6 @@ interface MusicEventMap extends BaseEventMap {
   trackEndingSoon: { remaining: number; currentTrack: BasePlaylistItem };
   crossfadeStart: { from: BasePlaylistItem | null; to: BasePlaylistItem; duration: number };
   crossfadeComplete: { track: BasePlaylistItem };
-  'eq:change': { band: number; gain: number };
 }
 ```
 
@@ -192,19 +191,21 @@ type BackendEvent =
   | 'stalled'
   | 'ratechange'
   | 'encrypted'
-  | 'error';
+  | 'error'
+  | 'backend:loading'
+  | 'backend:loaded';
 ```
 
 ---
 
 ## Adapter types
 
-| Type                            | Import path                                   |
-| ------------------------------- | --------------------------------------------- |
-| `ILyricSource`                  | `@nomercy-entertainment/nomercy-music-player` |
-| `IScrobbler`, `ScrobbleContext` | `@nomercy-entertainment/nomercy-music-player` |
-| `INowPlayingArt`                | `@nomercy-entertainment/nomercy-music-player` |
-| `IPlaylistGenerator`            | `@nomercy-entertainment/nomercy-music-player` |
+| Type                            | Import path                                                                       |
+| ------------------------------- | --------------------------------------------------------------------------------- |
+| `ILyricSource`                  | `@nomercy-entertainment/nomercy-music-player/adapters/lyric-source`               |
+| `IScrobbler`, `ScrobbleContext` | `@nomercy-entertainment/nomercy-music-player/adapters/scrobbler`                  |
+| `INowPlayingArt`                | `@nomercy-entertainment/nomercy-music-player/adapters/now-playing-art`            |
+| `IPlaylistGenerator`            | `@nomercy-entertainment/nomercy-music-player/adapters/playlist-generator`         |
 
 ---
 

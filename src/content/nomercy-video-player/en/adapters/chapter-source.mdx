@@ -44,6 +44,52 @@ const item: VideoPlaylistItem = {
 
 When `chapters` is present and non-empty, `VttChapterSource.load()` resolves immediately with the pre-supplied list without making any network request.
 
+Or reference a VTT chapter file via the `tracks` sidecar:
+
+```ts
+const item: VideoPlaylistItem = {
+  url: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+  tracks: [
+    {
+      kind: 'chapters',
+      file: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films/Sintel.(2010)/chapters.vtt',
+    },
+  ],
+};
+```
+
+## Custom chapter source
+
+Implement `IChapterSource` to load chapters from a different format or source. When calling your API from inside a plugin, use `this.fetch()` instead of the global `fetch`. The plugin's `this.fetch()` applies the player's bearer token, handles 401 refresh-and-retry, and respects the retry policy — raw `fetch()` skips all of that.
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { IChapterSource } from '@nomercy-entertainment/nomercy-video-player';
+import type { Chapter, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+class ApiChapterSource extends Plugin implements IChapterSource {
+  static readonly id = 'my-chapter-source';
+  static readonly description = 'Chapter source from /api/chapters/:id';
+
+  async load(item: VideoPlaylistItem): Promise<Chapter[]> {
+    const data = await this.fetch<ApiChapter[]>(`/api/chapters/${item.id}`, {
+      responseType: 'json',
+    });
+    return data.map((ch) => ({
+      title: ch.name,
+      start: ch.start_ms / 1000,
+      end: ch.end_ms / 1000,
+    }));
+  }
+}
+
+player.setup({
+  chapterSource: new ApiChapterSource(),
+});
+```
+
+The built-in `VttChapterSource` uses `this.fetch()` the same way — auth-aware, no manual token threading required.
+
 ## Chapter type
 
 `Chapter` is defined in `@nomercy-entertainment/nomercy-player-core`:

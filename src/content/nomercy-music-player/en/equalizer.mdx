@@ -8,7 +8,7 @@ draft: false
 
 # Equalizer
 
-10-band parametric EQ provided by `EqualizerPlugin` from `@nomercy-entertainment/nomercy-player-core`. This page is a quick reference. For the advanced guide see [Equalizer Customization](/nomercy-music-player/advanced/equalizer-customization).
+10-band parametric EQ provided by `EqualizerPlugin` (re-exported from the kit). Import it from `@nomercy-entertainment/nomercy-music-player/plugins`. This page is a quick reference. For the advanced guide see [Equalizer Customization](/nomercy-music-player/advanced/equalizer-customization).
 
 ---
 
@@ -17,57 +17,75 @@ draft: false
 `EqualizerPlugin` requires `AudioGraphPlugin`. Register `AudioGraphPlugin` first.
 
 ```ts
-import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
+import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
 const player = nmMPlayer('main')
   .addPlugin(AudioGraphPlugin)
-  .addPlugin(EqualizerPlugin, {
-    preGain: 0,
-    presets: [
-      { name: 'Flat', bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
-      { name: 'Rock', bands: [5, 3, 0, -1, -1, 0, 3, 3, 3, 1] },
-    ],
-  })
+  .addPlugin(EqualizerPlugin)
   .setup({ playlist: myTracks });
 ```
+
+19 built-in presets are included (Classical, Club, Dance, Flat, Rock, Pop, and more). Pass `presets` in options to extend or override them.
 
 ---
 
 ## Band frequencies
 
-| Index | Frequency |
-| ----- | --------- |
-| 0     | 32 Hz     |
-| 1     | 64 Hz     |
-| 2     | 125 Hz    |
-| 3     | 250 Hz    |
-| 4     | 500 Hz    |
-| 5     | 1 kHz     |
-| 6     | 2 kHz     |
-| 7     | 4 kHz     |
-| 8     | 8 kHz     |
-| 9     | 16 kHz    |
+The plugin uses 10 peaking filter bands plus a pre-gain pseudo-band:
 
-Gain range: −12 dB to +12 dB.
+| Frequency | Notes          |
+| --------- | -------------- |
+| `'Pre'`   | Pre-gain stage |
+| 70 Hz     |                |
+| 180 Hz    |                |
+| 320 Hz    |                |
+| 600 Hz    |                |
+| 1000 Hz   |                |
+| 3000 Hz   |                |
+| 6000 Hz   |                |
+| 12000 Hz  |                |
+| 14000 Hz  |                |
+| 16000 Hz  |                |
+
+Band gain range: −12 dB to +12 dB. Pre-gain range: −1 to +3.
 
 ---
 
 ## Methods
 
 ```ts
+import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
 const eq = player.getPlugin(EqualizerPlugin)!;
 
-// Read a band:
-const gain = eq.getBand(0);
+// Read a band gain by frequency (Hz or 'Pre'):
+const bassGain = eq.band(70);
+const preGain = eq.preGain();
 
-// Set a band:
-eq.setBand(0, 6);
+// Set a band by frequency:
+eq.band(70, 6); // boost 70 Hz by 6 dB
+eq.preGain(0.5); // raise pre-gain
 
-// Apply a preset:
-eq.setPreset('Rock');
+// Apply a built-in or custom preset by name:
+eq.preset('Rock');
 
-// Reset to flat:
+// Read current preset name:
+const name = eq.preset();
+
+// Read all bands as EqBand[] snapshot:
+const allBands = eq.bands();
+
+// Reset to initial state:
 eq.reset();
+
+// Add a custom preset at runtime:
+eq.addCustomPreset({
+  name: 'My Preset',
+  values: [
+    { frequency: 70, gain: 4 },
+    { frequency: 3000, gain: -2 },
+  ],
+});
 ```
 
 ---
@@ -75,9 +93,14 @@ eq.reset();
 ## EQ change event
 
 ```ts
-// Player-level event — fires for every band change:
-player.on('eq:change', ({ band, gain }) => {
-  updateSlider(band, gain);
+// Fires for every band change — carries the updated EqBand:
+player.on('plugin:equalizer:band:changed', ({ band }) => {
+  updateSlider(band);
+});
+
+// Fires after any mutation — carries the full band snapshot:
+player.on('plugin:equalizer:change', ({ bands, selectedPreset }) => {
+  renderEqState(bands, selectedPreset);
 });
 ```
 
@@ -85,7 +108,11 @@ player.on('eq:change', ({ band, gain }) => {
 
 ## Persistence
 
-EQ state (bands, preset name, preGain) is automatically persisted to the configured storage backend. It restores on the next `setup()` call.
+Set `persistKey` in `EqualizerPlugin` options to enable automatic persistence. EQ state (bands, selected preset, custom presets) saves on every change and restores on the next `setup()`.
+
+```ts
+player.addPlugin(EqualizerPlugin, { persistKey: 'my-app-eq' });
+```
 
 ---
 

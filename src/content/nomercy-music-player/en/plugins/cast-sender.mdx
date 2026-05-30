@@ -8,7 +8,7 @@ draft: false
 
 # CastSenderPlugin
 
-Music Chromecast sender. A thin specialization of the kit's shared `CastSenderPlugin` that adapts music-specific fields (`name`, `artist_track`, `album_track`, `cover`) to `MusicTrackMediaMetadata` and sets `'audio/mpeg'` as the default content type.
+Music Chromecast sender. A thin specialization of the kit's shared `CastSenderPlugin` that adapts music-specific fields (`name`, `artistTracks`, `albumTracks`, `cover`) to `MusicTrackMediaMetadata` and sets `'audio/mpeg'` as the default content type.
 
 All Cast session lifecycle (SDK probe, session negotiation, `RemotePlayer` event mirroring, forward/rewind helpers, resume-on-disconnect) is handled by the kit base class.
 
@@ -28,12 +28,12 @@ const player = nmMPlayer('main').addPlugin(CastSenderPlugin).setup({ playlist: m
 
 ## Metadata mapping
 
-| `MusicPlaylistItem` field              | `MusicTrackMediaMetadata` field |
-| -------------------------------------- | ------------------------------- |
-| `name`                                 | `title`                         |
-| `artist_track[].name` joined with `, ` | `artist`                        |
-| `album_track[0].name`                  | `albumName`                     |
-| `cover` (resolved via `resolveUrl`)    | `images[0].url`                 |
+| `MusicPlaylistItem` field               | `MusicTrackMediaMetadata` field |
+| --------------------------------------- | ------------------------------- |
+| `name`                                  | `title`                         |
+| `artistTracks[].name` joined with `, `  | `artist`                        |
+| `albumTracks[0].name`                   | `albumName`                     |
+| `cover` (resolved via `resolveUrl`)     | `images[0].url`                 |
 
 When `MusicTrackMediaMetadata` is not available from the Cast SDK, the plugin falls back to `GenericMediaMetadata`.
 
@@ -66,14 +66,15 @@ const player = nmMPlayer('main')
   .addPlugin(AutoAdvancePlugin)
   .addPlugin(MediaSessionPlugin)
   .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/D/Derek%20Clegg/%5B2010%5D%20KJC',
     playlist: [
       {
         id: 'kjc-01',
         name: 'Thaw You Out',
-        url: 'https://cdn.example.com/01.mp3',
-        cover: 'https://cdn.example.com/01.jpg',
-        artist_track: [{ id: 1, name: 'Derek Clegg' }],
-        album_track: [{ id: 1, name: 'KJC' }],
+        url: '/01%20Thaw%20You%20Out.mp3',
+        cover: '/01%20Thaw%20You%20Out.jpg',
+        artistTracks: [{ id: 1, name: 'Derek Clegg' }],
+        albumTracks: [{ id: 1, name: 'KJC' }],
       },
     ],
   });
@@ -87,5 +88,5 @@ player.on('ready', () => {
 
 ## See also
 
-- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — `name`, `artist_track`, `album_track`, `cover`
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — `name`, `artistTracks`, `albumTracks`, `cover`
 - [Player Kit — Cast](/nomercy-player-kit/cast) — shared Cast lifecycle, session events, forward/rewind helpers

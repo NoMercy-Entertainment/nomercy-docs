@@ -32,7 +32,7 @@ const player = nmMPlayer('main')
         url: '/01%20Thaw%20You%20Out.mp3',
         cover: '/01%20Thaw%20You%20Out.jpg',
         lyricsUrl: '/01%20Thaw%20You%20Out.lrc', // per-track LRC sidecar
-        artist_track: [{ id: 1, name: 'Derek Clegg' }],
+        artistTracks: [{ id: 1, name: 'Derek Clegg' }],
       },
     ],
   });
@@ -54,7 +54,7 @@ import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugin
 const lyricsEl = document.getElementById('lyrics')!;
 
 // Rebuild the display when a new track's lyrics load:
-player.on(LyricsPlugin, 'loaded', () => {
+player.on('plugin:lyrics:loaded', () => {
   const lyricsPlugin = player.getPlugin(LyricsPlugin)!;
   const allCues = lyricsPlugin.all();
 
@@ -68,7 +68,7 @@ player.on(LyricsPlugin, 'loaded', () => {
 });
 
 // Highlight the active line on every cue enter:
-player.on(LyricsPlugin, 'lineEnter', ({ text }) => {
+player.on('plugin:lyrics:lineEnter', ({ text }) => {
   lyricsEl.querySelector('.active')?.classList.remove('active');
 
   // Find the line element that matches the active text:
@@ -83,7 +83,7 @@ player.on(LyricsPlugin, 'lineEnter', ({ text }) => {
 });
 
 // Dim on line exit:
-player.on(LyricsPlugin, 'lineExit', () => {
+player.on('plugin:lyrics:lineExit', () => {
   lyricsEl.querySelector('.active')?.classList.remove('active');
 });
 ```
@@ -120,7 +120,7 @@ const lyricsPlugin = player.getPlugin(LyricsPlugin)!;
 player.addPlugin(LyricsPlugin, { autoFetch: false });
 
 // Load manually:
-const cueList = await lyricsPlugin.fetchLyrics('https://cdn.example.com/my-track.lrc');
+const cueList = await lyricsPlugin.fetchLyrics('https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.lrc');
 if (cueList) {
   console.log(`Loaded ${cueList.cues.length} cues`);
 }
@@ -147,70 +147,50 @@ No extra configuration is needed. Parser selection is driven by the URL file ext
 `EqualizerPlugin` requires `AudioGraphPlugin`. Register `AudioGraphPlugin` first.
 
 ```ts
-import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
+import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
-player.addPlugin(AudioGraphPlugin).addPlugin(EqualizerPlugin, {
-  preGain: 0,
-  presets: [
-    { name: 'Flat', bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
-    { name: 'Rock', bands: [5, 3, 0, -1, -1, 0, 3, 3, 3, 1] },
-    { name: 'Pop', bands: [-1, 3, 5, 5, 3, 0, -1, -1, -1, -1] },
-    { name: 'Bass', bands: [8, 6, 4, 1, 0, 0, 0, 0, 0, 0] },
-  ],
-});
+player.addPlugin(AudioGraphPlugin).addPlugin(EqualizerPlugin);
 ```
 
----
-
-## EQ band frequencies
-
-The 10 bands (index 0–9):
-
-| Index | Frequency |
-| ----- | --------- |
-| 0     | 32 Hz     |
-| 1     | 64 Hz     |
-| 2     | 125 Hz    |
-| 3     | 250 Hz    |
-| 4     | 500 Hz    |
-| 5     | 1 kHz     |
-| 6     | 2 kHz     |
-| 7     | 4 kHz     |
-| 8     | 8 kHz     |
-| 9     | 16 kHz    |
+19 built-in presets are included. To customize, supply `presets` in options or call `eq.addCustomPreset()` after setup.
 
 ---
 
 ## Building an EQ UI
 
 ```ts
-import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
+import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
 const eq = player.getPlugin(EqualizerPlugin)!;
 const eqContainer = document.getElementById('eq')!;
 
-const bandFrequencies = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+const allBands = eq.bands().filter((band) => band.frequency !== 'Pre');
 
-bandFrequencies.forEach((freq, index) => {
+allBands.forEach((band) => {
   const slider = document.createElement('input');
   slider.type = 'range';
-  slider.min = '-12';
-  slider.max = '12';
-  slider.step = '0.5';
-  slider.value = String(eq.getBand(index));
-  slider.title = `${freq} Hz`;
+  slider.min = String(eq.bandSliderMin(band.frequency));
+  slider.max = String(eq.bandSliderMax(band.frequency));
+  slider.step = String(eq.bandSliderStep(band.frequency));
+  slider.value = String(band.gain);
+  slider.title = `${band.frequency} Hz`;
 
   slider.addEventListener('input', () => {
-    eq.setBand(index, parseFloat(slider.value));
+    eq.band(band.frequency as number, parseFloat(slider.value));
   });
 
   eqContainer.appendChild(slider);
 });
 
-// Sync slider positions when a preset is applied:
-player.on('eq:change', ({ band, gain }) => {
+// Sync slider positions when a band changes:
+player.on('plugin:equalizer:band:changed', ({ band }) => {
   const sliders = eqContainer.querySelectorAll<HTMLInputElement>('input');
-  if (sliders[band]) sliders[band].value = String(gain);
+  for (const slider of sliders) {
+    if (slider.title === `${band.frequency} Hz`) {
+      slider.value = String(band.gain);
+      break;
+    }
+  }
 });
 ```
 
@@ -219,27 +199,33 @@ player.on('eq:change', ({ band, gain }) => {
 ## Applying presets
 
 ```ts
+import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
 const eq = player.getPlugin(EqualizerPlugin)!;
 
-// Apply a named preset:
-eq.setPreset('Rock');
+// Apply a built-in preset by name:
+eq.preset('Rock');
 
-// Reset to flat:
+// Read current preset name:
+const name = eq.preset();
+
+// Reset to initial state:
 eq.reset();
 ```
 
-EQ state is automatically persisted to the configured storage backend. On the next `nmMPlayer('main').setup()`, the EQ restores to its previous state.
+EQ state is automatically persisted to the configured storage backend when `persistKey` is set. On the next `nmMPlayer('main').setup()`, the EQ restores its previous state.
 
 ---
 
 ## Combining lyrics and EQ
 
 ```ts
-import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
 import {
   LyricsPlugin,
   AutoAdvancePlugin,
   MediaSessionPlugin,
+  AudioGraphPlugin,
+  EqualizerPlugin,
 } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
 const player = nmMPlayer('main')
@@ -247,7 +233,7 @@ const player = nmMPlayer('main')
   .addPlugin(MediaSessionPlugin)
   .addPlugin(LyricsPlugin)
   .addPlugin(AudioGraphPlugin)
-  .addPlugin(EqualizerPlugin, { presets: myPresets })
+  .addPlugin(EqualizerPlugin)
   .setup({ playlist: myTracks });
 
 player.on('ready', () => {
@@ -255,13 +241,13 @@ player.on('ready', () => {
 });
 
 // Lyrics panel:
-player.on(LyricsPlugin, 'lineEnter', ({ text }) => {
+player.on('plugin:lyrics:lineEnter', ({ text }) => {
   lyricsDisplay.textContent = text;
 });
 
 // EQ panel (preset applied by UI):
-player.on('eq:change', ({ band, gain }) => {
-  updateEqSlider(band, gain);
+player.on('plugin:equalizer:band:changed', ({ band }) => {
+  updateEqSlider(band.frequency, band.gain);
 });
 ```
 

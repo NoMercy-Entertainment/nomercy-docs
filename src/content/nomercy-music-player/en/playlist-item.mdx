@@ -1,6 +1,6 @@
 ---
 title: 'MusicPlaylistItem'
-description: 'All fields of MusicPlaylistItem — id, name, url, cover, artist_track, album_track, lyricsUrl, duration — with typing notes and real examples.'
+description: 'All fields of MusicPlaylistItem — id, name, url, cover, artistTracks, albumTracks, lyricsUrl, duration — with typing notes and real examples.'
 category: 'Playlist Item'
 order: 28
 draft: false
@@ -27,8 +27,8 @@ interface MusicPlaylistItem extends BasePlaylistItem {
   // Optional
   url?: string;
   cover?: string;
-  artist_track?: ArtistRef[];
-  album_track?: AlbumRef[];
+  artistTracks?: ArtistRef[];
+  albumTracks?: AlbumRef[];
   lyricsUrl?: string;
   duration?: number;
 }
@@ -72,8 +72,8 @@ url?: string
 
 Audio source URL. Supports:
 
-- Direct MP3/AAC/FLAC/OGG: `https://cdn.example.com/track.mp3`
-- HLS playlist: `https://cdn.example.com/stream.m3u8` — `hls.js` is loaded automatically when native HLS is unsupported
+- Direct MP3/AAC/FLAC/OGG: `https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.mp3`
+- HLS playlist: `https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.mp3` — `hls.js` is loaded automatically when native HLS is unsupported
 - Relative URL: resolved against `baseUrl` from config
 
 When `url` is absent, the item can still be in the queue (the player skips it on natural advance and throws on an explicit `load()` call).
@@ -86,23 +86,23 @@ cover?: string
 
 Album art URL. Consumed by `MediaSessionPlugin` (pushes to OS lock screen), `CastSenderPlugin` (included in `MusicTrackMediaMetadata`), and `MusicUiPlugin` (renders in the UI overlay).
 
-### `artist_track`
+### `artistTracks`
 
 ```ts
-artist_track?: ArtistRef[]
+artistTracks?: ArtistRef[]
 ```
 
 Contributing artists. Each entry has `id` and `name`. Multiple entries for compilations or features.
 
 `MediaSessionPlugin` joins all names with `, ` to produce the `artist` field for OS media controls.
 
-### `album_track`
+### `albumTracks`
 
 ```ts
-album_track?: AlbumRef[]
+albumTracks?: AlbumRef[]
 ```
 
-Album associations. Each entry has `id` and `name`. The first entry (`album_track[0].name`) is used as the album name in `MediaSessionPlugin` metadata.
+Album associations. Each entry has `id` and `name`. The first entry (`albumTracks[0].name`) is used as the album name in `MediaSessionPlugin` metadata.
 
 ### `lyricsUrl`
 
@@ -128,7 +128,7 @@ Use it to populate seekbars immediately on track load without waiting for the au
 {
   id: 'kjc-01',
   name: 'Thaw You Out',
-  url: 'https://cdn.example.com/01.mp3',
+  url: '/01%20Thaw%20You%20Out.mp3',
   duration: 204, // 3:24 — seekbar renders immediately
 }
 ```
@@ -168,8 +168,8 @@ const playlist: MusicPlaylistItem[] = [
     url: '/01%20Thaw%20You%20Out.mp3',
     cover: '/01%20Thaw%20You%20Out.jpg',
     lyricsUrl: '/01%20Thaw%20You%20Out.lrc',
-    artist_track: [{ id: 1, name: 'Derek Clegg' }],
-    album_track: [{ id: 1, name: 'KJC' }],
+    artistTracks: [{ id: 1, name: 'Derek Clegg' }],
+    albumTracks: [{ id: 1, name: 'KJC' }],
     duration: 204,
   },
   {
@@ -178,8 +178,8 @@ const playlist: MusicPlaylistItem[] = [
     url: '/02%20Hope.mp3',
     cover: '/02%20Hope.jpg',
     lyricsUrl: '/02%20Hope.lrc',
-    artist_track: [{ id: 1, name: 'Derek Clegg' }],
-    album_track: [{ id: 1, name: 'KJC' }],
+    artistTracks: [{ id: 1, name: 'Derek Clegg' }],
+    albumTracks: [{ id: 1, name: 'KJC' }],
     duration: 198,
   },
 ];
@@ -192,4 +192,4 @@ const playlist: MusicPlaylistItem[] = [
 - [Configuration](/nomercy-music-player/configuration) — `playlist` option that accepts these items
 - [Events](/nomercy-music-player/events) — `current` event payload includes the item
 - [LyricsPlugin](/nomercy-music-player/plugins/lyrics) — reads `lyricsUrl` on each track change
-- [MediaSessionPlugin](/nomercy-music-player/plugins/media-session) — reads `name`, `artist_track`, `album_track`, `cover`
+- [MediaSessionPlugin](/nomercy-music-player/plugins/media-session) — reads `name`, `artistTracks`, `albumTracks`, `cover`

@@ -1,4 +1,4 @@
-﻿---
+---
 title: 'Live Transcoding'
 description: 'Using LiveTranscodingPlugin to negotiate server-side on-demand transcode sessions, monitor progress, and switch quality during playback.'
 category: 'Recipes'
@@ -22,11 +22,12 @@ import { LiveTranscodingPlugin } from '@nomercy-entertainment/nomercy-video-play
 const player = nmplayer('main')
   .addPlugin(DesktopUiPlugin)
   .addPlugin(LiveTranscodingPlugin, {
-    serverUrl: 'https://media.your-server.com',
-    auth: { bearerToken: () => myAuth.getToken() },
+    controlUrl: 'wss://media.your-server.com/transcode/movie-1/ws',
+    seekTimeoutMs: 15_000,
   })
   .setup({
-    basePath: 'https://media.your-server.com',
+    baseUrl: 'https://media.your-server.com',
+    auth: { bearerToken: () => myAuth.getToken() },
     playlist: [
       {
         id: 'movie-1',
@@ -51,43 +52,39 @@ The plugin intercepts requests to the server's transcode endpoint and attaches s
 ```ts
 const transcodingPlugin = player.getPlugin(LiveTranscodingPlugin);
 
-// Fires when the server begins encoding a new segment group:
-player.on('transcoding:progress', ({ percent, segmentsReady, segmentsTotal }) => {
-  progressBar.value = percent;
-  progressLabel.textContent = `Encoding: ${segmentsReady}/${segmentsTotal} segments`;
+// Fires on each progress update from the server:
+player.on('plugin:live-transcoding:job:progress', ({ transcodedSeconds, totalSeconds }) => {
+  if (totalSeconds) {
+    progressBar.value = transcodedSeconds / totalSeconds;
+  }
+  progressLabel.textContent = `Encoding: ${Math.floor(transcodedSeconds)}s`;
 });
 
-// Fires when the full transcode is available (seek anywhere is safe):
-player.on('transcoding:complete', () => {
+// Fires when the full transcode job completes:
+player.on('plugin:live-transcoding:job:complete', ({ jobId }) => {
   progressBar.hidden = true;
 });
 
-// Fires if the server returns an error (out of disk, codec unsupported, etc.):
-player.on('transcoding:error', ({ code, message }) => {
-  showError(`Server error ${code}: ${message}`);
+// Fires if the server reports an error:
+player.on('plugin:live-transcoding:job:error', ({ error }) => {
+  showError(error.message);
 });
 ```
 
 ---
 
-## Quality negotiation
+## Quality hint
 
-When the server encodes multiple quality profiles in parallel, switch profiles without restarting the session:
-
-```ts
-// Request a specific profile by name:
-const plugin = player.getPlugin(LiveTranscodingPlugin);
-plugin.requestProfile('1080p'); // server switches encoding target
-plugin.requestProfile('auto'); // let the server decide based on client bandwidth report
-```
-
-The plugin fires `transcoding:profile-changed` when the server confirms the switch:
+Pass `preferredHeight` to request a target output height from the transcoding server:
 
 ```ts
-player.on('transcoding:profile-changed', ({ profile }) => {
-  qualityIndicator.textContent = profile;
+player.addPlugin(LiveTranscodingPlugin, {
+  controlUrl: 'wss://media.your-server.com/transcode/movie-1/ws',
+  preferredHeight: 1080,
 });
 ```
+
+When the server is encoding multiple quality variants in parallel, the player's standard `player.currentQuality(idx)` call controls which HLS level hls.js selects — standard ABR applies once variants are available.
 
 ---
 

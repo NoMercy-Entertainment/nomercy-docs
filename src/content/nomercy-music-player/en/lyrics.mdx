@@ -31,7 +31,7 @@ const player = nmMPlayer('main')
         name: 'Thaw You Out',
         url: '/01%20Thaw%20You%20Out.mp3',
         lyricsUrl: '/01%20Thaw%20You%20Out.lrc',
-        artist_track: [{ id: 1, name: 'Derek Clegg' }],
+        artistTracks: [{ id: 1, name: 'Derek Clegg' }],
       },
     ],
   });
@@ -59,13 +59,14 @@ import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugin
 const lyricsEl = document.getElementById('lyrics')!;
 
 // Build lyric sheet when loaded:
-player.on(LyricsPlugin, 'loaded', () => {
-  const cues = player.getPlugin(LyricsPlugin)!.all();
+player.on('plugin:lyrics:loaded', () => {
+  const lyricsPlugin = player.getPlugin(LyricsPlugin)!;
+  const cues = lyricsPlugin.all();
   lyricsEl.innerHTML = cues.map((cue, i) => `<p data-i="${i}">${cue.payload.text}</p>`).join('');
 });
 
 // Highlight active line:
-player.on(LyricsPlugin, 'lineEnter', ({ text }) => {
+player.on('plugin:lyrics:lineEnter', ({ text }) => {
   lyricsEl.querySelector('.active')?.classList.remove('active');
   for (const el of lyricsEl.querySelectorAll<HTMLElement>('p')) {
     if (el.textContent === text) {

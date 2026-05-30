@@ -34,7 +34,7 @@ Replace the built-in `SubtitleOverlayPlugin` (VTT text rendering) with your own 
 
 For ASS/SSA subtitles with full typesetting, add `OctopusPlugin` — it loads `@nomercy-entertainment/nomercy-subtitle-octopus` dynamically and handles its own rendering. Do not combine `OctopusPlugin` and a custom renderer for the same subtitle track.
 
-See [Video — Subtitle Overlay](/nomercy-video-player/subtitle-overlay) for the full API.
+See [Video — Subtitle Overlay](/nomercy-video-player/plugins/subtitle-overlay) for the full API.
 
 ---
 
@@ -119,23 +119,15 @@ HDR-aware ABR is automatic — on SDR displays, the player filters out HDR level
 
 ## How do I listen to events from a plugin I did not write?
 
-Import the plugin class and use the typed class-form:
+Use the string form with the auto-namespaced event name on `player.on()`:
 
 ```ts
-import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
-
-player.on(EqualizerPlugin, 'bandChanged', ({ index, gain }) => {
-  console.log(`Band ${index} set to ${gain} dB`);
+player.on('plugin:equalizer:band:changed', ({ band }) => {
+  console.log(`Band at ${band.frequency} Hz set to ${band.gain} dB`);
 });
 ```
 
-If you do not want to import the class, use the string form with the auto-namespaced event name:
-
-```ts
-player.on('plugin:equalizer:bandChanged', (event) => {
-  // less type-safe, but works without importing the plugin class
-});
-```
+Plugin events are always namespaced as `plugin:<id>:<event>`. The class-form `this.on(PluginClass, 'event', fn)` is only available inside a `Plugin` subclass body — it is a `protected` method and does not exist on the external `player.on()` surface.
 
 ---
 

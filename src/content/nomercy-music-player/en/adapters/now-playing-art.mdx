@@ -11,7 +11,7 @@ draft: false
 Port for publishing now-playing artwork and metadata to OS-native UI surfaces (lock screen, notification panel, AirPlay, cast receiver). The player calls `publish(item, artwork)` on each track change and `clear()` on stop or dispose.
 
 ```ts
-import type { INowPlayingArt } from '@nomercy-entertainment/nomercy-music-player';
+import type { INowPlayingArt } from '@nomercy-entertainment/nomercy-music-player/adapters/now-playing-art';
 ```
 
 ---
@@ -41,7 +41,7 @@ Clear the now-playing metadata. Called when the player stops or is disposed. Imp
 ### `MediaSessionArtProvider`
 
 ```ts
-import { MediaSessionArtProvider } from '@nomercy-entertainment/nomercy-music-player';
+import { MediaSessionArtProvider } from '@nomercy-entertainment/nomercy-music-player/adapters/now-playing-art';
 ```
 
 Uses the browser Media Session API (`navigator.mediaSession.metadata`) to push artwork and track metadata to lock screens, notification panels, and browser media controls.
@@ -55,7 +55,7 @@ This adapter is used by `MediaSessionPlugin` internally. You do not need to wire
 For native-shell scenarios (Capacitor, Electron) or custom cast receiver artwork feeds:
 
 ```ts
-import type { INowPlayingArt } from '@nomercy-entertainment/nomercy-music-player';
+import type { INowPlayingArt } from '@nomercy-entertainment/nomercy-music-player/adapters/now-playing-art';
 import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 
 class CapacitorNowPlayingArt implements INowPlayingArt<MusicPlaylistItem> {
@@ -64,7 +64,7 @@ class CapacitorNowPlayingArt implements INowPlayingArt<MusicPlaylistItem> {
   async publish(item: MusicPlaylistItem, artwork: string | undefined): Promise<void> {
     await NativeAudio.setNowPlaying({
       title: item.name,
-      artist: item.artist_track?.[0]?.name ?? '',
+      artist: item.artistTracks?.[0]?.name ?? '',
       artwork: artwork ?? '',
     });
   }
@@ -80,4 +80,4 @@ class CapacitorNowPlayingArt implements INowPlayingArt<MusicPlaylistItem> {
 ## See also
 
 - [MediaSessionPlugin](/nomercy-music-player/plugins/media-session) — uses `MediaSessionArtProvider` internally
-- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — `cover`, `name`, `artist_track` fields
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — `cover`, `name`, `artistTracks` fields

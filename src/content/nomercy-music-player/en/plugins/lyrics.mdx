@@ -27,7 +27,7 @@ With options:
 ```ts
 player.addPlugin(LyricsPlugin, {
   autoFetch: true, // default: true
-  getLyricsUrl: (track) => `https://cdn.example.com/lyrics/${track.id}.lrc`,
+  getLyricsUrl: (track) => `https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/${track.id}.lrc`,
 });
 ```
 
@@ -103,10 +103,10 @@ Tear down the active cue tracker and clear all lyric state without disposing the
 fetchLyrics(url: string): Promise<CueList<{ text: string }> | undefined>
 ```
 
-Explicitly fetch and attach lyrics from a URL. Takes precedence over auto-fetch from `track.lyricsUrl`. Returns the parsed cue list, or `undefined` if the fetch or parse failed (the failure is reported via `plugin:lyrics:failed`).
+Explicitly fetch and attach lyrics from a URL. Takes precedence over auto-fetch from `track.lyricsUrl`. Returns the parsed cue list, or `undefined` if the fetch or parse failed. On failure, the plugin reports via `player.on('error', ...)` with code `'plugin:lyrics/fetch-failed'` or `'plugin:lyrics/no-parser'`.
 
 ```ts
-const cueList = await lyricsPlugin.fetchLyrics('https://cdn.example.com/track.lrc');
+const cueList = await lyricsPlugin.fetchLyrics('https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.lrc');
 if (cueList) {
   console.log(`Loaded ${cueList.cues.length} cues`);
 }
@@ -116,21 +116,15 @@ if (cueList) {
 
 ## Events
 
-Listen using the class form for full type inference:
-
-```ts
-player.on(LyricsPlugin, 'lineEnter', ({ text }) => {
-  highlightLine(text);
-});
-```
-
-Or using the namespaced string form:
+Listen using the namespaced string form on `player.on()`:
 
 ```ts
 player.on('plugin:lyrics:lineEnter', ({ text }) => {
   highlightLine(text);
 });
 ```
+
+Inside a plugin body, the class form provides compile-time type checking via `this.on(LyricsPlugin, 'lineEnter', ...)`. The class form is `protected` — it is not available on an external `player.on()` call.
 
 ### `line`
 
@@ -223,7 +217,7 @@ const player = nmMPlayer('main')
         name: 'Thaw You Out',
         url: '/01%20Thaw%20You%20Out.mp3',
         lyricsUrl: '/01%20Thaw%20You%20Out.lrc',
-        artist_track: [{ id: 1, name: 'Derek Clegg' }],
+        artistTracks: [{ id: 1, name: 'Derek Clegg' }],
       },
     ],
   });
@@ -231,7 +225,7 @@ const player = nmMPlayer('main')
 const lyricsEl = document.getElementById('lyrics')!;
 
 // Render the full lyric sheet when loaded:
-player.on(LyricsPlugin, 'loaded', () => {
+player.on('plugin:lyrics:loaded', () => {
   const cues = player.getPlugin(LyricsPlugin)!.all();
   lyricsEl.innerHTML = cues
     .map((cue, i) => `<p data-index="${i}">${cue.payload.text}</p>`)
@@ -239,7 +233,7 @@ player.on(LyricsPlugin, 'loaded', () => {
 });
 
 // Highlight active line:
-player.on(LyricsPlugin, 'lineEnter', ({ text }) => {
+player.on('plugin:lyrics:lineEnter', ({ text }) => {
   lyricsEl.querySelector('.active')?.classList.remove('active');
   const all = lyricsEl.querySelectorAll<HTMLElement>('p');
   for (const el of all) {

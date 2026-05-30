@@ -85,21 +85,24 @@ player.on('playPrevented', ({ reason }) => {
 
 ## Cross-plugin events
 
-Listen to events from a specific plugin using the class-form. This is the typed, refactor-safe way:
+Plugin events are namespaced as `plugin:<id>:<event>`. External consumer code listens via the string form on `player.on()`:
 
 ```ts
-import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
-
-player.on(EqualizerPlugin, 'bandChanged', ({ index, gain }) => {
-  // Typed from EqualizerPlugin's E generic
+// External consumer — string form (the only form available on player.on):
+player.on('plugin:equalizer:band:changed', ({ band }) => {
+  // band payload shape matches EqualizerEvents['band:changed']
+  console.log(`${band.frequency} Hz → ${band.gain} dB`);
 });
 ```
 
-String-form fallback (less type-safe, use when you do not want to import the class):
+Inside a plugin body, the class-form provides full type inference via the plugin's `E` generic. This form is `protected` — it is only available inside `Plugin` subclasses, not on an external `player.on()` call:
 
 ```ts
-player.on('plugin:equalizer:bandChanged', (event) => {
-  // untyped event
+// Inside a plugin body only (this.on is protected — not player.on):
+import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+this.on(EqualizerPlugin, 'band:changed', ({ band }) => {
+  // Typed from EqualizerPlugin's E generic — band is EqBand
 });
 ```
 
@@ -124,8 +127,8 @@ Inside a plugin, always use `this.on(...)` instead of `player.on(...)`. The `thi
 class MyPlugin extends Plugin<...> {
   use(): void {
     this.on('time', ({ time }) => this.update(time));    // auto-disposed
-    this.on(EqualizerPlugin, 'bandChanged', (event) => { // auto-disposed
-      this.syncEq(event.index, event.gain);
+    this.on(EqualizerPlugin, 'band:changed', ({ band }) => { // auto-disposed
+      this.syncEq(band);
     });
   }
 }
@@ -166,7 +169,7 @@ this.emit('fetched', { url: result.data.url });
 | Player core events   | Bare camelCase                                      | `play`, `pause`, `ready`, `time`                   |
 | Before-action events | `before<Action>`                                    | `beforePlay`, `beforeLoad`, `beforeSeek`           |
 | Post-prevent events  | `<action>Prevented`                                 | `playPrevented`, `loadPrevented`                   |
-| Plugin events        | `plugin:<id>:<event>` (auto-applied by `this.emit`) | `plugin:equalizer:bandChanged`                     |
+| Plugin events        | `plugin:<id>:<event>` (auto-applied by `this.emit`) | `plugin:equalizer:band:changed`                    |
 | Subsystem events     | `<subsystem>:<event>`                               | `backend:changed`, `auth:refreshed`                |
 | Setup stage events   | Bare camelCase                                      | `setupStart`, `pluginsRegistered`, `playlistReady` |
 

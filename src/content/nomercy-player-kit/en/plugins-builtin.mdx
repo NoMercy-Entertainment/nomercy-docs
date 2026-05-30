@@ -1,22 +1,25 @@
 ---
 title: 'Built-in Kit Plugins'
-description: 'AudioGraphPlugin, CanvasPlugin, CastSenderPlugin, EqualizerPlugin, and more.'
+description: 'AudioGraphPlugin, CanvasPlugin, CastSenderPlugin, EqualizerPlugin, MixerPlugin, SpectrumPlugin, VisualizationPlugin, EmbedPlugin, KeyHandlerPlugin, MediaSessionPlugin, MessagePlugin, and TabLeaderPlugin.'
 category: 'Plugins'
 order: 3
 draft: false
 ---
 
-{/* src: packages/nomercy-player-kit/src/plugins/, src/index.ts:141-167 */}
+{/* Source: packages/nomercy-player-kit/src/plugins/ */}
 
 ## Overview
 
-The kit ships eight opt-in plugins. None are registered automatically — add only what you need. All are re-exported from `@nomercy-entertainment/nomercy-player-core`.
+The kit ships twelve opt-in plugins. None are registered automatically — add only what you need. Eight are re-exported from the main `@nomercy-entertainment/nomercy-player-core` barrel. Four use dedicated subpath imports.
 
 ---
 
-## AudioGraphPlugin
+## Main barrel exports
 
-**Id:** `'nm:audio-graph'` (inferred)
+Import from `@nomercy-entertainment/nomercy-player-core`.
+
+### AudioGraphPlugin
+
 **Import:** `import { AudioGraphPlugin, audioGraphPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
 Foundation plugin that owns the Web Audio signal chain. Every other audio plugin in the kit (EqualizerPlugin, SpectrumPlugin, VisualizationPlugin, MixerPlugin) requires this one to be registered first.
@@ -25,24 +28,24 @@ On `use()` it creates (or reuses) an `AudioContext`, wraps the backend's media e
 
 **Options (`AudioGraphOptions`):**
 
-| Field         | Type                          | Default      | Description                                  |
-| ------------- | ----------------------------- | ------------ | -------------------------------------------- |
-| `latencyHint` | `AudioContextLatencyCategory` | `'playback'` | Context latency hint                         |
-| `fftSize`     | `256 \| 512 \| ... \| 16384`  | `2048`       | FFT size for the shared analyser (1024 bins) |
-| `smoothing`   | `number`                      | `0.8`        | Smoothing time constant 0–1                  |
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `latencyHint` | `AudioContextLatencyCategory` | `'playback'` | Context latency hint |
+| `fftSize` | `256 \| 512 \| ... \| 16384` | `2048` | FFT size for the shared analyser (1024 bins) |
+| `smoothing` | `number` | `0.8` | Smoothing time constant 0–1 |
 
-**Events:**
+**Events (`AudioGraphEvents`):**
 
-| Event            | Payload          | When                                            |
-| ---------------- | ---------------- | ----------------------------------------------- |
-| `context:ready`  | `{ sampleRate }` | AudioContext created and chain wired            |
-| `context:closed` | `void`           | Context closed (dispose or browser suspend)     |
-| `chain:rebuilt`  | `void`           | Chain reconnected after an effect insert/remove |
-| `unsupported`    | `{ reason }`     | Web Audio not available                         |
+| Event | Payload | When |
+| --- | --- | --- |
+| `context:ready` | `{ sampleRate }` | AudioContext created and chain wired |
+| `context:closed` | `void` | Context closed (dispose or browser suspend) |
+| `chain:rebuilt` | `void` | Chain reconnected after an effect insert/remove |
+| `unsupported` | `{ reason }` | Web Audio not available |
 
 ---
 
-## CanvasPlugin
+### CanvasPlugin
 
 **Import:** `import { CanvasPlugin, canvasPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
@@ -52,7 +55,7 @@ Provides a managed `<canvas>` overlay with a RAF-driven render loop. Visualizati
 
 ---
 
-## CastSenderPlugin
+### CastSenderPlugin
 
 **Import:** `import { CastSenderPlugin, castSenderPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
@@ -64,7 +67,7 @@ Coordinates the Cast Web Sender SDK with the player's state machine. Wraps the c
 
 ---
 
-## EqualizerPlugin
+### EqualizerPlugin
 
 **Import:** `import { EqualizerPlugin, equalizerPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
@@ -72,36 +75,115 @@ Multi-band parametric EQ using Web Audio `BiquadFilterNode` chains. Requires `Au
 
 **Options (`EqualizerOptions`):**
 
-| Field     | Type         | Default | Description        |
-| --------- | ------------ | ------- | ------------------ |
-| `bands`   | `number`     | `10`    | Number of EQ bands |
-| `presets` | `EqPreset[]` | —       | Named presets      |
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `bands` | `ReadonlyArray<EqBand>` | Default 10-band layout | Band layout; index 0 is the pre-gain pseudo-band |
+| `preset` | `string` | — | Named preset to apply on `use()` |
+| `presets` | `ReadonlyArray<EqPreset>` | — | Additional or replacement presets |
+| `persistKey` | `string` | — | Storage key for automatic state persistence |
 
-**Events (`EqualizerEvents`):** band change events per band index.
+**Events (`EqualizerEvents`):**
+
+| Event | Payload | When |
+| --- | --- | --- |
+| `ready` | `void` | Chain wired and initial state applied |
+| `band:changed` | `{ band: EqBand }` | Single band gain updated |
+| `preset:changed` | `{ name: string \| undefined }` | Preset applied or cleared |
+| `change` | `{ bands, selectedPreset }` | Full snapshot after any mutation |
+| `saved` | `void` | State written to storage |
+
+```ts
+import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+player
+  .addPlugin(AudioGraphPlugin, { latencyHint: 'playback' })
+  .addPlugin(EqualizerPlugin);
+
+const eq = player.getPlugin(EqualizerPlugin);
+eq?.band('Pre', 3.0);  // set pre-gain to +3 dB
+eq?.band('Pre');       // read current pre-gain
+eq?.band(32, 4.0);     // set 32 Hz band to +4 dB
+eq?.preset('Rock');
+```
 
 ---
 
-## MixerPlugin
+### MixerPlugin
 
 **Import:** `import { MixerPlugin, mixerPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
 Per-channel gain control (`GainNode`) built on the audio graph. Useful for cross-fading between two sources or building a stem mixer. Requires `AudioGraphPlugin`.
 
-**Options (`MixerOptions`):** channel count, initial gain per channel.
+**Options (`MixerOptions`):** `gain` (dB, 0 = unity), `pan` (±1), `maxGainDb`, `persistKey`.
+
+```ts
+import { AudioGraphPlugin, MixerPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+player
+  .addPlugin(AudioGraphPlugin)
+  .addPlugin(MixerPlugin, { gain: 0 }); // 0 dB = unity
+
+const mixer = player.getPlugin(MixerPlugin);
+mixer?.gain(6);  // +6 dB
+mixer?.gain();   // read current gain in dB
+mixer?.pan(-0.5); // pan left
+```
 
 ---
 
-## SpectrumPlugin
+### SpectrumPlugin
 
 **Import:** `import { SpectrumPlugin, spectrumPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
-Reads frequency-domain data from the shared `AnalyserNode` provided by `AudioGraphPlugin` and emits frame data on every RAF tick. Requires `AudioGraphPlugin`.
+Reads frequency-domain and waveform data from the shared `AnalyserNode` provided by `AudioGraphPlugin` and emits a `frame` event on every RAF tick. Requires `AudioGraphPlugin`.
 
-**Options (`SpectrumOptions`):** smoothing, fft size override, frame rate cap.
+**Options (`SpectrumOptions`):**
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `fftSize` | `512 \| 1024 \| 2048 \| 4096` | inherits from `AudioGraphPlugin` | FFT size for the `AnalyserNode` |
+| `smoothingTimeConstant` | `number` | inherits (usually `0.8`) | Smoothing 0–1; higher = more lag |
+| `frameRate` | `number` | RAF rate | Reserved for future pacing control |
+
+**Events (`SpectrumEvents`):**
+
+| Event | Payload | When |
+| --- | --- | --- |
+| `frame` | `{ frame: VisualizationFrame; energy: { bass, mid, treble } }` | Every RAF tick |
+| `opts:changed` | `SpectrumOptions` | After `options(partial)` |
+
+**Public API:**
+
+| Method | Description |
+| --- | --- |
+| `currentFrame()` | Returns the most recent `VisualizationFrame`; triggers an eager tick on first call |
+| `analyser()` | Returns the live `AnalyserNode` for direct buffer access |
+| `bandEnergy(loHz, hiHz)` | Average FFT magnitude in the given range, normalised to 0–1 |
+| `registerBeatProvider(fn)` | Register a `() => { beat?: boolean; bpm?: number }` poller |
+| `fftSize()` / `fftSize(size)` | Read or change FFT size at runtime |
+| `smoothingTimeConstant()` / `smoothingTimeConstant(v)` | Read or change smoothing at runtime |
+
+```ts
+import {
+  AudioGraphPlugin,
+  SpectrumPlugin,
+} from '@nomercy-entertainment/nomercy-player-core';
+
+player
+  .addPlugin(AudioGraphPlugin)
+  .addPlugin(SpectrumPlugin, { fftSize: 2048 });
+
+const spectrum = player.getPlugin(SpectrumPlugin);
+
+player.on('plugin:spectrum:frame', ({ frame, energy }) => {
+  drawBars(frame.frequency);
+  updateMeter(energy.bass);
+});
+```
 
 ---
 
-## VisualizationPlugin
+### VisualizationPlugin
 
 **Import:** `import { VisualizationPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
@@ -111,15 +193,85 @@ Base class for custom audio visualizations. Wraps `SpectrumPlugin` and provides 
 
 ---
 
-## EmbedPlugin
+### EmbedPlugin
 
 **Import:** `import { EmbedPlugin, embedPlugin } from '@nomercy-entertainment/nomercy-player-core'`
 
 Cross-origin `postMessage` bridge for embedding the player inside an iframe. Translates kit events to structured `EmbedEventMessage` payloads and processes `EmbedCommand` messages from the host page.
 
-**Options (`EmbedOptions`):** trusted origin list, allowed commands.
+**Options (`EmbedOptions`):** `allowedOrigins` (string or string[] of trusted origins), `forwardEvents` (player event names to forward outward), `applyIframeTweaks` (compact UI when embedded).
 
-**Events:** re-emits all `EmbedEventMessage` types through the plugin channel.
+---
+
+## Subpath imports
+
+These four plugins are not in the main barrel. Use their dedicated subpath imports.
+
+### KeyHandlerPlugin
+
+**Import:** `import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/key-handler'`
+
+Keyboard shortcut handler. Default bindings: space (play/pause), arrow keys (seek), `m` (mute), `f` (fullscreen — video only).
+
+```ts
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/key-handler';
+
+player.addPlugin(KeyHandlerPlugin);
+```
+
+Customize bindings by subclassing and overriding `addPlaybackKeys()`.
+
+---
+
+### MediaSessionPlugin
+
+**Import:** `import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session'`
+
+Wires the browser Media Session API — lock-screen controls, notification artwork, and chapter markers. Reads `item.title`, `item.artist` / `item.name`, `item.poster` / `item.image` from the current queue item automatically. Override `getMetadata()` by subclassing.
+
+```ts
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session';
+
+player.addPlugin(MediaSessionPlugin);
+```
+
+Self-disables gracefully on browsers without `navigator.mediaSession`.
+
+---
+
+### MessagePlugin
+
+**Import:** `import { MessagePlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/message'`
+
+In-player toast notification overlay. Requires a container element.
+
+```ts
+import { MessagePlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/message';
+
+player.addPlugin(MessagePlugin);
+
+const msg = player.getPlugin(MessagePlugin);
+msg?.show('Subtitle track loaded');
+msg?.show('Buffering…', { durationMs: 0 }); // durationMs: 0 = stays until dismissed
+msg?.dismiss();
+```
+
+---
+
+### TabLeaderPlugin
+
+**Import:** `import { TabLeaderPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/tab-leader'`
+
+Single-tab coordination — designates one tab as leader for shared state. Used by `GroupListeningPlugin`.
+
+```ts
+import { TabLeaderPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/tab-leader';
+
+player.addPlugin(TabLeaderPlugin);
+
+const leader = player.getPlugin(TabLeaderPlugin);
+leader?.isLeader(); // boolean
+```
 
 ---
 
@@ -133,9 +285,8 @@ import {
 } from '@nomercy-entertainment/nomercy-player-core';
 
 player
-  .setup({ ... })
   .addPlugin(AudioGraphPlugin, { latencyHint: 'playback' })
-  .addPlugin(EqualizerPlugin, { bands: 10 })
+  .addPlugin(EqualizerPlugin)
   .addPlugin(SpectrumPlugin);
 ```
 
@@ -145,3 +296,4 @@ player
 
 - [Plugin Registration](/nomercy-player-kit/plugin-registration) — `addPlugin`, `getPlugin`, `removePlugin`
 - [Events Reference](/nomercy-player-kit/events-reference) — `plugin:installed`, `plugin:failed`
+- [Recipes: Media Session](/nomercy-player-kit/recipes/media-session) — full MediaSessionPlugin setup guide

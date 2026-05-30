@@ -96,15 +96,15 @@ player.on('trackEndingSoon', async ({ remaining }) => {
 ```ts
 import { ShuffleState } from '@nomercy-entertainment/nomercy-music-player';
 
-player.shuffleState(ShuffleState.On);
-player.shuffleState(ShuffleState.Off);
+player.shuffleState(ShuffleState.ON);
+player.shuffleState(ShuffleState.OFF);
 
 // Read state:
-const shuffled = player.shuffleState(); // ShuffleState.On | ShuffleState.Off
+const shuffled = player.shuffleState(); // ShuffleState.ON | ShuffleState.OFF
 
 // Listen for changes:
 player.on('shuffle', ({ state }) => {
-  updateShuffleButton(state === ShuffleState.On);
+  updateShuffleButton(state === ShuffleState.ON);
 });
 ```
 
@@ -117,9 +117,9 @@ When shuffle is on, `peekNext()` returns the next shuffled item.
 ```ts
 import { RepeatState } from '@nomercy-entertainment/nomercy-music-player';
 
-player.repeatState(RepeatState.Off); // no repeat
-player.repeatState(RepeatState.One); // repeat the current track
-player.repeatState(RepeatState.All); // repeat the entire queue
+player.repeatState(RepeatState.OFF); // no repeat
+player.repeatState(RepeatState.ONE); // repeat the current track
+player.repeatState(RepeatState.ALL); // repeat the entire queue
 
 // Read state:
 const repeat = player.repeatState();
@@ -129,7 +129,7 @@ player.on('repeat', ({ state }) => {
 });
 ```
 
-`AutoAdvancePlugin` respects repeat state — it calls `player.restart()` when `RepeatState.One` is set and a track ends.
+`AutoAdvancePlugin` respects repeat state — it calls `player.restart()` when `RepeatState.ONE` is set and a track ends.
 
 ---
 
@@ -138,7 +138,7 @@ player.on('repeat', ({ state }) => {
 `AutoAdvancePlugin` drives automatic advancement when a track ends. Without it, the player stops at the end of each track.
 
 ```ts
-import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player';
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
 player.addPlugin(AutoAdvancePlugin, {
   crossfade: true, // use crossfade instead of immediate next()
@@ -193,9 +193,9 @@ player.on('current', ({ item, index }) => {
   nowPlayingDisplay.textContent = item.name;
 });
 
-player.on('queue', ({ queue }) => {
+player.on('queue', (items) => {
   // fires when the queue array changes (append, remove, reorder, replace)
-  renderQueueList(queue);
+  renderQueueList(items);
 });
 ```
 

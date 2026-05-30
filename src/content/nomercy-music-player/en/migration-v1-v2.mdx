@@ -57,7 +57,7 @@ Read the checklist below, then work through each section.
 - Replace `player._crossfadeActive` with `player.isTransitioning()`
 - Replace `player.context` with `player.audioContext()`
 - Replace `item.path` with `item.url` on every track object (see [silent-break risk](#itempath--itemurl))
-- Move EQ calls from `player.loadEqualizerSettings()` / `player.setPreGain(gain)` / `player.setFilter(band)` to `player.getPlugin(EqualizerPlugin)`
+- Move EQ calls from `player.loadEqualizerSettings()` / `player.setPreGain(gain)` / `player.setFilter(band)` to `player.getPlugin(EqualizerPlugin).band(freq, gain)` / `.preGain(value)`
 - Move MediaSession from constructor options to `player.addPlugin(MediaSessionPlugin)`
 - Move Spectrum from constructor options to `player.addPlugin(SpectrumPlugin)`
 - Move `onCrossfadeStart` / `onCrossfadeComplete` constructor callbacks to `player.on('crossfadeStart', fn)` / `player.on('crossfadeComplete', fn)`
@@ -87,9 +87,9 @@ These events no longer exist in v2. No compatibility shim is provided.
 | `endFadeOut`      | Internal crossfade signal                       | `crossfadeComplete`                                  |
 | `nextSong`        | Internal implementation signal                  | `current` event                                      |
 | `setCurrentAudio` | Exposed internal `HTMLAudioElement`             | No replacement — element is backend-internal         |
-| `setPreGain`      | EQ moved to plugin                              | `plugin:equalizer:bandChanged` via `EqualizerPlugin` |
-| `setPanner`       | EQ moved to plugin                              | Plugin event via `MixerPlugin`                       |
-| `setFilter`       | EQ moved to plugin                              | Plugin event via `EqualizerPlugin`                   |
+| `setPreGain`      | EQ moved to plugin                              | `EqualizerPlugin.preGain(value)` + `player.on('plugin:equalizer:band:changed', ...)` |
+| `setPanner`       | EQ moved to plugin                              | `MixerPlugin.pan(value)` + `player.on('plugin:mixer:change', ...)` |
+| `setFilter`       | EQ moved to plugin                              | `EqualizerPlugin.band(freq, gain)` + `player.on('plugin:equalizer:band:changed', ...)` |
 | `time-internal`   | Internal timing detail                          | Never public — do not rely on it                     |
 | `play-internal`   | Internal playback detail                        | Never public                                         |
 | `pause-internal`  | Internal playback detail                        | Never public                                         |
@@ -161,11 +161,11 @@ Every event that carried a raw `HTMLAudioElement` or a multi-field object now ca
 | `_crossfadeActive` (property)       | `isTransitioning()` (method)                            |
 | `context` (AudioContext property)   | `audioContext()` (method)                               |
 | `isPlatform(platform)`              | `isMobile()` / `isTv()` (separate methods)              |
-| `loadEqualizerSettings()`           | `player.getPlugin(EqualizerPlugin)`                     |
-| `saveEqualizerSettings()`           | `EqualizerPlugin` state persistence                     |
-| `setPreGain(gain)`                  | `player.getPlugin(EqualizerPlugin).setPreGain(gain)`    |
+| `loadEqualizerSettings()`           | `player.getPlugin(EqualizerPlugin).bands()`             |
+| `saveEqualizerSettings()`           | `EqualizerPlugin` persistence via `persistKey` option   |
+| `setPreGain(gain)`                  | `player.getPlugin(EqualizerPlugin).preGain(gain)`       |
 | `setPanner(pan)`                    | `player.getPlugin(MixerPlugin)`                         |
-| `setFilter(band)`                   | `player.getPlugin(EqualizerPlugin).setBand(...)`        |
+| `setFilter(band)`                   | `player.getPlugin(EqualizerPlugin).band(freq, gain)`   |
 | `setAutoPlayback(v)`                | `setup({ disableAutoPlayback: !v })` — config-time only |
 
 ---
@@ -199,8 +199,8 @@ Full `MusicPlaylistItem` shape changes:
 | --------------------------------------------- | ------------------------------ | ----------------------------------- |
 | `path: string` (required)                     | `url?: string`                 | Renamed + now optional              |
 | `name: string` (required)                     | `name: string` (required)      | Same                                |
-| `album_track: { name, ...any }[]` (required)  | `album_track?: AlbumRef[]`     | Required → optional                 |
-| `artist_track: { name, ...any }[]` (required) | `artist_track?: ArtistRef[]`   | Required → optional                 |
+| `album_track: { name, ...any }[]` (required)  | `albumTracks?: AlbumRef[]`     | Renamed + required → optional       |
+| `artist_track: { name, ...any }[]` (required) | `artistTracks?: ArtistRef[]`   | Renamed + required → optional       |
 | `cover` (typed as `any`)                      | `cover?: string`               | Now typed                           |
 | (not present)                                 | `lyricsUrl?: string`           | New — source URL for `LyricsPlugin` |
 | (not present)                                 | `duration?: number`            | New                                 |
@@ -237,7 +237,7 @@ player.shuffle(true);
 
 // v2
 import { ShuffleState } from '@nomercy-entertainment/nomercy-music-player';
-player.shuffleState(ShuffleState.On); // or ShuffleState.Off
+player.shuffleState(ShuffleState.ON); // or ShuffleState.OFF
 ```
 
 The `shuffle` event payload also changed from `boolean` to `{ state: ShuffleState }`.
@@ -257,7 +257,10 @@ player.prepareCrossfade(nextTrack);
 // v2 — there is no "stage then trigger later" one-liner.
 // The crossfade itself becomes the server signal response:
 signalR.on('crossfadeNow', (nextTrack) => {
-  player.crossfadeTo(nextTrack, { curve: 'equal-power', durationMs: 3000 });
+  player.crossfadeTo(nextTrack, {
+    curve: 'equal-power',
+    duration: 3,
+  });
 });
 ```
 
@@ -296,17 +299,20 @@ const player = new NMMusicPlayer({
 });
 
 // v2 — everything is an opt-in plugin
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
 import {
-  nmMPlayer,
   AutoAdvancePlugin,
   EqualizerPlugin,
   SpectrumPlugin,
   MediaSessionPlugin,
   AudioGraphPlugin,
-} from '@nomercy-entertainment/nomercy-music-player';
+} from '@nomercy-entertainment/nomercy-music-player/plugins';
 
 const player = nmMPlayer('player-1').setup({
-  crossfadeDefaults: { durationMs: 3000, curve: 'equal-power' },
+  crossfadeDefaults: {
+    duration: 3,
+    curve: 'equal-power',
+  },
 });
 
 player
@@ -331,11 +337,11 @@ player.on('crossfadeComplete', fn);
 | `motionConfig` / `motionColors` constructor options | `SpectrumPlugin` options at `addPlugin`                    |
 | `actions` constructor option                        | `MediaSessionPlugin` options at `addPlugin`                |
 
-**Cross-plugin event listening** is typed:
+**Cross-plugin event listening** uses the namespaced string form on `player.on()`:
 
 ```ts
-player.on(EqualizerPlugin, 'bandChanged', (event) => {
-  // event.data is typed from EqualizerPlugin's event map
+player.on('plugin:equalizer:band:changed', ({ band }) => {
+  // band.frequency, band.gain
 });
 ```
 
@@ -343,36 +349,40 @@ player.on(EqualizerPlugin, 'bandChanged', (event) => {
 
 ## Adapter injection
 
-v2 introduces 34 named adapter ports (28 from the kit + 6 music-specific). All ports have sensible defaults. You only need to wire an adapter through `setup()` when you want to replace default behavior.
+v2 introduces music-specific adapter interfaces (see `packages/adapters/`). Kit adapters (`storage`, `platform`, `auth`) are wired through `setup()`. Music-specific adapters are wired through plugin options.
 
 ```ts
-import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player';
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 import { LocalStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
 
 const player = nmMPlayer('player-1').setup({
-  // Kit adapters:
+  // Kit adapters wired through setup():
   storage: new LocalStorageBackend(),
-  accessToken: () => myAuth.getToken(),
+  auth: { bearerToken: () => myAuth.getToken() },
 
-  // Music-specific adapters:
-  backend: 'webaudio', // 'webaudio' (default) or 'audio-element'
-  scrobbler: myLastFmScrobbler, // reports to Last.fm
-  lyricSource: new LrcFileLyricSource(),
+  // Audio backend:
+  backend: 'webaudio', // 'audio-element' (default) or 'webaudio'
+});
+
+// Lyrics adapter wired through LyricsPlugin:
+player.addPlugin(LyricsPlugin, {
+  getLyricsUrl: (track) => `https://api.example.com/lyrics/${track.id}.lrc`,
 });
 ```
 
-**Music-specific ports:**
+**Music-specific adapter interfaces:**
 
-| Port               | Interface            | Default                        |
-| ------------------ | -------------------- | ------------------------------ |
-| audio-backend      | `IAudioBackend`      | `WebAudioBackend`              |
-| playlist-generator | `IPlaylistGenerator` | `linear`                       |
-| similarity-engine  | `ISimilarityEngine`  | consumer-required (no default) |
-| scrobbler          | `IScrobbler`         | `noop`                         |
-| lyric-source       | `ILyricSource`       | `lrc-file`                     |
-| now-playing-art    | `INowPlayingArt`     | `media-session`                |
+| Port               | Interface            | Default                                              |
+| ------------------ | -------------------- | ---------------------------------------------------- |
+| audio-backend      | `IAudioBackend`      | `AudioElementBackend`                                |
+| playlist-generator | `IPlaylistGenerator` | `LinearPlaylistGenerator`                            |
+| similarity-engine  | `ISimilarityEngine`  | none (consumer-required)                             |
+| scrobbler          | `IScrobbler`         | `NoopScrobbler`                                      |
+| lyric-source       | `ILyricSource`       | `LrcFileSource` (reads `item.lyricsUrl`)             |
+| now-playing-art    | `INowPlayingArt`     | `MediaSessionArtProvider` (via `MediaSessionPlugin`) |
 
-See the [kit migration guide](/nomercy-player-kit/adapters) for the full 28-port kit catalog and subpath import table.
+See the [kit migration guide](/nomercy-player-kit/adapters) for the full kit adapter catalog.
 
 ---
 
@@ -388,7 +398,7 @@ See the [kit migration guide](/nomercy-player-kit/adapters) for the full 28-port
 | `actions` (MediaSession)     | `addPlugin(MediaSessionPlugin, { actions: { ... } })`   |
 | `onCrossfadeStart`           | `player.on('crossfadeStart', fn)`                       |
 | `onCrossfadeComplete`        | `player.on('crossfadeComplete', fn)`                    |
-| `fadeDuration`               | `setup({ crossfadeDefaults: { durationMs: ... } })`     |
+| `fadeDuration`               | `setup({ crossfadeDefaults: { duration: ... } })`       |
 | `prefetchLeeway`             | `setup({ preloadLeadSeconds: ... })`                    |
 | `disableAutoPlayback`        | `setup({ disableAutoPlayback: true })`                  |
 | `baseUrl`                    | `setup({ baseUrl: ... })`                               |

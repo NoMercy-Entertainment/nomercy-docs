@@ -8,7 +8,7 @@ draft: false
 
 # MediaSessionPlugin
 
-Music-specific Media Session integration. Reads `name`, `artist_track[]`, `album_track[]`, and `cover` from each `MusicPlaylistItem` and publishes `MediaMetadata` to the browser Media Session API on every track change.
+Music-specific Media Session integration. Reads `name`, `artistTracks[]`, `albumTracks[]`, and `cover` from each `MusicPlaylistItem` and publishes `MediaMetadata` to the browser Media Session API on every track change.
 
 This wires up lock-screen controls, notification-panel artwork, and hardware media keys (play/pause/next/prev).
 
@@ -28,7 +28,7 @@ With options:
 
 ```ts
 player.addPlugin(MediaSessionPlugin, {
-  artworkBaseUrl: 'https://cdn.example.com',
+  artworkBaseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
 });
 ```
 
@@ -52,12 +52,12 @@ If `cover` is already an absolute URL, this option is not needed.
 
 ## Field mapping
 
-| `MusicPlaylistItem` field              | `MediaMetadata` field      |
-| -------------------------------------- | -------------------------- |
-| `name`                                 | `title`                    |
-| `artist_track[].name` joined with `, ` | `artist`                   |
-| `album_track[0].name`                  | `album`                    |
-| `cover` (prefixed by `artworkBaseUrl`) | `artwork[0].src` (512×512) |
+| `MusicPlaylistItem` field               | `MediaMetadata` field      |
+| --------------------------------------- | -------------------------- |
+| `name`                                  | `title`                    |
+| `artistTracks[].name` joined with `, `  | `artist`                   |
+| `albumTracks[0].name`                   | `album`                    |
+| `cover` (prefixed by `artworkBaseUrl`)  | `artwork[0].src` (512×512) |
 
 ---
 
@@ -82,8 +82,8 @@ const player = nmMPlayer('main')
         name: 'Thaw You Out',
         url: '/01%20Thaw%20You%20Out.mp3',
         cover: '/01%20Thaw%20You%20Out.jpg',
-        artist_track: [{ id: 1, name: 'Derek Clegg' }],
-        album_track: [{ id: 1, name: 'KJC' }],
+        artistTracks: [{ id: 1, name: 'Derek Clegg' }],
+        albumTracks: [{ id: 1, name: 'KJC' }],
       },
     ],
   });
@@ -106,5 +106,5 @@ The Media Session API is supported in Chrome, Firefox, and Safari. In environmen
 
 ## See also
 
-- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — `name`, `artist_track`, `album_track`, `cover` fields
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — `name`, `artistTracks`, `albumTracks`, `cover` fields
 - [Quick Start](/nomercy-music-player/quickstart) — minimal player with `MediaSessionPlugin`

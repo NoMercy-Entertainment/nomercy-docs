@@ -35,29 +35,39 @@ This plugin is intended for embedding the player in third-party contexts — for
 
 ```ts
 interface EmbedOptions {
-  /** Allowed origin for postMessage. Use '*' for any origin (not recommended for production). */
-  allowedOrigin?: string;
+  /**
+   * Allowed origin(s) for postMessage. Use '*' for any origin (not recommended for production).
+   * A single string or an array of strings. Omitting means no origins are allowed to send commands.
+   */
+  allowedOrigins?: string | string[];
+  /** Player event names to forward to the host page. Defaults to ready/play/pause/ended/time/volume/mute. */
+  forwardEvents?: string[];
+  /** Apply iframe UI adjustments (smaller controls etc.). Defaults to true inside an iframe. */
+  applyIframeTweaks?: boolean;
 }
 ```
 
-| Option          | Type     | Default | Description                                                                           |
-| --------------- | -------- | ------- | ------------------------------------------------------------------------------------- |
-| `allowedOrigin` | `string` | `'*'`   | Restricts which parent origins can send commands. Use a specific origin in production |
+| Option            | Type                  | Default | Description                                                                                        |
+| ----------------- | --------------------- | ------- | -------------------------------------------------------------------------------------------------- |
+| `allowedOrigins`  | `string \| string[]`  | `[]`    | Origin(s) allowed to send commands. Empty = accept nothing. `'*'` = accept any (dev only)         |
+| `forwardEvents`   | `string[]`            | see above | Player events forwarded to host page as `nm:event` messages                                     |
+| `applyIframeTweaks` | `boolean`           | `true` in iframe | Suppress popout button and apply compact controls when embedded                         |
 
 ## EmbedCommand
 
-Commands sent from the parent page to the embedded player:
+Commands sent from the parent page to the embedded player. All commands use `type: 'nm:command'` as the envelope:
 
-| Command                                   | Description                 |
-| ----------------------------------------- | --------------------------- |
-| `{ type: 'play' }`                        | Call `player.play()`        |
-| `{ type: 'pause' }`                       | Call `player.pause()`       |
-| `{ type: 'stop' }`                        | Call `player.stop()`        |
-| `{ type: 'seek', time: number }`          | Seek to `time` seconds      |
-| `{ type: 'volume', level: number }`       | Set volume to `level` (0–1) |
-| `{ type: 'mute' }`                        | Mute audio                  |
-| `{ type: 'unmute' }`                      | Unmute audio                |
-| `{ type: 'fullscreen', active: boolean }` | Enter or exit fullscreen    |
+| Command                                               | Description                     |
+| ----------------------------------------------------- | ------------------------------- |
+| `{ type: 'nm:command', action: 'play' }`              | Call `player.play()`            |
+| `{ type: 'nm:command', action: 'pause' }`             | Call `player.pause()`           |
+| `{ type: 'nm:command', action: 'stop' }`              | Call `player.stop()`            |
+| `{ type: 'nm:command', action: 'seek', time: number }`| Seek to `time` seconds          |
+| `{ type: 'nm:command', action: 'volume', level: number }` | Set volume `level` (0–100)  |
+| `{ type: 'nm:command', action: 'mute' }`              | Mute audio                      |
+| `{ type: 'nm:command', action: 'unmute' }`            | Unmute audio                    |
+| `{ type: 'nm:command', action: 'next' }`              | Advance to next queue item      |
+| `{ type: 'nm:command', action: 'previous' }`          | Return to previous queue item   |
 
 ## Registration
 
@@ -67,7 +77,7 @@ import { EmbedPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins
 
 // Inside the iframe:
 const player = nmplayer('player')
-  .addPlugin(EmbedPlugin, { allowedOrigin: 'https://example.com' })
+  .addPlugin(EmbedPlugin, { allowedOrigins: 'https://example.com' })
   .setup({
     baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
     playlist: [
@@ -83,8 +93,14 @@ const player = nmplayer('player')
 // In the parent page:
 const iframe = document.querySelector('iframe');
 
-iframe.contentWindow.postMessage({ type: 'play' }, 'https://player.example.com');
-iframe.contentWindow.postMessage({ type: 'seek', time: 120 }, 'https://player.example.com');
+iframe.contentWindow.postMessage(
+  { type: 'nm:command', action: 'play' },
+  'https://player.example.com',
+);
+iframe.contentWindow.postMessage(
+  { type: 'nm:command', action: 'seek', time: 120 },
+  'https://player.example.com',
+);
 ```
 
 ## See also
