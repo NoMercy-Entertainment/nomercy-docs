@@ -59,6 +59,7 @@ export function ThemeToggle() {
       type="button"
       className="flex size-6 cursor-pointer items-center justify-center rounded-md transition hover:bg-zinc-900/5 dark:hover:bg-white/5"
       aria-label={label}
+      aria-pressed={mounted ? dark : undefined}
       onClick={handleClick}
       suppressHydrationWarning
     >

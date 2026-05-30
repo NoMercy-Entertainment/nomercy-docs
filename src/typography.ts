@@ -7,9 +7,9 @@ export default {
         css: {
           '--tw-prose-body': theme('colors.zinc.700'),
           '--tw-prose-headings': theme('colors.zinc.900'),
-          '--tw-prose-links': theme('colors.emerald.500'),
-          '--tw-prose-links-hover': theme('colors.emerald.600'),
-          '--tw-prose-links-underline': theme('colors.emerald.500 / 0.3'),
+          '--tw-prose-links': theme('colors.emerald.700'),
+          '--tw-prose-links-hover': theme('colors.emerald.800'),
+          '--tw-prose-links-underline': theme('colors.emerald.700 / 0.3'),
           '--tw-prose-bold': theme('colors.zinc.900'),
           '--tw-prose-counters': theme('colors.zinc.500'),
           '--tw-prose-bullets': theme('colors.zinc.300'),

@@ -138,7 +138,7 @@ function NavLinkItem({
         isAnchorLink ? 'pl-7' : 'pl-4',
         active
           ? isAnchorLink
-            ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+            ? 'text-emerald-700 dark:text-emerald-400 font-medium'
             : 'text-zinc-900 dark:text-white'
           : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
       )}
@@ -400,7 +400,7 @@ function NavigationSection({
         className={clsx(
           'flex items-center gap-2 text-sm font-semibold transition',
           isActiveSection
-            ? 'text-emerald-500'
+            ? 'text-emerald-700 dark:text-emerald-400'
             : 'text-zinc-900 hover:text-zinc-700 dark:text-white dark:hover:text-zinc-300'
         )}
       >

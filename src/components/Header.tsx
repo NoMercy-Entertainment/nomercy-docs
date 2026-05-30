@@ -57,7 +57,7 @@ function TopLevelNavItem({
         className={clsx(
           'text-sm/5 transition',
           isActive
-            ? 'text-emerald-500 dark:text-emerald-400'
+            ? 'text-emerald-700 dark:text-emerald-400'
             : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
         )}
       >
