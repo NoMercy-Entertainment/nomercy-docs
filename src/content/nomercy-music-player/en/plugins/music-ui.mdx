@@ -1,6 +1,6 @@
 ---
 title: 'MusicUiPlugin'
-description: 'Built-in music transport UI overlay — album art, track info, seek bar, transport controls, volume slider.'
+description: 'Plugin-driven transport UI overlay for NMMusicPlayer, mounting album art, track info, seek bar, and transport controls inside the player container.'
 draft: false
 ---
 
@@ -8,36 +8,28 @@ draft: false
 
 # MusicUiPlugin
 
-Plugin-driven transport UI overlay for `NMMusicPlayer`. Mounts a self-contained HTML overlay inside the kit-managed `.nomercymusicplayer` container. State classes on the container (`.playing`, `.paused`, `.muted`, `.buffering`) are applied by the kit automatically.
+`MusicUiPlugin` is the built-in transport UI for `NMMusicPlayer`.
+Drop it in when you want a ready-made album art display, track info block, seekable progress bar, and playback controls without building the DOM yourself.
+The plugin mounts a self-contained overlay inside the kit-managed `.nomercyplayer` container and wires itself to player events automatically.
+State classes on the container (`.playing`, `.paused`, `.muted`, `.buffering`) are applied by the kit; the plugin reads them via CSS selectors so no extra toggling is needed.
 
 ```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
 import { MusicUiPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+import type { MusicUiOptions } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
 
 Plugin id: `'music-ui'`
 
 ---
 
-## Registration
+## What it does
 
-```ts
-const player = nmMPlayer('main').addPlugin(MusicUiPlugin).setup({ playlist: myTracks });
-```
-
-With options:
-
-```ts
-player.addPlugin(MusicUiPlugin, {
-  showAlbumArt: true,
-  showTrackInfo: true,
-  showProgress: true,
-  showVolume: true,
-  showShuffle: true,
-  showRepeat: true,
-  showSpeed: false,
-  volumeSlider: 'auto',
-});
-```
+The plugin builds and inserts a `.nmmusic-ui` element into the player container on `use()`.
+It subscribes to player events (`play`, `pause`, `ended`, `time`, `duration`, `volume`, `mute`, `repeat`, `shuffle`, `current`, `crossfadeStart`, `crossfadeComplete`) and updates the overlay in response.
+Clicking the seek bar calls `player.currentTime(time)` with the target position to perform the seek, and emits a `seek` event for observation.
+Volume slider orientation adapts to container width and touch capability unless you lock it with the `volumeSlider` option.
+Styles are injected once into the document on first use.
 
 ---
 
@@ -46,13 +38,45 @@ player.addPlugin(MusicUiPlugin, {
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
 | `showAlbumArt` | `boolean` | `true` | Show the album art section. |
-| `showTrackInfo` | `boolean` | `true` | Show the title / artist / album block. |
-| `showProgress` | `boolean` | `true` | Show the progress / seek bar row with current time and duration. |
+| `showTrackInfo` | `boolean` | `true` | Show the title, artist, and album block. |
+| `showProgress` | `boolean` | `true` | Show the progress and seek bar row with current time and duration. |
 | `showVolume` | `boolean` | `true` | Show the volume button and slider. |
 | `showShuffle` | `boolean` | `true` | Show the shuffle toggle button. |
 | `showRepeat` | `boolean` | `true` | Show the repeat mode button. |
-| `showSpeed` | `boolean` | `false` | Show the playback-speed button. Most music listeners do not want speed control; opt in explicitly. |
-| `volumeSlider` | `'horizontal' \| 'vertical' \| 'auto'` | `'auto'` | Volume slider orientation. `'horizontal'` — always-visible inline slider. `'vertical'` — popup slider above the mute button, toggled on click. `'auto'` — vertical when container width ≤ 520 px or on a touch-only device. |
+| `showSpeed` | `boolean` | `false` | Show the playback-speed button. Most music listeners do not want speed control, so opt in explicitly. |
+| `volumeSlider` | `'horizontal' \| 'vertical' \| 'auto'` | `'auto'` | Volume slider orientation. `'horizontal'` keeps an always-visible inline slider. `'vertical'` shows a popup slider above the mute button, toggled on click. `'auto'` switches to vertical when container width is 520 px or less, or on a touch-only device. |
+
+You can also update options after setup by calling `player.getPlugin(MusicUiPlugin)!.options({ showSpeed: true })`.
+
+---
+
+## Events
+
+| Event | Payload | Description |
+| ----- | ------- | ----------- |
+| `seek` | `{ time: number }` | Fires when the user drags or clicks the seek bar. `time` is the target position in seconds. The plugin calls `player.currentTime(time)` internally to perform the seek, so this event is for observation only. |
+
+```ts
+player.on('plugin:music-ui:seek', ({ time }) => {
+  console.log('seeked to', time);
+});
+```
+
+---
+
+## Methods
+
+`MusicUiPlugin` exposes one public method beyond the base plugin API.
+
+```ts
+const ui = player.getPlugin(MusicUiPlugin)!;
+
+// Read current options:
+const currentOptions = ui.options();
+
+// Apply a partial options update at runtime:
+ui.options({ showSpeed: true, volumeSlider: 'vertical' });
+```
 
 ---
 
@@ -77,47 +101,77 @@ player.addPlugin(MusicUiPlugin, {
   └─ .nmmusic-controls-row
       ├─ .nmmusic-btn[data-action=shuffle]    (priority 3)
       ├─ .nmmusic-btn[data-action=previous]   (priority 2)
-      ├─ .nmmusic-btn.nmmusic-play-btn
+      ├─ .nmmusic-btn.nmmusic-play-btn        (priority 0)
       ├─ .nmmusic-btn[data-action=next]       (priority 2)
       ├─ .nmmusic-btn[data-action=repeat]     (priority 3)
       ├─ .nmmusic-btn.nmmusic-speed-btn       (hidden unless showSpeed: true)
       └─ .nmmusic-volume-group
-          ├─ .nmmusic-btn[data-action=mute]
+          ├─ .nmmusic-btn[data-action=mute]   (priority 0)
           ├─ input.nmmusic-vol-slider
           └─ .nmmusic-vol-slider-vertical     (vertical mode popup)
               ├─ input.nmmusic-vol-slider-vertical-input
               └─ button.nmmusic-vol-popup-mute
 ```
 
-Override the visual appearance via CSS targeting these class names. The plugin injects minimal default styles — you can override any property without specificity fights.
-
----
-
-## Events
-
-### `seek`
-
-```ts
-'plugin:music-ui:seek': { time: number }
-```
-
-Fires when the user drags or clicks the seek bar. `time` is the target position in seconds. The plugin calls `player.currentTime(time)` internally — this event is for observation only.
+Override the visual appearance by targeting these class names.
+The plugin injects minimal default styles, so you can override any property without specificity fights.
 
 ---
 
 ## Responsive priority
 
-Controls collapse at narrow widths via CSS container queries (lower number = higher priority = visible longer):
+Controls collapse at narrow widths via CSS container queries.
+Lower number means higher priority, meaning that control stays visible longest.
 
 | `data-priority` | Controls | Behaviour |
 | --------------- | -------- | --------- |
-| `0` (none) | Play/pause, mute | Always visible |
-| `2` | Previous, Next | Hide at narrower widths |
-| `3` | Shuffle, Repeat, Speed | Hide at narrowest widths |
+| `0` (none set) | Play, pause, mute | Always visible |
+| `2` | Previous, next | Hide at narrower widths |
+| `3` | Shuffle, repeat | Hide at narrowest widths |
+
+---
+
+## Registration
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { MusicUiPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+const player = nmMPlayer('main')
+  .addPlugin(MusicUiPlugin)
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+    playlist: [
+      {
+        id: 1,
+        name: 'Thaw You Out',
+        url: '/D/Derek Clegg/[2010] KJC/01 Thaw You Out.mp3',
+        cover: '/D/Derek Clegg/[2010] KJC/cover.jpg',
+      },
+    ],
+  });
+```
+
+With options:
+
+```ts
+const player = nmMPlayer('main')
+  .addPlugin(MusicUiPlugin, {
+    showAlbumArt: true,
+    showTrackInfo: true,
+    showProgress: true,
+    showVolume: true,
+    showShuffle: true,
+    showRepeat: true,
+    showSpeed: false,
+    volumeSlider: 'auto',
+  })
+  .setup({ playlist: myTracks });
+```
 
 ---
 
 ## See also
 
-- [KeyHandlerPlugin](/nomercy-music-player/plugins/key-handler) — keyboard control that pairs with the UI
-- [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer) — adding a lyrics display alongside the UI plugin
+- [KeyHandlerPlugin](/nomercy-music-player/plugins/key-handler), keyboard control that pairs with the UI
+- [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer), adding a lyrics display alongside the UI plugin

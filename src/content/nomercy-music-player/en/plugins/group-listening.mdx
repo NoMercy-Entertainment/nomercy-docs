@@ -1,6 +1,6 @@
 ---
 title: 'GroupListeningPlugin'
-description: 'Synchronized multi-client playback — roadmapped for v2.1. Calling use() throws NotImplementedError.'
+description: 'Synchronized multi-client listening, roadmapped for v2.1. The public API surface is reserved and exported. Calling use() throws NotImplementedError internally; the kit catches the error and emits plugin:failed.'
 draft: false
 ---
 
@@ -8,44 +8,111 @@ draft: false
 
 # GroupListeningPlugin
 
-Synchronized multi-client listening (NoMercy Connect watch-party parity for music). Server-coordinated lockstep transport with drift correction and DJ-role election.
+`GroupListeningPlugin` is where NoMercy Connect watch-party parity lands for the music player.
+The idea is server-coordinated lockstep transport: every client in a session plays the same track at the same position, drift gets corrected automatically, and one client holds the DJ role to issue control actions.
 
-**Status: roadmapped for v2.1.** The plugin is exported so consumers can inspect the error and the public surface is reserved. Calling `addPlugin(GroupListeningPlugin)` followed by `setup()` causes `use()` to throw `NotImplementedError`.
+This plugin is roadmapped for v2.1.
+The class is exported now so consumers can register it, hold the import path stable, and react to the failure event before the implementation ships.
+
+When the player initializes, `use()` throws `NotImplementedError` internally.
+The kit catches that error inside `_registerPlugin`, logs it, calls `dispose()`, and emits `plugin:failed` and `plugin:group-listening:failed`.
+The error never surfaces to your code.
+Do not register this plugin in production code yet.
 
 ```ts
 import { GroupListeningPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+import type { GroupListeningOptions, GroupListeningEvents } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
 
 Plugin id: `'group-listening'`
 
-Do not register this plugin in production.
+## Options
 
----
-
-## Planned options
+The `GroupListeningOptions` interface is defined in source and will drive the v2.1 implementation.
+The fields below reflect the real interface, not speculative design.
 
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
-| `wsUrl` | `string` | — | Server endpoint for room/session sync. Required. |
-| `sessionId` | `string` | `undefined` | Optional room/session id this client joins. |
-| `driftThresholdMs` | `number` | `80` | Acceptable drift in milliseconds before correcting. |
-| `maxRateAdjust` | `number` | `0.05` | Max playback-rate adjustment factor when correcting drift (±5%). |
-| `canControl` | `boolean` | `true` | Whether this client can issue control actions (DJ role). |
+| `wsUrl` | `string` | required | WebSocket endpoint for room and session sync. |
+| `sessionId` | `string` | `undefined` | Room or session id this client joins. Omit to create a new session. |
+| `driftThresholdMs` | `number` | `80` | Acceptable playback drift in milliseconds before a correction is applied. |
+| `maxRateAdjust` | `number` | `0.05` | Maximum playback-rate adjustment factor used during drift correction, equivalent to plus or minus 5 percent. |
+| `canControl` | `boolean` | `true` | Whether this client may issue control actions (that is, hold the DJ role). |
 
----
+## Events
 
-## Planned events
+The `GroupListeningEvents` interface exists in source and reserves the event names for v2.1.
+No events fire in v2.0 because `use()` throws before any wiring takes place.
+The table below is a reference for what the interface declares; do not subscribe to these events until the implementation ships.
 
 | Event | Payload | Description |
 | ----- | ------- | ----------- |
-| `session:joined` | `{ sessionId: string; participants: number }` | Successfully joined a session. |
-| `session:left` | `void` | Left the session. |
-| `sync:applied` | `{ source: 'remote'; action: 'play' \| 'pause' \| 'seek' \| 'next' \| 'previous'; from: string }` | A remote sync action was applied locally. |
-| `sync:broadcast` | `{ action: string; payload: unknown }` | A control action was broadcast to the session. |
-| `sync:drift` | `{ deltaMs: number }` | Clock drift was detected and is being corrected. |
-| `sync:participants` | `{ count: number }` | Participant count changed. |
-| `role:dj-acquired` | `{ id: string }` | This client acquired the DJ role. |
-| `role:dj-lost` | `void` | This client lost the DJ role. |
-| `unsupported` | `{ reason: string }` | Server protocol or environment is unsupported. |
+| `session:joined` | `{ sessionId: string; participants: number }` | Reserved: this client successfully joined a session. |
+| `session:left` | `void` | Reserved: this client left the session. |
+| `sync:applied` | `{ source: 'remote'; action: 'play' \| 'pause' \| 'seek' \| 'next' \| 'previous'; from: string }` | Reserved: a remote sync action was applied to this client. |
+| `sync:broadcast` | `{ action: string; payload: unknown }` | Reserved: a control action was broadcast to the session by this client. |
+| `sync:drift` | `{ deltaMs: number }` | Reserved: clock drift was detected and a correction is being applied. |
+| `sync:participants` | `{ count: number }` | Reserved: the participant count in the session changed. |
+| `role:dj-acquired` | `{ id: string }` | Reserved: this client acquired the DJ role. |
+| `role:dj-lost` | `void` | Reserved: this client lost the DJ role. |
+| `unsupported` | `{ reason: string }` | Reserved: the server protocol or environment is unsupported. |
 
-The options and events documented here describe the planned v2.1 API and may change before release.
+## Methods
+
+### `use()`
+
+```ts
+use(): void
+```
+
+Stub implementation.
+Always throws `NotImplementedError` with message `'GroupListeningPlugin: roadmapped for v2.1. Not available in v2.0.'`
+The kit catches this internally; the exception does not reach your code.
+
+### `dispose()`
+
+```ts
+dispose(): void
+```
+
+No-op in the stub -- there is nothing to tear down.
+
+## Registration
+
+Register the plugin and listen to `plugin:failed` to react when the kit disables it.
+Do not wrap `addPlugin` or `setup` in a try/catch expecting `NotImplementedError` -- the kit swallows that error internally and it never reaches your code.
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { GroupListeningPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+const player = nmMPlayer('main')
+  .addPlugin(GroupListeningPlugin, {
+    wsUrl: 'wss://your-server.example.com/sync',
+    sessionId: 'room-abc',
+    driftThresholdMs: 80,
+    canControl: true,
+  })
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+    playlist: [
+      {
+        id: 'kjc-01',
+        name: 'Thaw You Out',
+        url: '/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.mp3',
+        artistTracks: [{ id: 1, name: 'Derek Clegg' }],
+      },
+    ],
+  });
+
+// The kit emits plugin:failed when use() throws internally.
+// Use this event to detect that GroupListeningPlugin is not yet active.
+player.on('plugin:group-listening:failed', ({ id, error }) => {
+  console.warn(`${id} is not available in v2.0:`, error.message);
+});
+```
+
+## See also
+
+- [AutoAdvancePlugin](/nomercy-music-player/plugins/auto-advance)
+- [TabLeaderPlugin](/nomercy-music-player/plugins/tab-leader)

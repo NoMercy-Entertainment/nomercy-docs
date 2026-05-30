@@ -1,12 +1,16 @@
 ---
 title: 'DRM'
-description: 'The DrmPlugin — Widevine and PlayReady DRM.'
+description: 'DrmPlugin handles EME license acquisition for Widevine, FairPlay, and PlayReady protected streams.'
 draft: false
 ---
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/drm/index.ts */}
 
-`DrmPlugin` handles EME (Encrypted Media Extensions) license acquisition for Widevine, FairPlay, and PlayReady protected streams. Register it when your media requires DRM — it probes for EME support at startup, exits cleanly in environments without it (JSDOM, SSR), and handles the full key-session lifecycle automatically.
+# DRM
+
+`DrmPlugin` handles EME (Encrypted Media Extensions) license acquisition for Widevine, FairPlay, and PlayReady protected streams.
+Register it when your media requires DRM.
+It probes for EME support at startup, emits `'unsupported'` and exits cleanly in environments without it (JSDOM, SSR), and coordinates the key-system handshake when the active playlist item carries a `drm` field.
 
 ## Plugin id
 
@@ -21,77 +25,64 @@ import type { DrmOptions, DrmEvents } from '@nomercy-entertainment/nomercy-video
 
 ## What it does
 
-`DrmPlugin` coordinates EME (Encrypted Media Extensions) license acquisition for Widevine, FairPlay, and PlayReady protected streams. It:
+When `use()` runs, the plugin calls `requestMediaKeySystemAccess` to confirm EME is available.
+If the API is missing, it emits `'unsupported'` and returns without registering any listeners.
 
-- Probes `requestMediaKeySystemAccess` at startup; emits `'unsupported'` and exits cleanly if EME is unavailable (e.g. JSDOM, server-side rendering)
-- Listens to the `'current'` event; triggers a key-system handshake when the active item has a `drm` field
-- Exposes `fetchLicense()` for explicit license retrieval with optional request signing and body transformation
-- Routes HDCP output protection signals
+Once EME is confirmed, the plugin subscribes to the player's `'current'` event.
+Whenever the active item has a `drm` field, it calls `requestMediaKeySystemAccess` again with the item's key system to verify reachability.
+If that probe fails, it emits `'key:error'`.
+
+`fetchLicense()` is available for explicit license retrieval.
+It routes the request through `customSignRequest` (for HMAC or proprietary signing) and applies `transformLicenseRequest` / `transformLicenseResponse` when provided.
+Internally it uses the kit's `this.fetch` helper, so it inherits the player's auth and retry configuration.
 
 ## Options
 
-```ts
-interface DrmOptions {
-  /** EME key system identifier. */
-  keySystem: string;
-  /** License server URL. */
-  licenseUrl: string;
-  /** Service certificate for FairPlay. Optional for Widevine/PlayReady. */
-  certificate?: ArrayBuffer | string;
-  /** Optional request signer for license calls (HMAC etc.). */
-  customSignRequest?: (request: Request) => Request | Promise<Request>;
-  /** Optional license request body transformer. */
-  transformLicenseRequest?: (challenge: ArrayBuffer) => ArrayBuffer | Promise<ArrayBuffer>;
-  /** Optional license response body transformer. */
-  transformLicenseResponse?: (response: ArrayBuffer) => ArrayBuffer | Promise<ArrayBuffer>;
-  /** Output protection requirements. */
-  hdcpRequired?: 'type-0' | 'type-1' | 'none';
-}
-```
-
-| Option                     | Type                             | Required      | Description                                           |
-| -------------------------- | -------------------------------- | ------------- | ----------------------------------------------------- |
-| `keySystem`                | `string`                         | Yes           | Key system ID — see table below                       |
-| `licenseUrl`               | `string`                         | Yes           | License server endpoint                               |
-| `certificate`              | `ArrayBuffer \| string`          | FairPlay only | Service certificate                                   |
-| `customSignRequest`        | `function`                       | No            | Signs the license request (HMAC, custom headers)      |
-| `transformLicenseRequest`  | `function`                       | No            | Transforms the challenge body before sending          |
-| `transformLicenseResponse` | `function`                       | No            | Transforms the license bytes received from the server |
-| `hdcpRequired`             | `'type-0' \| 'type-1' \| 'none'` | No            | Minimum HDCP level                                    |
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `keySystem` | `string` | required | Key system ID. See the table below. |
+| `licenseUrl` | `string` | required | License server endpoint. |
+| `certificate` | `ArrayBuffer \| string` | `undefined` | Service certificate. Required for FairPlay, optional for others. |
+| `customSignRequest` | `(request: Request) => Request \| Promise<Request>` | `undefined` | Signs the license request before it is sent (HMAC, custom headers). |
+| `transformLicenseRequest` | `(challenge: ArrayBuffer) => ArrayBuffer \| Promise<ArrayBuffer>` | `undefined` | Transforms the challenge body before it is sent to the license server. |
+| `transformLicenseResponse` | `(response: ArrayBuffer) => ArrayBuffer \| Promise<ArrayBuffer>` | `undefined` | Transforms the license bytes received from the server before they are used. |
+| `hdcpRequired` | `'type-0' \| 'type-1' \| 'none'` | `undefined` | Minimum HDCP output protection level. |
 
 ### Key system strings
 
-| DRM System | keySystem                   |
-| ---------- | --------------------------- |
-| Widevine   | `'com.widevine.alpha'`      |
-| FairPlay   | `'com.apple.fps'`           |
+| DRM system | `keySystem` value |
+| ---------- | ----------------- |
+| Widevine   | `'com.widevine.alpha'` |
+| FairPlay   | `'com.apple.fps'` |
 | PlayReady  | `'com.microsoft.playready'` |
 
 ## Events
 
+| Event | Payload | Description |
+| ----- | ------- | ----------- |
+| `'key:error'` | `{ sessionId: string; error: Error }` | License acquisition or key-system probe failed. |
+| `'unsupported'` | `{ reason: string }` | EME not available in this environment. Plugin exits cleanly. |
+
+## Methods
+
+### fetchLicense
+
 ```ts
-interface DrmEvents {
-  'key:requested': { sessionId: string; initData: ArrayBuffer };
-  'key:granted': { sessionId: string };
-  'key:expired': { sessionId: string };
-  'key:revoked': { sessionId: string };
-  'key:error': { sessionId: string; error: Error };
-  'output:restricted': { reason: string };
-  'output:downgraded': { from: string; to: string };
-  unsupported: { reason: string };
-}
+plugin.fetchLicense(challenge: ArrayBuffer): Promise<ArrayBuffer>
 ```
 
-| Event                 | Payload                                         | Description                                          |
-| --------------------- | ----------------------------------------------- | ---------------------------------------------------- |
-| `'key:requested'`     | `{ sessionId: string; initData: ArrayBuffer }`  | Key-session handshake initiated                      |
-| `'key:granted'`       | `{ sessionId: string }`                         | License acquired; content can be decrypted           |
-| `'key:expired'`       | `{ sessionId: string }`                         | License expired; re-acquisition required             |
-| `'key:revoked'`       | `{ sessionId: string }`                         | License revoked by the license server                |
-| `'key:error'`         | `{ sessionId: string; error: Error }`           | License acquisition or key-session error             |
-| `'output:restricted'` | `{ reason: string }`                            | HDCP output restriction enforced                     |
-| `'output:downgraded'` | `{ from: string; to: string }`                  | Output protection level downgraded                   |
-| `'unsupported'`       | `{ reason: string }`                            | EME not available; plugin exits cleanly              |
+Fetches a license blob from the configured `licenseUrl`.
+Applies `transformLicenseRequest` to the challenge before sending and `transformLicenseResponse` to the response bytes before returning.
+When `customSignRequest` is provided, the plugin builds a `Request` object, runs it through the signer, and forwards the resulting URL and headers.
+The underlying HTTP call uses the kit's `this.fetch` helper, not the platform `fetch` directly.
+
+### mediaKeys
+
+```ts
+plugin.mediaKeys(): MediaKeys | null
+```
+
+Returns the `MediaKeys` instance currently bound to the video element, or `null` when EME is unsupported in this environment, when no video element is present, or when the browser's `mediaKeys` property is null.
 
 ## Registration
 
@@ -102,42 +93,29 @@ import { DrmPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 const player = nmplayer('player')
   .addPlugin(DrmPlugin, {
     keySystem: 'com.widevine.alpha',
-    licenseUrl: 'https://license.example.com/widevine',
+    licenseUrl: 'https://api.example.com/license/widevine',
   })
   .setup({
     playlist: [
       {
+        id: 'protected-1',
         title: 'Protected content',
-        url: 'https://protected.cdn.your-domain.com/stream.m3u8',
+        url: 'https://api.example.com/stream/protected.m3u8',
         drm: { keySystem: 'com.widevine.alpha' },
       },
     ],
   });
 
-player.on('plugin:drm:key:granted', ({ sessionId }) => {
-  console.log('License granted for session:', sessionId);
+player.on('plugin:drm:key:error', ({ sessionId, error }) => {
+  console.error('Key error for session', sessionId, error);
+});
+
+player.on('plugin:drm:unsupported', ({ reason }) => {
+  console.warn('DRM not available:', reason);
 });
 ```
 
-## Methods
-
-### fetchLicense
-
-```ts
-plugin.fetchLicense(challenge: ArrayBuffer): Promise<ArrayBuffer>
-```
-
-Fetch a license blob from the configured `licenseUrl`. Applies `customSignRequest` and `transformLicenseRequest` / `transformLicenseResponse` when provided.
-
-### mediaKeys
-
-```ts
-plugin.mediaKeys(): MediaKeys | null
-```
-
-Returns the active `MediaKeys` bound to the video element, or `null` when EME is unsupported or no key session is active.
-
 ## See also
 
-- [API — Backend Access (mediaKeys)](/nomercy-video-player/api/backend)
-- [Troubleshooting — DRM handshake fails](/nomercy-video-player/troubleshooting)
+- [API, Backend Access](/nomercy-video-player/api/backend)
+- [Troubleshooting, DRM handshake fails](/nomercy-video-player/troubleshooting#drm-handshake-fails-silently)

@@ -1,41 +1,46 @@
 ---
 title: 'Auto Advance'
-description: 'The AutoAdvancePlugin — automatic progression through a queue.'
+description: 'AutoAdvancePlugin advances the queue automatically when a video finishes, no timers or UI needed.'
 draft: false
 ---
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/auto-advance/index.ts */}
 
-`AutoAdvancePlugin` listens to the player's `'ended'` event and calls `player.next()` so the queue advances automatically when each item finishes. Register it whenever you want binge-style queue playback. Do not register it when an external orchestrator — Cast sync, a NoMercy Connect socket — drives `next()`, as that would produce duplicate advances.
+# Auto Advance
 
-## Plugin id
-
-`'auto-advance'`
-
-## Import
+`AutoAdvancePlugin` listens to the player's `ended` event and calls `player.next()` so the queue moves forward automatically when each item finishes.
+Register it whenever you want binge-style queue playback.
+Do not register it when an external orchestrator, such as Cast sync or a NoMercy Connect socket, drives `next()`, because that would produce duplicate advances.
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 ```
 
-## What it does
-
-`AutoAdvancePlugin` listens to the player's `'ended'` event and calls `player.next()` so the queue advances automatically when each item finishes. It does nothing else — no timers, no countdowns, no UI.
-
-Do not register this plugin when an external orchestrator (Cast sync, a NoMercy Connect WebSocket) drives `next()` — duplicate advances would result.
+Plugin id: `'auto-advance'`
 
 ## Options
 
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `enabled` | `boolean` | `true` | Runtime toggle. Set to `false` to suspend auto-advance without unregistering the plugin. |
+
+## Methods
+
+### advance
+
 ```ts
-interface AutoAdvanceOptions {
-  /** Master toggle. Default true. */
-  enabled?: boolean;
-}
+advance(): Promise<void>
 ```
 
-| Option    | Type      | Default | Description                                                                            |
-| --------- | --------- | ------- | -------------------------------------------------------------------------------------- |
-| `enabled` | `boolean` | `true`  | Runtime toggle. Setting `false` suspends auto-advance without unregistering the plugin |
+Force-advances to the next item immediately, regardless of whether the `ended` event has fired.
+Useful for a "skip" button that needs to bypass the natural end-of-item trigger.
+
+```ts
+const plugin = player.getPlugin(AutoAdvancePlugin);
+
+void plugin?.advance();
+```
 
 ## Registration
 
@@ -64,38 +69,21 @@ const player = nmplayer('player')
   });
 ```
 
-## Methods
-
-### advance
-
-```ts
-plugin.advance(): Promise<void>
-```
-
-Force-advances to the next item immediately, regardless of `ended` state. Useful for a "skip" button that bypasses the `ended` event.
+To suspend auto-advance at runtime, for example while showing a binge-watching prompt, retrieve the plugin instance and call `options()` with a partial update:
 
 ```ts
 const plugin = player.getPlugin(AutoAdvancePlugin);
-plugin?.advance();
-```
 
-## Runtime toggle
-
-Retrieve the plugin instance and set `opts.enabled` at runtime:
-
-```ts
-const plugin = player.getPlugin(AutoAdvancePlugin);
 if (plugin) {
-  // Suspend auto-advance during binge-watching prompt
-  plugin.opts = { enabled: false };
+  plugin.options({ enabled: false });
 
-  // Re-enable after user confirms
-  plugin.opts = { enabled: true };
+  // Re-enable after the user confirms.
+  plugin.options({ enabled: true });
 }
 ```
 
 ## See also
 
 - [Skipper plugin](/nomercy-video-player/plugins/skipper)
-- [API — Kit Methods (next / previous)](/nomercy-video-player/api/kit-methods)
-- [Player Kit — Plugin Model](/nomercy-player-kit/plugins)
+- [API, Kit Methods (next and previous)](/nomercy-video-player/api/kit-methods)
+- [Player Kit, Plugin Model](/nomercy-player-kit/plugins)

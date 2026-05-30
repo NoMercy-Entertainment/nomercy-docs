@@ -1,16 +1,23 @@
 ---
 title: 'Media Session'
-description: 'The MediaSessionPlugin — system media session (lock screen, notifications).'
+description: 'MediaSessionPlugin wires the player transport to the OS Now Playing surface, lock screen controls, and hardware media keys.'
 draft: false
 ---
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/media-session/index.ts */}
+{/* Base: packages/nomercy-player-kit/src/plugins/media-session/index.ts */}
 
-`MediaSessionPlugin` populates the browser's `MediaSession` API so the OS-level "Now Playing" interface — lock screen, notification shade, browser toolbar media controls — reflects the currently playing video. Register it for any deployment where users may background the browser tab. It takes no options.
+# Media Session
+
+`MediaSessionPlugin` connects the player to the browser's `MediaSession` API so the operating system's Now Playing widget, lock screen controls, and hardware media keys all reflect what is currently playing.
+Register it whenever your users might background the tab, use a Bluetooth remote, or interact with OS-level media controls.
+It takes no options.
 
 ## Plugin id
 
 `'media-session'`
+
+---
 
 ## Import
 
@@ -18,24 +25,79 @@ draft: false
 import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 ```
 
+---
+
 ## What it does
 
-`MediaSessionPlugin` is a video-specific override of the kit's base `MediaSessionPlugin`. It populates the browser's `MediaSession` API so the OS-level "Now Playing" UI (lock screen, notification shade, media controls in browser toolbar) reflects what is currently playing.
+The plugin bridges two directions.
 
-For video items, the plugin builds metadata as:
+Outward: when the active playlist item changes, the plugin reads the item's fields, resolves the artwork URL, and pushes a `MediaMetadata` object to `navigator.mediaSession`.
+It also keeps `playbackState` and `setPositionState` in sync as the player plays, pauses, seeks, and ends.
 
-| MediaSession field | Source                                                                                   |
-| ------------------ | ---------------------------------------------------------------------------------------- |
-| `title`            | `item.title ?? item.name`                                                                |
-| `artist`           | `item.show` (or `item.year` as a fallback)                                               |
-| `album`            | `'Season N'` when `item.season` is set, otherwise empty                                  |
-| `artwork`          | Resolved from `item.poster` via the kit's auth fetch pipeline (respects `imageBasePath`) |
+Inward: it registers OS action handlers so hardware keys and the lock screen scrubber route back into the player.
 
-This provides TV-style metadata on series content — OS media surfaces show the show name as the artist and the season label as the album.
+For video items the plugin uses the `VideoPlaylistItem` fields to produce TV-style metadata:
+
+| MediaSession field | Source |
+| ------------------ | ------ |
+| `title` | `item.title ?? ''` |
+| `artist` | `item.show ?? ''` |
+| `album` | `'Season N'` when `item.season` is non-undefined, non-null, and non-empty-string, otherwise `''` |
+| `artwork` | Resolved from the first non-empty field among `item.image`, `item.poster`, `item.thumbnail`, `item.cover` |
+
+---
 
 ## Options
 
-`MediaSessionPlugin` takes no options. Metadata is read from the active `VideoPlaylistItem` at playback time.
+`MediaSessionPlugin` takes no options.
+Metadata is read from the active `VideoPlaylistItem` at playback time.
+
+---
+
+## OS action handlers
+
+The plugin registers eight action handlers on `navigator.mediaSession`:
+
+| Action | What it does |
+| ------ | ------------ |
+| `play` | Calls `player.play()` |
+| `pause` | Calls `player.pause()` |
+| `stop` | Calls `player.stop()` |
+| `previoustrack` | Calls `player.previous()` |
+| `nexttrack` | Calls `player.next()` |
+| `seekbackward` | Calls `player.rewind(offset)`, where `offset` is the browser-supplied `seekOffset` or `5` seconds |
+| `seekforward` | Calls `player.forward(offset)`, same offset logic |
+| `seekto` | Calls `player.currentTime(time)` with the browser-supplied `seekTime` |
+
+`stop` is registered with a try/catch because a few browsers do not implement it.
+Any unsupported action is silently skipped, and all handlers are cleaned up when the plugin disposes.
+
+---
+
+## Methods
+
+These are available after the plugin is registered:
+
+```ts
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const session = player.getPlugin(MediaSessionPlugin)!;
+
+// Read the last metadata that was pushed to the OS:
+const current = session.metadata();
+
+// Push metadata manually (the plugin does this automatically on track changes):
+session.metadata({
+  title: 'Sintel',
+  artist: 'Blender Foundation',
+  album: 'Season 1',
+});
+
+// Clear the OS Now Playing widget:
+session.clearMetadata();
+```
+
+---
 
 ## Registration
 
@@ -49,6 +111,7 @@ const player = nmplayer('player')
     baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
     playlist: [
       {
+        id: 1,
         title: 'Sintel',
         url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
         image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
@@ -60,16 +123,56 @@ const player = nmplayer('player')
   });
 ```
 
-The OS Now Playing widget will show: **Sintel** · Blender Foundation · Season 1
+The OS Now Playing widget will show: **Sintel** - Blender Foundation - Season 1
 
-## Media action handlers
+---
 
-The kit base class registers handlers for `play`, `pause`, `stop`, `nexttrack`, and `previoustrack` — these call the corresponding player methods. The video-specific plugin inherits all handlers.
+## Customising metadata extraction
 
-Position state (`mediaSession.setPositionState`) is updated on `timeupdate` events.
+If your playlist items carry fields beyond the standard `VideoPlaylistItem` shape, subclass the plugin and override `getMetadata`:
+
+```ts
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+interface MyItem extends VideoPlaylistItem {
+  director?: string;
+}
+
+class MyMediaSession extends MediaSessionPlugin<MyItem> {
+  protected override getMetadata(item: MyItem) {
+    return {
+      title: item.title ?? '',
+      artist: item.director ?? item.show ?? '',
+      album: item.season != null ? `Season ${item.season}` : '',
+    };
+  }
+}
+
+const player = nmplayer('player')
+  .addPlugin(MyMediaSession)
+  .setup({ /* ... */ });
+```
+
+Artwork resolution is handled separately by the base class.
+Overriding `getMetadata` only affects the text fields.
+
+---
+
+## Browser notes
+
+- `setPositionState` is skipped when `duration` is zero, `NaN`, `Infinity`, or otherwise non-finite.
+  Some browsers throw on those inputs, so the plugin guards every call.
+- `stop` action registration is wrapped in a try/catch because it is not supported everywhere.
+- Safari requires the `autoplay` attribute on any parent `<iframe>` for `MediaSession` to activate.
+  Without it, OS-level controls never appear.
+- In Node, JSDOM, and other headless environments `navigator.mediaSession` is absent.
+  The plugin checks for it on every call and silently no-ops.
+
+---
 
 ## See also
 
 - [CastSender plugin](/nomercy-video-player/plugins/cast-sender)
-- [VideoPlaylistItem — show/season fields](/nomercy-video-player/playlist-item)
-- [Player Kit — MediaSessionPlugin (base class)](/nomercy-player-kit/plugins)
+- [VideoPlaylistItem, show and season fields](/nomercy-video-player/playlist-item)
+- [Player Kit, MediaSession recipe](/nomercy-player-kit/recipes/media-session)

@@ -1,12 +1,17 @@
 ---
 title: 'Key Handler'
-description: 'The KeyHandlerPlugin — keyboard shortcut bindings.'
+description: 'The KeyHandlerPlugin adds the full keyboard binding set for video playback, modifier-aware seeks, TV color buttons, chapters, subtitle and audio cycling, fullscreen, speed, frame advance, and more.'
 draft: false
 ---
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/key-handler/index.ts */}
 
-`KeyHandlerPlugin` is the video-player's keyboard binding layer. It subclasses the kit's base `KeyHandlerPlugin` and adds the full v1 binding set — playback, modifier-aware seeks, volume, chapters, subtitle/audio cycling, fullscreen, speed, frame advance, and TV color buttons. Register it on any deployment where keyboard control is needed; `DesktopUiPlugin` bundles it automatically, so register it separately only when building a custom UI without `DesktopUiPlugin`.
+# Key Handler
+
+`KeyHandlerPlugin` is the video player's keyboard binding layer.
+It subclasses the kit's base `KeyHandlerPlugin` and adds the full v1 binding set on top of the kit's cooldown, scope, `when`, and cleanup infrastructure.
+Register it explicitly on any deployment where keyboard control is needed.
+`DesktopUiPlugin` does not include or register `KeyHandlerPlugin` - both plugins must be added independently via `addPlugin()`.
 
 ## Plugin id
 
@@ -20,60 +25,81 @@ import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/pl
 
 ## What it does
 
-`KeyHandlerPlugin` is a video-specific subclass of the kit's base `KeyHandlerPlugin`. It adds the full v1 keyboard binding set on top of the kit's cooldown / scope / `when` / cleanup infrastructure. All bindings are modifier-aware.
+All binding groups are `protected` methods, so you can subclass and override one group without touching the rest.
+Override `addDefaults()` to drop the entire video binding set and start from scratch.
 
 The plugin binds the following groups by default:
 
-| Group          | Keys                                                                                |
-| -------------- | ----------------------------------------------------------------------------------- |
-| Playback       | `Space`, `MediaPlay`, `MediaPause`, `MediaPlayPause`, `MediaStop`                   |
-| Navigation     | `ArrowLeft` (rewind), `ArrowRight` (forward) — disabled on TV                       |
-| Volume         | `ArrowUp` / `ArrowDown` (on desktop only), `m` (mute)                               |
-| Media keys     | `Subtitle` / `5` / `v` → `cycleSubtitles`; `Audio` / `2` / `b` → `cycleAudioTracks` |
-| Modifier seeks | `Shift+Arrow` ±3s, `Alt+Arrow` ±10s, `Ctrl+Arrow` ±60s                              |
-| Quick skip     | `1`→120s, `3`→30s, `6`→60s, `9`→90s; TV color buttons `F0`–`F3`                     |
-| Next / Prev    | `MediaTrackNext`, `MediaTrackPrevious`, `n`, `p`                                    |
-| Chapters       | `Shift+N` (next), `Shift+P` (previous)                                              |
-| Fullscreen     | `f`, `F11`, `Escape`                                                                |
-| Speed          | `]` faster, `[` slower, `=` reset                                                   |
-| Frame advance  | `e` — advances ~1/30s when paused                                                   |
-| Show time      | `t` — OSD message with current / remaining time                                     |
-| Subtitle size  | `+` / `-` — emits `'subtitle-size-up'` / `'subtitle-size-down'`                     |
-| Aspect ratio   | `a`, `BrowserFavorites` → `cycleAspectRatio()`                                      |
-| Stop           | `s`                                                                                 |
-| Help           | `?` → emits `'plugin:desktop-ui:shortcuts-toggle'`                                  |
+| Group | Keys |
+| --- | --- |
+| Playback | `Space`, `MediaPlay`, `MediaPause`, `MediaPlayPause`, `MediaStop`, `MediaRewind`, `MediaFastForward` |
+| Navigation | `ArrowLeft` (rewind), `ArrowRight` (forward), disabled on TV |
+| Volume | `ArrowUp` / `ArrowDown` (desktop only, not TV or mobile), `m` (mute) |
+| Media keys | `Subtitle` / `5` / `v` cycles subtitles; `Audio` / `2` / `b` cycles audio tracks |
+| Modifier seeks | `Shift+Arrow` 3s, `Alt+Arrow` 10s, `Ctrl+Arrow` 60s |
+| Quick skip | `1` forward 120s, `3` forward 30s, `6` forward 60s, `9` forward 90s; TV color buttons `ColorF0Red` 30s, `ColorF1Green` 60s, `ColorF2Yellow` 90s, `ColorF3Blue` 120s |
+| Next / Prev | `MediaTrackNext`, `MediaTrackPrevious`, `n`, `p` |
+| Chapters | `Shift+N` (next chapter), `Shift+P` (previous chapter) |
+| Fullscreen | `f`, `F11`, `Escape` (exits fullscreen only) |
+| Speed | `]` faster, `[` slower, `=` reset to 1x |
+| Frame advance | `e` advances one frame (~1/30s) when paused |
+| Show time | `t` shows current and remaining time as an OSD message |
+| Subtitle size | `+` or `Shift++` emits `'subtitle-size-up'`; `-` emits `'subtitle-size-down'` |
+| Aspect ratio | `a`, `BrowserFavorites` cycles aspect ratio |
+| Stop | `s` |
+| Help | `Shift+?` emits `'plugin:desktop-ui:shortcuts-toggle'` |
 
 ## Options
 
-`KeyHandlerPlugin` inherits `KeyHandlerOptions` from the kit base class. No video-specific options are added.
+`KeyHandlerPlugin` inherits `KeyHandlerOptions` from the kit base class.
+No video-specific options are added.
 
 ```ts
 interface KeyHandlerOptions<P> {
-  /** Where the keydown listener is attached. Default 'document'. */
+  /** Where the keydown listener is attached. Default: 'document'. */
   scope?: 'document' | 'container' | HTMLElement;
+
   /** Extra bindings merged on top of the default groups. Same combo wins over the default. */
   bindings?: Record<string, (player: P) => void>;
-  /** When false, default bindings are cleared before opts.bindings is applied. Default true. */
+
+  /** When false, default bindings are cleared before opts.bindings is applied. Default: true. */
   extend?: boolean;
-  /** Gate predicate — return false to suppress all key handling for that event. */
+
+  /** Gate predicate. Return false to suppress all key handling for that event. */
   when?: (e: KeyboardEvent) => boolean;
-  /** Minimum milliseconds between consecutive fires of the same key. Default 300. */
+
+  /** Minimum milliseconds between consecutive fires of the same key. Default: 300. */
   cooldownMs?: number;
-  /** When true, hardware media keys (MediaPlay, MediaPause, etc.) are silently ignored. Default false. */
+
+  /** When true, hardware media keys (MediaPlay, MediaPause, etc.) are silently ignored. Default: false. */
   disableMediaControls?: boolean;
 }
 ```
 
-| Option                 | Type                              | Default      | Description                                                              |
-| ---------------------- | --------------------------------- | ------------ | ------------------------------------------------------------------------ |
-| `scope`                | `'document' \| 'container' \| HTMLElement` | `'document'` | Where the keydown listener is attached                      |
-| `bindings`             | `Record<string, fn>`              | `{}`         | Additional combos merged on top of the video default groups              |
-| `extend`               | `boolean`                         | `true`       | `false` clears all defaults before `bindings` is applied                 |
-| `when`                 | `(e: KeyboardEvent) => boolean`   | —            | Return `false` to suppress all keys for that event                       |
-| `cooldownMs`           | `number`                          | `300`        | Minimum ms between consecutive fires of the same key                     |
-| `disableMediaControls` | `boolean`                         | `false`      | Suppress hardware media key handling (MediaPlay, MediaPause, etc.)       |
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `scope` | `'document' \| 'container' \| HTMLElement` | `'document'` | Where the keydown listener is attached |
+| `bindings` | `Record<string, fn>` | `undefined` | Additional combos merged on top of the video default groups |
+| `extend` | `boolean` | `true` | `false` clears all defaults before `bindings` is applied |
+| `when` | `(e: KeyboardEvent) => boolean` | none | Return `false` to suppress all keys for that event |
+| `cooldownMs` | `number` | `300` | Minimum ms between consecutive fires of the same key |
+| `disableMediaControls` | `boolean` | `false` | Suppress hardware media key handling |
 
-The `disableControls` and `disableMediaControls` flags in `VideoPlayerConfig` are also respected — pass them in `setup()` rather than in the plugin options when the intent is to disable globally.
+The `disableControls` and `disableMediaControls` flags in `VideoPlayerConfig` are also respected.
+Pass them in `setup()` rather than in the plugin options when the intent is to disable keyboard control globally.
+
+## Methods
+
+These public methods are inherited from the kit base class.
+Access the plugin instance with `player.getPlugin(KeyHandlerPlugin)`.
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `bind` | `(combo: string, fn: (player) => void): void` | Register or replace a handler for a combo string |
+| `unbind` | `(combo: string): void` | Remove the handler for a combo string |
+| `replace` | `(combo: string, fn: (player) => void): void` | Semantic alias for `bind` |
+| `bindings` | `(): ReadonlyMap<string, fn>` | Snapshot of the current binding map |
+| `scope` | `(): EventTarget` | The target the keydown listener is attached to |
 
 ## Registration
 
@@ -96,29 +122,31 @@ const player = nmplayer('player')
 
 ## Disabling controls
 
-Set `disableControls: true` in `VideoPlayerConfig` to suppress all bindings. Set `disableMediaControls: true` to suppress only the `MediaPlay` / `MediaPause` / `MediaStop` media keys:
+Set `disableControls: true` in `VideoPlayerConfig` to suppress all keyboard bindings.
+Set `disableMediaControls: true` to suppress only the hardware media keys (`MediaPlay`, `MediaPause`, `MediaStop`, `MediaRewind`, `MediaFastForward`, `MediaTrackNext`, `MediaTrackPrevious`):
 
 ```ts
 player.setup({
-  disableMediaControls: false,
   disableControls: false,
-  playlist: [...],
+  disableMediaControls: false,
+  playlist: [ /* ... */ ],
 });
 ```
 
 ## Subclassing
 
-All binding groups are `protected` methods — subclass `KeyHandlerPlugin` and override any group without rewriting the rest:
+All binding groups are `protected` methods.
+Subclass `KeyHandlerPlugin` and override any group without rewriting the rest:
 
 ```ts
-import { KeyHandlerPlugin as BaseKeyHandler } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import { KeyHandlerPlugin as VideoKeyHandler } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-class MyKeyHandler extends BaseKeyHandler {
+class CustomKeyHandler extends VideoKeyHandler {
   protected override addNavigationKeys(): void {
-    // Custom seek distances
     this.bind('ArrowLeft', () => {
       void this.player.rewind?.(30);
     });
+
     this.bind('ArrowRight', () => {
       void this.player.forward?.(30);
     });
@@ -128,7 +156,8 @@ class MyKeyHandler extends BaseKeyHandler {
 
 ## OSD messages
 
-Bindings that change state (speed change, aspect ratio cycle) use `this.message(text)` to emit an OSD notification. This calls `player.displayMessage(text)` if present, and always emits `'display-message'` on the player so a custom OSD widget can subscribe:
+Bindings that change state (speed, aspect ratio) use `this.message(text)` to emit an OSD notification.
+This calls `player.displayMessage(text)` if the player exposes it, and always emits `'display-message'` on the player so any custom OSD widget can subscribe:
 
 ```ts
 player.on('display-message', ({ text }) => {

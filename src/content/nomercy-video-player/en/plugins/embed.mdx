@@ -1,12 +1,16 @@
 ---
 title: 'Embed'
-description: 'The EmbedPlugin — iframe embed and postMessage control.'
+description: 'EmbedPlugin adds a postMessage control bridge to a player running inside an iframe, letting the parent page send commands and receive events without shared JavaScript.'
 draft: false
 ---
 
-{/* Source: packages/nomercy-video-player-v2/src/plugins/embed/index.ts — re-exported verbatim from nomercy-player-core */}
+{/* Source: packages/nomercy-player-kit/src/plugins/embed/index.ts, re-exported verbatim from nomercy-video-player-v2/src/plugins/embed/index.ts */}
 
-`EmbedPlugin` adds a `postMessage`-based control API to a player running inside an `<iframe>`. Register it when the player is embedded in a third-party page, CMS widget, or no-code builder — the parent page can then send commands (`play`, `pause`, `seek`, etc.) and receive player events without any shared JavaScript context.
+# Embed
+
+Register `EmbedPlugin` when you drop the player into a third-party page, a CMS widget, or a no-code builder via an `<iframe>`.
+The plugin wires up a `postMessage` channel so the parent page can send commands (play, pause, seek, and more) and listen for player events, all without any shared JavaScript context between the two pages.
+If the player is not inside an `<iframe>`, this plugin does nothing harmful, but you do not need it for that case.
 
 ## Plugin id
 
@@ -25,49 +29,138 @@ import type {
 
 ## What it does
 
-`EmbedPlugin` is a direct re-export of the kit's shared `EmbedPlugin`. It provides a `postMessage`-based control API that allows a parent page to control a player embedded in an `<iframe>`.
-
-When registered, the plugin listens for `window.message` events from the parent frame. Commands arriving as `EmbedCommand` objects are dispatched to the local player. Player events are forwarded back to the parent as `EmbedEventMessage` objects.
-
-This plugin is intended for embedding the player in third-party contexts — for example, a CMS widget, a dashboard embed, or a no-code page builder.
+On `use()`, the plugin attaches a `message` listener to `window` and subscribes to the configured set of player events.
+Inbound messages that match `{ type: 'nm:command' }` are validated against `allowedOrigins` and dispatched to the appropriate player method.
+Player events are packaged as `{ type: 'nm:event', name, data }` and posted back to the host page via `window.parent.postMessage`.
+The listener and all event forwarders are cleaned up automatically on `dispose()`.
 
 ## Options
 
-```ts
-interface EmbedOptions {
-  /**
-   * Allowed origin(s) for postMessage. Use '*' for any origin (not recommended for production).
-   * A single string or an array of strings. Omitting means no origins are allowed to send commands.
-   */
-  allowedOrigins?: string | string[];
-  /** Player event names to forward to the host page. Defaults to ready/play/pause/ended/time/volume/mute. */
-  forwardEvents?: string[];
-  /** Apply iframe UI adjustments (smaller controls etc.). Defaults to true inside an iframe. */
-  applyIframeTweaks?: boolean;
-}
-```
-
-| Option            | Type                  | Default | Description                                                                                        |
-| ----------------- | --------------------- | ------- | -------------------------------------------------------------------------------------------------- |
-| `allowedOrigins`  | `string \| string[]`  | `[]`    | Origin(s) allowed to send commands. Empty = accept nothing. `'*'` = accept any (dev only)         |
-| `forwardEvents`   | `string[]`            | see above | Player events forwarded to host page as `nm:event` messages                                     |
-| `applyIframeTweaks` | `boolean`           | `true` in iframe | Suppress popout button and apply compact controls when embedded                         |
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `allowedOrigins` | `string \| string[]` | `[]` (none) | Origin(s) allowed to send `nm:command` messages. Empty means all inbound commands are rejected. `'*'` accepts any origin (development only). |
+| `forwardEvents` | `ReadonlyArray<EmbedEventMessage['name']>` | `['ready','play','pause','ended','time','volume','mute']` | Player events to forward to the host page as `nm:event` messages. |
+| `applyIframeTweaks` | `boolean` | `undefined` | Declared in the options interface but not yet read by the implementation. Has no effect at runtime. |
 
 ## EmbedCommand
 
-Commands sent from the parent page to the embedded player. All commands use `type: 'nm:command'` as the envelope:
+Commands sent from the parent page to the embedded player all use `type: 'nm:command'` as the envelope:
 
-| Command                                               | Description                     |
-| ----------------------------------------------------- | ------------------------------- |
-| `{ type: 'nm:command', action: 'play' }`              | Call `player.play()`            |
-| `{ type: 'nm:command', action: 'pause' }`             | Call `player.pause()`           |
-| `{ type: 'nm:command', action: 'stop' }`              | Call `player.stop()`            |
-| `{ type: 'nm:command', action: 'seek', time: number }`| Seek to `time` seconds          |
-| `{ type: 'nm:command', action: 'volume', level: number }` | Set volume `level` (0–100)  |
-| `{ type: 'nm:command', action: 'mute' }`              | Mute audio                      |
-| `{ type: 'nm:command', action: 'unmute' }`            | Unmute audio                    |
-| `{ type: 'nm:command', action: 'next' }`              | Advance to next queue item      |
-| `{ type: 'nm:command', action: 'previous' }`          | Return to previous queue item   |
+| Command | Description |
+| ------- | ----------- |
+| `{ type: 'nm:command', action: 'play' }` | Calls `player.play()` |
+| `{ type: 'nm:command', action: 'pause' }` | Calls `player.pause()` |
+| `{ type: 'nm:command', action: 'stop' }` | Calls `player.stop()` |
+| `{ type: 'nm:command', action: 'seek', time: number }` | Seeks to `time` seconds |
+| `{ type: 'nm:command', action: 'volume', level: number }` | Sets volume to `level` (0-100) |
+| `{ type: 'nm:command', action: 'mute' }` | Mutes audio |
+| `{ type: 'nm:command', action: 'unmute' }` | Unmutes audio |
+| `{ type: 'nm:command', action: 'next' }` | Advances to next queue item |
+| `{ type: 'nm:command', action: 'previous' }` | Returns to previous queue item |
+
+Unknown commands are logged as warnings via `this.logger` and silently dropped.
+
+## EmbedEventMessage
+
+Every forwarded message has the envelope `{ type: 'nm:event', name, data }`.
+The player's real event payload is the `data` value.
+Extra fields described below are properties of `data`, not top-level fields on the message.
+
+| Forwarded name | `data` shape | Description |
+| -------------- | ------------ | ----------- |
+| `'ready'` | `void` | Player has initialised |
+| `'play'` | `ActionOptions` (`{ source?, silent?, autoplay? }`) | Playback started |
+| `'pause'` | `ActionOptions` (`{ source?, silent?, autoplay? }`) | Playback paused |
+| `'ended'` | `void` | Track finished |
+| `'time'` | `{ time: number }` | Periodic time update. `data.time` is the current position in seconds. |
+| `'volume'` | `{ level: number }` | Volume changed. Read `data.level`. |
+| `'mute'` | `{ muted: boolean }` | Mute state toggled. Read `data.muted`. |
+| `'error'` | `PlayerErrorEvent` | Player error (not in the default `forwardEvents` list; add explicitly). `data.error.code` holds the error code; `data.error.message` holds the message. |
+
+### Reading event data in the host page
+
+```js
+window.addEventListener('message', (event) => {
+  if (event.origin !== 'https://player.example.com') return;
+  const msg = event.data;
+  if (msg?.type !== 'nm:event') return;
+
+  switch (msg.name) {
+    case 'time':
+      // msg.data = { time: number }
+      console.log('position', msg.data.time);
+      break;
+
+    case 'volume':
+      // msg.data = { level: number }
+      console.log('volume', msg.data.level);
+      break;
+
+    case 'mute':
+      // msg.data = { muted: boolean }
+      console.log('muted', msg.data.muted);
+      break;
+
+    case 'error':
+      // msg.data = PlayerErrorEvent
+      console.error('player error', msg.data.error.code, msg.data.error.message);
+      break;
+
+    case 'play':
+    case 'pause':
+      // msg.data = ActionOptions = { source?, silent?, autoplay? }
+      console.log(msg.name, 'triggered by', msg.data.source);
+      break;
+  }
+});
+```
+
+## Methods
+
+```ts
+import { EmbedPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const embedPlugin = player.getPlugin(EmbedPlugin)!;
+
+// Read the current allowlist:
+const currentOrigins = embedPlugin.allowedOrigins();
+
+// Replace the allowlist at runtime:
+embedPlugin.allowedOrigins('https://app.example.com');
+embedPlugin.allowedOrigins(['https://app.example.com', 'https://preview.example.com']);
+
+// Post a message to the host page directly:
+embedPlugin.sendToHost({ type: 'nm:event', name: 'ready' });
+
+// Read or update options at runtime:
+const currentOptions = embedPlugin.options();
+embedPlugin.options({ allowedOrigins: 'https://app.example.com' });
+```
+
+Updating `allowedOrigins` via `options()` or the `allowedOrigins()` method takes effect immediately on the next inbound message.
+
+## Security note
+
+When exactly one origin is in the allowlist, outbound `postMessage` calls are pinned to that origin.
+When multiple origins are listed or `'*'` is used, outbound messages target `'*'`.
+Pin to a single origin in production for best security.
+
+## Required iframe attributes
+
+For full functionality the `<iframe>` needs:
+
+```html
+<iframe
+  src="https://player.example.com/embed/player"
+  allow="autoplay; fullscreen; picture-in-picture; encrypted-media;
+         accelerometer; gyroscope; web-share; clipboard-write"
+  allowfullscreen
+  loading="lazy"
+></iframe>
+```
+
+The `autoplay` permission is load-bearing.
+Without it `MediaSession` never activates, so OS-level controls (lock screen, Now Playing, Bluetooth) do not appear even when `MediaSessionPlugin` is also registered.
 
 ## Registration
 
@@ -75,13 +168,14 @@ Commands sent from the parent page to the embedded player. All commands use `typ
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { EmbedPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-// Inside the iframe:
+// Inside the iframe page:
 const player = nmplayer('player')
-  .addPlugin(EmbedPlugin, { allowedOrigins: 'https://example.com' })
+  .addPlugin(EmbedPlugin, { allowedOrigins: 'https://app.example.com' })
   .setup({
     baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
     playlist: [
       {
+        id: '1',
         title: 'Sintel',
         url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
       },
@@ -90,21 +184,32 @@ const player = nmplayer('player')
 ```
 
 ```js
-// In the parent page:
+// In the parent (host) page:
 const iframe = document.querySelector('iframe');
 
+// Send a command to the embedded player:
 iframe.contentWindow.postMessage(
   { type: 'nm:command', action: 'play' },
   'https://player.example.com',
 );
+
+// Seek to 2 minutes in:
 iframe.contentWindow.postMessage(
   { type: 'nm:command', action: 'seek', time: 120 },
   'https://player.example.com',
 );
+
+// Listen for events coming back from the player:
+window.addEventListener('message', (event) => {
+  if (event.origin !== 'https://player.example.com') return;
+  const message = event.data;
+  if (message?.type !== 'nm:event') return;
+  if (message.name === 'ended') showNextEpisodeBanner();
+});
 ```
 
 ## See also
 
-- [Player Kit — EmbedPlugin (canonical docs)](/nomercy-player-kit/plugins)
+- [Player Kit, built-in plugins reference](/nomercy-player-kit/plugins-builtin)
 - [Tab Leader plugin](/nomercy-video-player/plugins/tab-leader)
 - [Message plugin](/nomercy-video-player/plugins/message)

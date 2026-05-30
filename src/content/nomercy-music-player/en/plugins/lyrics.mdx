@@ -1,6 +1,6 @@
 ---
 title: 'LyricsPlugin'
-description: 'LRC lyric sync with CueTracker — fetchLyrics(), current(), all(), clear(), and line/lineEnter/lineExit events.'
+description: 'Synced-lyrics plugin for the music player. Fetches and parses LRC or VTT lyric files, attaches a CueTracker, and fires timed line events as playback advances.'
 draft: false
 ---
 
@@ -8,30 +8,31 @@ draft: false
 
 # LyricsPlugin
 
-Synced-lyrics plugin. On every `current` event, resolves the track's `lyricsUrl` (or a custom resolver), fetches the file via the kit's auth-aware fetch, parses it through the cue parser registry, and attaches a `CueTracker` that fires timed events as playback advances.
+You need synced lyrics.
+A track object already has a `lyricsUrl` field, but something still needs to fetch the file, pick the right parser, and translate raw cue timestamps into events your UI can respond to at exactly the right moment.
+That is what this plugin does.
+On every `current` event it resolves the lyric URL, fetches the file through the kit's auth-aware fetch, runs the content through the cue parser registry, and hands the result to a `CueTracker` that fires `line`, `lineEnter`, and `lineExit` events in sync with playback.
 
 ```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
 import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+import type { LyricsEvents, LyricsOptions } from '@nomercy-entertainment/nomercy-music-player/plugins';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 ```
 
 Plugin id: `'lyrics'`
 
 ---
 
-## Registration
+## What it does
 
-```ts
-const player = nmMPlayer('main').addPlugin(LyricsPlugin).setup({ playlist: myTracks });
-```
+The plugin hooks into `current` and runs automatically when `autoFetch` is enabled (the default).
+A `CueTracker` wakes at the right timestamp and emits `lineEnter` and `lineExit` on the plugin channel, which the player re-emits as `plugin:lyrics:lineEnter` and `plugin:lyrics:lineExit`.
+The `line` event fires alongside `lineEnter` as a convenience alias for single-line karaoke-style displays.
 
-With options:
-
-```ts
-player.addPlugin(LyricsPlugin, {
-  autoFetch: true, // default: true
-  getLyricsUrl: (track) => `https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/${track.id}.lrc`,
-});
-```
+The URL file extension decides which parser runs.
+`.lrc` and `.vtt` parsers are pre-registered by the kit.
+For other formats call `player.registerCueParser(myParser)` before `setup()`.
 
 ---
 
@@ -39,8 +40,35 @@ player.addPlugin(LyricsPlugin, {
 
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
-| `getLyricsUrl` | `(track: MusicPlaylistItem) => string \| undefined` | `undefined` | Custom resolver. When provided, takes precedence over `track.lyricsUrl`. Use when lyrics are stored under a URL pattern derived from the track id or when you need to sign the URL. |
-| `autoFetch` | `boolean` | `true` | Automatically fetch lyrics on every `current` event. Set to `false` when you want manual control via `fetchLyrics(url)`. |
+| `getLyricsUrl` | `(track: MusicPlaylistItem) => string \| undefined` | `undefined` | Custom URL resolver. When provided it takes precedence over `track.lyricsUrl`. Use it when lyrics are stored under a URL pattern derived from the track id or when you need to sign the URL. |
+| `autoFetch` | `boolean` | `true` | Automatically fetch and attach lyrics on every `current` event. Set to `false` when you want manual control via `fetchLyrics(url)`. |
+
+---
+
+## Events
+
+Listen from outside the plugin using the namespaced string form on `player.on()`.
+
+| Event | Payload | Description |
+| ----- | ------- | ----------- |
+| `plugin:lyrics:line` | `{ text: string; [key: string]: unknown }` | Fires on every line enter. Convenience alias for `lineEnter`. Use this for single-line karaoke displays. |
+| `plugin:lyrics:lineEnter` | `{ text: string; [key: string]: unknown }` | Fires when a cue becomes active. Mirrors the `CueTracker` `enter` event. |
+| `plugin:lyrics:lineExit` | `{ text: string; [key: string]: unknown }` | Fires when a cue goes inactive. Use to dim or remove the highlight from the previous line. |
+| `plugin:lyrics:enabled` | `{ id: string }` | Fired by the base plugin when `plugin.enable()` is called. |
+| `plugin:lyrics:disabled` | `{ id: string; reason?: string }` | Fired by the base plugin when `plugin.disable(reason?)` is called. |
+
+```ts
+player.on('plugin:lyrics:lineEnter', ({ text }) => {
+  highlightLine(text);
+});
+
+player.on('plugin:lyrics:lineExit', ({ text }) => {
+  dimLine(text);
+});
+```
+
+Inside a plugin body you can use the class form: `this.on(LyricsPlugin, 'lineEnter', ...)`.
+That form is `protected` and is not available on an external `player.on()` call.
 
 ---
 
@@ -52,11 +80,12 @@ player.addPlugin(LyricsPlugin, {
 current(): { text: string; [key: string]: unknown } | undefined
 ```
 
-Returns the currently-active line payload, or `undefined` when no line is active (between cues or no lyrics loaded).
+Returns the currently active line payload, or `undefined` when no line is active (between cues or before lyrics are loaded).
 
 ```ts
 const lyricsPlugin = player.getPlugin(LyricsPlugin)!;
 const activeLine = lyricsPlugin.current();
+
 if (activeLine) {
   console.log(activeLine.text);
 }
@@ -68,12 +97,18 @@ if (activeLine) {
 all(): ReadonlyArray<Cue<{ text: string; [key: string]: unknown }>>
 ```
 
-All cues for the current track. Returns an empty array if no lyrics are loaded. Use this to render a full lyric sheet.
+All cues for the current track.
+Returns an empty array if no lyrics are loaded.
+Use this to render a full lyric sheet before playback reaches each line.
 
 ```ts
+import type { Cue } from '@nomercy-entertainment/nomercy-player-core';
+
+const lyricsPlugin = player.getPlugin(LyricsPlugin)!;
 const cues = lyricsPlugin.all();
-cues.forEach((cue, index) => {
-  console.log(`[${cue.startMs}ms] ${cue.payload.text}`);
+
+cues.forEach((cue) => {
+  console.log(`[${cue.start}s] ${cue.payload.text}`);
 });
 ```
 
@@ -83,18 +118,29 @@ cues.forEach((cue, index) => {
 clear(): void
 ```
 
-Tear down the active cue tracker and clear all lyric state without disposing the plugin. The plugin continues to listen for the next `current` event.
+Tears down the active cue tracker and clears all lyric state without disposing the plugin.
+The plugin keeps listening for the next `current` event, so the next track auto-fetches as usual when `autoFetch` is `true`.
 
 ### `fetchLyrics(url)`
 
 ```ts
-fetchLyrics(url: string): Promise<CueList<{ text: string }> | undefined>
+fetchLyrics(url: string): Promise<CueList<{ text: string; [key: string]: unknown }> | undefined>
 ```
 
-Explicitly fetch and attach lyrics from a URL. Takes precedence over auto-fetch from `track.lyricsUrl`. Returns the parsed cue list, or `undefined` if the fetch or parse failed. On failure, the plugin reports via `player.on('error', ...)` with code `'plugin:lyrics/fetch-failed'` or `'plugin:lyrics/no-parser'`.
+Explicitly fetch and attach lyrics from a URL.
+Calling this takes precedence over the auto-fetch from `track.lyricsUrl`.
+Returns the parsed cue list, or `undefined` if the fetch or parse failed.
+On failure the plugin surfaces the error via `player.on('warning', ...)` with code `'plugin:lyrics/fetch-failed'` (network error) or `'plugin:lyrics/no-parser'` (no parser registered for that file extension).
 
 ```ts
-const cueList = await lyricsPlugin.fetchLyrics('https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.lrc');
+import type { CueList } from '@nomercy-entertainment/nomercy-player-core';
+
+const lyricsPlugin = player.getPlugin(LyricsPlugin)!;
+
+const cueList = await lyricsPlugin.fetchLyrics(
+  'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.lrc',
+);
+
 if (cueList) {
   console.log(`Loaded ${cueList.cues.length} cues`);
 }
@@ -102,73 +148,50 @@ if (cueList) {
 
 ---
 
-## Events
+## Registration
 
-Listen using the namespaced string form on `player.on()`:
-
-```ts
-player.on('plugin:lyrics:lineEnter', ({ text }) => {
-  highlightLine(text);
-});
-```
-
-Inside a plugin body, the class form provides compile-time type checking via `this.on(LyricsPlugin, 'lineEnter', ...)`. The class form is `protected` — it is not available on an external `player.on()` call.
-
-### `line`
-
-```ts
-'line': { text: string; [key: string]: unknown }
-```
-
-Fires on every line enter — same payload as `lineEnter`. This is the primary event for single-line "karaoke" displays.
-
-### `lineEnter`
-
-```ts
-'lineEnter': { text: string; [key: string]: unknown }
-```
-
-Fires when a cue becomes active. Mirrors the `CueTracker` `enter` event.
-
-### `lineExit`
-
-```ts
-'lineExit': { text: string; [key: string]: unknown }
-```
-
-Fires when a cue goes inactive. Use to dim or remove highlight from the previous line.
-
-
----
-
-## Parser selection
-
-The player uses the URL file extension to select a cue parser from the registry:
-
-- `.lrc` — LRC parser (pre-registered in the kit)
-- `.vtt` — WebVTT parser (pre-registered in the kit)
-- Custom extensions — register via `player.registerCueParser(myParser)`
-
-There is no `format` option on `LyricsOptions`. Format selection is determined by the URL. If you need to parse a non-standard format, register a parser first:
-
-```ts
-player.registerCueParser({
-  id: 'my-format',
-  canParse: (url) => url.endsWith('.myl'),
-  parse: (raw) => myCustomParser(raw),
-});
-```
-
----
-
-## Full example
+Minimal registration, relying on `track.lyricsUrl` for the URL:
 
 ```ts
 import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
-import {
-  LyricsPlugin,
-  AutoAdvancePlugin,
-} from '@nomercy-entertainment/nomercy-music-player/plugins';
+import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+const player = nmMPlayer('main')
+  .addPlugin(LyricsPlugin)
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+    playlist: [
+      {
+        id: 'kjc-01',
+        name: 'Thaw You Out',
+        url: '/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.mp3',
+        lyricsUrl: '/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.lrc',
+        artistTracks: [{ id: 1, name: 'Derek Clegg' }],
+      },
+    ],
+  });
+```
+
+With a custom URL resolver when your lyric files live at a pattern the track object does not capture on its own:
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+const player = nmMPlayer('main')
+  .addPlugin(LyricsPlugin, {
+    getLyricsUrl: (track: MusicPlaylistItem) =>
+      `https://api.example.com/lyrics/${track.id}.lrc`,
+  })
+  .setup({ playlist: myTracks });
+```
+
+Full example with a lyric sheet and active-line highlight:
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { AutoAdvancePlugin, LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
 const player = nmMPlayer('main')
   .addPlugin(AutoAdvancePlugin)
@@ -188,24 +211,28 @@ const player = nmMPlayer('main')
 
 const lyricsEl = document.getElementById('lyrics')!;
 
-// Render the full lyric sheet when the first line fires (lyrics are ready):
+// Build the full lyric sheet as soon as the first line fires:
 player.on('plugin:lyrics:lineEnter', () => {
   if (lyricsEl.children.length === 0) {
-    const cues = player.getPlugin(LyricsPlugin)!.all();
+    const lyricsPlugin = player.getPlugin(LyricsPlugin)!;
+    const cues = lyricsPlugin.all();
+
     lyricsEl.innerHTML = cues
       .map((cue, index) => `<p data-index="${index}">${cue.payload.text}</p>`)
       .join('');
   }
 });
 
-// Highlight active line:
+// Scroll and highlight the active line:
 player.on('plugin:lyrics:lineEnter', ({ text }) => {
   lyricsEl.querySelector('.active')?.classList.remove('active');
-  const all = lyricsEl.querySelectorAll<HTMLElement>('p');
-  for (const el of all) {
-    if (el.textContent === text) {
-      el.classList.add('active');
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  const lineEls = lyricsEl.querySelectorAll<HTMLElement>('p');
+
+  for (const lineEl of lineEls) {
+    if (lineEl.textContent === text) {
+      lineEl.classList.add('active');
+      lineEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       break;
     }
   }
@@ -220,6 +247,6 @@ player.on('ready', () => {
 
 ## See also
 
-- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — `lyricsUrl` field
-- [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer) — full Now Playing screen walkthrough
-- [Advanced: Lyrics Sync Deep Dive](/nomercy-music-player/advanced/lyrics-sync-deep-dive) — CueTracker internals, custom cue parsers
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item), the `lyricsUrl` field on the track object
+- [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer), full Now Playing screen walkthrough
+- [Advanced: Lyrics Sync Deep Dive](/nomercy-music-player/advanced/lyrics-sync-deep-dive), CueTracker internals and custom cue parsers

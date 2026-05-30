@@ -1,12 +1,16 @@
 ---
 title: 'TV UI'
-description: 'The TvUiPlugin — D-pad navigable TV overlay.'
+description: 'TvUiPlugin adds D-pad and remote-control key bindings for 10-foot TV environments, extending KeyHandlerPlugin with TV-specific arrow seek, Info OSD, bookmark, and help routing.'
 draft: false
 ---
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/tv-ui/index.ts */}
 
-`TvUiPlugin` provides the keyboard and remote-control binding set for 10-foot TV environments. Use it instead of `DesktopUiPlugin` on Android TV, smart TV, or any deployment where a D-pad or IR remote is the primary input. It subclasses `KeyHandlerPlugin` to inherit all video keyboard shortcuts, then overrides and extends the groups that behave differently on a TV — arrow key seek, Info OSD, bookmark, and help event routing.
+# TV UI
+
+`TvUiPlugin` gives you the keyboard and remote-control binding layer for TV environments.
+Use it instead of `DesktopUiPlugin` on Android TV, smart TV, or any deployment where a D-pad or IR remote is the primary input.
+It subclasses `KeyHandlerPlugin` to inherit the full default video keyboard binding set, then overrides only the groups that work differently on a TV.
 
 ## Plugin id
 
@@ -21,42 +25,38 @@ import type { TvUiOptions } from '@nomercy-entertainment/nomercy-video-player/pl
 
 ## What it does
 
-`TvUiPlugin` subclasses `KeyHandlerPlugin` to inherit the full default video keyboard binding set, then overrides and extends the groups that behave differently on a TV:
+`TvUiPlugin` extends `KeyHandlerPlugin` and overrides four binding groups:
 
-| Binding group | TV-specific behaviour                                                                             |
-| ------------- | ------------------------------------------------------------------------------------------------- |
-| Arrow keys    | Seek directly — arrow keys are not for focus navigation while the player is active                |
-| Volume arrows | Enabled (desktop plugin disables them on TV)                                                      |
-| Aspect ratio  | Shows an OSD message confirming the change (no visible control bar)                               |
-| Info key      | Shows OSD with title / chapter / time / remaining; emits `'plugin:tv-ui:info'` for shell overlays |
-| MediaRecord   | Emits `'plugin:tv-ui:bookmark'` with the current time for consumer persistence                    |
-| Help key      | Emits `'plugin:tv-ui:shortcuts-toggle'` instead of `'plugin:desktop-ui:shortcuts-toggle'`         |
+| Binding group | TV-specific behaviour |
+| ------------- | --------------------- |
+| Arrow keys | Seek directly. Arrow keys are not for focus navigation while the player is active. |
+| Volume arrows | Enabled. The base plugin disables them on TV; this plugin re-enables them so a web TV shell can forward volume events correctly. |
+| Aspect ratio | Cycles aspect ratio and shows an OSD message confirming the change, since there is no visible control bar. |
+| Info key | Shows an OSD with title, chapter, current time, and time remaining. Also emits `'plugin:tv-ui:info'` for an external TV shell overlay. |
+| MediaRecord | Emits `'plugin:tv-ui:bookmark'` with the current time. The player does not store bookmarks itself. |
+| Help key | Emits `'plugin:tv-ui:shortcuts-toggle'` instead of `'plugin:desktop-ui:shortcuts-toggle'` so a TV shortcuts overlay can be wired independently. |
 
-All Color-button (F0–F3), BrowserFavorites, universal media key, modifier-seek, chapter, speed, frame-advance, subtitle-size, and stop bindings are inherited from the base `KeyHandlerPlugin`.
+All Color-button (F0 through F3), universal media key, modifier-seek, chapter, speed, frame-advance, subtitle-size, and stop bindings are inherited from `KeyHandlerPlugin` unchanged.
+`BrowserFavorites` is also bound to aspect ratio cycle (same as `a`) but with an added OSD confirmation, matching the Aspect ratio override in the table above.
 
 ## Options
 
-```ts
-interface TvUiOptions {
-  /** Seconds to seek when ArrowLeft/Right are pressed on TV. Default 5. */
-  arrowSeekSeconds?: number;
-  /** Milliseconds to display the Info OSD before it auto-dismisses. Default 5000. */
-  infoDisplayMs?: number;
-}
-```
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `arrowSeekSeconds` | `number` | `5` | Seconds to seek when ArrowLeft or ArrowRight is pressed. Color-button seeks are fixed at 30/60/90/120 s and are not affected by this option. |
+| `infoDisplayMs` | `number` | `5000` | Milliseconds the Info OSD stays visible before it auto-dismisses. |
 
-| Option             | Type     | Default | Description                               |
-| ------------------ | -------- | ------- | ----------------------------------------- |
-| `arrowSeekSeconds` | `number` | `5`     | Seek distance for Arrow key presses on TV |
-| `infoDisplayMs`    | `number` | `5000`  | Duration the Info OSD stays visible       |
+## Events
 
-## Events emitted
+| Event | Payload | Description |
+| ----- | ------- | ----------- |
+| `'plugin:tv-ui:info'` | `{ title: string, currentTime: number, duration: number, remaining: number, chapterLabel: string }` | Info key pressed. Fired before the built-in OSD message so a TV shell can render its own overlay. |
+| `'plugin:tv-ui:bookmark'` | `{ time: number }` | MediaRecord key pressed. Consumer should persist the bookmark; the player does not. |
+| `'plugin:tv-ui:shortcuts-toggle'` | `void` | Help key pressed. For a TV shortcuts overlay registered independently from the desktop-ui overlay. |
 
-| Event                             | Payload                                                     | Description                                                    |
-| --------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| `'plugin:tv-ui:info'`             | `{ title, currentTime, duration, remaining, chapterLabel }` | Info key pressed — for external TV shell overlay               |
-| `'plugin:tv-ui:bookmark'`         | `{ time: number }`                                          | MediaRecord key pressed — consumer should persist the bookmark |
-| `'plugin:tv-ui:shortcuts-toggle'` | `void`                                                      | Help key pressed — for TV shortcuts overlay                    |
+## Methods
+
+`TvUiPlugin` exposes no additional public methods beyond those inherited from `KeyHandlerPlugin`.
 
 ## Registration
 
@@ -73,9 +73,10 @@ const player = nmplayer('player')
     baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
     playlist: [
       {
+        id: 1,
         title: 'Tears of Steel',
         url: '/Tears.of.Steel.(2012)/Tears.of.Steel.(2012).NoMercy.m3u8',
-        chapters: [{ title: 'Opening', start: 0, end: 120 }],
+        chapters: [{ index: 0, title: 'Opening', start: 0, end: 120 }],
       },
     ],
   });
@@ -85,23 +86,23 @@ player.on('plugin:tv-ui:bookmark', ({ time }) => {
 });
 ```
 
-## NoMercy Connect routing
-
-All bindings call local player methods directly. A consumer-side NoMercy Connect plugin can call `keyHandler.replace(combo, fn)` to route specific commands through a sync socket instead.
-
 ## Info OSD content
 
-When the Info key is pressed, the OSD message is composed from:
+When the Info key is pressed the OSD message is built from three parts.
+First, the item title from `player.current()?.title`.
+Second, the chapter label: chapter number plus title from the active chapter at the current time, or chapter number alone if the chapter has no title.
+Third, `currentTime / -remaining` formatted as `M:SS` or `H:MM:SS` (minutes are not zero-padded; 65 seconds renders as `1:05`).
+The parts are joined with a `·` separator and sent as a single OSD message.
+The full payload is also emitted as `'plugin:tv-ui:info'` so an external shell can render its own overlay.
 
-1. Item `title` (from `current().title`)
-2. Chapter label (from `player.currentChapter()?.title` at the current time)
-3. `currentTime / -remaining` formatted as `MM:SS` or `H:MM:SS`
+## NoMercy Connect routing
 
-These are joined with a `·` separator and sent as a single OSD message.
+All bindings call local player methods directly.
+A consumer-side NoMercy Connect plugin can call `keyHandler.replace(combo, fn)` to route specific commands through a sync socket instead.
 
 ## See also
 
 - [Key Handler plugin](/nomercy-video-player/plugins/key-handler)
 - [Desktop UI plugin](/nomercy-video-player/plugins/desktop-ui)
-- [API — Cycling Methods](/nomercy-video-player/api/cycling)
-- [API — Aspect Ratio](/nomercy-video-player/api/aspect-ratio)
+- [API, Cycling Methods](/nomercy-video-player/api/cycling)
+- [API, Aspect Ratio](/nomercy-video-player/api/aspect-ratio)

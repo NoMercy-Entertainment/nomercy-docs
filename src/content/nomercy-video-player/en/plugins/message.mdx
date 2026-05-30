@@ -1,10 +1,15 @@
 ---
 title: 'Message'
-description: 'The MessagePlugin — toast and persistent overlay messages inside the player.'
+description: 'Toast and persistent overlay messages inside the player, provided by MessagePlugin.'
 draft: false
 ---
 
-{/* Source: packages/nomercy-player-kit/src/plugins/message/index.ts — re-exported verbatim from nomercy-video-player */}
+{/* Source: packages/nomercy-player-kit/src/plugins/message/index.ts, re-exported via packages/nomercy-video-player-v2/src/plugins/message/index.ts */}
+
+# Message
+
+`MessagePlugin` gives the player a small notification surface.
+Register it when you want on-screen toast messages, whether from your own code or from other plugins like `KeyHandlerPlugin` that need to show OSD feedback for speed changes, subtitle cycling, and similar actions.
 
 ## Plugin id
 
@@ -14,64 +19,42 @@ draft: false
 
 ```ts
 import { MessagePlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
-import type { MessageOptions, MessageInput } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { MessageOptions } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+// MessageInput is not re-exported by the video player package; import it from the core:
+import type { MessageInput } from '@nomercy-entertainment/nomercy-player-core/plugins/message';
 ```
 
 ## What it does
 
-`MessagePlugin` is a direct re-export of the kit's shared `MessagePlugin`. It provides a toast and persistent overlay surface inside the player container. Other plugins (for example `KeyHandlerPlugin`) call `player.displayMessage(text)` to show OSD notifications such as "Speed: 1.5×" or "Subtitles off". Consumer code can also call the plugin directly via `player.getPlugin(MessagePlugin)`.
+`MessagePlugin` manages two kinds of overlays inside the player container.
+Transient toasts appear for a set duration then hide automatically.
+Persistent overlays stay until you explicitly remove them, useful for blocking states like an autoplay-blocked "Tap to play" prompt.
 
-Two display modes:
+The toast element carries `role="status"` and `aria-live="polite"` so screen readers announce changes without stealing focus.
+Persistent overlays get the same ARIA attributes.
 
-- **Transient** (`show`, `queue`) — text appears for a configurable duration then hides automatically. A new call replaces any in-flight toast and resets the timer.
-- **Persistent** (`displayPersistent`, `removePersistent`) — a named overlay element that stays until explicitly removed. Useful for blocking states such as an autoplay-blocked "Tap to play" prompt.
-
-The toast surface carries `role="status"` and `aria-live="polite"` so screen readers announce changes without stealing focus.
+`KeyHandlerPlugin` calls `player.displayMessage(text)` when that method exists on the player object, and emits a `display-message` event unconditionally.
+`MessagePlugin` is not involved in that path; the two plugins are independent.
 
 ## Options
 
-```ts
-interface MessageOptions {
-  /** Default display duration in milliseconds for transient toasts. Default 3000. */
-  durationMs?: number;
-  /** CSS selector used to locate an existing mount element. When absent the plugin creates a div inside the player container. */
-  mountSelector?: string;
-}
-```
-
-| Option          | Type     | Default | Description                                                                    |
-| --------------- | -------- | ------- | ------------------------------------------------------------------------------ |
-| `durationMs`    | `number` | `3000`  | Default display duration for transient toasts when no per-message value is set |
-| `mountSelector` | `string` | —       | CSS selector for an existing element to use as the toast surface               |
-
-## Registration
-
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import { MessagePlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
-
-const player = nmplayer('player')
-  .addPlugin(MessagePlugin, { durationMs: 2500 })
-  .setup({
-    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
-    playlist: [
-      {
-        title: 'Sintel',
-        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-      },
-    ],
-  });
-```
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `durationMs` | `number` | `3000` | Fallback display duration in milliseconds, used by `displayMessage()` and `queue()` items that do not carry their own duration. Does not affect `show()` calls that omit `ms`. |
+| `mountSelector` | `string` | none | CSS selector for an existing element to use as the toast surface. When absent the plugin creates a `<div>` inside the player container. |
 
 ## Methods
 
 ### show
 
 ```ts
-plugin.show(text: string, ms?: number): void
+plugin.show(text: string, ms: number = 3000): void
 ```
 
-Display a transient toast for `ms` milliseconds (defaults to `opts.durationMs ?? 3000`). Replaces any currently visible toast immediately.
+Display a transient toast.
+When `ms` is omitted the toast hides after 3000 ms, regardless of `durationMs` in options.
+Replaces any currently visible toast and resets the timer.
 
 ### hide
 
@@ -87,7 +70,9 @@ Hide the current toast and cancel any pending auto-hide timer.
 plugin.displayMessage(data: MessageInput, ms?: number): void
 ```
 
-Accepts a plain string or a `{ text, durationMs? }` object. Kept for compatibility with callers that pass structured message objects; prefer `show()` for new call sites.
+Accepts a plain string or a `{ text, durationMs? }` object.
+Falls back to `opts.durationMs` then 3000 ms when no duration is provided.
+Prefer `show()` for new call sites; this method exists for callers that pass structured message objects.
 
 ### queue
 
@@ -95,10 +80,12 @@ Accepts a plain string or a `{ text, durationMs? }` object. Kept for compatibili
 plugin.queue(messages: ReadonlyArray<MessageInput>): void
 ```
 
-Play a sequence of messages back-to-back, each for its own duration. Calling `queue()` again or `clear()` cancels any in-flight run immediately.
+Play a sequence of messages back-to-back, each for its own duration.
+Calling `queue()` again or `clear()` cancels any in-flight run immediately.
 
 ```ts
 const msg = player.getPlugin(MessagePlugin);
+
 msg?.queue([
   'Loading…',
   { text: 'Almost there!', durationMs: 1500 },
@@ -112,7 +99,8 @@ msg?.queue([
 plugin.clear(): void
 ```
 
-Cancel any in-flight `queue()`, hide the current toast, and reset all pending timers. Persistent messages are unaffected.
+Cancel any in-flight `queue()`, hide the current toast, and reset all pending timers.
+Persistent messages are unaffected.
 
 ### displayPersistent
 
@@ -120,7 +108,8 @@ Cancel any in-flight `queue()`, hide the current toast, and reset all pending ti
 plugin.displayPersistent(text: string, id: string): void
 ```
 
-Display a named persistent overlay. If a persistent message with `id` already exists its text is updated in-place.
+Display a named persistent overlay.
+If a persistent message with the same `id` already exists, its text is updated in-place.
 
 ### removePersistent
 
@@ -128,22 +117,42 @@ Display a named persistent overlay. If a persistent message with `id` already ex
 plugin.removePersistent(id: string): void
 ```
 
-Remove a persistent message by its `id`. No-ops when no message with that id exists.
+Remove a persistent message by its `id`.
+No-ops when no message with that id exists.
+
+## Registration
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { MessagePlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player')
+  .addPlugin(MessagePlugin, { durationMs: 2500 })
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playlist: [
+      {
+        id: 'sintel',
+        title: 'Sintel',
+        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      },
+    ],
+  });
+```
 
 ## Showing a toast from consumer code
 
 ```ts
 player.on('ended', () => {
   const msg = player.getPlugin(MessagePlugin);
+
   msg?.show('Playback complete', 3000);
 });
 ```
-
-The `KeyHandlerPlugin` uses `player.displayMessage(text)` internally for OSD notifications (speed changes, aspect ratio, etc.). Registering `MessagePlugin` is all that is needed to receive those.
 
 ## See also
 
 - [Key Handler plugin](/nomercy-video-player/plugins/key-handler)
 - [Tab Leader plugin](/nomercy-video-player/plugins/tab-leader)
 - [Embed plugin](/nomercy-video-player/plugins/embed)
-- [Player Kit — MessagePlugin (canonical docs)](/nomercy-player-kit/plugins)
+- [Player Kit, MessagePlugin (canonical source)](/nomercy-player-kit/plugins)

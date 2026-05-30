@@ -1,6 +1,6 @@
 ---
 title: 'AutoAdvancePlugin'
-description: 'Autonomous queue advance — preload, crossfade, and custom ended/preload/crossfade handlers.'
+description: 'Autonomous queue advance with optional preload, crossfade, and custom ended/preload/crossfade handlers.'
 draft: false
 ---
 
@@ -8,17 +8,92 @@ draft: false
 
 # AutoAdvancePlugin
 
-Autonomous-advance plugin. Listens to the player's `ended` event to advance the queue, and to `trackEndingSoon` to optionally preload the next track and/or initiate a crossfade.
+Most players need nothing more than "when the current track ends, play the next one."
+That is exactly what `AutoAdvancePlugin` does by default.
+You can also tell it to buffer the next track a few seconds early, or hand off to a crossfade instead of a hard cut.
+The plugin wires to two player events: `ended` for the actual advance, and `trackEndingSoon` for the early-warning preload and crossfade path.
 
-Do not register this plugin when your app drives the player from a WebSocket or Cast sync layer — let the orchestrator drive `next()` instead.
+The one time you leave this plugin out is when something else already drives `next()`, such as a WebSocket sync layer or a Cast session orchestrator.
+In that case let the orchestrator call `next()` and skip this plugin entirely.
 
 ```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
 import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 ```
 
 Plugin id: `'auto-advance'`
 
----
+## Options
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `enabled` | `boolean` | `true` | Master toggle. Set to `false` to pause all auto-advance behaviour without removing the plugin. |
+| `preloadNext` | `boolean` | `false` | When `true`, calls `player.load(next, { slot: 'next' })` on the `trackEndingSoon` event, buffering the next track before it is needed. |
+| `crossfade` | `boolean` | `false` | When `true`, calls `player.crossfadeTo(next, { duration: crossfadeDuration })` on the `trackEndingSoon` event. |
+| `crossfadeDuration` | `number` | `0` | Crossfade duration in seconds when `crossfade: true`. `0` means a hard cut. Set this to match or be less than `trackEndingSoonThreshold` in the player config. |
+
+## Methods
+
+### `advance()`
+
+```ts
+advance(): Promise<void>
+```
+
+Force-advance to the next track immediately, regardless of playback state.
+Calls `player.next({ source: 'auto-advance' })`.
+
+### `preloadNext()`
+
+```ts
+preloadNext(): Promise<void>
+```
+
+Peek the queue head and load it into the next slot.
+No-ops when there is no next track.
+Safe to call at any time.
+
+### `addEndedHandler(fn)`
+
+```ts
+addEndedHandler(fn: () => void | Promise<void>): void
+```
+
+Register an additional callback that runs after the built-in `ended` advance logic.
+Use this for analytics, logging, or server sync that should follow the queue advance.
+
+### `addPreloadHandler(fn)`
+
+```ts
+addPreloadHandler(fn: (next: MusicPlaylistItem | undefined) => void | Promise<void>): void
+```
+
+Register an additional `trackEndingSoon` handler for preload behaviour.
+`next` is the upcoming track, or `undefined` when the queue is exhausted.
+
+### `addCrossfadeHandler(fn)`
+
+```ts
+addCrossfadeHandler(fn: (next: MusicPlaylistItem | undefined, duration: number) => void | Promise<void>): void
+```
+
+Register an additional `trackEndingSoon` handler for crossfade behaviour.
+`duration` is the resolved `crossfadeDuration` in seconds.
+
+## Execution order
+
+When `trackEndingSoon` fires:
+
+1. If `preloadNext: true`, calls `preloadNext()`
+2. If `crossfade: true` and there is a next track, calls `crossfadeTo(next, { duration })`
+3. All registered `preloadHandlers` run
+4. All registered `crossfadeHandlers` run
+
+When `ended` fires:
+
+1. Calls `player.next({ source: 'auto-advance' })`
+2. All registered `endedHandlers` run
 
 ## Registration
 
@@ -37,85 +112,9 @@ player.addPlugin(AutoAdvancePlugin, {
 });
 ```
 
----
-
-## Options
-
-| Option | Type | Default | Description |
-| ------ | ---- | ------- | ----------- |
-| `enabled` | `boolean` | `true` | Master toggle. Set to `false` to pause all auto-advance behaviour without removing the plugin. |
-| `preloadNext` | `boolean` | `false` | When `true`, calls `player.load(next, { slot: 'next' })` on the `trackEndingSoon` event, buffering the next track before it is needed. |
-| `crossfade` | `boolean` | `false` | When `true`, calls `player.crossfadeTo(next, { duration: crossfadeDuration })` on the `trackEndingSoon` event. |
-| `crossfadeDuration` | `number` | `0` | Crossfade duration in seconds when `crossfade: true`. `0` means an instant cut. Set this to match or be less than `trackEndingSoonThreshold` in the player config. |
-
----
-
-## Methods
-
-### `advance()`
+Full example with crossfade, preload, and an analytics hook:
 
 ```ts
-advance(): Promise<void>
-```
-
-Force-advance to the next track immediately, regardless of playback state. Calls `player.next({ source: 'auto-advance' })`.
-
-### `preloadNext()`
-
-```ts
-preloadNext(): Promise<void>
-```
-
-Peek the queue head and load it into the next slot. No-ops when there is no next track. Safe to call at any time.
-
-### `addEndedHandler(fn)`
-
-```ts
-addEndedHandler(fn: () => void | Promise<void>): void
-```
-
-Register an additional callback that runs after the built-in `ended` advance logic. Use for analytics, logging, or server sync that should follow the queue advance.
-
-### `addPreloadHandler(fn)`
-
-```ts
-addPreloadHandler(fn: (next: MusicPlaylistItem | undefined) => void | Promise<void>): void
-```
-
-Register an additional `trackEndingSoon` handler for preload behavior. `next` is the upcoming track or `undefined` when the queue is exhausted.
-
-### `addCrossfadeHandler(fn)`
-
-```ts
-addCrossfadeHandler(fn: (next: MusicPlaylistItem | undefined, duration: number) => void | Promise<void>): void
-```
-
-Register an additional `trackEndingSoon` handler for crossfade behavior. `duration` is the resolved `crossfadeDuration` in seconds.
-
----
-
-## Execution order
-
-When `trackEndingSoon` fires:
-
-1. If `preloadNext: true` — calls `preloadNext()`
-2. If `crossfade: true` and there is a next track — calls `crossfadeTo(next, { duration })`
-3. All registered `preloadHandlers` run
-4. All registered `crossfadeHandlers` run
-
-When `ended` fires:
-
-1. Calls `player.next({ source: 'auto-advance' })`
-2. All registered `endedHandlers` run
-
----
-
-## Example
-
-```ts
-import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
-import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
-
 const player = nmMPlayer('main')
   .addPlugin(AutoAdvancePlugin, {
     crossfade: true,
@@ -145,8 +144,8 @@ const player = nmMPlayer('main')
     ],
   });
 
-// Analytics hook:
 const plugin = player.getPlugin(AutoAdvancePlugin)!;
+
 plugin.addEndedHandler(() => {
   analytics.track('track_completed', { id: player.current()?.id });
 });
@@ -156,11 +155,9 @@ player.on('ready', () => {
 });
 ```
 
----
-
 ## See also
 
-- [Crossfade](/nomercy-music-player/crossfade) — `crossfadeTo()` API, events
-- [Events](/nomercy-music-player/events) — `trackEndingSoon`, `crossfadeStart`, `crossfadeComplete`
-- [Configuration](/nomercy-music-player/configuration) — `trackEndingSoonThreshold`
-- [Recipes: Crossfade and Gapless](/nomercy-music-player/recipes/crossfade-and-gapless) — practical timing guide
+- [Crossfade](/nomercy-music-player/crossfade), `crossfadeTo()` API and crossfade events
+- [Events](/nomercy-music-player/events), `trackEndingSoon`, `crossfadeStart`, `crossfadeComplete`
+- [Configuration](/nomercy-music-player/configuration), `trackEndingSoonThreshold`
+- [Recipes: Crossfade and Gapless](/nomercy-music-player/recipes/crossfade-and-gapless), practical timing guide

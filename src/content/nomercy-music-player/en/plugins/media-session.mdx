@@ -1,16 +1,20 @@
 ---
 title: 'MediaSessionPlugin'
-description: 'OS media session integration for music — name, artist, album, cover pushed to lock screens and notification panels.'
+description: 'Music-specific OS media session bridge. Pushes track metadata to lock screens and notification panels, and wires hardware media keys.'
 draft: false
 ---
 
 {/* Source: packages/nomercy-music-player-v2/src/plugins/media-session/index.ts */}
+{/* Base: packages/nomercy-player-kit/src/plugins/media-session/index.ts */}
 
 # MediaSessionPlugin
 
-Music-specific Media Session integration. Reads `name`, `artistTracks[]`, `albumTracks[]`, and `cover` from each `MusicPlaylistItem` and publishes `MediaMetadata` to the browser Media Session API on every track change.
+When music is playing, the operating system can show the track title, artist, album, and artwork on the lock screen and in the notification panel, and let the user skip or pause from hardware media keys or Bluetooth remotes.
+Without this plugin, none of that happens.
+Register `MediaSessionPlugin` and the browser's Media Session API wires itself to your player automatically.
 
-This wires up lock-screen controls, notification-panel artwork, and hardware media keys (play/pause/next/prev).
+The music-specific subclass reads `name`, `artistTracks`, `albumTracks`, and `cover` from each `MusicPlaylistItem`.
+The base kit plugin handles all transport state: play, pause, stop, seek, and position scrubbing.
 
 ```ts
 import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
@@ -20,52 +24,76 @@ Plugin id: `'media-session'`
 
 ---
 
-## Registration
-
-```ts
-const player = nmMPlayer('main').addPlugin(MediaSessionPlugin).setup({ playlist: myTracks });
-```
-
-With options:
-
-```ts
-player.addPlugin(MediaSessionPlugin, {
-  artworkBaseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
-});
-```
-
----
-
 ## Options
 
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
-| `artworkBaseUrl` | `string` | `undefined` | Base URL prepended to `item.cover` when constructing the artwork `src` for `MediaMetadata`. Use when `cover` fields are relative paths. When `cover` is already an absolute URL this option is not needed. |
+| `artworkBaseUrl` | `string` | `undefined` | Base URL prepended to `item.cover` inside the music subclass. See note below. |
+
+**Note on `artworkBaseUrl`:** The base class resolves artwork independently from the item's `image`, `poster`, `thumbnail`, or `cover` fields and passes the result through the player's `urlResolver`.
+The `artworkBaseUrl` prefix is applied only inside the music subclass's own metadata override, and the base class then replaces that artwork with its own resolved value.
+In practice `artworkBaseUrl` has no observable effect on the final artwork URL.
+Use the player's `baseUrl` config in `setup()` or supply a custom `urlResolver` to control how image URLs are resolved.
+
+---
+
+## What it does
+
+The plugin registers these behaviors on `use()`:
+
+- `current` event - calls `getMetadata(item)` and pushes the result to `navigator.mediaSession.metadata`.
+- `play` / `pause` / `ended` events - updates `navigator.mediaSession.playbackState` (`'playing'`, `'paused'`, `'none'`).
+- `time` and `seek` events - calls `setPositionState` so the lock-screen scrubber tracks the current position.
+- OS action handlers: `play`, `pause`, `stop`, `previoustrack`, `nexttrack`, `seekbackward`, `seekforward`, `seekto`.
+
+If the current item is already set when the plugin's `use()` runs, the OS metadata seeds immediately without waiting for the next track change.
+
+In environments without `navigator.mediaSession` (Node, JSDOM, older WebViews) the plugin silently no-ops.
 
 ---
 
 ## Field mapping
 
-| `MusicPlaylistItem` field | `MediaMetadata` field |
-| ------------------------- | --------------------- |
-| `name` | `title` |
-| `artistTracks[].name` joined with `, ` | `artist` |
-| `albumTracks[].name` joined with `, ` | `album` |
-| `cover` (prefixed by `artworkBaseUrl`) | `artwork[0].src` (512×512) |
+The music subclass maps `MusicPlaylistItem` fields to `MediaMetadata`:
+
+| `MusicPlaylistItem` field | `MediaMetadata` field | Notes |
+| ------------------------- | --------------------- | ----- |
+| `name` | `title` | |
+| `artistTracks` | `artist` | Array of `{name}` joined with `, ` or a plain string |
+| `albumTracks` | `album` | Array of `{name}` joined with `, ` or a plain string |
+| `image` - first non-empty of `image`, `poster`, `thumbnail`, `cover` | `artwork[0].src` (512x512) | Resolved through `urlResolver`; MIME inferred from extension |
 
 ---
 
-## Example
+## Methods
+
+```ts
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+const session = player.getPlugin(MediaSessionPlugin)!;
+
+// Read the last metadata that was pushed to the OS:
+const currentMeta = session.metadata();
+
+// Manually push metadata (overrides the automatic update):
+session.metadata({
+  title: 'Custom Title',
+  artist: 'Custom Artist',
+});
+
+// Clear the OS Now Playing / lock-screen display:
+session.clearMetadata();
+```
+
+---
+
+## Registration
 
 ```ts
 import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
-import {
-  AutoAdvancePlugin,
-  MediaSessionPlugin,
-} from '@nomercy-entertainment/nomercy-music-player/plugins';
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
 const player = nmMPlayer('main')
-  .addPlugin(AutoAdvancePlugin)
   .addPlugin(MediaSessionPlugin)
   .setup({
     baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
@@ -82,22 +110,20 @@ const player = nmMPlayer('main')
   });
 ```
 
-On track change, the OS lock screen and notification panel show:
-
-- Title: **Thaw You Out**
-- Artist: **Derek Clegg**
-- Album: **KJC**
-- Artwork: the `.jpg` URL
+On track change the OS lock screen and notification panel show the title, artist, album, and artwork resolved from `cover`.
 
 ---
 
 ## Browser support
 
-The Media Session API is supported in Chrome, Firefox, and Safari. In environments where it is unavailable, the plugin silently no-ops without throwing.
+The Media Session API is supported in Chrome, Firefox, and Safari.
+In environments where it is unavailable the plugin silently no-ops without throwing.
+Safari requires the `autoplay` attribute on the `<iframe>` when the player is embedded.
+Without it OS-level controls do not appear.
 
 ---
 
 ## See also
 
-- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — `name`, `artistTracks`, `albumTracks`, `cover` fields
-- [Quick Start](/nomercy-music-player/quickstart) — minimal player with `MediaSessionPlugin`
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item), `name`, `artistTracks`, `albumTracks`, `cover` fields
+- [Quick Start](/nomercy-music-player/quickstart), minimal player with `MediaSessionPlugin`

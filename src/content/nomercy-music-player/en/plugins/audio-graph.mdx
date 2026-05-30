@@ -1,6 +1,6 @@
 ---
 title: 'AudioGraphPlugin'
-description: 'Web Audio API graph owner — prerequisite for EqualizerPlugin and every custom audio processing chain. Options, events, and public methods.'
+description: 'Web Audio API signal chain owner, prerequisite for EqualizerPlugin and every custom audio processing plugin.'
 draft: false
 ---
 
@@ -8,7 +8,9 @@ draft: false
 
 # AudioGraphPlugin
 
-Foundation plugin that owns the Web Audio signal chain. Creates an `AudioContext`, wraps the backend's media element in a `MediaElementAudioSourceNode`, and connects the baseline chain. Every other audio plugin (`EqualizerPlugin`, `SpectrumPlugin`, custom graph plugins) depends on this plugin being registered first.
+`AudioGraphPlugin` is the foundation of the Web Audio signal chain.
+When you register it, it creates an `AudioContext`, wraps the backend's media element in a `MediaElementAudioSourceNode`, and wires the baseline chain.
+Every other audio plugin (`EqualizerPlugin`, `SpectrumPlugin`, custom graph plugins) depends on this plugin being registered first.
 
 `AudioGraphPlugin` originates in `@nomercy-entertainment/nomercy-player-core` and is re-exported by the music package for ergonomic imports.
 
@@ -18,53 +20,13 @@ import { AudioGraphPlugin } from '@nomercy-entertainment/nomercy-music-player/pl
 
 Plugin id: `'audio-graph'`
 
----
+## What it does
 
-## Registration
+On `use()` the plugin creates (or reuses) an `AudioContext`, mounts the backend's media element as a `MediaElementAudioSourceNode`, and connects the baseline chain: `source → destination`.
+Subsequent plugins extend the chain by calling `insertEffect()`, `pre()`, or `post()`.
+The shared `AnalyserNode` returned by `analyserSource()` is tapped parallel to the source so visualisers can read frequency data without interrupting the signal path.
 
-Always register `AudioGraphPlugin` before any plugin that requires a Web Audio graph:
-
-```ts
-import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
-
-const player = nmMPlayer('main')
-  .addPlugin(AudioGraphPlugin, { latencyHint: 'playback' })
-  .addPlugin(EqualizerPlugin)
-  .setup({ playlist: myTracks });
-```
-
----
-
-## Options
-
-| Option | Type | Default | Description |
-| ------ | ---- | ------- | ----------- |
-| `latencyHint` | `'playback' \| 'interactive' \| 'balanced'` | `'playback'` | Passed to `new AudioContext({ latencyHint })`. Use `'playback'` for music — the browser optimises buffer sizes for lowest power rather than lowest latency. Use `'interactive'` when round-trip latency matters. |
-| `fftSize` | `256 \| 512 \| 1024 \| 2048 \| 4096 \| 8192 \| 16384` | `2048` | FFT size for the shared `AnalyserNode`. Higher values give finer frequency resolution at the cost of time resolution. |
-| `smoothing` | `number` | `0.8` | Smoothing time constant (0–1) for the shared analyser. Higher values make spectrum output lag behind transients. |
-
----
-
-## Events
-
-| Event | Payload | Description |
-| ----- | ------- | ----------- |
-| `context:ready` | `{ sampleRate: number }` | Fired once after the `AudioContext` is created and the baseline chain is wired. |
-| `context:closed` | `void` | Fired when the `AudioContext` is closed on dispose or browser suspension. |
-| `chain:rebuilt` | `void` | Fired every time `insertEffect()` / `removeEffect()` causes the chain to reconnect. `EqualizerPlugin` listens to this to relink its internal filter series. |
-| `unsupported` | `{ reason: string }` | Fired when `AudioContext` is not available in the current environment. The plugin does not activate. |
-
-Listen using the namespaced string form:
-
-```ts
-player.on('plugin:audio-graph:context:ready', ({ sampleRate }) => {
-  console.log('AudioContext running at', sampleRate, 'Hz');
-});
-```
-
----
-
-## Signal chain topology
+Signal chain topology:
 
 ```
 [media element / backend output]
@@ -75,9 +37,35 @@ player.on('plugin:audio-graph:context:ready', ({ sampleRate }) => {
           └─ AudioContext.destination
 ```
 
----
+Browsers start `AudioContext` in `'suspended'` state.
+This plugin resumes it on the first `play` event, which always fires inside or immediately after a user gesture, satisfying the browser's activation requirement.
 
-## Public methods
+## Options
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `latencyHint` | `'playback' \| 'interactive' \| 'balanced'` | `'playback'` | Passed to `new AudioContext({ latencyHint })`. Use `'playback'` for music, the browser optimises buffer sizes for lowest power rather than lowest latency. Use `'interactive'` when round-trip latency matters. |
+| `fftSize` | `256 \| 512 \| 1024 \| 2048 \| 4096 \| 8192 \| 16384` | `2048` | FFT size for the shared `AnalyserNode`. Higher values give finer frequency resolution at the cost of time resolution. |
+| `smoothing` | `number` | `0.8` | Smoothing time constant (0 to 1) for the shared analyser. Higher values make spectrum output lag behind transients. |
+
+## Events
+
+| Event | Payload | Description |
+| ----- | ------- | ----------- |
+| `context:ready` | `{ sampleRate: number }` | Fired once after the `AudioContext` is created and the baseline chain is wired. |
+| `context:closed` | `void` | Fired when the `AudioContext` is closed on dispose. |
+| `chain:rebuilt` | `void` | Fired every time `insertEffect()` or `removeEffect()` causes the chain to reconnect. `EqualizerPlugin` listens to this to relink its internal filter series. |
+| `unsupported` | `{ reason: string }` | Fired when `AudioContext` is not available in the current environment. The plugin does not activate. |
+
+Listen using the namespaced string form:
+
+```ts
+player.on('plugin:audio-graph:context:ready', ({ sampleRate }) => {
+  console.log('AudioContext running at', sampleRate, 'Hz');
+});
+```
+
+## Methods
 
 ### `context()`
 
@@ -85,7 +73,9 @@ player.on('plugin:audio-graph:context:ready', ({ sampleRate }) => {
 context(): AudioContext
 ```
 
-Returns the player's `AudioContext`. If `use()` has already run, the existing context is returned. Throws `BrowserPolicyError` in environments without `AudioContext`.
+Returns the player's `AudioContext`.
+If `use()` has already run, the existing context is returned.
+Throws `BrowserPolicyError` in environments without `AudioContext`.
 
 ### `outputNode()`
 
@@ -93,7 +83,8 @@ Returns the player's `AudioContext`. If `use()` has already run, the existing co
 outputNode(): AudioNode
 ```
 
-Returns the last node in the effect chain — the node currently wired directly to `AudioContext.destination`. Throws `PluginError` if called before `use()`.
+Returns the last node in the effect chain, the node currently wired directly to `AudioContext.destination`.
+Throws `PluginError` if called before `use()`.
 
 ### `analyserSource()`
 
@@ -101,7 +92,9 @@ Returns the last node in the effect chain — the node currently wired directly 
 analyserSource(): AnalyserNode
 ```
 
-Returns the shared `AnalyserNode` tapped parallel to the chain source. Created once on first call and reused. Multiple consumers (e.g. `SpectrumPlugin`, custom visualisers) all read from the same node.
+Returns the shared `AnalyserNode` tapped parallel to the chain source.
+Created once on first call and reused.
+Multiple consumers (e.g. `SpectrumPlugin`, custom visualisers) all read from the same node.
 
 ### `insertEffect(node, position?)`
 
@@ -109,7 +102,10 @@ Returns the shared `AnalyserNode` tapped parallel to the chain source. Created o
 insertEffect(node: AudioNode, position?: 'pre' | 'post'): AudioNode
 ```
 
-Appends an effect node to the signal chain and triggers a full chain rebuild. `'pre'` inserts before post-effects (e.g. EQ filter banks). `'post'` inserts after all pre-effects (default, e.g. master gain). Returns the same node for convenience.
+Appends an effect node to the signal chain and triggers a full chain rebuild.
+`'pre'` inserts before post-effects (e.g. EQ filter banks).
+`'post'` inserts after all pre-effects, and is the default (e.g. master gain).
+Returns the same node for convenience.
 
 ### `removeEffect(node)`
 
@@ -117,7 +113,8 @@ Appends an effect node to the signal chain and triggers a full chain rebuild. `'
 removeEffect(node: AudioNode): void
 ```
 
-Removes a previously inserted effect node and triggers a chain rebuild. Safe to call with a node that was never inserted.
+Removes a previously inserted effect node and triggers a chain rebuild.
+Safe to call with a node that was never inserted.
 
 ### `pre(node)`
 
@@ -141,7 +138,8 @@ Shorthand for `insertEffect(node, 'post')`.
 route(from: AudioNode, to: AudioNode): void
 ```
 
-Manually connects two nodes outside the managed effect chain. All connections registered here are disconnected on dispose.
+Manually connects two nodes outside the managed effect chain.
+All connections registered here are disconnected on dispose.
 
 ### `unroute(from, to)`
 
@@ -149,40 +147,76 @@ Manually connects two nodes outside the managed effect chain. All connections re
 unroute(from: AudioNode, to: AudioNode): void
 ```
 
-Disconnects a manual node pair previously registered with `route()`. Safe to call if the pair was never routed.
+Disconnects a manual node pair previously registered with `route()`.
+Safe to call if the pair was never routed.
 
----
+## Registration
 
-## Browser autoplay policy
-
-Browsers start `AudioContext` in `'suspended'` state. This plugin resumes it on the first `play` event, which always fires inside or immediately after a user gesture, satisfying the browser's activation requirement.
-
----
-
-## Example — custom visualiser
+Always register `AudioGraphPlugin` before any plugin that requires a Web Audio graph:
 
 ```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+const tracks: MusicPlaylistItem[] = [
+  {
+    id: 'bent-wyre-01',
+    name: 'Ants Of The Beat',
+    url: '/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.mp3',
+    artistTracks: [{ id: 1, name: 'bent wyre' }],
+  },
+];
+
+const player = nmMPlayer('main')
+  .addPlugin(AudioGraphPlugin, { latencyHint: 'playback' })
+  .addPlugin(EqualizerPlugin)
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+    playlist: tracks,
+  });
+```
+
+## Custom visualiser example
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
 import { AudioGraphPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+const tracks: MusicPlaylistItem[] = [
+  {
+    id: 'bent-wyre-01',
+    name: 'Ants Of The Beat',
+    url: '/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.mp3',
+    artistTracks: [{ id: 1, name: 'bent wyre' }],
+  },
+];
 
 const player = nmMPlayer('main')
   .addPlugin(AudioGraphPlugin, { fftSize: 2048 })
-  .setup({ playlist: myTracks });
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+    playlist: tracks,
+  });
 
 player.on('plugin:audio-graph:context:ready', () => {
   const graph = player.getPlugin(AudioGraphPlugin)!;
   const analyser = graph.analyserSource();
-  const data = new Uint8Array(analyser.frequencyBinCount);
+  const frequencyData = new Uint8Array(analyser.frequencyBinCount);
 
   const canvas = document.getElementById('vis') as HTMLCanvasElement;
-  const ctx = canvas.getContext('2d')!;
+  const canvasCtx = canvas.getContext('2d')!;
 
   const draw = (): void => {
     requestAnimationFrame(draw);
-    analyser.getByteFrequencyData(data);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    data.forEach((value, index) => {
-      const barHeight = (value / 255) * canvas.height;
-      ctx.fillRect(index * 3, canvas.height - barHeight, 2, barHeight);
+    analyser.getByteFrequencyData(frequencyData);
+
+    canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+    frequencyData.forEach((amplitude, binIndex) => {
+      const barHeight = (amplitude / 255) * canvas.height;
+      canvasCtx.fillRect(binIndex * 3, canvas.height - barHeight, 2, barHeight);
     });
   };
 
@@ -190,10 +224,8 @@ player.on('plugin:audio-graph:context:ready', () => {
 });
 ```
 
----
-
 ## See also
 
-- [EqualizerPlugin](/nomercy-music-player/equalizer) — requires `AudioGraphPlugin`
-- [Backends overview](/nomercy-music-player/backends/overview) — when `webaudio` backend is required
-- [Advanced: Equalizer Customization](/nomercy-music-player/advanced/equalizer-customization) — building custom EQ presets
+- [EqualizerPlugin](/nomercy-music-player/equalizer), requires `AudioGraphPlugin`
+- [Backends overview](/nomercy-music-player/backends/overview), when `webaudio` backend is required
+- [Advanced: Equalizer Customization](/nomercy-music-player/advanced/equalizer-customization), building custom EQ presets

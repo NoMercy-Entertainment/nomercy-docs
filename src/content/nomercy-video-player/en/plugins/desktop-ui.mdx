@@ -1,122 +1,199 @@
 ---
 title: 'Desktop UI'
-description: 'The DesktopUiPlugin — full controls overlay for desktop.'
+description: 'The DesktopUiPlugin, full controls overlay for pointer-driven environments. Mounts the complete control set for web desktop and mobile PWA deployments.'
 draft: false
 ---
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/desktop-ui/index.ts */}
 
-`DesktopUiPlugin` is the full video player controls overlay for pointer-driven environments. Register it as the primary UI plugin for web desktop and mobile PWA deployments. It mounts a complete DOM control set — top bar, progress bar with chapter markers and sprite thumbnails, control buttons, and menu panes — and includes `KeyHandlerPlugin` automatically.
+# Desktop UI
+
+`DesktopUiPlugin` is the full video player controls overlay for pointer-driven environments.
+Register it as the primary UI plugin for web desktop and mobile PWA deployments.
+It mounts a complete DOM control set, including a top bar, progress bar with chapter markers and sprite thumbnail preview, control buttons, and menu panes.
+
+---
 
 ## Plugin id
 
 `'desktop-ui'`
 
+---
+
 ## Import
 
 ```ts
 import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
-import type { DesktopUiOptions } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type {
+  DesktopUiOptions,
+} from '@nomercy-entertainment/nomercy-video-player/plugins';
 ```
+
+`DesktopUiButtonOptions`, `DesktopUiEvents`, `Breakpoint`, `ButtonPriorityList`, and `LayoutBreakpointPayload` are defined in the plugin source but are not re-exported from the `/plugins` barrel.
+Import them from the deep path if you need the types directly:
+
+```ts
+import type {
+  DesktopUiButtonOptions,
+  DesktopUiEvents,
+  Breakpoint,
+  ButtonPriorityList,
+  LayoutBreakpointPayload,
+} from '@nomercy-entertainment/nomercy-video-player/plugins/desktop-ui';
+```
+
+---
 
 ## What it does
 
-`DesktopUiPlugin` renders the complete video player controls overlay as a DOM tree mounted inside `.nomercyplayer`. It is a v2-native rewrite of the v1 desktop UI and provides:
+`DesktopUiPlugin` renders the complete video player controls overlay as a DOM tree mounted inside `.nomercyplayer`.
+It is a v2-native rewrite of the v1 desktop UI and provides:
 
-- Top bar — title, show/season/episode info, back button
-- Progress bar — with chapter markers, buffer indicator, scrubber, hover-time label, and sprite thumbnail preview
-- Control bar — play/pause, skip buttons, volume slider, mute toggle, speed selector, subtitle/audio/quality menus, theater, PiP, fullscreen
-- Menu panes — speed picker, quality picker, subtitle picker, audio picker, playlist, subtitle style settings, aspect ratio selector
+- Top bar with title, show/season/episode info, back button, and close button
+- Progress bar with chapter markers, segmented buffer fill, scrubber, hover-time label, and sprite thumbnail preview
+- Control bar with play/pause, navigation, skip buttons, volume slider (horizontal expand-on-hover or vertical popup), speed selector, subtitle/audio/quality menus, theater, PiP, and fullscreen
+- Menu panes for speed, quality, subtitles, audio, playlist, subtitle style settings, and aspect ratio
 - Seek-feedback animations
-- Activity detection — controls auto-hide after inactivity; tap/move to reveal
-- Keyboard shortcut sheet (toggle with `?`)
+- Activity detection: controls auto-hide after inactivity, tap or move to reveal
+- Keyboard shortcut sheet toggled with `?`
 
 The back button in the top bar only renders when at least one `'back'` event listener is registered.
+The close button only renders when at least one `'close'` event listener is registered.
 
-Hover thumbnails on the progress bar use the `previewSpriteUrl` from the active playlist item automatically — no extra configuration needed.
+Hover thumbnails on the progress bar are read from a `thumbnails` sidecar track on the active playlist item automatically.
+No extra configuration is needed.
+
+---
 
 ## CSS state classes
 
-State CSS classes are applied to `.nomercyplayer` (the player's container element):
+State CSS classes are applied to `.nomercyplayer` (the player container element) by the kit's container-class-emit mixin:
 
-| State                  | CSS class on `.nomercyplayer` |
-| ---------------------- | ----------------------------- |
-| Playing                | `nm-playing`                  |
-| Paused                 | `nm-paused`                   |
-| Buffering              | `nm-buffering`                |
-| Ended                  | `nm-ended`                    |
-| Fullscreen             | `nm-fullscreen`               |
-| PiP active             | `nm-pip`                      |
-| Theater mode           | `nm-theater`                  |
-| Controls visible       | `nm-controls-visible`         |
-| Controls hidden (idle) | `nm-controls-hidden`          |
-| Subtitles on           | `nm-subtitles-on`             |
+| State | CSS class on `.nomercyplayer` |
+| --- | --- |
+| Playing | `playing` |
+| Paused | `paused` |
+| Stopped | `stopped` |
+| Ended | `ended` |
+| Loading | `loading` |
+| Buffering | `buffering` |
+| Muted | `muted` |
+| Fullscreen | `fullscreen` |
+| PiP active | `pip` |
+| Theater mode | `theater` |
+| Controls visible (activity) | `active` |
+| Controls hidden (idle) | `inactive` |
 
-Do not add `nm-` or `nmplayer-` prefixed classes to child elements from outside the plugin.
+The playback-state classes (`playing`, `paused`, `stopped`, `ended`, `loading`, `buffering`) are mutually exclusive.
+The kit removes all others before adding the new one.
+
+The container also receives `data-orientation` (`portrait` or `landscape`) and `data-breakpoint` (the active responsive tier name) as attributes.
+
+---
 
 ## Inactivity hiding
 
-Controls auto-hide after 4 seconds of inactivity. Mouse movement, keyboard input, or touch interaction resets the timer.
+Controls auto-hide after 4 seconds of inactivity (configurable via `inactivityMs`).
+Mouse movement, keyboard input, or touch interaction resets the timer.
+Controls stay visible while paused, while a menu is open, or while the pointer is hovering over the bottom bar or menu frame.
+
+---
 
 ## Options
 
-```ts
-interface DesktopUiOptions {
-  /** Hide the title bar at the top of the player. Default: false. */
-  hideTitle?: boolean;
-  /** Disable click/tap on the video area to toggle pause. Default: false. */
-  disableClickToPause?: boolean;
-  /** Milliseconds of inactivity before controls hide. Default: 4000. */
-  inactivityMs?: number;
-  /** Base URL prepended to relative image paths in the player UI. */
-  imageBaseUrl?: string;
-  /** Per-button opt-in / opt-out overrides. */
-  buttons?: DesktopUiButtonOptions;
-}
-```
-
-| Option                | Type                    | Default | Description                                                          |
-| --------------------- | ----------------------- | ------- | -------------------------------------------------------------------- |
-| `hideTitle`           | `boolean`               | `false` | Hide the top-bar title column (title + show info)                    |
-| `disableClickToPause` | `boolean`               | `false` | Suppress click/tap on the video area toggling pause                  |
-| `inactivityMs`        | `number`                | `4000`  | Milliseconds of pointer/keyboard inactivity before controls hide     |
-| `imageBaseUrl`        | `string`                | —       | Base URL prepended to relative image paths rendered in the UI        |
-| `buttons`             | `DesktopUiButtonOptions` | see below | Per-button visibility overrides                                   |
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `hideTitle` | `boolean` | `false` | Hide the title column in the top bar (title and show info). The back and close buttons remain. |
+| `disableClickToPause` | `boolean` | `false` | Suppress click/tap on the video area toggling pause. |
+| `inactivityMs` | `number` | `4000` | Milliseconds of pointer/keyboard inactivity before controls hide. |
+| `imageBaseUrl` | `string` | none | Base URL prepended to relative image paths in the playlist pane. |
+| `buttons` | `DesktopUiButtonOptions` | see below | Per-button visibility overrides. |
+| `buttonPriority` | `ButtonPriorityList` | see below | Priority order for responsive button removal. Buttons at the end are hidden first as the container narrows. |
+| `breakpoints` | `Breakpoint[]` | see below | Full breakpoint progression for the `layout:breakpoint` event and `data-breakpoint` attribute. |
+| `collapseStages` | `[number, number, number]` | none | Shorthand for `breakpoints`. Provide `hideAfterRank` values for the sm/md/lg tiers. Ignored when `breakpoints` is provided. |
+| `volumeSlider` | `'horizontal' \| 'vertical' \| 'auto'` | `'auto'` | Volume slider orientation. `auto` uses vertical popup on narrow containers (at or below 520 px) and touch-only devices. |
 
 ### DesktopUiButtonOptions
 
-All fields are `boolean | undefined`. Omitting a field keeps the built-in default.
+All fields are `boolean | undefined`. Omitting a field keeps the button's own default.
 
 Default-ON buttons (visible unless set to `false`):
 
-| Button        | Description                                   |
-| ------------- | --------------------------------------------- |
-| `play`        | Play/pause toggle                             |
-| `mute`        | Mute toggle icon                              |
-| `volume`      | Volume slider                                 |
-| `fullscreen`  | Fullscreen toggle                             |
-| `settings`    | Settings/gear button                          |
-| `chapterPrev` | Previous chapter (hidden when no chapters)    |
-| `chapterNext` | Next chapter (hidden when no chapters)        |
-| `next`        | Next queue item (shown when queue > 1 item)   |
-| `previous`    | Previous queue item (shown when queue > 1)    |
+| Button | Description |
+| --- | --- |
+| `play` | Play/pause toggle |
+| `mute` | Mute toggle icon |
+| `volume` | Volume slider |
+| `fullscreen` | Fullscreen toggle |
+| `settings` | Settings/gear button |
+| `next` | Next queue item |
+| `previous` | Previous queue item |
+| `chapterPrev` | Previous chapter (content-gated: hidden when the current item has no chapters) |
+| `chapterNext` | Next chapter (content-gated: hidden when the current item has no chapters) |
 
 Default-OFF buttons (hidden unless set to `true`):
 
-| Button         | Description                              |
-| -------------- | ---------------------------------------- |
-| `theater`      | Theater mode toggle                      |
-| `pip`          | Picture-in-Picture toggle                |
-| `speed`        | Playback speed menu                      |
-| `quality`      | Quality level menu                       |
-| `subtitles`    | Subtitle track menu                      |
-| `audio`        | Audio track menu                         |
-| `playlist`     | Playlist panel                           |
-| `seekBack`     | Seek backward button (±10 s)             |
-| `seekForward`  | Seek forward button (±10 s)              |
-| `aspectRatio`  | Aspect ratio menu                        |
+| Button | Description |
+| --- | --- |
+| `theater` | Theater mode toggle |
+| `pip` | Picture-in-Picture toggle |
+| `speed` | Playback speed menu |
+| `quality` | Quality level menu (content-gated: hidden when fewer than 2 levels are available) |
+| `subtitles` | Subtitle track menu (content-gated: hidden when no subtitle tracks are present) |
+| `audio` | Audio track menu (content-gated: hidden when fewer than 2 audio tracks are present) |
+| `playlist` | Playlist panel (content-gated: hidden when queue has fewer than 2 items) |
+| `seekBack` | Seek backward 10 s |
+| `seekForward` | Seek forward 10 s |
+| `aspectRatio` | Aspect ratio menu |
 
-`seekBack`/`seekForward` default to `false` because ±10 s seek is available via `TouchZonesPlugin` (double-tap) and `KeyHandlerPlugin` (ArrowLeft/Right) — the chapter navigation buttons are the unique control-bar value.
+`seekBack`/`seekForward` default to `false` because ±10 s seek is already available via touch zones (double-tap) and keyboard arrow keys (`KeyHandlerPlugin`).
+The chapter navigation buttons are the unique control-bar value in the default layout.
+
+### Responsive button removal
+
+When the container narrows, buttons are hidden in reverse priority order.
+The default priority list removes the most optional buttons first:
+
+`play -> mute -> volume -> fullscreen -> settings -> next -> previous -> chapterPrev -> chapterNext -> seekBack -> seekForward -> theater -> pip -> speed -> quality -> subtitles -> audio -> aspectRatio -> playlist`
+
+Override with `buttonPriority` if you need a different order.
+
+The default breakpoint tiers are:
+
+| Tier | Max container width | Behaviour |
+| --- | --- | --- |
+| `xs` | 320 px | Only the first 2 priority buttons |
+| `sm` | 480 px | First 5 priority buttons |
+| `md` | 720 px | First 9 priority buttons |
+| `lg` | 1024 px | First 14 priority buttons |
+| `xl` | no limit | All enabled buttons |
+
+Portrait mode additionally hides `chapterPrev`, `chapterNext`, `previous`, `next`, `subtitles`, `audio`, `quality`, and `playlist` regardless of container width.
+
+---
+
+## Events
+
+| Event | Payload | Description |
+| --- | --- | --- |
+| `'plugin:desktop-ui:shortcuts-toggle'` | `undefined` | Keyboard shortcut sheet toggled (via `?` key or by emitting the event). |
+| `'plugin:desktop-ui:layout:breakpoint'` | `LayoutBreakpointPayload` | Fires when the active responsive breakpoint tier changes. |
+| `'plugin:desktop-ui:opts:changed'` | `DesktopUiOptions` | Fires when options are updated at runtime. |
+
+The plugin also triggers the player-level `'activity'` event (`{ active: boolean }`) to signal controls show/hide state to other plugins.
+That event is on the player, not namespaced under `desktop-ui`.
+
+```ts
+// React to breakpoint changes (for custom layout logic):
+player.on('plugin:desktop-ui:layout:breakpoint', ({ from, to, visibleButtons, hiddenButtons }) => {
+  console.log(`breakpoint changed from ${from} to ${to}`);
+});
+
+// Trigger the shortcut sheet from outside the plugin:
+player.emit('plugin:desktop-ui:shortcuts-toggle', undefined);
+```
+
+---
 
 ## Registration
 
@@ -124,93 +201,142 @@ Default-OFF buttons (hidden unless set to `true`):
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import {
   DesktopUiPlugin,
+  KeyHandlerPlugin,
   SubtitleOverlayPlugin,
 } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 const player = nmplayer('player')
-  .addPlugin(DesktopUiPlugin)
+  .addPlugin(DesktopUiPlugin, {
+    buttons: {
+      theater: true,
+      pip: true,
+      subtitles: true,
+      audio: true,
+      quality: true,
+    },
+    volumeSlider: 'auto',
+  })
+  .addPlugin(KeyHandlerPlugin)
   .addPlugin(SubtitleOverlayPlugin)
   .setup({
     baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
     playlist: [
       {
+        id: 1,
         title: 'Sintel',
         url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
         image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
-        previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.vtt',
+        tracks: [
+          { kind: 'thumbnails', file: '/Sintel.(2010)/thumbs_256x109.vtt' },
+        ],
         chapters: [
-          { title: 'Intro', start: 0, end: 90 },
-          { title: 'Act 1', start: 90, end: 600 },
+          { index: 0, title: 'Intro', start: 0, end: 90 },
+          { index: 1, title: 'Act 1', start: 90, end: 600 },
         ],
       },
     ],
   });
 
-// Wire the back button — it only renders when this listener exists
+// The back button only renders when this listener is registered:
 player.on('back', () => {
   history.back();
 });
 ```
 
+---
+
 ## DOM tree
 
-The plugin builds its tree inside `.nomercyplayer > .nomercyplayer-overlay`:
+The plugin builds its tree inside `.nomercyplayer`:
 
 ```
 overlay
-  ├─ top-bar > title + back button
-  ├─ center  > spinner + center play/pause button
-  └─ bottom-bar
-      ├─ bottom-bar-shadow
-      ├─ top-row (slider-bar)
-      │   ├─ slider-buffer
-      │   ├─ slider-hover
-      │   ├─ slider-progress
-      │   └─ chapter-progress × N
-      └─ bottom-row
-          ├─ left controls (play, prev, next, time, volume)
-          ├─ center (space)
-          └─ right controls (speed, quality, subtitles, audio, playlist, theater, pip, fullscreen)
+  +- top-bar
+  |   +- back button + close button + title column
+  +- center
+  |   +- spinner
+  |   +- center play/pause button
+  +- bottom-bar
+  |   +- bottom-bar-shadow
+  |   +- top-row (slider-bar)
+  |   |   +- slider-buffer
+  |   |   +- slider-hover
+  |   |   +- slider-progress
+  |   |   +- chapter-progress x N
+  |   |   +- slider-nipple
+  |   |   +- slider-pop (sprite thumbnail preview)
+  |   +- bottom-row
+  |       +- left controls (play, prev, rewind, forward, chapterPrev, chapterNext, next)
+  |       +- volume-container (mute button + horizontal or vertical slider)
+  |       +- current-time + remaining-time
+  |       +- right controls (aspectRatio, theater, pip, speed, subtitles, audio, quality, playlist, settings, fullscreen)
+  +- menu-frame-dialog
 ```
+
+---
 
 ## Default keyboard shortcuts
 
-`KeyHandlerPlugin` is included with `DesktopUiPlugin`. Default bindings:
+`KeyHandlerPlugin` must be registered separately via `addPlugin(KeyHandlerPlugin)`.
+It is not bundled inside `DesktopUiPlugin`.
+The shortcuts sheet (press `?`) shows all bindings once both plugins are registered.
 
-| Key         | Action                  |
-| ----------- | ----------------------- |
-| Space / `k` | Toggle playback         |
-| `f`         | Toggle fullscreen       |
-| `m`         | Toggle mute             |
-| `←` / `→`   | Seek ±10 seconds        |
-| `↑` / `↓`   | Volume ±5 (0–100 scale) |
-| `c`         | Cycle subtitle tracks   |
-| `?`         | Toggle shortcut sheet   |
+| Key | Action |
+| --- | --- |
+| `Space` | Toggle playback |
+| `S` | Stop |
+| `E` | Frame advance |
+| `]` / `[` | Speed up / speed down |
+| `=` | Reset to normal speed |
+| `↑` / `↓` | Volume up / down |
+| `M` | Toggle mute |
+| `←` / `→` | Seek ±5 seconds |
+| `Shift` + `←` / `→` | Seek ±3 seconds |
+| `Alt` + `←` / `→` | Seek ±10 seconds |
+| `Ctrl` + `←` / `→` | Seek ±60 seconds |
+| `3` / `6` / `9` / `1` | Jump 30/60/90/120 seconds |
+| `N` / `P` | Next / previous queue item |
+| `Shift` + `N` / `P` | Next / previous chapter |
+| `V` | Cycle subtitle tracks |
+| `B` | Cycle audio tracks |
+| `A` | Cycle aspect ratio |
+| `+` / `-` | Subtitle size up / down |
+| `F` / `F11` | Toggle fullscreen |
+| `Esc` | Exit fullscreen |
+| `T` | Toggle remaining/total time display |
+| `?` | Toggle shortcut sheet |
+
+---
 
 ## Customizing the UI
 
-The UI uses standard DOM elements styled by the player's CSS. Override styles by targeting `.nomercyplayer` and its children in your app stylesheet.
+The UI uses standard DOM elements styled by the player's CSS.
+Override styles by targeting `.nomercyplayer` and its children in your app stylesheet.
 
-To replace specific behaviors without replacing the entire plugin, subclass and override the protected group methods:
+To replace the entire UI, subclass `DesktopUiPlugin` and pass your subclass to `addPlugin`.
+`DesktopUiPlugin` has no protected hook methods to override; use `addPlugin(MyDesktopUi, opts)` with the same options contract:
 
 ```ts
 import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 class MyDesktopUi extends DesktopUiPlugin {
-  static readonly id = 'desktop-ui';
+  static override readonly id = 'desktop-ui';
 
-  protected addPlaybackHooks(): void {
-    super.addPlaybackHooks();
-    // add extra behavior
+  override use(): void {
+    super.use();
+    // attach extra DOM or event listeners after the base UI is mounted
   }
 }
 
 player.addPlugin(MyDesktopUi);
 ```
 
+---
+
 ## TV UI
 
-For 10-foot TV remote navigation, use `TvUiPlugin` instead. It is optimized for D-pad navigation and does not mount the desktop pointer-based controls.
+For 10-foot TV remote navigation, use `TvUiPlugin` instead.
+It is optimized for D-pad navigation and does not mount the pointer-based desktop controls.
 
 ```ts
 import { TvUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
@@ -218,20 +344,15 @@ import { TvUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins'
 player.addPlugin(TvUiPlugin);
 ```
 
+---
+
 ## UX rules
 
-- Pointer input (click) on multi-state buttons opens a menu. Cycle actions (cycleAspectRatio, cycleSubtitles) are for keyboard / remote-control contexts only — the control bar uses menus for those features.
-- Theater, PiP, and Fullscreen are binary toggles — direct action on click.
-- Menus close when clicking outside them or when another menu opens.
+- Click on multi-state buttons (quality, subtitles, audio, speed, aspect ratio) opens a menu pane. The cycle actions (`cycleAspectRatio`, `cycleSubtitles`) are for keyboard and remote-control contexts where the user cannot pick from a list.
+- Theater, PiP, and Fullscreen are binary toggles: direct action on click.
+- Menus close when clicking outside the menu frame, or when another menu opens.
 
-## Events emitted
-
-The desktop UI emits internal events for cross-plugin coordination:
-
-| Event                                  | Description                                              |
-| -------------------------------------- | -------------------------------------------------------- |
-| `'activity'`                           | `{ active: boolean }` — controls show/hide state changed |
-| `'plugin:desktop-ui:shortcuts-toggle'` | Keyboard shortcut sheet toggled (via `?` key)            |
+---
 
 ## See also
 

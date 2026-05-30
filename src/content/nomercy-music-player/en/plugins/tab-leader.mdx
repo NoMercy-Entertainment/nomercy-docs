@@ -1,52 +1,46 @@
 ---
 title: 'TabLeaderPlugin'
-description: 'Single-tab-active coordination via Web Locks — options, events, and isLeader / requestLock / releaseLock methods.'
+description: 'Single-tab playback coordinator using the Web Locks API, so only one tab plays audio at a time on the same origin.'
 draft: false
 ---
 
-{/* Source: packages/nomercy-player-kit/src/plugins/tab-leader/index.ts (re-exported verbatim by music player) */}
+{/* Source: packages/nomercy-player-kit/src/plugins/tab-leader/index.ts (re-exported verbatim by packages/nomercy-music-player-v2/src/plugins/tab-leader/index.ts) */}
 
 # TabLeaderPlugin
 
-Single-tab-active coordinator. Uses the Web Locks API to ensure only one tab plays audio at a time on the same origin. When a second tab acquires the lock, the first tab pauses (or mutes, depending on `onLost`).
+If your app can be open in multiple tabs at the same time, you have probably seen two tabs fighting over audio.
+`TabLeaderPlugin` stops that by using the Web Locks API to elect one tab as the leader.
+Only the leader tab is allowed to play.
+When a second tab acquires the lock, the first tab loses the lock; the `onLost` action handler is registered but the involuntary-loss signal is not yet emitted in this release.
+If the leader tab is closed or navigated away, the browser hands the lock to the next waiting tab automatically.
 
-This plugin is a direct re-export of the kit's `TabLeaderPlugin` — the music player does not override any behaviour.
+This plugin is a direct re-export of the kit's `TabLeaderPlugin`.
+The music player does not override any behaviour.
 
 ```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
 import { TabLeaderPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+import type { TabLeaderOptions } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
 
 Plugin id: `'tab-leader'`
 
----
+## What it does
 
-## Registration
-
-```ts
-const player = nmMPlayer('main').addPlugin(TabLeaderPlugin).setup({ playlist: myTracks });
-```
-
-With options:
-
-```ts
-player.addPlugin(TabLeaderPlugin, {
-  onLost: 'pause',
-  handoffOnVisible: true,
-  getLockKey: () => `nomercy-leader-${serverId}`,
-});
-```
-
----
+On `use()`, the plugin calls `navigator.locks.request(key, callback)`.
+The browser gives the lock to the first tab that asks.
+That tab emits `leader-acquired` and is free to play.
+Every other tab queues behind it.
+When the leader releases the lock (or the tab closes), the browser fires the next tab's callback and it emits `leader-acquired` in turn.
+In environments where `navigator.locks` is absent, the plugin emits `unsupported` and becomes a no-op.
 
 ## Options
 
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
-| `onLost` | `'pause' \| 'mute'` | `'pause'` | What to do when this tab loses leadership. `'pause'` calls `player.pause()`. `'mute'` calls `player.mute()` so playback continues silently — useful for background tabs that should keep buffering. |
-| `handoffOnVisible` | `boolean` | `true` | When `true`, the tab re-requests the lock whenever `document.visibilitychange` fires and the tab becomes visible. |
-| `getLockKey` | `() => string` | `() => 'nomercy-player-leader'` | Override the Web Locks API lock key. The default key is shared across all player instances on the same origin — one tab plays at a time globally. Provide a function to scope leadership to a specific player, content item, or session. |
-
----
+| `onLost` | `'pause' \| 'mute'` | `'pause'` | Reserved for a future involuntary-loss signal. The internal handler is wired but the loss event that triggers it is not yet emitted; this option has no effect in the current release. |
+| `handoffOnVisible` | `boolean` | `true` | Re-request the lock whenever the tab becomes visible via `document.visibilitychange`. The behaviour is active when this option is absent; set it explicitly to `false` to disable. |
+| `getLockKey` | `() => string` | `undefined` | Factory returning the lock key. When absent, the plugin falls back to the shared key `'nomercy-player-leader'`, which is global across all instances on the same origin. Return a per-player or per-session string to scope leadership more narrowly. |
 
 ## Events
 
@@ -54,8 +48,6 @@ player.addPlugin(TabLeaderPlugin, {
 | ----- | ------- | ----------- |
 | `leader-acquired` | `void` | Fired when this tab successfully acquires the leader lock. |
 | `leader-released` | `void` | Fired when this tab voluntarily releases the lock via `releaseLock()` or on dispose. |
-| `leader-lost` | `{ reason: 'visibility' \| 'request' \| 'browser' }` | Fired when leadership is lost involuntarily. `'visibility'` — a visibility change triggered handoff. `'request'` — another tab called `requestLock()`. `'browser'` — the browser released the lock (tab closed, navigated). |
-| `leader-requested` | `void` | Fired when `requestLock()` is called and an acquire attempt begins. |
 | `unsupported` | `void` | Fired when the Web Locks API is unavailable. The plugin is a no-op in this case. |
 
 Listen using the namespaced string form:
@@ -65,12 +57,10 @@ player.on('plugin:tab-leader:leader-acquired', () => {
   console.log('This tab is now the leader');
 });
 
-player.on('plugin:tab-leader:leader-lost', ({ reason }) => {
-  console.log('Lost leadership:', reason);
+player.on('plugin:tab-leader:unsupported', () => {
+  console.warn('Web Locks not available; tab coordination disabled');
 });
 ```
-
----
 
 ## Methods
 
@@ -88,7 +78,10 @@ Returns `true` when this tab currently holds the leader lock.
 requestLock(): Promise<void>
 ```
 
-Request the leader lock. Resolves once the lock-acquire callback fires. Calling while an election is already in progress returns the existing promise rather than starting a second election. Emits `leader-acquired` when granted.
+Request the leader lock.
+The returned promise resolves when the lock is voluntarily released via `releaseLock()` or when the plugin disposes -- not at acquire time.
+Calling while an election is already in progress returns the existing promise rather than starting a second election.
+Emits `leader-acquired` when the lock is granted.
 
 ### `releaseLock()`
 
@@ -96,7 +89,9 @@ Request the leader lock. Resolves once the lock-acquire callback fires. Calling 
 releaseLock(): void
 ```
 
-Voluntarily release the leader lock so the next waiting tab can take over. Emits `leader-released`. No-ops when this tab is not the current leader.
+Voluntarily release the leader lock so the next waiting tab can take over.
+Emits `leader-released` when this tab was the leader.
+No-ops when this tab is not the current leader.
 
 ### `requestLeadership()`
 
@@ -104,7 +99,8 @@ Voluntarily release the leader lock so the next waiting tab can take over. Emits
 requestLeadership(): Promise<boolean>
 ```
 
-Backwards-compatible alias for `requestLock()`. Returns `true` when leadership is held after the attempt resolves, `false` otherwise.
+Backwards-compatible alias for `requestLock()`.
+Returns `true` when leadership is held after the attempt resolves, `false` otherwise.
 
 ### `releaseLeadership()`
 
@@ -114,15 +110,20 @@ releaseLeadership(): void
 
 Backwards-compatible alias for `releaseLock()`.
 
----
+## Registration
 
-## Browser support
+Basic registration; the plugin calls `requestLock()` automatically on `use()`:
 
-Web Locks is supported in Chrome 69+, Firefox 96+, and Safari 15.4+. In environments without `navigator.locks`, the plugin emits `unsupported` and becomes a no-op — all tabs can play simultaneously without error.
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { TabLeaderPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
----
+const player = nmMPlayer('main')
+  .addPlugin(TabLeaderPlugin)
+  .setup({ playlist: myTracks });
+```
 
-## Example
+With options:
 
 ```ts
 import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
@@ -130,22 +131,29 @@ import { TabLeaderPlugin } from '@nomercy-entertainment/nomercy-music-player/plu
 
 const player = nmMPlayer('main')
   .addPlugin(TabLeaderPlugin, {
+    onLost: 'pause',
+    handoffOnVisible: true,
     getLockKey: () => `nomercy-leader-${location.hostname}`,
   })
   .setup({ playlist: myTracks });
 
-const leader = player.getPlugin(TabLeaderPlugin)!;
+const leaderPlugin = player.getPlugin(TabLeaderPlugin)!;
 
-// Conditionally allow playback:
 player.on('play', () => {
-  if (!leader.isLeader()) {
-    void player.pause();
+  if (!leaderPlugin.isLeader()) {
+    void player.pause?.();
   }
 });
 ```
 
----
+## Browser support
+
+Web Locks is supported in Chrome 69+, Firefox 96+, and Safari 15.4+.
+In environments without `navigator.locks`, the plugin emits `unsupported` and becomes a no-op.
+All tabs can play simultaneously without error in those environments.
 
 ## See also
 
-- [Player Kit — TabLeaderPlugin](/nomercy-player-kit/plugins-builtin) — full kit plugin documentation
+- [Player Kit, TabLeaderPlugin](/nomercy-player-kit/plugins-builtin), full kit plugin documentation
+- [Plugin registration](/nomercy-player-kit/plugin-registration), how `addPlugin` and `getPlugin` work
+- [Event system](/nomercy-player-kit/event-system), namespaced plugin events

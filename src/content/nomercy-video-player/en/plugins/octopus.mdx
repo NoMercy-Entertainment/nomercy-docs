@@ -1,80 +1,138 @@
 ---
 title: 'Octopus (ASS/SSA)'
-description: 'The OctopusPlugin — advanced ASS/SSA subtitle rendering.'
+description: 'OctopusPlugin: libass-based ASS/SSA subtitle rendering via a WASM worker, with auth-gated font loading and graceful degradation.'
 draft: false
 ---
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/octopus/index.ts */}
 
-`OctopusPlugin` provides high-fidelity ASS/SSA subtitle rendering via a WASM build of libass. Register it instead of (or alongside) `SubtitleOverlayPlugin` when your media library includes anime or any content with styled `.ass`/`.ssa` subtitle tracks. The renderer loads lazily on first use so it does not increase your initial bundle.
+# Octopus (ASS/SSA)
 
-## Plugin id
+`OctopusPlugin` is the plugin to reach for when your media library includes anime or any content with styled `.ass` or `.ssa` subtitle tracks.
+It wraps `@nomercy-entertainment/nomercy-subtitle-octopus` (the NoMercy fork of libass-wasm) and handles the lifecycle, font loading, and auth-gating so the WASM worker never touches the network directly.
+For plain `.vtt` subtitle tracks, use `SubtitleOverlayPlugin` instead.
 
-`'octopus'`
-
-## Import
+`@nomercy-entertainment/nomercy-subtitle-octopus` is a plain dependency bundled with the package.
+The plugin imports it dynamically at runtime as a safety net.
+When the import fails the plugin logs a warning and marks itself as degraded; playback continues normally and ASS/SSA subtitles will not render.
 
 ```ts
 import { OctopusPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 import type { OctopusOptions } from '@nomercy-entertainment/nomercy-video-player/plugins';
 ```
 
-## Prerequisites
+Plugin id: `'octopus'`
 
-`@nomercy-entertainment/nomercy-subtitle-octopus` ships as a regular dependency of `nomercy-video-player` — no separate install is needed. The plugin loads it lazily via dynamic import on first use, so it does not increase your initial bundle.
+---
 
 ## What it does
 
-`OctopusPlugin` is a thin bridge over `@nomercy-entertainment/nomercy-subtitle-octopus` — the NoMercy fork of the `libass-wasm` / SubtitleOctopus library. It provides high-fidelity ASS/SSA subtitle rendering that matches desktop media player output.
+The plugin listens to the player's `'subtitle'` event.
+When a track is selected it resolves the URL by calling `player.subtitles?.()` and indexing into that list by the zero-based index the event carries.
+If the resolved extension is not `.ass` or `.ssa` the renderer is torn down and the track is left to the native text-track pipeline or `SubtitleOverlayPlugin`.
+For ASS/SSA files it pre-fetches the subtitle body via `this.fetch` (the kit's auth pipeline), resolves fonts into blob URLs the same way, and instantiates the libass WASM renderer.
 
-Activation flow:
+On the `'current'` event the renderer is torn down and the per-item font cache is cleared so the new item starts clean.
 
-1. Listens to the `'subtitle'` event. When a track is selected, the plugin resolves its URL from `current().subtitles[idx]`.
-2. Non-ASS/non-SSA URLs tear down the renderer (VTT subtitles are handled by `SubtitleOverlayPlugin`).
-3. For `.ass` / `.ssa` files, the plugin fetches the subtitle content via the kit's auth pipeline (never direct XHR from the worker), resolves fonts from the item's `fonts` array, and instantiates the libass renderer.
-4. A `ResizeObserver` on the player container keeps the canvas sized to the actual video display rectangle.
+All network I/O goes through the kit auth pipeline.
+The WASM worker receives pre-fetched content as blob URLs and inline strings, it never performs authenticated XHR itself.
 
-On `'current'` the renderer is torn down and font cache is cleared for the new item.
+---
 
 ## Options
 
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `workerUrl` | `string` | bundled path | URL for the modern WASM worker script. |
+| `legacyWorkerUrl` | `string` | none | URL for the legacy non-WASM worker, for browsers without WebAssembly. |
+| `fallbackFont` | `string` | none | Font URL used when a requested font is not in the item's fonts list. |
+| `fonts` | `string[]` | `[]` | Static font URLs preloaded for every item, supplementing per-item fonts. |
+| `targetFps` | `number` | library default | Renderer target FPS. Leave unset to let the library choose. |
+| `renderMode` | `'wasm-blend' \| 'js-blend' \| 'lossy'` | library default (wasm-blend) | Render quality vs. performance trade-off. Leave unset for the library default. |
+| `lazyFileLoading` | `boolean` | `false` | Fetch subtitle chunks lazily, useful for very large ASS files. |
+| `prescaleFactor` | `number` | library default | Internal scaler ratio. Leave unset for default scaling. |
+| `renderAhead` | `number` | `10` | Frames pre-computed ahead of `currentTime`. Higher values smooth playback through heavy ASS effects at the cost of memory. |
+| `debug` | `boolean` | `false` | Enable debug logging in the libass WASM worker. |
+
+---
+
+## Events
+
+Events fire on the plugin channel. Subscribe from outside the plugin using the string form.
+
+| Event | Payload | Description |
+| ----- | ------- | ----------- |
+| `renderer:ready` | `{ url: string }` | Fired after the libass renderer initialises and the first frame is ready for the given subtitle URL. |
+
 ```ts
-interface OctopusOptions {
-  /** Worker URL (modern). Defaults to the bundled public/ URL. */
-  workerUrl?: string;
-  /** Legacy worker URL for browsers without WebAssembly. */
-  legacyWorkerUrl?: string;
-  /** Fallback font URL used when the subtitle requests a font not in the fonts list. */
-  fallbackFont?: string;
-  /** Optional list of font file URLs to preload for all items. */
-  fonts?: string[];
-  /** Renderer target FPS. */
-  targetFps?: number;
-  /** Render mode — 'wasm-blend' (default), 'js-blend', or 'lossy'. */
-  renderMode?: 'wasm-blend' | 'js-blend' | 'lossy';
-  /** Lazy-load subtitle file chunks for huge ASS files. */
-  lazyFileLoading?: boolean;
-  /** Internal scaler ratio. */
-  prescaleFactor?: number;
-  /** Frames to pre-compute ahead of currentTime. Default 10. */
-  renderAhead?: number;
-  /** Toggle debug logging in the worker. */
-  debug?: boolean;
-}
+player.on('plugin:octopus:renderer:ready', ({ url }) => {
+  console.log('libass renderer ready for', url);
+});
 ```
 
-| Option             | Type                                        | Default       | Description                                                              |
-| ------------------ | ------------------------------------------- | ------------- | ------------------------------------------------------------------------ |
-| `workerUrl`        | `string`                                    | bundled path  | URL for the modern WASM worker script                                    |
-| `legacyWorkerUrl`  | `string`                                    | —             | URL for the legacy (non-WASM) worker for browsers without WebAssembly    |
-| `fallbackFont`     | `string`                                    | —             | Font URL used when a requested font is not in the item's `fonts` list    |
-| `fonts`            | `string[]`                                  | `[]`          | Static font URLs preloaded for every item (supplements per-item fonts)   |
-| `targetFps`        | `number`                                    | —             | Renderer target FPS; leave unset to let the library choose               |
-| `renderMode`       | `'wasm-blend' \| 'js-blend' \| 'lossy'`     | `'wasm-blend'` | Render quality/performance trade-off mode                               |
-| `lazyFileLoading`  | `boolean`                                   | `false`       | Fetch subtitle chunks lazily — useful for very large ASS files           |
-| `prescaleFactor`   | `number`                                    | —             | Internal scaler ratio; leave unset for default scaling                   |
-| `renderAhead`      | `number`                                    | `10`          | Frames pre-computed ahead of `currentTime`; higher = smoother heavy effects |
-| `debug`            | `boolean`                                   | `false`       | Enable debug logging in the libass WASM worker                           |
+---
+
+## Methods
+
+### subtitle
+
+```ts
+plugin.subtitle(): string | null
+plugin.subtitle(url: string | null): Promise<void>
+```
+
+Read or set the active subtitle URL directly, bypassing the kit's track list.
+Use this for ASS files the consumer supplies outside the `subtitles` array.
+
+```ts
+import { OctopusPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const plugin = player.getPlugin(OctopusPlugin);
+
+await plugin?.subtitle(
+  'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Anime/Rail.Wars%21.(2014)/Rail.Wars%21.S00E00/subtitles/Rail.Wars%21.(2014).S00E00.NoMercy.eng.full.ass',
+);
+
+await plugin?.subtitle(null); // clear
+```
+
+### fonts
+
+```ts
+plugin.fonts(): readonly string[]
+plugin.fonts(urls: string[]): Promise<void>
+```
+
+Read or replace the plugin-level static font list.
+
+The getter returns blob: URLs when fonts have already been fetched and loaded for the active item, or the original plugin-level URL strings before the first load.
+Calling it with new URLs clears the per-item font cache and re-loads the active subtitle so the new fonts apply immediately.
+
+### renderer
+
+```ts
+plugin.renderer(): object | null
+```
+
+Returns the raw libass renderer handle for advanced consumers.
+The returned value is an opaque object; its type is not part of the public API.
+The plugin retains lifecycle ownership, do not call `dispose()` on the returned instance directly.
+
+---
+
+## Font resolution
+
+Fonts are resolved in this order for each item:
+
+1. The `fonts` array on the active `VideoPlaylistItem`. Each entry is a `FontTrackRef` object (`{ file: string; label?: string }`) whose `file` property is a `fonts.json` manifest URL or a direct font file URL.
+2. `OctopusOptions.fonts`, static URLs registered at plugin level, applied to all items.
+3. `OctopusOptions.fallbackFont`, a single URL used when ASS requests a font not found above.
+
+All font fetches go through the kit's auth pipeline.
+Each binary is converted to a blob URL and passed to the WASM worker.
+Blob URLs are revoked when the renderer is torn down to avoid memory leaks.
+
+---
 
 ## Registration
 
@@ -92,11 +150,12 @@ const player = nmplayer('player')
     baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Anime',
     playlist: [
       {
+        id: 'rail-wars-s00e00',
         title: 'Rail Wars! S00E00',
         url: '/Rail.Wars!.(2014)/Rail.Wars!.S00E00/Rail.Wars!.(2014).S00E00.NoMercy.m3u8',
         subtitles: [
           {
-            id: 1,
+            id: '1',
             kind: 'subtitles',
             label: 'English (ASS)',
             language: 'en',
@@ -113,54 +172,10 @@ const player = nmplayer('player')
   });
 ```
 
-## Methods
-
-### subtitle
-
-```ts
-plugin.subtitle(): string | null
-plugin.subtitle(url: string | null): Promise<void>
-```
-
-Read or set the active subtitle URL directly, bypassing the kit's track list. Use this for ASS files the consumer supplies outside the `subtitles` array.
-
-```ts
-const plugin = player.getPlugin(OctopusPlugin);
-await plugin?.subtitle(
-  'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Anime/Rail.Wars!.(2014)/Rail.Wars!.S00E00/subtitles/Rail.Wars!.(2014).S00E00.NoMercy.eng.full.ass',
-);
-await plugin?.subtitle(null); // clear
-```
-
-### fonts
-
-```ts
-plugin.fonts(): readonly string[]
-plugin.fonts(urls: string[]): Promise<void>
-```
-
-Read or replace the plugin-level static font list. Triggers a re-load of the active subtitle when called with new URLs.
-
-### renderer
-
-```ts
-plugin.renderer(): SubtitleOctopusInstance | null
-```
-
-Returns the raw libass renderer handle for advanced consumers. Plugin retains lifecycle ownership — do not call `dispose()` on the returned instance directly.
-
-## Font resolution
-
-Fonts are resolved in this order:
-
-1. `fonts` typed array on the active `VideoPlaylistItem` — each entry is a `fonts.json` manifest URL or a direct font file URL.
-2. `OctopusOptions.fonts` — static URLs registered at plugin level (applies to all items).
-3. `OctopusOptions.fallbackFont` — single URL used when ASS requests a font not in the above lists.
-
-All font fetches go through the kit's auth pipeline (not direct browser fetch). Each font binary is converted to a blob URL and passed to the worker.
+---
 
 ## See also
 
-- [SubtitleOverlay plugin](/nomercy-video-player/plugins/subtitle-overlay)
-- [VideoPlaylistItem — fonts field](/nomercy-video-player/playlist-item)
-- [Troubleshooting — subtitles not appearing](/nomercy-video-player/troubleshooting)
+- [SubtitleOverlay plugin, VTT subtitle rendering](/nomercy-video-player/plugins/subtitle-overlay)
+- [VideoPlaylistItem, fonts field](/nomercy-video-player/playlist-item)
+- [Troubleshooting, subtitles not appearing](/nomercy-video-player/troubleshooting)

@@ -1,6 +1,6 @@
 ---
 title: 'DrmPlugin'
-description: 'DRM-protected audio streams (Widevine, FairPlay, PlayReady) — roadmapped for v2.1. Calling use() throws NotImplementedError.'
+description: 'EME-based DRM for music streams. Roadmapped for v2.1, calling use() throws NotImplementedError in v2.0.'
 draft: false
 ---
 
@@ -8,43 +8,110 @@ draft: false
 
 # DrmPlugin
 
-EME-based DRM for music streams. Handles Widevine, FairPlay, and PlayReady key system coordination for DRM-protected audio.
-
-**Status: roadmapped for v2.1.** The plugin is exported so consumers can inspect the error and the public surface is reserved. Calling `addPlugin(DrmPlugin)` followed by `setup()` causes `use()` to throw `NotImplementedError`.
+If you need to play Widevine, FairPlay, or PlayReady protected audio streams, `DrmPlugin` is where that support will live.
+The plugin is exported in v2.0 so you can inspect the error and the public surface is already reserved for the integration.
+Full EME key system coordination ships in v2.1.
 
 ```ts
 import { DrmPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+import type { DrmOptions, DrmEvents } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
 
 Plugin id: `'music-drm'`
 
-Do not register this plugin in production.
+Do not register this plugin in production while it remains a stub.
 
 ---
 
-## Planned options
+## What it does
+
+`DrmPlugin` is a forward-reserved stub.
+Its `DrmOptions` and `DrmEvents` interfaces define the full v2.1 contract so you can write type-safe integration code against them today.
+When `use()` is called, the plugin throws `NotImplementedError` with the message `'DrmPlugin: roadmapped for v2.1. Not available in v2.0.'`.
+`addPlugin()` catches that throw internally, calls `dispose()`, and emits `plugin:failed` on the player.
+The exception never propagates to the caller.
+`dispose()` is a no-op in the stub.
+
+---
+
+## Options
+
+These options are defined in the source as the v2.1 contract.
+None of them are read in v2.0 because `use()` throws before any option is consumed.
 
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
-| `keySystem` | `string` | — | EME key system identifier. E.g. `'com.widevine.alpha'`, `'com.apple.fps'`, `'com.microsoft.playready'`. Required. |
-| `licenseUrl` | `string` | — | License server URL. Required. |
-| `certificate` | `ArrayBuffer \| string` | `undefined` | Service certificate for FairPlay (optional for Widevine/PlayReady). |
-| `customSignRequest` | `(request: Request) => Request \| Promise<Request>` | `undefined` | Optional request signer for license calls (HMAC, token injection, etc.). |
-| `transformLicenseRequest` | `(challenge: ArrayBuffer) => ArrayBuffer \| Promise<ArrayBuffer>` | `undefined` | Optional license request body transformer. |
-| `transformLicenseResponse` | `(response: ArrayBuffer) => ArrayBuffer \| Promise<ArrayBuffer>` | `undefined` | Optional license response body transformer. |
+| `keySystem` | `string` | required | EME key system identifier, e.g. `'com.widevine.alpha'`, `'com.apple.fps'`, `'com.microsoft.playready'`. |
+| `licenseUrl` | `string` | required | License server URL. |
+| `certificate` | `ArrayBuffer \| string` | `undefined` | Service certificate for FairPlay. Optional for Widevine and PlayReady. |
+| `customSignRequest` | `(request: Request) => Request \| Promise<Request>` | `undefined` | Request signer for license calls, e.g. HMAC or token injection. |
+| `transformLicenseRequest` | `(challenge: ArrayBuffer) => ArrayBuffer \| Promise<ArrayBuffer>` | `undefined` | License request body transformer. |
+| `transformLicenseResponse` | `(response: ArrayBuffer) => ArrayBuffer \| Promise<ArrayBuffer>` | `undefined` | License response body transformer. |
 
 ---
 
-## Planned events
+## Events
+
+These events are defined in `DrmEvents` and reserved for v2.1.
+The stub does not emit any of them.
 
 | Event | Payload | Description |
 | ----- | ------- | ----------- |
 | `key:requested` | `{ sessionId: string; initData: ArrayBuffer }` | EME key session was created and a license request was sent. |
-| `key:granted` | `{ sessionId: string }` | License granted — decryption is active. |
+| `key:granted` | `{ sessionId: string }` | License granted, decryption is active. |
 | `key:expired` | `{ sessionId: string }` | Key session expired. |
 | `key:revoked` | `{ sessionId: string }` | Key session was revoked. |
 | `key:error` | `{ sessionId: string; error: Error }` | License acquisition failed. |
 | `output:restricted` | `{ reason: string }` | HDCP or output protection policy blocked playback. |
 | `unsupported` | `{ reason: string }` | The key system is not supported in this environment. |
 
-The options and events documented here describe the planned v2.1 API and may change before release.
+Consumer event listeners use the `plugin:<id>:<event>` prefix form:
+
+```ts
+player.on('plugin:music-drm:key:granted', ({ sessionId }) => {
+  console.log('DRM ready, session', sessionId);
+});
+```
+
+---
+
+## Registration
+
+The plugin class is exported so your type-checking and introspection code compiles today.
+Because `addPlugin()` absorbs the `NotImplementedError` and emits `plugin:failed`, use a `plugin:failed` listener to detect and handle the stub error rather than a try/catch.
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { DrmPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+const player = nmMPlayer('main')
+  .addPlugin(DrmPlugin, {
+    keySystem: 'com.widevine.alpha',
+    licenseUrl: 'https://api.example.com/drm/license',
+  })
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+    playlist: [
+      {
+        title: 'Thaw You Out',
+        artist: 'Derek Clegg',
+        url: '/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.mp3',
+      },
+    ],
+  });
+
+// addPlugin() catches NotImplementedError internally and emits plugin:failed.
+// No exception propagates to the caller -- listen here to detect the stub.
+player.on('plugin:failed', ({ id, error }) => {
+  if (id === 'music-drm') {
+    console.warn('DRM not available in v2.0:', error.message);
+  }
+});
+```
+
+---
+
+## See also
+
+- [Plugin development](/nomercy-music-player/plugin-development), writing and registering plugins
+- [LiveTranscodingPlugin](/nomercy-music-player/plugins/live-transcoding), server-coordinated streaming
