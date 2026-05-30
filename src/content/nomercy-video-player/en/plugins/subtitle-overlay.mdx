@@ -1,12 +1,12 @@
 ---
 title: 'Subtitle Overlay'
-description: 'The SubtitleOverlayPlugin — VTT and ASS/SSA subtitle rendering.'
+description: 'The SubtitleOverlayPlugin: VTT subtitle rendering, styling, and accessibility (FCC 47 CFR 79.4, WCAG 1.4.4).'
 draft: false
 ---
 
 {/* Source: packages/nomercy-video-player-v2/src/plugins/subtitle-overlay/index.ts */}
 
-`SubtitleOverlayPlugin` renders the player's WebVTT subtitle cue stream as a positioned DOM overlay above the video element. Register it whenever you serve VTT subtitle tracks. For ASS/SSA files use `OctopusPlugin` instead — this plugin handles VTT only.
+`SubtitleOverlayPlugin` renders the player's WebVTT subtitle cue stream as a positioned DOM overlay above the video element. Register it whenever you serve VTT subtitle tracks. For ASS/SSA files use `OctopusPlugin` instead, this plugin handles VTT only.
 
 ## Plugin id
 
@@ -20,18 +20,18 @@ import { SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-play
 
 ## What it does
 
-`SubtitleOverlayPlugin` renders the player's `subtitleCue` event stream as a positioned DOM overlay above the video element. It is a pure consumer — all subtitle parsing, VTT fetching, and cue tracking live in the kit. The overlay subscribes to the single `'subtitleCue'` event and renders one `.subtitle-area` per active cue.
+`SubtitleOverlayPlugin` renders the player's `subtitleCue` event stream as a positioned DOM overlay above the video element. It is a pure consumer, all subtitle parsing, VTT fetching, and cue tracking live in the kit. The overlay subscribes to the single `'subtitleCue'` event and renders one `.subtitle-area` per active cue.
 
 Features:
 
-- One `.subtitle-area` box per active cue, pooled and reused — no DOM churn
+- One `.subtitle-area` box per active cue, pooled and reused, no DOM churn
 - WebVTT cue layout: `line`, `position`, `size`, and `align` attributes from the VTT cue are applied as CSS positioning
-- Collision detection — when two cues would overlap, the later one is displaced along the line axis
+- Collision detection, when two cues would overlap, the later one is displaced along the line axis
 - Overlay is letterbox-fit to the actual video display rectangle (not the container), so cue font size scales with the visible picture, not the player shell
 - `subtitleStyle()` settings (font family, size, color, edge style, background) are applied and update live on `'subtitleStyle'` events
 - Language tag is mirrored onto `.subtitle-text[data-language]` for CSS targeting
 
-For ASS/SSA subtitle files, add the OctopusPlugin instead — this overlay handles VTT only.
+For ASS/SSA subtitle files, add the OctopusPlugin instead, this overlay handles VTT only.
 
 ## Options
 
@@ -129,9 +129,45 @@ player.on('subtitleCue', ({ trackIndex, cues }) => {
 
 User style preferences (font size, color, background opacity) are persisted via the `ISubtitleStyleStore` adapter. The default `StorageBackedSubtitleStyleStore` writes to `localStorage`.
 
+## Accessibility
+
+The overlay is built around two formal standards, plus a few implementation choices that follow from them.
+
+### Caption placement (FCC 47 CFR 79.4)
+
+The `.subtitle-safezone` wrapper insets captions 5% from the top and bottom and 3% from the left and right of the actual video picture, not the player frame.
+A `ResizeObserver` letterbox-fits that safezone to the real video display rectangle and re-fits on fullscreen changes, so the inset always tracks the picture.
+Pillarboxed 4:3 content gets 3% of the 4:3 picture, not 3% of the wider 16:9 shell.
+This keeps captions clear of player chrome and device bezels so they stay viewable in their entirety, which is what FCC 47 CFR 79.4 requires, and it matches the placement you see on Netflix, YouTube, and Apple TV+.
+
+### Resizable text (WCAG 2.1 SC 1.4.4, Level AA)
+
+Caption text is sized with `clamp(14px, calc(var(--subtitle-scale, 1) * 2.5cqi), 56px)`.
+The `cqi` unit scales with the player's width, so captions grow with the video and follow browser zoom without losing legibility.
+The `--subtitle-scale` value comes from the user's own font-size preference, so anyone who needs bigger text can get it without leaving the player.
+The 14px floor keeps captions readable even on the smallest players, and the 56px ceiling stops them from swallowing the screen.
+That satisfies WCAG 2.1 SC 1.4.4 Resize Text: caption text scales well past 200% without losing content.
+
+### Right-to-left text
+
+Both the cue area and the cue text carry `unicode-bidi: plaintext`.
+The browser then applies the Unicode Bidirectional Algorithm to each cue's own content, so Arabic, Hebrew, and mixed-script subtitles render in the correct direction with no per-language setup.
+
+### Contrast
+
+The subtitle style system ships five edge effects (drop shadow, uniform outline, depressed, raised, and a stacked shadow) that users combine with their own text and background colours.
+The stacked-shadow preset layers several black shadows into a strong outline that holds up against whatever video sits behind it.
+The plugin does not compute a fixed contrast ratio for you, because video backgrounds keep changing, but these controls give users what they need to meet WCAG 1.4.3 on their own content.
+
+### Screen readers
+
+The overlay is visual only.
+It carries no `aria-live` region and no `role`, so assistive technology does not announce the caption text, and screen reader users are expected to follow the audio track itself.
+If your app needs on-screen captions announced, add `role="status"` and `aria-live="polite"` to the `.subtitle-safezone` element.
+
 ## See also
 
 - [Octopus plugin (ASS/SSA)](/nomercy-video-player/plugins/octopus)
 - [Subtitle Style Store adapter](/nomercy-video-player/adapters/subtitle-style-store)
-- [Cycling Methods — cycleSubtitles](/nomercy-video-player/api/cycling)
-- [Troubleshooting — subtitles not appearing](/nomercy-video-player/troubleshooting)
+- [Cycling Methods, cycleSubtitles](/nomercy-video-player/api/cycling)
+- [Troubleshooting, subtitles not appearing](/nomercy-video-player/troubleshooting)
