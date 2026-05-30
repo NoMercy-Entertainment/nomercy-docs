@@ -11,43 +11,15 @@ The Player SDK is built on a strict five-layer model. Every piece of code has a 
 
 ## The five layers
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Layer 5 — Consumer plugin                                  │
-│  Your app: NoMercy server endpoints, SignalR hubs,          │
-│  watch-party logic, anything product-specific               │
-├─────────────────────────────────────────────────────────────┤
-│  Layer 4 — Built-in plugin                                  │
-│  Shipped inside the kit or library packages.                │
-│  Generic domain behavior — EQ, Lyrics, AutoAdvance, UI.     │
-│  Zero knowledge of any server API.                          │
-├─────────────────────────────────────────────────────────────┤
-│  Layer 3 — Per-library                                      │
-│  nomercy-video-player / nomercy-music-player                │
-│  Video-specific or music-specific logic and types.          │
-│  Builds on the kit's generic engine.                        │
-├─────────────────────────────────────────────────────────────┤
-│  Layer 2 — Kit (nomercy-player-core)                        │
-│  Generic contracts: lifecycle, queue, auth pipeline,        │
-│  plugin system, event bus, i18n, storage, 28 adapter ports  │
-├─────────────────────────────────────────────────────────────┤
-│  Layer 1 — Backend                                          │
-│  IVideoBackend / IAudioBackend implementations              │
-│  Browser APIs: <video>, <audio>, MediaSource, AudioContext  │
-└─────────────────────────────────────────────────────────────┘
-```
+No layer may reach "down" past the layer below it or "up" into a layer above it except through a defined port. Listed highest to lowest:
 
----
-
-## What each layer knows
-
-| Layer              | Package                                        | Knows about                                                                |
-| ------------------ | ---------------------------------------------- | -------------------------------------------------------------------------- |
-| 1. Backend         | `Html5VideoBackend`, `WebAudioBackend`, etc.   | Browser media APIs only                                                    |
-| 2. Kit             | `nomercy-player-core`                          | Generic contracts — nothing video- or music-specific                       |
-| 3. Per-library     | `nomercy-video-player`, `nomercy-music-player` | Domain types (`VideoPlaylistItem`, `MusicPlaylistItem`) and domain methods |
-| 4. Built-in plugin | Plugins shipped inside packages                | Generic behavior (UI, EQ, AutoAdvance). No server endpoints.               |
-| 5. Consumer plugin | Your app code                                  | Everything — server endpoints, SignalR, auth tokens, business rules        |
+<LayerStack layers={[
+  { n: 5, name: 'Consumer plugin', pkg: 'Your app code', knows: 'Everything — NoMercy server endpoints, SignalR hubs, auth tokens, watch-party logic, business rules.' },
+  { n: 4, name: 'Built-in plugin', pkg: 'Shipped inside the kit / library packages', knows: 'Generic behaviour — EQ, Lyrics, AutoAdvance, UI. No knowledge of any server API.' },
+  { n: 3, name: 'Per-library', pkg: 'nomercy-video-player / nomercy-music-player', knows: 'Domain types (VideoPlaylistItem, MusicPlaylistItem) and domain methods. Builds on the kit engine.' },
+  { n: 2, name: 'Kit', pkg: 'nomercy-player-core', knows: 'Generic contracts: lifecycle, queue, auth pipeline, plugin system, event bus, i18n, storage, 28 adapter ports.' },
+  { n: 1, name: 'Backend', pkg: 'Html5VideoBackend / WebAudioBackend', knows: 'Browser media APIs only — the video/audio elements, MediaSource, AudioContext.' },
+]} />
 
 ---
 

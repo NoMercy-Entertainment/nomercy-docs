@@ -52,3 +52,6 @@ export { Properties, Property } from './Properties';
 export { IconCards, IconCard } from './IconCards';
 export { Hero } from './Hero';
 export { LogoCards, LogoCard } from './LogoCards';
+
+// Diagram components
+export { LayerStack } from './LayerStack';
