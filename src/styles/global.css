@@ -97,13 +97,19 @@
     overflow-wrap: anywhere;
   }
 
-  /* Block code (<pre><code>) keeps newlines AND wraps long lines so they
-     never run off the page. Better than horizontal scroll for prose-reading. */
+  /* Block code (<pre><code>) preserves its formatting and does NOT wrap.
+     Long lines scroll horizontally (the <pre> carries overflow-x-auto) rather
+     than breaking mid-token, which mangles code. */
   .prose pre,
   .prose pre code {
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-wrap: anywhere;
+    white-space: pre;
+  }
+
+  /* Paragraphs honour source line breaks: one sentence per line in the .mdx
+     renders as one line here, while long lines still wrap at the container
+     width. Code is exempt (handled above). */
+  .prose p {
+    white-space: pre-line;
   }
 
   /* Inline code inside table cells: do not break mid-token. */

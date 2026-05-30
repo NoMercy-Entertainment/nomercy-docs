@@ -99,6 +99,10 @@ nmplayer('main').setup({
 
 If the sync fails or hasn't run yet, `offsetMs` stays 0 and the clock degrades gracefully to `Date.now()`.
 
+This sync uses the platform `fetch` on purpose, not the kit's built-in `authFetch`, because the round-trip measurement must not be thrown off by automatic retries.
+That is the exception, not the rule.
+For ordinary data requests, prefer the built-in client: `authFetch` outside a plugin, or `this.fetch` inside one, so your auth and retry policy are applied for you. See [Auth and Fetch](/nomercy-player-kit/auth-fetch).
+
 For tests, a controllable fake is the main use case:
 
 ```ts
