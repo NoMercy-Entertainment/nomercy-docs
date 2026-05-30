@@ -19,7 +19,6 @@ import {
 } from 'react'
 import Highlighter from 'react-highlight-words'
 
-import { navigation } from './Navigation'
 import { useMobileNavigationStore } from './MobileNavigation'
 
 // Define Result type for our search

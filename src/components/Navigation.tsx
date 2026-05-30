@@ -2,7 +2,7 @@
 
 import clsx from 'clsx';
 import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
-import { useRef, useState, useEffect } from 'react';
+import { forwardRef, useRef, useState, useEffect } from 'react';
 
 import { useIsInsideMobileNavigation } from './MobileNavigation';
 import { useSectionStore, type Section } from './SectionProvider';
@@ -10,12 +10,16 @@ import { Tag } from './protocol/Tag';
 import { remToPx } from '@/lib/remToPx';
 import { CloseButton } from '@headlessui/react';
 
-// Simple Link component to replace next/link
-const Link = ({ href, className, children, ...props }: { href: string; className?: string; children: React.ReactNode; } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-  <a href={href} className={className} {...props}>
-    {children}
-  </a>
+// Simple Link component to replace next/link. forwardRef because @headlessui's
+// CloseButton renders it via `as={Link}` and passes a ref.
+const Link = forwardRef<HTMLAnchorElement, { href: string; className?: string; children: React.ReactNode } & React.AnchorHTMLAttributes<HTMLAnchorElement>>(
+  ({ href, className, children, ...props }, ref) => (
+    <a ref={ref} href={href} className={className} {...props}>
+      {children}
+    </a>
+  ),
 );
+Link.displayName = 'Link';
 
 // Drop a trailing slash (except for the root) so `/a/b/` and `/a/b` compare equal.
 function normalizePath(path: string) {
@@ -152,14 +156,12 @@ function NavLinkItem({
 // Sub-item active-on-scroll: subscribes to visibleSections from the
 // SectionProvider so the currently-most-visible h2 in the article gets
 // the active style. Kept as a child component so the subscription only
-// fires when the parent page is the active nav link.
-function AnchorSectionList({
-  link,
-  sections,
-}: {
+// fires when the parent page is the active nav link. forwardRef because it is
+// a direct child of AnimatePresence (mode="popLayout"), which passes a ref.
+const AnchorSectionList = forwardRef<HTMLUListElement, {
   link: NavLink;
   sections: Array<Section>;
-}) {
+}>(function AnchorSectionList({ link, sections }, ref) {
   const visibleSections = useSectionStore((state) => state.visibleSections);
   // SectionProvider puts the active section (last heading scrolled past or
   // the first heading if none scrolled past yet) at index 0 — back to the
@@ -168,6 +170,7 @@ function AnchorSectionList({
 
   return (
     <motion.ul
+      ref={ref}
       role="list"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1, transition: { delay: 0.1 } }}
@@ -187,7 +190,8 @@ function AnchorSectionList({
       ))}
     </motion.ul>
   );
-}
+});
+AnchorSectionList.displayName = 'AnchorSectionList';
 
 function VisibleSectionHighlight({
   group,

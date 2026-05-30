@@ -12,7 +12,6 @@ import {
 } from './MobileNavigation';
 import { MobileSearch, Search } from './Search';
 import { ThemeToggle } from './ThemeToggle';
-import { ReaderToggle } from './ReaderToggle';
 import { CloseButton } from '@headlessui/react';
 
 // Navigation types
@@ -141,7 +140,6 @@ export const Header = forwardRef<
         <div className="hidden md:block md:h-5 md:w-px md:bg-zinc-900/10 md:dark:bg-white/15" />
         <div className="flex gap-4">
           <MobileSearch />
-          <ReaderToggle />
           <ThemeToggle />
         </div>
       </div>
