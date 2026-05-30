@@ -11,9 +11,10 @@ interface Props {
   title: string;
   description?: string;
   sections?: Array<{ id: string; title: string; tag?: string }>;
+  landing?: boolean;
 }
 
-const { title, description, sections = [] } = Astro.props;
+const { title, description, sections = [], landing = false } = Astro.props;
 const pathname = Astro.url.pathname;
 
 // Fetch navigation from all collections
@@ -65,6 +66,11 @@ const allSections: Record<
           } else {
             document.documentElement.classList.remove("dark");
           }
+
+          // Apply reader mode before paint so the layout doesn't jump.
+          if (localStorage.getItem("reader-mode") === "1") {
+            document.documentElement.classList.add("reader");
+          }
         } catch (e) {
           // Ignore errors
         }
@@ -89,6 +95,7 @@ const allSections: Record<
           navigation={navigation}
           apiGroups={apiGroups}
           initialPathname={normalizedPathname}
+          landing={landing}
           client:load
         >
           <slot />

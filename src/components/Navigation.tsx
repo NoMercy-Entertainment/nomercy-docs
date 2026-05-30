@@ -17,19 +17,24 @@ const Link = ({ href, className, children, ...props }: { href: string; className
   </a>
 );
 
-// Hook to get current pathname (client-side only)
-// Uses initialPathname from server to prevent flash of wrong content
+// Drop a trailing slash (except for the root) so `/a/b/` and `/a/b` compare equal.
+function normalizePath(path: string) {
+  return path.length > 1 ? path.replace(/\/+$/, '') : path;
+}
+
+// Hook to get current pathname. `initialPathname` (the server pathname) MUST be
+// threaded in wherever this drives active-state, or the server renders with the
+// fallback and the client keeps that stale markup after a hydration mismatch —
+// leaving the active link permanently unhighlighted.
 function usePathname(initialPathname?: string) {
   const [pathname, setPathname] = useState(() => {
-    // Use initial pathname if provided (from server)
-    if (initialPathname) return initialPathname;
-    // Try to get from window if available (client-side)
-    if (typeof window !== 'undefined') return window.location.pathname;
+    if (initialPathname) return normalizePath(initialPathname);
+    if (typeof window !== 'undefined') return normalizePath(window.location.pathname);
     return '/';
   });
 
   useEffect(() => {
-    setPathname(window.location.pathname);
+    setPathname(normalizePath(window.location.pathname));
   }, []);
 
   return pathname;
@@ -253,16 +258,18 @@ function ActivePageMarker({
 function NavigationGroup({
   group,
   className,
+  initialPathname,
 }: {
   group: NavGroup;
   className?: string;
+  initialPathname?: string;
 }) {
   // If this is the mobile navigation then we always render the initial
   // state, so that the state does not change during the close animation.
   // The state will still update when we re-open (re-render) the navigation.
   let isInsideMobileNavigation = useIsInsideMobileNavigation();
   let [pathname, sections] = useInitialValue(
-    [usePathname(), useSectionStore((s) => s.sections)],
+    [usePathname(initialPathname), useSectionStore((s) => s.sections)],
     isInsideMobileNavigation,
   );
 
@@ -438,6 +445,7 @@ export function Navigation({
             key={group.title}
             group={group}
             className={groupIndex === 0 ? 'mt-0' : ''}
+            initialPathname={initialPathname}
           />
         ))}
       </ul>

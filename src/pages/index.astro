@@ -1,30 +1,81 @@
 ---
-import { getEntry } from 'astro:content';
 import MarkdownLayout from '../layouts/MarkdownLayout.astro';
-import * as mdxComponents from '../components/protocol';
 
-const indexDoc = await getEntry('nomercy-api', 'en/index');
-if (!indexDoc) {
-  return Astro.redirect('/nomercy-media-server/overview');
-}
-
-const { Content, headings } = await indexDoc.render();
-
-const data = indexDoc.data as any;
-let sections = data.sections;
-
-if (!sections || sections.length === 0) {
-  sections = [
-    { title: 'Documentation', id: 'documentation' },
-    { title: 'Getting Started', id: 'getting-started' },
-  ];
-}
+// Product hub. Each card links to that product's docs landing. Titles/blurbs are
+// product-level and intentionally not pulled from a single collection — this page
+// is the front door to all of them.
+const products = [
+  {
+    title: 'Media Server',
+    href: '/nomercy-media-server/overview',
+    blurb: 'The self-hosted core — library scanning, metadata, encoding, and streaming on your own hardware.',
+  },
+  {
+    title: 'Web App',
+    href: '/nomercy-app-web/overview',
+    blurb: 'The browser client: an installable mobile PWA and a full desktop experience.',
+  },
+  {
+    title: 'Android',
+    href: '/nomercy-app-android/overview',
+    blurb: 'The native app for Android phones and Android TV.',
+  },
+  {
+    title: 'Player Core',
+    href: '/nomercy-player-kit/overview',
+    blurb: 'The headless engine both players are built on — lifecycle, queue, plugins, adapters.',
+  },
+  {
+    title: 'Video Player',
+    href: '/nomercy-video-player/overview',
+    blurb: 'HLS video playback with a plugin system: subtitles, chapters, cast, and a full UI.',
+  },
+  {
+    title: 'Music Player',
+    href: '/nomercy-music-player/overview',
+    blurb: 'Audio playback with crossfade, gapless, synced lyrics, and a Web Audio equalizer.',
+  },
+  {
+    title: 'API Reference',
+    href: '/nomercy-api/overview',
+    blurb: 'REST endpoints and SignalR hubs exposed by the media server.',
+  },
+];
 ---
 
 <MarkdownLayout
-  title={indexDoc.data.title}
-  description={indexDoc.data.description}
-  sections={sections}
+  title="NoMercy Documentation"
+  description="Documentation for the NoMercy media server, apps, and player libraries."
+  landing={true}
 >
-  <Content components={mdxComponents} />
+  <div class="mx-auto w-full max-w-6xl py-16 sm:py-20">
+    <div class="max-w-2xl">
+      <h1 class="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl dark:text-white">
+        NoMercy Documentation
+      </h1>
+      <p class="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
+        Own your media, get a polished streaming experience on your own hardware. Pick a
+        product below, or jump straight to <a href="/nomercy-media-server/overview" class="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400">setting up the server</a>.
+      </p>
+    </div>
+
+    <div class="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {products.map((product) => (
+        <a
+          href={product.href}
+          class="group flex flex-col rounded-2xl border border-zinc-200 bg-white/50 p-6 transition hover:border-emerald-400 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-800/30 dark:hover:border-emerald-400"
+        >
+          <h2 class="text-base font-semibold text-zinc-900 group-hover:text-emerald-600 dark:text-white dark:group-hover:text-emerald-400">
+            {product.title}
+          </h2>
+          <p class="mt-2 flex-auto text-sm text-zinc-600 dark:text-zinc-400">
+            {product.blurb}
+          </p>
+          <span class="mt-4 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+            Read the docs <span aria-hidden="true">&rarr;</span>
+          </span>
+        </a>
+      ))}
+    </div>
+  </div>
 </MarkdownLayout>
