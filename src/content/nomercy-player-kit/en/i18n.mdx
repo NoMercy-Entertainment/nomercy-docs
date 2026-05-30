@@ -55,19 +55,19 @@ Merged with `loadTranslations` output. Inline translations take precedence.
 loadTranslations?: (lang: string) => Promise<Translations>
 ```
 
-Async loader called during `setup()` (if `language` is set) or when `setLanguage(lang)` is called at runtime.
+Async loader called during `setup()` (if `language` is set) or when `language(lang)` is called at runtime.
 
 ---
 
 ## Runtime language switching
 
 ```ts
-await player.setLanguage('fr');
+await player.language('fr');
 
 player.language(); // 'fr'
 ```
 
-`setLanguage` calls `loadTranslations('fr')`, merges the result with any inline translations, and emits a `language` event:
+`language('fr')` calls `loadTranslations('fr')`, merges the result with any inline translations, and emits a `language` event:
 
 ```ts
 player.on('language', ({ lang }) => {
@@ -109,11 +109,11 @@ class I18nextAdapter implements ITranslator {
   t(key: string, vars?: Record<string, string | number>): string {
     return i18n.t(key, vars);
   }
-  setLanguage(lang: string): Promise<void> {
+  language(): string;
+  language(lang: string): Promise<void>;
+  language(lang?: string): string | Promise<void> {
+    if (lang === undefined) return i18n.language;
     return i18n.changeLanguage(lang);
-  }
-  language(): string {
-    return i18n.language;
   }
 }
 

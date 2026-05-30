@@ -1,6 +1,6 @@
 ---
 title: 'Writing a Backend'
-description: 'The BackendShape contract, kit call points, and wiring a custom backend into either the video or music player.'
+description: 'The IVideoBackend / IAudioBackend contracts and wiring a custom backend into either the video or music player.'
 ---
 
 # Writing a Backend
@@ -32,189 +32,236 @@ Replace the backend only when none of the above covers the use case.
 ```ts
 player.setup({
   backendFactory: (kind, config) => {
-    if (kind === 'video') return new MyVideoBackend(config.container);
-    return new MyAudioBackend();
+    return new MyVideoBackend(config.container);
   },
 });
 ```
 
-`backendFactory` receives `kind: 'video' | 'audio'` and a `config` object that includes the player container element for video. Return an object that implements `IVideoBackend` or `IAudioBackend`.
+`backendFactory` receives the `kind` string and a `config` object that includes the player container element. Return an object that implements `IVideoBackend` or `IAudioBackend`.
 
 ---
 
 ## The IVideoBackend interface
 
-```ts
-interface IVideoBackend {
-  // Lifecycle:
-  load(src: string): void;
-  destroy(): void;
-
-  // Transport:
-  play(): Promise<void>;
-  pause(): void;
-  seek(time: number): void;
-
-  // State readers:
-  getCurrentTime(): number;
-  getDuration(): number;
-  getVolume(): number;
-  getPlaybackRate(): number;
-  isPaused(): boolean;
-  isEnded(): boolean;
-  isStalled(): boolean;
-
-  // State writers:
-  setVolume(value: number): void;
-  setMuted(value: boolean): void;
-  setPlaybackRate(rate: number): void;
-  setCurrentTime(time: number): void;
-
-  // Quality / ABR:
-  getQualityLevels(): QualityLevel[];
-  getCurrentQualityLevel(): number;
-  setQualityLevel(index: number): void;
-
-  // Events — your backend must emit these on the provided emitter:
-  attachEmitter(emitter: IBackendEmitter): void;
-}
-```
-
----
-
-## IBackendEmitter — events your backend must fire
-
-The kit injects an `IBackendEmitter` via `attachEmitter()`. Your backend calls these methods when the underlying player fires its native events:
+All methods follow the overloaded-function convention: stateful values are read with no argument and written with an argument.
 
 ```ts
-interface IBackendEmitter {
-  onPlay(): void;
-  onPause(): void;
-  onEnded(): void;
-  onError(error: BackendError): void;
-  onTimeUpdate(time: number): void;
-  onDurationChange(duration: number): void;
-  onLevels(levels: QualityLevel[]): void;
-  onLevelSwitched(index: number): void;
-  onBufferingStart(): void;
-  onBufferingEnd(): void;
-  onCanPlay(): void;
-  onCanPlayThrough(): void;
-  onWaiting(): void;
-  onSeeked(): void;
-  onVolumeChange(volume: number, muted: boolean): void;
-}
+import type { IVideoBackend } from '@nomercy-entertainment/nomercy-video-player';
 ```
 
-Every event the kit surface exposes (e.g. `player.on('play', ...)`) is triggered by these emitter calls. If your backend misses one, the corresponding player event never fires.
+### Lifecycle
+
+| Method    | Signature                               | Description                                |
+| --------- | --------------------------------------- | ------------------------------------------ |
+| `load`    | `(url: string, opts?) => Promise<void>` | Load a media URL                           |
+| `unload`  | `() => void`                            | Clear the source                           |
+| `dispose` | `() => void`                            | Full teardown                              |
+
+### Transport
+
+| Method  | Signature             | Description      |
+| ------- | --------------------- | ---------------- |
+| `play`  | `() => Promise<void>` | Begin playback   |
+| `pause` | `() => void`          | Pause playback   |
+| `stop`  | `() => void`          | Stop playback    |
+
+### Time and position
+
+| Method               | Signature                | Description                 |
+| -------------------- | ------------------------ | --------------------------- |
+| `currentTime()`      | `() => number`           | Current position in seconds |
+| `currentTime(t)`     | `(t: number) => void`    | Seek to position `t`        |
+| `duration()`         | `() => number`           | Total duration in seconds   |
+| `buffered()`         | `() => number`           | End of buffered range       |
+| `bufferedRanges()`   | `() => TimeRanges`       | Full buffered `TimeRanges`  |
+| `seekable()`         | `() => TimeRanges`       | Seekable range              |
+| `playbackRate()`     | `() => number`           | Current playback rate       |
+| `playbackRate(rate)` | `(rate: number) => void` | Set playback rate           |
+
+### Volume
+
+| Method      | Signature             | Description              |
+| ----------- | --------------------- | ------------------------ |
+| `volume()`  | `() => number`        | Current volume (0–1)     |
+| `volume(v)` | `(v: number) => void` | Set volume               |
+| `mute()`    | `() => void`          | Mute audio               |
+| `unmute()`  | `() => void`          | Unmute audio             |
+
+### Events
+
+Backends emit through a typed `on` / `off` pair. The kit subscribes in `backend()`:
+
+```ts
+backend.on('play', () => { /* ... */ });
+backend.on('timeupdate', () => { /* ... */ });
+backend.on('ended', () => { /* ... */ });
+```
+
+All event names and payload shapes are defined in `BackendEventPayload`. Your backend must call `on` / `off` with the same signature.
 
 ---
 
 ## Minimal custom backend
 
-A skeleton that wraps a generic `<video>` element (equivalent to the built-in `NativeBackend`):
+A skeleton that wraps a `<video>` element:
 
 ```ts
 import type {
   IVideoBackend,
-  IBackendEmitter,
+  BackendEvent,
+  BackendEventPayload,
+  BackendState,
+  BackendLoaderState,
   QualityLevel,
 } from '@nomercy-entertainment/nomercy-video-player';
+import type { AudioTrack, SubtitleTrack } from '@nomercy-entertainment/nomercy-player-core';
+
+type Listener<E extends BackendEvent> = (data?: BackendEventPayload[E]) => void;
 
 export class MyNativeBackend implements IVideoBackend {
+  readonly kind = 'html5' as const;
+
   private video: HTMLVideoElement;
-  private emitter: IBackendEmitter | null = null;
+  private listeners = new Map<string, Set<Listener<any>>>();
 
   constructor(container: HTMLElement) {
     this.video = document.createElement('video');
     this.video.style.width = '100%';
     this.video.style.height = '100%';
     container.appendChild(this.video);
-  }
 
-  attachEmitter(emitter: IBackendEmitter): void {
-    this.emitter = emitter;
-    // Wire native <video> events to the kit emitter:
-    this.video.addEventListener('play', () => emitter.onPlay());
-    this.video.addEventListener('pause', () => emitter.onPause());
-    this.video.addEventListener('ended', () => emitter.onEnded());
-    this.video.addEventListener('timeupdate', () => emitter.onTimeUpdate(this.video.currentTime));
-    this.video.addEventListener('durationchange', () =>
-      emitter.onDurationChange(this.video.duration),
-    );
-    this.video.addEventListener('canplay', () => emitter.onCanPlay());
-    this.video.addEventListener('waiting', () => emitter.onBufferingStart());
-    this.video.addEventListener('playing', () => emitter.onBufferingEnd());
-    this.video.addEventListener('seeked', () => emitter.onSeeked());
-    this.video.addEventListener('volumechange', () =>
-      emitter.onVolumeChange(this.video.volume, this.video.muted),
-    );
-    this.video.addEventListener('error', () => {
-      emitter.onError({ code: 'MEDIA_ERR', message: this.video.error?.message ?? 'Unknown error' });
+    // Bridge native element events to the backend's own emitter:
+    this.video.addEventListener('play', (event) => this._emit('play', event as Event));
+    this.video.addEventListener('pause', (event) => this._emit('pause', event as Event));
+    this.video.addEventListener('ended', (event) => this._emit('ended', event as Event));
+    this.video.addEventListener('timeupdate', (event) => this._emit('timeupdate', event as Event));
+    this.video.addEventListener('loadstart', (event) => this._emit('loadstart', event as Event));
+    this.video.addEventListener('loadedmetadata', () => {
+      this._emit('loadedmetadata', {
+        url: this.video.src,
+        kind: 'html5',
+        duration: this.video.duration,
+      });
     });
+    this.video.addEventListener('canplay', (event) => this._emit('canplay', event as Event));
+    this.video.addEventListener('waiting', (event) => this._emit('waiting', event as Event));
+    this.video.addEventListener('playing', (event) => this._emit('playing', event as Event));
+    this.video.addEventListener('emptied', (event) => this._emit('emptied', event as Event));
   }
 
-  load(src: string): void {
-    this.video.src = src;
+  // Lifecycle
+  async load(url: string): Promise<void> {
+    this.video.src = url;
+    this.video.load();
   }
-  destroy(): void {
+
+  unload(): void {
     this.video.src = '';
+    this.video.load();
+  }
+
+  dispose(): void {
+    this.unload();
     this.video.remove();
-  }
-  play(): Promise<void> {
-    return this.video.play();
-  }
-  pause(): void {
-    this.video.pause();
-  }
-  seek(time: number): void {
-    this.video.currentTime = time;
+    this.listeners.clear();
   }
 
-  getCurrentTime(): number {
-    return this.video.currentTime;
-  }
-  getDuration(): number {
-    return this.video.duration;
-  }
-  getVolume(): number {
-    return this.video.volume;
-  }
-  getPlaybackRate(): number {
-    return this.video.playbackRate;
-  }
-  isPaused(): boolean {
-    return this.video.paused;
-  }
-  isEnded(): boolean {
-    return this.video.ended;
-  }
-  isStalled(): boolean {
-    return this.video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA;
+  // Transport
+  play(): Promise<void> { return this.video.play(); }
+  pause(): void { this.video.pause(); }
+  stop(): void { this.video.pause(); this.video.currentTime = 0; }
+
+  // Time / position
+  currentTime(): number;
+  currentTime(t: number): void;
+  currentTime(t?: number): number | void {
+    if (t === undefined) return this.video.currentTime;
+    this.video.currentTime = t;
   }
 
-  setVolume(value: number): void {
-    this.video.volume = value;
+  duration(): number { return this.video.duration; }
+
+  buffered(): number {
+    const ranges = this.video.buffered;
+    return ranges.length > 0 ? ranges.end(ranges.length - 1) : 0;
   }
-  setMuted(value: boolean): void {
-    this.video.muted = value;
-  }
-  setPlaybackRate(rate: number): void {
+
+  bufferedRanges(): TimeRanges { return this.video.buffered; }
+  seekable(): TimeRanges { return this.video.seekable; }
+
+  playbackRate(): number;
+  playbackRate(rate: number): void;
+  playbackRate(rate?: number): number | void {
+    if (rate === undefined) return this.video.playbackRate;
     this.video.playbackRate = rate;
   }
-  setCurrentTime(time: number): void {
-    this.video.currentTime = time;
+
+  // Volume
+  volume(): number;
+  volume(v: number): void;
+  volume(v?: number): number | void {
+    if (v === undefined) return this.video.volume;
+    this.video.volume = v;
   }
 
-  // No ABR levels for native backend:
-  getQualityLevels(): QualityLevel[] {
-    return [];
+  mute(): void { this.video.muted = true; }
+  unmute(): void { this.video.muted = false; }
+
+  // Video-specific (no ABR on native backend)
+  videoWidth(): number { return this.video.videoWidth; }
+  videoHeight(): number { return this.video.videoHeight; }
+  audioTracks(): AudioTrack[] { return []; }
+  setAudioTrack(_idx: number): void { /* no-op */ }
+  subtitleTracks(): SubtitleTrack[] { return []; }
+  setSubtitleTrack(_idx: number | null): void { /* no-op */ }
+  qualityLevels(): QualityLevel[] { return []; }
+  setQuality(_idx: number | 'auto'): void { /* no-op */ }
+  currentLevel(): number { return -1; }
+
+  // State
+  state(): BackendState { return this.video.paused ? 'paused' : 'playing'; }
+
+  // Raw element access
+  mediaElement(): HTMLVideoElement { return this.video; }
+
+  // MediaStream capture
+  captureStream(): MediaStream {
+    return (this.video as HTMLVideoElement & { captureStream?: () => MediaStream }).captureStream?.() ?? new MediaStream();
   }
-  getCurrentQualityLevel(): number {
-    return -1;
+
+  // Audio output
+  async setSinkId(deviceId: string): Promise<void> {
+    const el = this.video as HTMLVideoElement & { setSinkId?: (id: string) => Promise<void> };
+    await el.setSinkId?.(deviceId);
   }
-  setQualityLevel(_index: number): void {
-    /* no-op */
+
+  getSinkId(): string {
+    const el = this.video as HTMLVideoElement & { sinkId?: string };
+    return el.sinkId ?? '';
+  }
+
+  // EME / DRM
+  mediaKeys(): MediaKeys | undefined { return this.video.mediaKeys ?? undefined; }
+  async setMediaKeys(keys: MediaKeys): Promise<void> { await this.video.setMediaKeys(keys); }
+  outputProtectionState(): 'unrestricted' | 'restricted' | 'unsupported' { return 'unrestricted'; }
+
+  // Loader backpressure (no-ops for native element)
+  pauseLoader(): void { /* no-op */ }
+  resumeLoader(): void { /* no-op */ }
+  loaderState(): BackendLoaderState { return 'running'; }
+
+  // Events
+  on<E extends BackendEvent>(event: E, fn: Listener<E>): void {
+    if (!this.listeners.has(event)) this.listeners.set(event, new Set());
+    this.listeners.get(event)!.add(fn as Listener<any>);
+  }
+
+  off<E extends BackendEvent>(event: E, fn: Listener<E>): void {
+    this.listeners.get(event)?.delete(fn as Listener<any>);
+  }
+
+  private _emit<E extends BackendEvent>(event: E, data?: BackendEventPayload[E]): void {
+    this.listeners.get(event)?.forEach(fn => fn(data));
   }
 }
 ```
@@ -223,7 +270,7 @@ Register it:
 
 ```ts
 player.setup({
-  backendFactory: (kind, config) => new MyNativeBackend(config.container),
+  backendFactory: (_kind, config) => new MyNativeBackend(config.container),
 });
 ```
 
@@ -231,65 +278,120 @@ player.setup({
 
 ## Shaka Player backend example
 
-Shaka Player is a DASH/HLS player from Google. Wrapping it:
+Shaka Player is a DASH/HLS player from Google. The Shaka SDK uses its own `getVariantTracks()` / `selectVariantTrack()` API — those are Shaka's methods, not the kit's. Your backend wraps them and exposes the kit's overloaded-function surface:
 
 ```ts
 import shaka from 'shaka-player';
 import type {
   IVideoBackend,
-  IBackendEmitter,
+  BackendEvent,
+  BackendEventPayload,
+  BackendState,
+  BackendLoaderState,
   QualityLevel,
 } from '@nomercy-entertainment/nomercy-video-player';
+import type { AudioTrack, SubtitleTrack } from '@nomercy-entertainment/nomercy-player-core';
+
+type Listener<E extends BackendEvent> = (data?: BackendEventPayload[E]) => void;
 
 export class ShakaBackend implements IVideoBackend {
+  readonly kind = 'html5' as const;
+
   private shakaPlayer: shaka.Player;
   private video: HTMLVideoElement;
-  private emitter: IBackendEmitter | null = null;
+  private listeners = new Map<string, Set<Listener<any>>>();
 
   constructor(container: HTMLElement) {
     this.video = document.createElement('video');
     container.appendChild(this.video);
     this.shakaPlayer = new shaka.Player();
     this.shakaPlayer.attach(this.video);
-  }
 
-  attachEmitter(emitter: IBackendEmitter): void {
-    this.emitter = emitter;
+    this.video.addEventListener('play', (event) => this._emit('play', event as Event));
+    this.video.addEventListener('pause', (event) => this._emit('pause', event as Event));
+    this.video.addEventListener('ended', (event) => this._emit('ended', event as Event));
+    this.video.addEventListener('timeupdate', (event) => this._emit('timeupdate', event as Event));
+    this.video.addEventListener('loadstart', (event) => this._emit('loadstart', event as Event));
+    this.video.addEventListener('loadedmetadata', () => {
+      this._emit('loadedmetadata', {
+        url: this.video.src,
+        kind: 'html5',
+        duration: this.video.duration,
+      });
+    });
+    this.video.addEventListener('canplay', (event) => this._emit('canplay', event as Event));
+    this.video.addEventListener('waiting', (event) => this._emit('waiting', event as Event));
+    this.video.addEventListener('playing', (event) => this._emit('playing', event as Event));
+    this.video.addEventListener('emptied', (event) => this._emit('emptied', event as Event));
 
-    // Wire native <video> events:
-    this.video.addEventListener('play', () => emitter.onPlay());
-    this.video.addEventListener('pause', () => emitter.onPause());
-    this.video.addEventListener('ended', () => emitter.onEnded());
-    this.video.addEventListener('timeupdate', () => emitter.onTimeUpdate(this.video.currentTime));
-    this.video.addEventListener('durationchange', () =>
-      emitter.onDurationChange(this.video.duration),
-    );
-    this.video.addEventListener('canplay', () => emitter.onCanPlay());
-    this.video.addEventListener('waiting', () => emitter.onBufferingStart());
-    this.video.addEventListener('playing', () => emitter.onBufferingEnd());
-    this.video.addEventListener('seeked', () => emitter.onSeeked());
-
-    // Shaka-specific events:
+    // Shaka-specific: bridge variant changes to level-switched
     this.shakaPlayer.addEventListener('variantchanged', () => {
       const variant = this.shakaPlayer.getVariantTracks().find((t) => t.active);
-      if (variant) emitter.onLevelSwitched(variant.id);
-    });
-
-    this.shakaPlayer.addEventListener('error', (event: Event) => {
-      const shakaEvent = event as shaka.util.Error;
-      emitter.onError({ code: String(shakaEvent.code), message: shakaEvent.message });
+      if (variant) this._emit('level-switched', { level: variant.id });
     });
   }
 
-  load(src: string): void {
-    // After attaching, load the manifest:
-    this.shakaPlayer.load(src).then(() => {
-      const levels = this.getQualityLevels();
-      this.emitter?.onLevels(levels);
-    });
+  async load(url: string): Promise<void> {
+    await this.shakaPlayer.load(url);
+    const levels = this.qualityLevels();
+    this._emit('levels', { levels });
   }
 
-  getQualityLevels(): QualityLevel[] {
+  unload(): void { this.shakaPlayer.unload(); }
+
+  async dispose(): Promise<void> {
+    await this.shakaPlayer.destroy();
+    this.video.remove();
+    this.listeners.clear();
+  }
+
+  play(): Promise<void> { return this.video.play(); }
+  pause(): void { this.video.pause(); }
+  stop(): void { this.video.pause(); this.video.currentTime = 0; }
+
+  currentTime(): number;
+  currentTime(t: number): void;
+  currentTime(t?: number): number | void {
+    if (t === undefined) return this.video.currentTime;
+    this.video.currentTime = t;
+  }
+
+  duration(): number { return this.video.duration; }
+
+  buffered(): number {
+    const ranges = this.video.buffered;
+    return ranges.length > 0 ? ranges.end(ranges.length - 1) : 0;
+  }
+
+  bufferedRanges(): TimeRanges { return this.video.buffered; }
+  seekable(): TimeRanges { return this.video.seekable; }
+
+  playbackRate(): number;
+  playbackRate(rate: number): void;
+  playbackRate(rate?: number): number | void {
+    if (rate === undefined) return this.video.playbackRate;
+    this.video.playbackRate = rate;
+  }
+
+  volume(): number;
+  volume(v: number): void;
+  volume(v?: number): number | void {
+    if (v === undefined) return this.video.volume;
+    this.video.volume = v;
+  }
+
+  mute(): void { this.video.muted = true; }
+  unmute(): void { this.video.muted = false; }
+
+  videoWidth(): number { return this.video.videoWidth; }
+  videoHeight(): number { return this.video.videoHeight; }
+  audioTracks(): AudioTrack[] { return []; }
+  setAudioTrack(_idx: number): void { /* no-op */ }
+  subtitleTracks(): SubtitleTrack[] { return []; }
+  setSubtitleTrack(_idx: number | null): void { /* no-op */ }
+
+  // Shaka's getVariantTracks() is Shaka's own SDK API — wrapped here:
+  qualityLevels(): QualityLevel[] {
     return this.shakaPlayer.getVariantTracks().map((track) => ({
       id: track.id,
       width: track.width ?? 0,
@@ -299,64 +401,58 @@ export class ShakaBackend implements IVideoBackend {
     }));
   }
 
-  getCurrentQualityLevel(): number {
+  setQuality(idx: number | 'auto'): void {
+    if (idx === 'auto') {
+      this.shakaPlayer.configure({ abr: { enabled: true } });
+      return;
+    }
+    const tracks = this.shakaPlayer.getVariantTracks();
+    const target = tracks.find((t) => t.id === idx);
+    if (target) this.shakaPlayer.selectVariantTrack(target, true);
+  }
+
+  currentLevel(): number {
     const active = this.shakaPlayer.getVariantTracks().find((t) => t.active);
     return active?.id ?? -1;
   }
 
-  setQualityLevel(id: number): void {
-    const tracks = this.shakaPlayer.getVariantTracks();
-    const target = tracks.find((t) => t.id === id);
-    if (target) this.shakaPlayer.selectVariantTrack(target, true);
+  state(): BackendState { return this.video.paused ? 'paused' : 'playing'; }
+
+  mediaElement(): HTMLVideoElement { return this.video; }
+
+  captureStream(): MediaStream {
+    return (this.video as HTMLVideoElement & { captureStream?: () => MediaStream }).captureStream?.() ?? new MediaStream();
   }
 
-  async destroy(): Promise<void> {
-    await this.shakaPlayer.destroy();
-    this.video.remove();
+  async setSinkId(deviceId: string): Promise<void> {
+    const el = this.video as HTMLVideoElement & { setSinkId?: (id: string) => Promise<void> };
+    await el.setSinkId?.(deviceId);
   }
 
-  // Delegate remaining methods to <video>:
-  play(): Promise<void> {
-    return this.video.play();
+  getSinkId(): string {
+    const el = this.video as HTMLVideoElement & { sinkId?: string };
+    return el.sinkId ?? '';
   }
-  pause(): void {
-    this.video.pause();
+
+  mediaKeys(): MediaKeys | undefined { return this.video.mediaKeys ?? undefined; }
+  async setMediaKeys(keys: MediaKeys): Promise<void> { await this.video.setMediaKeys(keys); }
+  outputProtectionState(): 'unrestricted' | 'restricted' | 'unsupported' { return 'unrestricted'; }
+
+  pauseLoader(): void { /* no-op */ }
+  resumeLoader(): void { /* no-op */ }
+  loaderState(): BackendLoaderState { return 'running'; }
+
+  on<E extends BackendEvent>(event: E, fn: Listener<E>): void {
+    if (!this.listeners.has(event)) this.listeners.set(event, new Set());
+    this.listeners.get(event)!.add(fn as Listener<any>);
   }
-  seek(time: number): void {
-    this.video.currentTime = time;
+
+  off<E extends BackendEvent>(event: E, fn: Listener<E>): void {
+    this.listeners.get(event)?.delete(fn as Listener<any>);
   }
-  getCurrentTime(): number {
-    return this.video.currentTime;
-  }
-  getDuration(): number {
-    return this.video.duration;
-  }
-  getVolume(): number {
-    return this.video.volume;
-  }
-  getPlaybackRate(): number {
-    return this.video.playbackRate;
-  }
-  isPaused(): boolean {
-    return this.video.paused;
-  }
-  isEnded(): boolean {
-    return this.video.ended;
-  }
-  isStalled(): boolean {
-    return this.video.readyState < 3;
-  }
-  setVolume(v: number): void {
-    this.video.volume = v;
-  }
-  setMuted(v: boolean): void {
-    this.video.muted = v;
-  }
-  setPlaybackRate(r: number): void {
-    this.video.playbackRate = r;
-  }
-  setCurrentTime(t: number): void {
-    this.video.currentTime = t;
+
+  private _emit<E extends BackendEvent>(event: E, data?: BackendEventPayload[E]): void {
+    this.listeners.get(event)?.forEach(fn => fn(data));
   }
 }
 ```

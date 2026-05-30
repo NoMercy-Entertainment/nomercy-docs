@@ -34,16 +34,24 @@ const current = player.volume(); // e.g. 75
 
 // write
 player.volume(50);
+```
 
-// persist on change
-player.on('volume', ({ level }) => {
-  localStorage.setItem('player-volume', String(level));
-});
+Persisting volume is a plugin concern — use the namespaced [storage adapter](/nomercy-player-kit/storage) (`this.storage`), not raw `localStorage`. The adapter is auto-scoped per player, async-compatible, and swappable via `setup({ storage })`:
 
-// restore on load
-await player.ready();
-const saved = parseInt(localStorage.getItem('player-volume') ?? '100', 10);
-player.volume(saved);
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+
+class VolumeMemoryPlugin extends Plugin {
+  static readonly id = 'volume-memory';
+
+  async use() {
+    const saved = await this.storage.getJSON<number>('level');
+    if (saved !== null) this.player.volume(saved);
+    this.on('volume', ({ level }) => this.storage.setJSON('level', level));
+  }
+}
+
+player.addPlugin(VolumeMemoryPlugin);
 ```
 
 ---

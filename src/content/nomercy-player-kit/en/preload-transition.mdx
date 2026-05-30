@@ -90,15 +90,19 @@ interface TransitionContext {
 }
 ```
 
-### TransitionBackend
+### ITransitionBackend
 
-The minimal dual-playback surface required by the transition engine:
+The dual-playback surface required by the transition engine. Audio backends that support crossfade implement this:
 
 ```ts
-interface TransitionBackend {
-  play(item: BasePlaylistItem): Promise<void>;
-  setVolume(level: number): void;
-  stop(): void;
+interface ITransitionBackend {
+  supportsCrossfade(): boolean;
+  loadSecondary(url: string): Promise<void>;
+  primeSecondary(seekMs?: number): Promise<void>;
+  crossfade(durationMs: number): Promise<void>;
+  disposeSecondary(): void;
+  secondaryGain(): number;
+  secondaryGain(value: number): void;
 }
 ```
 

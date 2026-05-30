@@ -51,8 +51,9 @@ export class AnalyticsPlugin extends Plugin<
 
   private async report(): Promise<void> {
     const metrics = this.player.metrics();
-    await this.fetch(this.opts.endpoint, (r) => r.json(), {
+    await this.fetch(this.opts.endpoint, {
       method: 'POST',
+      responseType: 'json',
       body: JSON.stringify({
         duration: metrics.sessionDurationMs,
         rebufferRatio: metrics.rebufferRatio,

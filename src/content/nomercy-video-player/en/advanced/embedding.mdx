@@ -56,7 +56,7 @@ Use `EmbedPlugin` — it handles the full postMessage protocol (inbound commands
 
       const player = nmplayer('embed').setup({
         container: document.getElementById('player'),
-        queue: [],
+        playlist: [],
       });
 
       player.addPlugin(DesktopUiPlugin).addPlugin(EmbedPlugin, {
@@ -109,6 +109,8 @@ window.addEventListener('message', (event) => {
 
 ## Host page integration
 
+All messages between host and iframe use the `nm:command` / `nm:event` protocol defined by `EmbedCommand` and `EmbedEventMessage`.
+
 ```html
 <!-- Host page on a third-party site -->
 <iframe
@@ -121,53 +123,34 @@ window.addEventListener('message', (event) => {
 
 <script>
   const iframe = document.getElementById('nomercy-player');
+  const PLAYER_ORIGIN = 'https://player.yoursite.com';
 
-  // Wait for the iframe to load before sending commands:
-  iframe.addEventListener('load', () => {
-    // Load content:
+  // Control the player using nm:command messages:
+  function sendCommand(action, extra = {}) {
     iframe.contentWindow.postMessage(
-      {
-        command: 'load',
-        payload: {
-          queue: [
-              {
-                id: 'sintel',
-                url: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-                title: 'Sintel',
-              },
-            ],
-        },
-      },
-      'https://player.yoursite.com',
+      { type: 'nm:command', action, ...extra },
+      PLAYER_ORIGIN,
     );
-  });
-
-  // Control the player:
-  function play() {
-    sendCommand('play');
-  }
-  function pause() {
-    sendCommand('pause');
-  }
-  function seek(t) {
-    sendCommand('seek', { time: t });
   }
 
-  function sendCommand(command, payload = {}) {
-    iframe.contentWindow.postMessage({ command, payload }, 'https://player.yoursite.com');
-  }
+  function play()    { sendCommand('play'); }
+  function pause()   { sendCommand('pause'); }
+  function next()    { sendCommand('next'); }
+  function previous(){ sendCommand('previous'); }
+  function seek(t)   { sendCommand('seek', { time: t }); }
+  function volume(v) { sendCommand('volume', { level: v }); }
 
-  // Listen to player events from the iframe:
+  // Listen to nm:event messages from the iframe:
   window.addEventListener('message', (event) => {
-    if (event.origin !== 'https://player.yoursite.com') return;
+    if (event.origin !== PLAYER_ORIGIN) return;
+    const msg = event.data;
+    if (msg?.type !== 'nm:event') return;
 
-    const { event: playerEvent, payload } = event.data;
-
-    if (playerEvent === 'ended') {
+    if (msg.name === 'ended') {
       showNextVideoSuggestions();
     }
-    if (playerEvent === 'time') {
-      updateProgressBar(payload.time);
+    if (msg.name === 'time') {
+      updateProgressBar(msg.time);
     }
   });
 </script>

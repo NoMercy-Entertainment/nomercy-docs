@@ -117,22 +117,25 @@ For a single-player app, picking a static id is fine. For multi-player UIs (PiP,
 
 **Symptom:** The player ignores the user's saved volume preference.
 
-**Cause:** The kit doesn't auto-persist volume. The default `storage` adapter persists arbitrary keys; reading volume from it on setup is the consumer's job.
+**Cause:** The kit doesn't auto-persist volume — that's a plugin concern.
 
-**Fix:** Read on `ready`, write on every `volume` event. Volume is on the **0–100** scale.
+**Fix:** Persist it in a small plugin via the namespaced [storage adapter](/nomercy-player-kit/storage) (`this.storage`), not raw `localStorage`. Volume is on the **0–100** scale.
 
 ```ts
-await player.ready();
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 
-const saved = parseInt(localStorage.getItem('player-volume') ?? '100', 10);
-player.volume(saved);
+class VolumeMemoryPlugin extends Plugin {
+  static readonly id = 'volume-memory';
 
-player.on('volume', ({ level }) => {
-  localStorage.setItem('player-volume', String(level)); // level is 0–100
-});
+  async use() {
+    const saved = await this.storage.getJSON<number>('level');
+    if (saved !== null) this.player.volume(saved);
+    this.on('volume', ({ level }) => this.storage.setJSON('level', level));
+  }
+}
+
+player.addPlugin(VolumeMemoryPlugin);
 ```
-
-Or use the kit's `storage` adapter (pre-scoped per player id) instead of raw `localStorage`.
 
 ---
 
