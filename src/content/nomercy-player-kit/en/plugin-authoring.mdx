@@ -158,30 +158,48 @@ this.emit('band:changed', result.data);
 
 ## Error handling
 
-Never throw raw errors or call `player.emit('error', ...)` directly.
+Never throw raw errors or call `player.emit('error', ...)` directly. Use `this.throw(...)` (aborts the current flow, returns `never`) or `this.report(...)` (surfaces without aborting). Both carry a `severity` that decides what the error *means*:
+
+| Severity | Channel | Aborts flow? | Meaning |
+| -------- | ------- | ------------ | ------- |
+| `fatal` | `'fatal'` | yes (`throw`) | **Unrecoverable — the player is going down.** Consumer tears down or shows a fatal screen. |
+| `error` | `'error'` + `'plugin:error'` | yes (`throw`) | Recoverable — this operation failed, but the plugin keeps running for future events. |
+| `warning` | `'warning'` + `'plugin:warning'` | no (`report`) | Degradation — playback continues, consumer is informed. |
+| `info` | `'info'` | no (`report`) | Observability only. |
 
 ```ts
-// Non-recoverable — plugin fails, marks itself disabled. Player continues.
+// fatal — the player cannot continue. Surfaced on the 'fatal' channel and aborts.
 this.throw({
   severity: 'fatal',
   code: 'nomercy:scrobble/connection-lost',
   message: 'Cannot reach scrobble endpoint',
 });
 
-// Recoverable — operation fails, plugin keeps running.
+// error — this operation failed; the plugin survives and reacts to later events.
 this.throw({
   severity: 'error',
   code: 'nomercy:scrobble/fetch-failed',
   message: 'Scrobble request returned an error',
 });
 
-// Degradation warning — plugin survives, caller continues.
+// warning — degraded but playback continues.
 this.report({
   severity: 'warning',
   code: 'nomercy:scrobble/rate-limited',
   message: 'Scrobble rate-limited, will retry',
 });
 ```
+
+`fatal` does not auto-dispose the player — it raises the contract-level "shutting down" signal. The consumer decides the teardown:
+
+```ts
+player.on('fatal', ({ error }) => {
+  showFatalScreen(error.message);
+  player.dispose();
+});
+```
+
+Disabling a plugin in response to an error is a separate concern — declare it as a [recovery action](#static-error-recovery), not a severity.
 
 ---
 
