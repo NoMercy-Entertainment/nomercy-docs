@@ -1,0 +1,171 @@
+---
+title: 'ILogger'
+description: 'The logging port — ILogger interface, the built-in Logger, adding a sink, and wiring a custom logger like Pino or Sentry.'
+draft: false
+---
+
+{/* Source: packages/nomercy-player-kit/src/adapters/logger/ILogger.ts */}
+
+# ILogger
+
+By default the player and all its plugins log through a small console logger.
+How noisy it gets is gated by the `logLevel` you set at `setup()`, which is fine while you're building.
+
+In production you usually want those lines going somewhere you can actually see them, like Sentry breadcrumbs or your own telemetry.
+You also don't want every plugin to know about it.
+
+The logger port is how you do that from one place.
+Most of the time you don't even replace it: you add a sink to the built-in logger and let your console logs flow to a second destination too.
+When you'd rather route everything through a logging library you already use, you wrap that library in the `ILogger` shape and hand it to `setup({ logger })`.
+Either way, the kit and every plugin keep calling `this.logger` and never notice the difference.
+
+Everything you import from this page lives in these two lines:
+
+```ts
+import { Logger } from '@nomercy-entertainment/nomercy-player-core';
+import type { ILogger, LogLevel, LogSink } from '@nomercy-entertainment/nomercy-player-core/adapters/logger';
+```
+
+## Built-in adapter
+
+### `Logger`
+
+A console logger that supports multiple sinks.
+The kit creates one root instance per player, and every plugin shares it through a scoped `child`.
+
+You only construct one yourself when you want to pre-register a sink before handing it to `setup()`.
+
+## Log levels
+
+Levels run from quiet to loud: `silent`, `error`, `warn`, `info`, `debug`, `trace`.
+Each line emits only when the active threshold is at or above its level.
+
+The default is `info`, and you set it with `logLevel` at setup rather than touching the logger directly:
+
+```ts
+nmplayer('main').setup({
+  logLevel: 'debug',
+});
+```
+
+## Adding a sink
+
+This is the common case, and it doesn't replace anything.
+Build the default `Logger`, attach a sink, and pass it in.
+Your normal console output keeps working; the sink just gets a copy.
+
+```ts
+import * as Sentry from '@sentry/browser';
+
+const logger = new Logger({ level: 'warn' });
+
+logger.addSink((level, prefix, args) => {
+  if (level === 'error' || level === 'warn') {
+    Sentry.addBreadcrumb({
+      category: prefix,
+      level,
+      message: args.join(' '),
+    });
+  }
+});
+
+nmplayer('main').setup({ logger });
+```
+
+## Interface
+
+```ts
+interface ILogger {
+  trace(...args: unknown[]): void;
+  debug(...args: unknown[]): void;
+  info(...args: unknown[]): void;
+  warn(...args: unknown[]): void;
+  error(...args: unknown[]): void;
+
+  // Read or set the verbosity threshold at runtime.
+  level(): LogLevel;
+  level(value: LogLevel): void;
+
+  // Pipe future lines to an extra sink. Returns an unsubscribe function.
+  addSink(fn: LogSink): () => void;
+
+  // Derive a scoped sub-logger (the kit uses this to scope plugin loggers).
+  child(suffix: string): ILogger;
+}
+
+type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+
+type LogSink = (level: LogLevel, prefix: string, args: unknown[]) => void;
+```
+
+Plugin authors never construct a logger.
+They receive `this.logger` already scoped to their plugin id, so anything they log shows up tagged with where it came from.
+
+## Custom implementation
+
+When you'd rather route everything through a logging library you already run, wrap it in `ILogger`:
+
+```ts
+import pino from 'pino';
+
+class PinoLogger implements ILogger {
+  private readonly log = pino();
+  private threshold: LogLevel = 'info';
+
+  trace(...args: unknown[]): void {
+    this.log.trace(args);
+  }
+
+  debug(...args: unknown[]): void {
+    this.log.debug(args);
+  }
+
+  info(...args: unknown[]): void {
+    this.log.info(args);
+  }
+
+  warn(...args: unknown[]): void {
+    this.log.warn(args);
+  }
+
+  error(...args: unknown[]): void {
+    this.log.error(args);
+  }
+
+  level(): LogLevel;
+  level(value: LogLevel): void;
+  level(value?: LogLevel): LogLevel | void {
+    if (value === undefined) {
+      return this.threshold;
+    }
+
+    this.threshold = value;
+    this.log.level = value;
+  }
+
+  // Pino routes through its own transports, so we keep a single
+  // destination and no-op extra sink registrations.
+  addSink(_fn: LogSink): () => void {
+    return () => {};
+  }
+
+  child(suffix: string): ILogger {
+    const scoped = new PinoLogger();
+    scoped.level(this.threshold);
+
+    return scoped;
+  }
+}
+
+nmplayer('main').setup({
+  logger: new PinoLogger(),
+});
+```
+
+If your logging library has no multi-sink concept, keeping one destination and no-opping `addSink` is fine.
+Just document it, like the comment above does.
+
+## See also
+
+- [Metrics and Diagnostics](/nomercy-player-kit/metrics) — what the player logs and measures
+- [Adapters](/nomercy-player-kit/adapters) — the full port catalog
