@@ -1,0 +1,91 @@
+---
+title: 'ILifecycleRegistry'
+description: 'The lifecycle registry port, ILifecycleRegistry interface, the built-in LifecycleRegistry, and what it tracks for automatic teardown.'
+draft: false
+---
+
+{/* Source: packages/nomercy-player-kit/src/adapters/lifecycle-registry/ILifecycleRegistry.ts */}
+
+# ILifecycleRegistry
+
+Every plugin gets a lifecycle registry, and it is the main reason plugin authors almost never write manual cleanup code.
+Any listener, timer, observer, fetch signal, or animation frame you register through the registry is automatically cancelled when the plugin is disposed.
+
+You never construct one yourself.
+The kit creates a fresh `LifecycleRegistry` for each plugin instance and hands it to the plugin as `this.lifecycle`.
+You call its methods to register resources, and `dispose()` handles the rest in a single call when the player or plugin tears down.
+
+There is no `setup()` key for this adapter.
+It is an internal construction detail, not a configurable option.
+
+```ts
+import { LifecycleRegistry } from '@nomercy-entertainment/nomercy-player-core';
+import type { ILifecycleRegistry } from '@nomercy-entertainment/nomercy-player-core/adapters/lifecycle-registry';
+```
+
+## Built-in adapter
+
+### `LifecycleRegistry`
+
+Tracks six categories of disposable resource: DOM event listeners, `setTimeout` timers, `setInterval` intervals, disconnect-able observers (`MutationObserver`, `ResizeObserver`, etc.), `AbortController` instances, and `requestAnimationFrame` loops.
+
+`dispose()` tears them all down in order: listeners first, then timers and intervals, then RAF loops, then observers, then abort controllers, and finally user-registered cleanup callbacks in reverse registration order (most-recently-registered runs first, like a stack unwind).
+
+`dispose()` is idempotent: calling it twice is safe, the second call is a no-op.
+If `addCleanup()` is called after `dispose()`, the callback runs immediately rather than being queued.
+
+## Interface
+
+```ts
+interface ILifecycleRegistry {
+  // Register an arbitrary teardown callback.
+  addCleanup(fn: () => void): void;
+
+  // Attach a DOM event listener that is removed on dispose().
+  listen(
+    target: EventTarget,
+    event: string,
+    handler: EventListener,
+    options?: AddEventListenerOptions | boolean,
+  ): void;
+
+  // Schedule a one-shot callback, auto-cancelled on dispose(). Returns the timer id.
+  timeout(fn: () => void, ms: number): number;
+
+  // Schedule a repeating callback, auto-cancelled on dispose(). Returns the interval id.
+  interval(fn: () => void, ms: number): number;
+
+  // Register any object with a disconnect() method, auto-disconnected on dispose().
+  observe<O extends { disconnect(): void }>(observer: O): O;
+
+  // Create an AbortController whose signal is cancelled on dispose().
+  abortable(): AbortController;
+
+  // Start a requestAnimationFrame loop, auto-cancelled on dispose().
+  // Callback receives (deltaMs, now) on each frame.
+  frame(fn: (deltaMs: number, time: number) => void): void;
+
+  dispose(): void;
+  isDisposed(): boolean;
+}
+```
+
+A few things worth noting:
+
+- `observe()` returns the observer unchanged so you can chain: `this.lifecycle.observe(new ResizeObserver(callback)).observe(element)`.
+- `frame()` is a no-op in SSR environments where `requestAnimationFrame` is absent.
+- `timeout()` and `interval()` return `-1` after disposal rather than a live timer id.
+- Exceptions thrown inside timeout, interval, frame, and cleanup callbacks are caught and logged so one bad callback does not abort the teardown sequence.
+
+## When you'd replace it
+
+Almost never.
+The built-in implementation covers everything plugin authors need and its behaviour is well-defined.
+
+The one hypothetical: if you are running the player in a custom environment where the Web APIs (`setTimeout`, `addEventListener`, `requestAnimationFrame`) are shimmed or unavailable, you might need a registry that delegates to those shims.
+In that case, implement `ILifecycleRegistry` with your environment's equivalents.
+
+## See also
+
+- [Adapters](/nomercy-player-kit/adapters), the full port catalog
+- [Event Bus](/nomercy-player-kit/adapters/event-bus), the other core internal both players and plugins share

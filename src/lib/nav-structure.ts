@@ -58,7 +58,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Auth and Fetch", pages: ['auth-fetch'] },
     { group: "Event System", pages: ['event-system', 'events-reference'] },
     { group: "Plugins", pages: ['plugins', 'plugin-registration', 'plugins-builtin'] },
-    { group: "Adapter Ports", pages: ['adapters', 'storage', 'streams', 'cue-parsers', 'preload-transition', 'platform', 'adapters/logger'] },
+    { group: "Adapter Ports", pages: ['adapters', 'storage', 'streams', 'cue-parsers', 'preload-transition', 'platform', 'adapters/clock', 'adapters/element-factory', 'adapters/event-bus', 'adapters/id-generator', 'adapters/lifecycle-registry', 'adapters/logger', 'adapters/media-list', 'adapters/realtime', 'adapters/subtitle-renderer', 'adapters/url-resolver'] },
     { group: "Internationalisation", pages: ['i18n'] },
     { group: "Metrics and Diagnostics", pages: ['abr', 'metrics'] },
     { group: "Cast and Device", pages: ['cast', 'device', 'audio-output'] },

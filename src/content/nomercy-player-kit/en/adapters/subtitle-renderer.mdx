@@ -1,0 +1,113 @@
+---
+title: 'ISubtitleRenderer'
+description: 'The subtitle renderer port, ISubtitleRenderer interface, the built-in buildSubtitleFragment helper, and wiring a custom renderer for canvas or WebGL output.'
+draft: false
+---
+
+{/* Source: packages/nomercy-player-kit/src/adapters/subtitle-renderer/ISubtitleRenderer.ts */}
+
+# ISubtitleRenderer
+
+When a subtitle cue arrives, something has to turn the VTT markup string into something visible.
+The kit ships a DOM-based helper, `buildSubtitleFragment`, that parses the allowed inline tags (`<i>`, `<b>`, `<u>`) and builds a real `DocumentFragment` from them.
+Anything that isn't a recognised tag becomes a plain text node, so cue payloads can't inject arbitrary HTML.
+
+That covers the common case: a styled, positioned text overlay sitting on top of the player container.
+When you need richer rendering, such as bitmap-accurate ASS/SSA subtitles via Octopus, or subtitle compositing directly on a WebGL surface, you implement `ISubtitleRenderer` and inject it through the plugin that manages subtitle display.
+The rest of the kit keeps calling the same interface and never needs to know what's underneath.
+
+Unlike other ports, this one is not a `setup()` field.
+Rendering is always driven by a plugin, so the custom renderer goes wherever that plugin accepts configuration.
+
+Everything you import from this page lives in these two lines:
+
+```ts
+import { buildSubtitleFragment } from '@nomercy-entertainment/nomercy-player-core';
+import type { ISubtitleRenderer } from '@nomercy-entertainment/nomercy-player-core/adapters/subtitle-renderer';
+```
+
+## Built-in adapter
+
+### `buildSubtitleFragment`
+
+A function that turns a `VTTSubtitlePayload.markup` string into a `DocumentFragment`.
+
+Recognised inline tags (`<i>`, `<b>`, `<u>`) with arbitrary nesting are turned into real DOM elements.
+Everything else becomes a text node.
+Unmatched closing tags are ignored gracefully, so a malformed cue still renders rather than throwing.
+
+It is browser-only because it calls `document.createDocumentFragment()` and `document.createElement()`.
+Server-side consumers should use `payload.text` directly.
+
+All subtitle overlays and debug renderers that produce DOM output should call this function so they produce an identical tree from the same parsed cue.
+
+## Basic usage
+
+Call `buildSubtitleFragment` from inside a plugin when a new cue fires, then append the fragment to the container element the plugin manages:
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import { buildSubtitleFragment } from '@nomercy-entertainment/nomercy-player-core';
+
+class MySubtitlePlugin extends Plugin {
+  private container!: HTMLElement;
+
+  onCueChange(markup: string): void {
+    this.container.replaceChildren(buildSubtitleFragment(markup));
+  }
+}
+```
+
+## Interface
+
+```ts
+interface ISubtitleRenderer {
+  // Render the cue markup string and return the result.
+  // markup is VTTSubtitlePayload.markup, may contain <i>, <b>, <u> but no arbitrary HTML.
+  render(markup: string): DocumentFragment | HTMLElement;
+}
+```
+
+The caller provides the target container element.
+The renderer is responsible only for building and returning the content, not for appending it or positioning it on screen.
+
+## Custom implementation
+
+When you need rendering that goes beyond DOM text nodes, for example Octopus/libass bitmap subtitles or compositing on a WebGL surface, implement `ISubtitleRenderer` and inject it into the plugin that manages subtitle display.
+
+```ts
+class CanvasSubtitleRenderer implements ISubtitleRenderer {
+  private readonly canvas: HTMLCanvasElement;
+  private readonly context: CanvasRenderingContext2D;
+
+  constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Could not get 2D context from canvas');
+    this.context = ctx;
+  }
+
+  render(markup: string): HTMLElement {
+    const wrapper = document.createElement('span');
+
+    // Strip the allowed inline tags to get plain text for canvas rendering.
+    const plainText = markup.replace(/<\/?[ibu]>/gi, '');
+
+    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.context.font = '24px sans-serif';
+    this.context.fillStyle = '#ffffff';
+    this.context.fillText(plainText, 16, this.canvas.height - 32);
+
+    return wrapper;
+  }
+}
+```
+
+Pass the custom renderer to the plugin that drives subtitle display during player setup.
+How you wire it depends on the plugin's own configuration surface, not the kit's `setup()` call.
+
+## See also
+
+- [Cue parser](/nomercy-player-kit/cue-parsers), how VTT files are parsed into `VTTSubtitlePayload` objects that feed the renderer
+- [Adapters](/nomercy-player-kit/adapters), the full port catalog

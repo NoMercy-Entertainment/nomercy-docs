@@ -1,0 +1,135 @@
+---
+title: 'Element Factory'
+description: 'DOM element creation helpers, createElement, createButton, createSVG, addClasses, removeClasses, and their fluent builder types.'
+draft: false
+---
+
+{/* Source: packages/nomercy-player-kit/src/adapters/element-factory/dom.ts */}
+
+# Element Factory
+
+This is not an adapter port in the same sense as the logger or storage.
+There is no interface to swap and no `setup()` option.
+It is a small set of DOM utility functions that both player libraries and plugin authors use to create and configure elements without writing verbose `document.createElement` chains.
+
+The fluent builder pattern means you can create, add classes, set attributes, and insert an element into the DOM in one expression rather than four separate statements.
+
+```ts
+import {
+  addClasses,
+  createButton,
+  createElement,
+  createSVG,
+  removeClasses,
+} from '@nomercy-entertainment/nomercy-player-core';
+import type { AddClasses, AppendTo, CreateElement } from '@nomercy-entertainment/nomercy-player-core';
+```
+
+All five functions are also available from the subpath:
+
+```ts
+import { createElement, createButton, createSVG, addClasses, removeClasses } from '@nomercy-entertainment/nomercy-player-core/adapters/element-factory';
+import type { CreateElement, AddClasses, AppendTo } from '@nomercy-entertainment/nomercy-player-core/adapters/element-factory';
+```
+
+## Functions
+
+### `createElement`
+
+```ts
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  type: K,
+  id: string,
+  unique?: boolean,
+): CreateElement<HTMLElementTagNameMap[K]>
+```
+
+Creates an element of `type` with the given `id` and returns a fluent builder.
+When `unique` is `true`, an existing element with that `id` is reused instead of creating a second one.
+This is useful for singleton overlays (progress bar, subtitle container) that a plugin might try to mount more than once.
+
+```ts
+const container = createElement('div', 'nm-subtitle-container', true)
+  .addClasses(['subtitle-layer', 'hidden'])
+  .appendTo(playerRoot)
+  .get();
+```
+
+### `createButton`
+
+```ts
+function createButton(
+  id: string,
+  label: string,
+  onClick: (event: Event) => void,
+): HTMLButtonElement
+```
+
+Creates a `<button type="button">` with `aria-label` and `title` both set to `label`, and the click listener already attached.
+This is the baseline accessible button pattern the built-in UI plugins use for all controls.
+
+```ts
+const playButton = createButton('nm-play', 'Play', (event) => {
+  player.play();
+});
+```
+
+### `createSVG`
+
+```ts
+function createSVG(id: string, viewBox: string): SVGSVGElement
+```
+
+Creates an `<svg>` element in the SVG namespace with `id`, `viewBox`, and `xmlns` set.
+Returns the raw element so you can append `<path>`, `<use>`, or `<symbol>` children directly.
+
+### `addClasses`
+
+```ts
+function addClasses<T extends Element>(el: T, names: string[]): AddClasses<T>
+```
+
+Adds CSS class names to `el`, skipping empty strings.
+Returns a fluent `AddClasses` builder so you can chain further operations.
+
+### `removeClasses`
+
+```ts
+function removeClasses<T extends Element>(el: T, names: string[]): T
+```
+
+Removes CSS class names from `el`, skipping empty strings.
+Returns `el` directly (not a builder) since removal is typically the last step.
+
+## Builder types
+
+The fluent builders are typed so the chain narrows correctly as you go:
+
+```ts
+interface CreateElement<T extends Element> {
+  get: () => T;
+  addClasses: (names: string[]) => AddClasses<T>;
+  appendTo: (parent: Element) => AppendTo<T>;
+  prependTo: (parent: Element) => AppendTo<T>;
+}
+
+interface AddClasses<T extends Element> {
+  get: () => T;
+  appendTo: (parent: Element) => AppendTo<T>;
+  prependTo: (parent: Element) => AppendTo<T>;
+  addClasses: (names: string[]) => AddClasses<T>;
+  setAttribute: (name: string, value: string) => AddClasses<T>;
+  setProperty: (name: string, value: string) => AddClasses<T>;
+}
+
+interface AppendTo<T extends Element> {
+  get: () => T;
+  addClasses: (names: string[]) => AddClasses<T>;
+}
+```
+
+Call `.get()` at the end of any chain to retrieve the underlying DOM element.
+
+## See also
+
+- [Adapters](/nomercy-player-kit/adapters), the full port catalog

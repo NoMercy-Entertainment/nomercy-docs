@@ -1,0 +1,156 @@
+---
+title: 'IMediaList'
+description: 'The media list port, IMediaList interface, the built-in MediaList, cursor semantics, and the full mutation and event API.'
+draft: false
+---
+
+{/* Source: packages/nomercy-player-kit/src/adapters/media-list/IMediaList.ts */}
+
+# IMediaList
+
+Both `NMVideoPlayer` and `NMMusicPlayer` use a single `MediaList<T>` instance as their queue.
+Rather than maintaining parallel list state in each library, all queue methods delegate here: append, remove, shuffle, sort, and everything else.
+The list is cursor-aware, meaning it always knows which item is current and keeps the cursor stable as items are added, removed, or reordered around it.
+
+You almost never replace this.
+There is no `setup()` key for it.
+Replacing it would only make sense if you needed the queue to be backed by an external data source (a server-side playlist API, an IndexedDB store) rather than kept in memory.
+
+```ts
+import { MediaList } from '@nomercy-entertainment/nomercy-player-core';
+import type { IMediaList, MediaListEvent } from '@nomercy-entertainment/nomercy-player-core/adapters/media-list';
+```
+
+## Built-in adapter
+
+### `MediaList<T>`
+
+An in-memory, cursor-aware list that extends `EventEmitter`.
+`T` must extend `BasePlaylistItem`, which requires at minimum an `id: string | number` field.
+
+Cursor semantics:
+
+- `currentIndex()` is `0` when items exist and `-1` when the list is empty.
+- Every mutation that shifts item positions also shifts the cursor to keep it pointing at the same item. Removing the item before the current decrements the cursor by one. Removing the current item clamps the cursor to the new last index.
+- `setCurrent()` accepts the item itself, its `id`, a zero-based index, or a predicate function, first match wins.
+
+Every mutation method fires a specific event followed by a `change` event.
+Subscribe to `change` when you only care that something changed.
+Subscribe to the narrower events (`append`, `remove`, `shuffle`, etc.) when you need to know what changed.
+
+## Interface
+
+```ts
+interface IMediaList<T extends BasePlaylistItem> {
+  // Read
+  get(): ReadonlyArray<T>;
+  set(items: T[]): void;
+  length(): number;
+
+  // Cursor
+  current(): T | undefined;
+  currentIndex(): number;
+  replaceItem(item: T): void;
+  setCurrent(target: T | string | number | ((item: T) => boolean)): void;
+  peekNext(): T | undefined;
+  peekPrevious(): T | undefined;
+
+  // Add
+  append(item: T | T[]): void;
+  prepend(item: T | T[]): void;
+  insert(item: T | T[], index: number): void;
+
+  // Remove
+  remove(id: string | number): void;
+  removeAt(index: number): void;
+
+  // Reorder / bulk
+  move(from: number, to: number): void;
+  clear(): void;
+  shuffle(): void;
+  sort(compare: (a: T, b: T) => number): void;
+
+  // Lifecycle
+  dispose(): void;
+}
+```
+
+### Events
+
+`MediaList` emits these events. `change` fires after every other mutation event.
+
+| Event | Payload |
+|-------|---------|
+| `change` | `{ items: ReadonlyArray<T> }` |
+| `append` | `{ items: T[]; from: number }` |
+| `prepend` | `{ items: T[] }` |
+| `insert` | `{ items: T[]; index: number }` |
+| `remove` | `{ id: string \| number; index: number; item: T }` |
+| `move` | `{ from: number; to: number }` |
+| `clear` | `{ previousLength: number }` |
+| `shuffle` | `void` |
+| `sort` | `void` |
+| `current` | `{ item: T \| undefined; index: number }` |
+
+A few method notes:
+
+- `set()` preserves the cursor by item `id` when possible. If the previously current item is still in the new list, the cursor moves to its new index. If not, the cursor resets to `0`.
+- `replaceItem()` replaces an item by `id` in place, no cursor change, no events. Callers that need to notify listeners must do so themselves.
+- `move()` does nothing if `from === to` or either index is out of range.
+- `shuffle()` uses Fisher-Yates and the cursor follows the current item to its new position.
+- `sort()` also follows the current item after reordering.
+- `dispose()` clears all items, resets the cursor to `-1`, and removes all event listeners.
+
+## When you'd replace it
+
+The in-memory default is sufficient for most players.
+If you need the queue to reflect a server-side playlist that can be updated externally (e.g. a shared watch party queue), you would implement `IMediaList<T>` backed by that remote state and emit the same events when it changes.
+
+```ts
+import type { IMediaList } from '@nomercy-entertainment/nomercy-player-core/adapters/media-list';
+import type { BasePlaylistItem } from '@nomercy-entertainment/nomercy-player-core';
+
+class RemoteMediaList<T extends BasePlaylistItem> implements IMediaList<T> {
+  private cache: T[] = [];
+  private cursor = -1;
+
+  constructor(private readonly endpoint: string) {}
+
+  get(): ReadonlyArray<T> {
+    return this.cache;
+  }
+
+  async set(items: T[]): Promise<void> {
+    await fetch(this.endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(items),
+    });
+
+    this.cache = items;
+    this.cursor = items.length > 0 ? 0 : -1;
+  }
+
+  length(): number {
+    return this.cache.length;
+  }
+
+  current(): T | undefined {
+    return this.cursor >= 0 ? this.cache[this.cursor] : undefined;
+  }
+
+  currentIndex(): number {
+    return this.cursor;
+  }
+
+  // ... implement remaining methods delegating to your API endpoint
+  dispose(): void {
+    this.cache = [];
+    this.cursor = -1;
+  }
+}
+```
+
+## See also
+
+- [Adapters](/nomercy-player-kit/adapters), the full port catalog
+- [Event Bus](/nomercy-player-kit/adapters/event-bus), `MediaList` extends `EventEmitter` directly
