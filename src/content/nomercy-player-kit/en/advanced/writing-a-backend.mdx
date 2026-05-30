@@ -2,7 +2,7 @@
 title: 'Writing a Backend'
 description: 'The BackendShape contract, kit call points, and wiring a custom backend into either the video or music player.'
 category: 'Advanced'
-order: 73
+order: 4
 ---
 
 # Writing a Backend
@@ -12,6 +12,35 @@ Read this when you need to replace a built-in backend — either the HLS/html5 v
 For the video-specific surface (`IVideoBackend`) see [Custom Video Backend](/nomercy-video-player/adapters/video-backend). For the music-specific surface (`IAudioBackend`) see [Custom Audio Backend](/nomercy-music-player/advanced/writing-an-audio-backend).
 
 **Prerequisites:** [HLS](/nomercy-video-player/hls) covers the default video backend's capabilities. Read it first — many needs can be addressed without replacing the backend.
+
+---
+
+## When to replace the backend
+
+Before replacing the backend, check whether the need can be addressed with lower-effort options:
+
+1. **Custom stream factory** — register a `StreamFactory` via `registerStream()` to handle a new URL scheme or content type (e.g. DASH, smooth streaming). See [Adapter Ports — Streams](/nomercy-player-kit/streams).
+
+2. **hls.js config override** — if you need to tune HLS behavior (bitrate cap, fragment retry count, level cap), configure it through the `hlsConfig` setup option rather than replacing the entire backend.
+
+3. **Custom plugin** — if the need is behavioral (custom ABR, buffer management, fragment interception), write a plugin that wraps the backend rather than replacing it. See [Advanced: Custom Plugin](/nomercy-player-kit/advanced/custom-plugin).
+
+Replace the backend only when none of the above covers the use case.
+
+---
+
+## Registering the backend
+
+```ts
+player.setup({
+  backendFactory: (kind, config) => {
+    if (kind === 'video') return new MyVideoBackend(config.container);
+    return new MyAudioBackend();
+  },
+});
+```
+
+`backendFactory` receives `kind: 'video' | 'audio'` and a `config` object that includes the player container element for video. Return an object that implements `IVideoBackend` or `IAudioBackend`.
 
 ---
 
