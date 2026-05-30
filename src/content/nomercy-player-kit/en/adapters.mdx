@@ -1,6 +1,6 @@
 ---
 title: 'Adapters'
-description: 'The 28 kit adapter ports. Name, purpose, default implementation, and how to replace each one.'
+description: 'The kit adapter ports. Name, purpose, default implementation, and how to replace each one.'
 ---
 
 # Kit Adapter Ports
@@ -13,7 +13,7 @@ That's really all a port is: a clearly defined slot with a default sitting in it
 
 This is also the line between an adapter and a plugin. If you're changing how something the player already does works on the inside, that's a port swap. If you're adding something new for the player to do, like an equalizer or a skip button, that's a [plugin](/nomercy-player-kit/plugins). [Plugins and adapters](/nomercy-player-kit/foundations/plugins-and-adapters) covers when to reach for each.
 
-The kit gives you 28 of these ports, all listed below. Libraries built on the kit add ports of their own, documented with whichever library owns them.
+The kit ships the ports below. Libraries built on the kit add ports of their own, documented with whichever library owns them.
 
 ---
 
@@ -40,7 +40,7 @@ player.setup({
 
 ---
 
-## Kit adapter catalog (28 ports)
+## Kit adapter catalog
 
 ### Core infrastructure
 
@@ -48,10 +48,9 @@ player.setup({
 | ------------------ | ---------- | -------------------- | --------------------- | ------------------------------------------------------------- |
 | Storage            | `storage`  | `IStorage`           | `LocalStorageBackend` | Need IndexedDB, remote persistence, or ephemeral test storage |
 | Logger             | `logger`   | `ILogger`            | Console logger        | Routing logs to Pino, Winston, or a remote sink               |
-| Id generator       | (internal) | `IIdGenerator`       | Monotonic counter     | Need globally unique ids (UUID, ULID) for distributed setups  |
-| Event bus          | (internal) | `IEventBus`          | Default typed bus     | Custom event routing or debugging instrumentation             |
+| Id generator       | (internal) | `IIdGenerator`       | `crypto.randomUUID()` | Deterministic ids in tests, or a different id scheme          |
+| Event bus          | (internal) | `IEventBus`          | Default emitter       | Custom event routing or debugging instrumentation             |
 | Lifecycle registry | (internal) | `ILifecycleRegistry` | Default registry      | Custom plugin ordering or lifecycle observability             |
-| Element factory    | (internal) | `IElementFactory`    | DOM factory           | Non-browser rendering environments                            |
 
 ### Auth and fetch
 
@@ -94,10 +93,9 @@ platform: { ...browserPlatform, wakeLock: myNativeWakeLock }
 
 ### Subtitles and cues
 
-| Port                | Config key | Interface            | Default           | Replace when                                                |
-| ------------------- | ---------- | -------------------- | ----------------- | ----------------------------------------------------------- |
-| Cue parser registry | (internal) | `ICueParserRegistry` | VTT + LRC parsers | Adding SRT, TTML, or custom cue formats                     |
-| Subtitle renderer   | (internal) | `ISubtitleRenderer`  | DOM text overlay  | You want styled, positioned subtitle rendering instead of plain DOM text |
+| Port        | Config key   | Interface     | Default           | Replace when                            |
+| ----------- | ------------ | ------------- | ----------------- | --------------------------------------- |
+| Cue parsers | `cueParsers` | `ICueParser`  | VTT + LRC parsers | Adding SRT, TTML, or custom cue formats |
 
 ### Realtime
 
@@ -107,14 +105,12 @@ platform: { ...browserPlatform, wakeLock: myNativeWakeLock }
 
 ### Miscellaneous
 
-| Port             | Config key | Interface          | Default                      | Replace when                                                   |
-| ---------------- | ---------- | ------------------ | ---------------------------- | -------------------------------------------------------------- |
-| Clock            | (internal) | `IClock`           | `Date.now()`                 | Distributed time sync (NTP-adjusted clock for group listening) |
-| Class manager    | (internal) | `IClassManager`    | DOM classList API            | Non-DOM class management (SSR, React Native)                   |
-| Media list       | (internal) | `IMediaList`       | Array-backed list            | External data store                                            |
-| Preload strategy | (internal) | `IPreloadStrategy` | Default lead-seconds preload | Custom buffer management                                       |
-| URL resolver     | (internal) | `IUrlResolver`     | Base URL + category routing  | Custom CDN URL signing or rewriting                            |
-| DRM config       | `drm`      | `IDrmConfig`       | None                         | Your content is DRM-protected                                  |
+| Port             | Config key        | Interface          | Default                      | Replace when                                                   |
+| ---------------- | ----------------- | ------------------ | ---------------------------- | -------------------------------------------------------------- |
+| Clock            | `clockSource`     | `IClock`           | `systemClock` (`Date.now()`) | Distributed time sync (NTP-adjusted clock for group listening) |
+| Media list       | (internal)        | `IMediaList`       | Array-backed list            | External data store                                            |
+| Preload strategy | `preloadStrategy` | `IPreloadStrategy` | Default lead-seconds preload | Custom buffer management                                       |
+| URL resolver     | `urlResolver`     | `IUrlResolver`     | Base URL + category routing  | Custom CDN URL signing or rewriting                            |
 
 ---
 
