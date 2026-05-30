@@ -41,16 +41,20 @@ src/content/
 
 Each product has its own catch-all route: `src/pages/<product>/[...slug].astro`. A file at `src/content/nomercy-video-player/en/plugins/skipper.mdx` is served at `/nomercy-video-player/plugins/skipper` — the URL is derived from the file path (with the `en/` locale prefix and trailing `/index` stripped). There is no manifest mapping files to URLs.
 
-### Navigation (frontmatter-driven — no manifest)
+### Navigation (one manifest — the single source of truth)
 
-`src/lib/navigation.ts` builds the sidebar entirely from frontmatter:
+The sidebar structure lives in **`src/lib/nav-structure.ts`** — one ordered list per collection of `{ group, pages: [slug, …] }`. Nothing else owns structure:
 
-- Pages are grouped by their `category` field.
-- Categories are ordered by the `categoryOrder` map in `navigation.ts` (an unknown category falls to the middle, ~50).
-- Within a category, pages sort by `order` (ascending; missing = 999).
-- `index.mdx` and any `*/index.mdx` are skipped (reachable from the parent).
+- **Group order** = array order of the `{ group, pages }` blocks.
+- **Page order** = array order of slugs inside a group's `pages`.
+- **Section label** = the `group` string.
+- Slugs are the path under `<collection>/en/` without `.mdx` (e.g. `plugins/skipper`).
 
-**Consequence:** the sidebar's shape is controlled by `category` + `order` in frontmatter, NOT by folder layout. To reorganize the sidebar, edit frontmatter — do not move files.
+`src/lib/navigation.ts` reads the manifest and builds the sidebar; `PageFooterNav` (prev/next) and `scripts/build-search-index.js` (search section + order) read it too via `scripts/_nav-manifest.mjs`. Page **titles** still come from each page's frontmatter `title` — the manifest owns only structure.
+
+**To reorganize:** edit `nav-structure.ts` only. Move a slug to reorder it; move it to another group to recategorise; move a `{ group, pages }` block to reorder sections. Reordering never touches page files, and never changes a URL (URLs come from file paths).
+
+`npm run check:nav` (runs first in `build`) fails if any non-draft page is missing from the manifest or any manifest slug has no file — so a new page must be placed, it can't silently vanish into an "Other" bucket.
 
 ### Custom MDX dialect
 
@@ -70,26 +74,25 @@ Pages cross-link with absolute paths (`](/nomercy-video-player/hls)`). Markdown 
 
 Rules, in priority order:
 
-1. **Reorganize via frontmatter, not file moves.** Changing a page's `category`/`order` restructures the sidebar without changing its URL. This is the default way to "tidy up" structure and costs zero link edits.
+1. **Reorganize via `nav-structure.ts`, not file moves.** Structure is one manifest; reordering there changes nothing about URLs and costs zero file edits.
 2. **If a URL genuinely must change, add ONE redirect** in `astro.config.mjs` (`"/old/url": "/new/url"`) instead of editing every referencing file. Old links — internal, external, and bookmarked — keep working.
 3. **Never link to a `draft: true` page.** Draft pages are excluded from the build, so any link to one is dead on arrival.
-4. **`npm run check:links` is the guardrail.** It runs first in `build` and fails on any dangling internal link. Run it after any structural change.
+4. **`check:nav` + `check:links` are the guardrails.** Both run first in `build`: a page missing from the manifest, a phantom manifest slug, or a dangling internal link all fail the build.
 
 ## Content authoring
 
-Frontmatter:
+Frontmatter owns page metadata only — NOT structure (that's `nav-structure.ts`):
 
 ```yaml
 ---
-title: Page Title          # required
+title: Page Title          # required — also the sidebar label
 description: One-line SEO/search summary
-category: Plugins          # must match a key in navigation.ts categoryOrder
-order: 3                   # unique within the category; controls sidebar position
 draft: false               # true = excluded from build, nav, and search
+tags: [hls, abr]           # optional, for search
 ---
 ```
 
-`category` must be one of the values in `navigation.ts` `categoryOrder` — don't invent new categories without adding them there, or the page lands in an unordered bucket. Keep `order` unique within a category.
+After creating a page, add its slug to the right group in `src/lib/nav-structure.ts` (or `check:nav` fails the build). Do NOT add `category`/`order` to frontmatter — they are not read.
 
 ## Examples must use real data
 
