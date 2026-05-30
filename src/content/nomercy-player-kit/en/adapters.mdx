@@ -5,11 +5,15 @@ description: 'The 28 kit adapter ports. Name, purpose, default implementation, a
 
 # Kit Adapter Ports
 
-A **port** is a swappable typed interface. The kit ships a sensible default implementation for every port. You replace a port when you need different infrastructure behaviour — a different storage backend, a native platform API, a custom fetch transport.
+We provide the adapter pattern so you can change how the player behaves whenever you have a need that's a bit unique, something that shouldn't be the default for everyone. Every piece here, like where state gets saved, how the player talks to a server, or which clock it reads, already has a sensible default wired in. You only reach for an adapter when that default doesn't fit you.
 
-A **plugin** adds behaviour on top of what the kit already provides: responding to events, inserting audio nodes, drawing to a canvas. Plugins and adapters serve different purposes. When in doubt: if you are changing *how something works internally*, it is a port swap; if you are adding *something new the player does*, it is a plugin.
+Say you want the player to remember resume positions and volume on your own server instead of in the browser, so they follow your users from their phone to their TV. You don't fork anything or go digging through player internals for that. You write a small storage adapter that reads and writes against your API, hand it to `setup()`, and everything else carries on exactly as before. The player never knows where the bytes actually go, it just asks the port and gets an answer.
 
-The kit exposes 28 named adapter ports. The video player adds 4 video-specific ports. The music player adds 6 music-specific ports. This page covers the 28 kit-level ports. For library-level ports, see [Video — Configuration](/nomercy-video-player/configuration) and [Music — Configuration](/nomercy-music-player/configuration).
+That's really all a port is: a clearly defined slot with a default sitting in it. Swapping what's in the slot is how you make the player yours without making it everyone's.
+
+This is also the line between an adapter and a plugin. If you're changing how something the player already does works on the inside, that's a port swap. If you're adding something new for the player to do, like an equalizer or a skip button, that's a [plugin](/nomercy-player-kit/plugins).
+
+The kit gives you 28 of these ports. The video player adds 4 more and the music player adds 6, each covered on their own pages; this one is for the 28 kit-level ports. For the library ports see [Video configuration](/nomercy-video-player/configuration) and [Music configuration](/nomercy-music-player/configuration).
 
 ---
 
