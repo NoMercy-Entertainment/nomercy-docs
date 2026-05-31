@@ -1,0 +1,91 @@
+---
+title: 'Similarity Engine'
+description: 'Port for finding tracks similar to a seed: ISimilarityEngine interface, SimilarityQueryOptions, and wiring radio mode and smart shuffle.'
+draft: false
+---
+
+{/* Source: packages/nomercy-music-player-v2/src/adapters/similarity-engine/ISimilarityEngine.ts */}
+
+# Similarity Engine
+
+Port for "find tracks similar to this one." It powers radio mode, "more like this" playlist generation, and the [`SmartShuffleGenerator`](/nomercy-music-player/adapters/playlist-generator) when tag-based similarity is not enough.
+
+No default ships, this is the one music adapter you wire yourself. Similarity is domain knowledge the player cannot guess: it depends on your catalogue, your metadata, and whatever recommendation service you already run.
+
+```ts
+import type { ISimilarityEngine } from '@nomercy-entertainment/nomercy-music-player/adapters/similarity-engine';
+```
+
+## Interface
+
+```ts
+interface ISimilarityEngine<T extends BasePlaylistItem = BasePlaylistItem> {
+  readonly id: string;
+  findSimilar(seed: T, opts?: SimilarityQueryOptions): Promise<T[]>;
+}
+
+interface SimilarityQueryOptions {
+  limit?: number;
+  excludeIds?: ReadonlyArray<string | number>;
+  minScore?: number;
+}
+```
+
+### `id`
+
+Human-readable identifier. Used in logging and debug tooling.
+
+### `findSimilar(seed, opts)`
+
+Resolve a list of items similar to `seed`, ordered by descending similarity score (most similar first). Returns an empty array when no results are available.
+
+| Option       | Type                              | Description                                                       |
+| ------------ | --------------------------------- | ---------------------------------------------------------------- |
+| `limit`      | `number`                          | Maximum number of results. Default is implementation-defined.    |
+| `excludeIds` | `ReadonlyArray<string \| number>` | Item ids to skip, typically the ones already in the queue.       |
+| `minScore`   | `number`                          | Minimum similarity score in `[0, 1]`. Implementation-defined scale. |
+
+## Common implementations
+
+There is no single right answer, so the port stays open. Typical backings:
+
+- **Server-driven** — the NoMercy media server recommendation endpoint
+- **Audio-feature-based** — BPM, key, and energy similarity
+- **Tag-based** — genre, decade, and mood overlap
+- **ML embedding** — vector proximity in an embedding space
+- **External service** — Last.fm similar tracks or Spotify recommendations
+
+## Custom implementation: server-driven
+
+```ts
+import type {
+  ISimilarityEngine,
+  SimilarityQueryOptions,
+} from '@nomercy-entertainment/nomercy-music-player/adapters/similarity-engine';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+class ServerSimilarityEngine implements ISimilarityEngine<MusicPlaylistItem> {
+  readonly id = 'server-recommendations';
+
+  async findSimilar(
+    seed: MusicPlaylistItem,
+    opts?: SimilarityQueryOptions,
+  ): Promise<MusicPlaylistItem[]> {
+    const params = new URLSearchParams({ seed: String(seed.id) });
+    if (opts?.limit) params.set('limit', String(opts.limit));
+    if (opts?.minScore) params.set('minScore', String(opts.minScore));
+
+    const response = await fetch(`https://api.example.com/similar?${params}`);
+    const tracks: MusicPlaylistItem[] = await response.json();
+
+    const exclude = new Set(opts?.excludeIds ?? []);
+    return tracks.filter((track) => !exclude.has(track.id));
+  }
+}
+```
+
+## See also
+
+- [Playlist Generator](/nomercy-music-player/adapters/playlist-generator): `SmartShuffleGenerator` delegates to a similarity engine when tags alone fall short
+- [Configuration](/nomercy-music-player/configuration): where adapters are wired
+- [Plugins and Adapters](/nomercy-player-core/foundations/plugins-and-adapters): when to reach for an adapter

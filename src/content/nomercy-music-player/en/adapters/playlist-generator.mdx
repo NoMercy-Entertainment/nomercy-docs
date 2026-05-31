@@ -1,14 +1,14 @@
 ---
-title: 'IPlaylistGenerator'
+title: 'Playlist Generator'
 description: 'Port for next/previous queue resolution: IPlaylistGenerator interface, LinearPlaylistGenerator and SmartShuffleGenerator built-ins.'
 draft: false
 ---
 
 {/* Source: packages/nomercy-music-player-v2/src/adapters/playlist-generator/IPlaylistGenerator.ts */}
 
-# IPlaylistGenerator
+# Playlist Generator
 
-Port for "what comes next?" queue decision logic. Receives the current queue snapshot and the currently-playing index, returns the index of the next item (or `undefined` for end-of-queue).
+Port for "what comes next?" queue decision logic, the `IPlaylistGenerator` contract. Receives the current queue snapshot and the currently-playing index, returns the index of the next item (or `undefined` for end-of-queue).
 
 ```ts
 import type { IPlaylistGenerator } from '@nomercy-entertainment/nomercy-music-player/adapters/playlist-generator';
@@ -48,7 +48,7 @@ Plays items in order (0, 1, 2, …). The default.
 import { SmartShuffleGenerator } from '@nomercy-entertainment/nomercy-music-player/adapters/playlist-generator';
 ```
 
-Tag-aware shuffle within the library. Avoids repeating the same artist or album within a configurable window.
+Tag-aware shuffle within the library. Avoids repeating the same artist or album within a configurable window. When tag overlap is not enough to pick a good next track, it delegates to a [Similarity Engine](/nomercy-music-player/adapters/similarity-engine) if one is wired.
 
 ## Custom implementation: server-side recommendations
 
@@ -87,5 +87,6 @@ class RecommendationGenerator implements IPlaylistGenerator<MusicPlaylistItem> {
 
 ## See also
 
+- [Similarity Engine](/nomercy-music-player/adapters/similarity-engine): the port `SmartShuffleGenerator` delegates to for "more like this"
 - [Configuration](/nomercy-music-player/configuration): where adapters are wired
 - [Events](/nomercy-music-player/events): `queue:exhausted` fires when `next()` returns `undefined`
