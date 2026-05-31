@@ -117,6 +117,11 @@
     }
 
     function extractOriginal(pre) {
+      // data-code-raw is the canonical source text, kept current by the
+      // VersionInjector. Prefer it so a version rewrite never leaves the
+      // switcher comparing against a stale snapshot.
+      var rawAttr = pre.getAttribute('data-code-raw');
+      if (rawAttr) return rawAttr;
       var raw = pre.getAttribute('code');
       if (raw) return raw;
       var dh = pre.getAttribute('data-highlighted');
@@ -133,7 +138,11 @@
       for (var i = 0; i < pres.length; i++) {
         var pre = pres[i];
         var raw = extractOriginal(pre);
-        if (!/\b(npm|npx)\b/.test(raw)) {
+        // Match real npm/npx COMMANDS only (whitespace-delimited). A bare
+        // `\bnpm\b` also matched the "/npm/" path segment in jsdelivr CDN
+        // URLs, so HTML `<script src=".../npm/...">` blocks got snapshotted
+        // and clobbered to plain text. Require surrounding whitespace.
+        if (!/(?:^|\s)(npm|npx)(?:\s|$)/.test(raw)) {
           pre.setAttribute('data-pm-id', 'skip');
           continue;
         }
@@ -155,12 +164,18 @@
     function applyToPre(pre, target) {
       var id = pre.getAttribute('data-pm-id');
       if (!id || id === 'skip') return;
-      var original = snapshots.get(id);
+      // Read the canonical source fresh so a version rewrite (VersionInjector
+      // updates data-code-raw) can't make a stale snapshot clobber the block.
+      var original = extractOriginal(pre) || snapshots.get(id);
       if (!original) return;
       var next = translate(original, target);
       var code = pre.querySelector('code');
       var targetEl = code || pre;
-      if (targetEl.textContent !== next) {
+      // Only rewrite when the COMMAND actually changed. Comparing whitespace-
+      // normalized text leaves the highlighted spans intact when nothing
+      // changed (npm default), instead of flattening them to plain textContent.
+      var norm = function (s) { return (s || '').replace(/\s+/g, ' ').trim(); };
+      if (norm(targetEl.textContent) !== norm(next)) {
         targetEl.textContent = next;
       }
     }
