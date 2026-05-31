@@ -1,0 +1,290 @@
+---
+title: 'Step 9: Seek Preview Thumbnails'
+description: 'Add a sprite-based thumbnail tooltip to the progress bar that shows the video frame at the hovered timestamp.'
+---
+
+{/* Source: packages/nomercy-video-player-v2/wiki/guides/Step-9-Seek-Preview-Thumbnails.md */}
+
+# Step 9: Seek Preview Thumbnails
+
+This step adds a thumbnail tooltip to the progress bar. When the user hovers the scrubber, a small image appears above it showing the video frame at that timestamp, along with a formatted time label. The sprite sheet is loaded once when the item loads and reused for every scrub event.
+
+## Prerequisites
+
+This tutorial builds directly on the plugin started in [Step 1](/nomercy-video-player/guides/build-ui-1-shell-and-layout). If you are joining here, the minimum setup is a plugin class that:
+
+- `extends Plugin` with `static readonly id = 'player-ui'`
+- has a working `use()` that builds the controls overlay, including a progress bar rendered by `buildSliderBar`
+- has a `dispose()` that tears down
+
+The sprite preview also requires each `VideoPlaylistItem` to carry a `previewSpriteUrl` field pointing to a WebVTT sprite manifest. Without that field `VttSpriteThumbnailSource` silently returns `null` from `lookup` and the tooltip never appears.
+
+## How sprite thumbnails work in v2
+
+The player ships a `VttSpriteThumbnailSource` adapter and a set of helpers in `desktop-ui/sprite.ts` that handle the full pipeline:
+
+1. `loadSpriteSet(vttUrl)` fetches the VTT, parses every cue, resolves relative sprite image URLs, and preloads the sprite image so the first hover paints instantly.
+2. `lookupCue(spriteSet, time)` finds the cue whose `[start, end)` window covers a given time and returns it synchronously, because the function is called on every `mouseover` event.
+
+The VTT format the parser expects is the `#xywh=` fragment form:
+
+```
+WEBVTT
+
+00:00:00.000 --> 00:00:10.000
+Sintel.(2010).sprites.webp#xywh=0,0,256,109
+
+00:00:10.000 --> 00:00:20.000
+Sintel.(2010).sprites.webp#xywh=256,0,256,109
+```
+
+Each cue body is `<imageFilename>#xywh=<x>,<y>,<w>,<h>`. The filename is resolved relative to the VTT URL, so relative paths work fine if both files are co-located.
+
+## Playlist item setup
+
+Set `previewSpriteUrl` on the item. The `VttSpriteThumbnailSource` adapter reads this field:
+
+```ts
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+const item: VideoPlaylistItem = {
+  id: 'sintel',
+  title: 'Sintel',
+  url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+  image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+  duration: 888,
+  previewSpriteUrl: '/Sintel.(2010)/Sintel.(2010).sprites.vtt',
+  subtitles: [
+    {
+      id: 'sintel-eng',
+      kind: 'subtitles',
+      language: 'eng',
+      label: 'English',
+      url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
+    },
+  ],
+};
+
+const config = {
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  playlist: [item],
+};
+```
+
+> **Note:** `previewSpriteUrl` is resolved against `baseUrl` when it is a relative path, following the same rules as `url`. If you set a fully qualified URL it passes through unchanged.
+
+## Extending the plugin
+
+The seek preview is an addition on top of the controls you have already built. Import the sprite utilities and the slider-bar types:
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+import { loadSpriteSet, lookupCue } from '@nomercy-entertainment/nomercy-video-player/src/plugins/desktop-ui/sprite';
+import type { SpriteSet } from '@nomercy-entertainment/nomercy-video-player/src/plugins/desktop-ui/sprite';
+import { buildSliderBar, fmt } from '@nomercy-entertainment/nomercy-video-player/src/plugins/desktop-ui/progressBar';
+import type { SliderBarRefs } from '@nomercy-entertainment/nomercy-video-player/src/plugins/desktop-ui/progressBar';
+```
+
+> **Note:** `loadSpriteSet`, `lookupCue`, `buildSliderBar`, and `fmt` are internal helpers exported from the `desktop-ui` sub-folder. They are not part of the public package entry point. If you are building a polished consumer plugin you can copy the sprite parser logic directly into your own file rather than importing from an internal path.
+
+## New instance fields
+
+```ts
+class PlayerUiPlugin extends Plugin<NMVideoPlayer, undefined, Record<string, never>> {
+  static readonly id = 'player-ui';
+
+  private sliderRefs!: SliderBarRefs;
+  private spriteSet: SpriteSet | null = null;
+  private spriteLoadId = 0;
+
+  // ... rest of the class
+}
+```
+
+`spriteLoadId` is a simple counter used to cancel stale async loads when the user skips to a different item before the previous fetch completes.
+
+## Wiring in `use()`
+
+Call the existing slider-bar construction and then subscribe to item changes so the sprite loads whenever the current item changes:
+
+```ts
+use(): void {
+  // Build the progress bar (this was already in your plugin from earlier steps)
+  this.sliderRefs = buildSliderBar(this.player);
+  // ... append sliderRefs.sliderBar to your bottom-bar top-row
+
+  // Load sprites for the first item, then reload on every item change
+  this.on('ready', () => {
+    void this.loadSpritesForItem(this.player.current());
+  });
+
+  this.on('current', ({ item }) => {
+    this.spriteSet = null;
+    void this.loadSpritesForItem(item);
+  });
+
+  this.wireSliderPop();
+}
+```
+
+## Loading the sprite set
+
+```ts
+private async loadSpritesForItem(item: VideoPlaylistItem | undefined): Promise<void> {
+  const myToken = ++this.spriteLoadId;
+  this.spriteSet = null;
+
+  // Clear any stale background from the previous item
+  this.sliderRefs.sliderPopImage.style.backgroundImage = '';
+  this.sliderRefs.sliderPopImage.style.width = '';
+  this.sliderRefs.sliderPopImage.style.height = '';
+
+  const spriteUrl = item?.previewSpriteUrl;
+  if (!spriteUrl) return;
+
+  const set = await loadSpriteSet(spriteUrl);
+
+  // Discard if the item changed while we were fetching
+  if (myToken !== this.spriteLoadId) return;
+  if (!set) return;
+
+  this.spriteSet = set;
+  this.sliderRefs.sliderPopImage.style.backgroundImage = `url('${set.spriteUrl}')`;
+}
+```
+
+`loadSpriteSet` returns `null` when the fetch fails or when the VTT has no parseable cues, so the guard on the last two lines is straightforward.
+
+## Painting the sprite at a given time
+
+```ts
+private paintSpriteAt(timeSeconds: number): void {
+  if (!this.spriteSet) return;
+
+  const cue = lookupCue(this.spriteSet, timeSeconds);
+  if (!cue) return;
+
+  this.sliderRefs.sliderPopImage.style.backgroundPosition = `-${cue.x}px -${cue.y}px`;
+  this.sliderRefs.sliderPopImage.style.width = `${cue.w}px`;
+  this.sliderRefs.sliderPopImage.style.height = `${cue.h}px`;
+}
+```
+
+`lookupCue` finds the cue whose `[start, end)` range covers `timeSeconds`. If `timeSeconds` falls past the last cue it returns the last cue rather than `null`, so the thumbnail stays visible at the very end of the bar.
+
+## Wiring the tooltip show/hide
+
+The slider-pop DOM node (`sliderRefs.sliderPop`) uses a CSS custom property `--visibility` to control opacity. Set it to `'1'` to show and `'0'` to hide. The `sliderRefs.sliderPop.style.left` is a percentage of the slider bar width, clamped so the tooltip does not bleed outside the bar edges.
+
+```ts
+private wireSliderPop(): void {
+  const { sliderBar, sliderPop, sliderPopText } = this.sliderRefs;
+
+  this.listen(sliderBar, 'mouseover', (event: Event) => {
+    if (!(event instanceof MouseEvent)) return;
+    const rect = sliderBar.getBoundingClientRect();
+    const rawX = event.clientX - rect.left;
+    const clampedX = Math.max(0, Math.min(rawX, rect.width));
+    const percent = clampedX / rect.width;
+    const scrubTimeSeconds = percent * (this.player.duration?.() ?? 0);
+
+    sliderPopText.textContent = fmt(scrubTimeSeconds);
+    this.paintSpriteAt(scrubTimeSeconds);
+
+    const popOffsetPct = this.clampPopOffset(percent * 100);
+    sliderPop.style.left = `${popOffsetPct}%`;
+    sliderPop.style.setProperty('--visibility', '1');
+  });
+
+  this.listen(sliderBar, 'mouseleave', () => {
+    sliderPop.style.setProperty('--visibility', '0');
+  });
+}
+
+private clampPopOffset(pct: number): number {
+  const popWidthPct = (this.sliderRefs.sliderPop.offsetWidth
+    / Math.max(1, this.sliderRefs.sliderBar.offsetWidth)) * 100;
+  const half = popWidthPct / 2;
+  return Math.max(half, Math.min(100 - half, pct));
+}
+```
+
+Using `this.listen` instead of `addEventListener` means the event listener is automatically removed when the plugin is disposed. No manual cleanup needed.
+
+## `dispose()`
+
+The slider-pop DOM is part of `sliderRefs.sliderBar`, which is appended to the player container by your `use()` call. When the player disposes the plugin lifecycle removes any mounted DOM automatically. Explicit cleanup is only needed if you hold external references.
+
+```ts
+dispose(): void {
+  this.spriteSet = null;
+}
+```
+
+## Styling
+
+The `slider-pop` element and its children are styled by `DesktopUiPlugin`'s CSS when that plugin is loaded alongside yours. If you are using your own stylesheet, the minimum CSS to make the tooltip visible is:
+
+```css
+.slider-pop {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 8px;
+  pointer-events: none;
+  opacity: var(--visibility, 0);
+  transition: opacity 100ms ease;
+  transform: translateX(-50%);
+}
+
+.slider-pop-image {
+  background-repeat: no-repeat;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.slider-pop-text {
+  display: block;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #fff;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+```
+
+If you are using Tailwind, the equivalent utility approach:
+
+```ts
+// When building sliderPop with player.createElement:
+player.createElement('div', 'slider-pop')
+  .addClasses([
+    'absolute', 'bottom-full', 'mb-2',
+    'pointer-events-none',
+    'transition-opacity', 'duration-100',
+    '-translate-x-1/2',
+  ])
+  .appendTo(sliderBar)
+  .get();
+```
+
+Control visibility by setting `--visibility` as shown above; the `opacity: var(--visibility, 0)` declaration in your CSS picks it up.
+
+## Complete picture
+
+When the user moves their pointer over the progress bar:
+
+1. `mouseover` fires on `sliderBar`.
+2. The handler calculates `scrubTimeSeconds` from the pointer X position.
+3. `fmt(scrubTimeSeconds)` writes the formatted time into `sliderPopText`.
+4. `paintSpriteAt` calls `lookupCue`, then applies `backgroundPosition` / `width` / `height` to `sliderPopImage`.
+5. `sliderPop.style.left` positions the tooltip above the cursor, clamped to the bar edges.
+6. `--visibility` is set to `'1'`, making the tooltip visible.
+
+On `mouseleave`, `--visibility` returns to `'0'`.
+
+The sprite image is loaded once when the item loads and stays cached in `spriteSet` for the entire item lifetime. No per-frame network requests.
+
+## Next
+
+[Step 10: Touch Zones](/nomercy-video-player/guides/build-ui-10-touch-zones)

@@ -1,0 +1,250 @@
+---
+title: 'Framework: Svelte'
+description: 'Integrating nomercy-video-player with Svelte 4 and Svelte 5 runes. Lifecycle hooks, reactive state, and event cleanup.'
+---
+
+{/* Source: packages/nomercy-video-player-v2/wiki/frameworks/Framework-Svelte.md */}
+
+# Video Player: Svelte Integration
+
+The player is a class instance, not plain data, so it fits naturally into Svelte's lifecycle model.
+`onMount` creates the player after the DOM is ready, `onDestroy` disposes it on teardown.
+Reactive variables mirror player events into Svelte's own reactivity system.
+
+## Svelte 4: onMount / onDestroy
+
+```svelte
+<script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
+  import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+  import { DesktopUiPlugin, KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+  import type { NMVideoPlayer, VideoPlaylistItem, VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+
+  const playlist: VideoPlaylistItem[] = [
+    {
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+      duration: 888,
+      subtitles: [
+        {
+          id: 'sub-en',
+          label: 'English',
+          url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
+          language: 'eng',
+          kind: 'subtitles',
+        },
+      ],
+    },
+  ];
+
+  const config: VideoPlayerConfig = {
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playlist,
+  };
+
+  let player: NMVideoPlayer | null = null;
+  let currentTime = 0;
+  let duration = 0;
+  let isPlaying = false;
+
+  onMount(() => {
+    player = nmplayer('nomercy-player')
+      .addPlugin(DesktopUiPlugin)
+      .addPlugin(KeyHandlerPlugin)
+      .setup(config);
+
+    player.on('ready', () => {
+      player!.current(0, { autoplay: true });
+    });
+
+    player.on('time', ({ time }) => { currentTime = time; });
+    player.on('duration', ({ duration: dur }) => { duration = dur; });
+    player.on('play', () => { isPlaying = true; });
+    player.on('pause', () => { isPlaying = false; });
+  });
+
+  onDestroy(() => {
+    player?.dispose();
+    player = null;
+  });
+</script>
+
+<div>
+  <div id="nomercy-player" style="width: 100%; aspect-ratio: 16/9;" />
+
+  <div class="controls">
+    <button on:click={() => player?.togglePlayback()}>
+      {isPlaying ? 'Pause' : 'Play'}
+    </button>
+    <span>{Math.floor(currentTime)}s / {Math.floor(duration)}s</span>
+  </div>
+</div>
+```
+
+`onMount` only runs in the browser, so there is no SSR hazard: the player is never constructed on the server.
+`onDestroy` is called both when the component unmounts and when SvelteKit navigates away, so `player.dispose()` always fires.
+
+## Svelte 5: $state and $effect
+
+Svelte 5 runes replace `onMount`/`onDestroy` with `$state` and `$effect`.
+`$effect` runs after the DOM is ready, and the function it returns is the cleanup that runs on unmount.
+
+```svelte
+<script lang="ts">
+  import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+  import { DesktopUiPlugin, KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+  import type { NMVideoPlayer, VideoPlaylistItem, VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+
+  const playlist: VideoPlaylistItem[] = [
+    {
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+      duration: 888,
+    },
+  ];
+
+  const config: VideoPlayerConfig = {
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playlist,
+  };
+
+  let player = $state<NMVideoPlayer | null>(null);
+  let currentTime = $state(0);
+  let duration = $state(0);
+  let isPlaying = $state(false);
+
+  $effect(() => {
+    const instance = nmplayer('nomercy-player')
+      .addPlugin(DesktopUiPlugin)
+      .addPlugin(KeyHandlerPlugin)
+      .setup(config);
+
+    instance.on('ready', () => {
+      instance.current(0, { autoplay: true });
+    });
+
+    instance.on('time', ({ time }) => { currentTime = time; });
+    instance.on('duration', ({ duration: dur }) => { duration = dur; });
+    instance.on('play', () => { isPlaying = true; });
+    instance.on('pause', () => { isPlaying = false; });
+
+    player = instance;
+
+    return () => {
+      instance.dispose();
+      player = null;
+    };
+  });
+</script>
+
+<div>
+  <div id="nomercy-player" style="width: 100%; aspect-ratio: 16/9;"></div>
+
+  <div class="controls">
+    <button onclick={() => player?.togglePlayback()}>
+      {isPlaying ? 'Pause' : 'Play'}
+    </button>
+    <span>{Math.floor(currentTime)}s / {Math.floor(duration)}s</span>
+  </div>
+</div>
+```
+
+> **Note:** In Svelte 5 the event handler attribute is `onclick` (not `on:click`). The `$effect` cleanup return value replaces `onDestroy`.
+
+## Reactive state as a separate function
+
+For larger components, pulling the subscriptions out into a dedicated function keeps the setup block focused:
+
+```ts
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+function bindPlayerState(
+  instance: NMVideoPlayer,
+  setState: {
+    setTime: (t: number) => void;
+    setDuration: (d: number) => void;
+    setPlaying: (p: boolean) => void;
+  },
+) {
+  instance.on('time', ({ time }) => setState.setTime(time));
+  instance.on('duration', ({ duration }) => setState.setDuration(duration));
+  instance.on('play', () => setState.setPlaying(true));
+  instance.on('pause', () => setState.setPlaying(false));
+}
+```
+
+In Svelte 4 call this inside `onMount` after creating the player.
+In Svelte 5 call it inside `$effect` before returning the cleanup function.
+
+## Auth-protected streams
+
+Pass auth inside `setup()`. The token callback runs before every HLS manifest and segment request, so a freshly-refreshed token is always used:
+
+```ts
+const instance = nmplayer('nomercy-player').setup({
+  playlist: [{ id: '1', url: 'https://protected.cdn.your-domain.com/stream.m3u8' }],
+  auth: {
+    bearerToken: () => myAuth.getAccessToken(),
+    refreshOnUnauthenticated: async () => {
+      await myAuth.refresh();
+    },
+  },
+});
+```
+
+## SvelteKit
+
+The player requires browser APIs.
+`onMount` and `$effect` only run in the browser, so wrapping setup inside either of them is enough.
+No additional guard is needed.
+
+If you import the player at module scope (outside a lifecycle hook), use a dynamic import to prevent the module from loading on the server:
+
+```ts
+onMount(async () => {
+  const { nmplayer: create } = await import('@nomercy-entertainment/nomercy-video-player');
+  player = create('nomercy-player').setup(config);
+});
+```
+
+## Shared player across components
+
+Create the player once in a module and export the instance.
+In Svelte 5 you can wrap it in a `$state` rune at module level for reactive sharing:
+
+```ts
+// lib/player.ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+export const player = nmplayer('global');
+
+export async function initPlayer() {
+  player
+    .addPlugin(DesktopUiPlugin)
+    .setup({ playlist: [] });
+  await player.ready();
+}
+```
+
+Import in any component:
+
+```ts
+import { player } from '$lib/player';
+
+player.on('current', ({ item }) => {
+  /* respond to item changes */
+});
+```
+
+## What to read next
+
+- [Events](/nomercy-video-player/events): full event reference with payload shapes
+- [Configuration](/nomercy-video-player/configuration): every config option and default
+- [Plugin Development](/nomercy-video-player/plugin-development): writing your own plugins
+- [Framework: Vue](/nomercy-video-player/framework-vue): Vue 3 integration
+- [Framework: React](/nomercy-video-player/framework-react): React integration

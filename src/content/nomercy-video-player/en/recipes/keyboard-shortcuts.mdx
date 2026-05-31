@@ -5,11 +5,9 @@ description: "Using KeyHandlerPlugin for custom key bindings, adding bindings to
 
 # Keyboard Shortcuts
 
-Read this when you need custom keyboard bindings — adding a shortcut the default set doesn't cover, replacing an existing binding, or wiring keyboard input in a custom UI without `DesktopUiPlugin`.
+Read this when you need custom keyboard bindings: adding a shortcut the default set doesn't cover, replacing an existing binding, or wiring keyboard input in a custom UI without `DesktopUiPlugin`.
 
 **Prerequisites:** [Video Quick Start](/nomercy-video-player/quickstart).
-
----
 
 ## Default bindings
 
@@ -24,8 +22,6 @@ Read this when you need custom keyboard bindings — adding a shortcut the defau
 | `↑` / `↓`   | Volume ±10%           |
 | `c`         | Cycle subtitle tracks |
 
----
-
 ## Adding custom bindings on top of DesktopUiPlugin
 
 Subclass `DesktopUiPlugin` and override `addPlaybackKeys`:
@@ -34,7 +30,7 @@ Subclass `DesktopUiPlugin` and override `addPlaybackKeys`:
 import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
 
 class MyDesktopUi extends DesktopUiPlugin {
-  // Same id as the built-in — replaces it
+  // Same id as the built-in, replaces it
   static readonly id = 'desktop-ui';
 
   protected addPlaybackKeys(): void {
@@ -44,7 +40,7 @@ class MyDesktopUi extends DesktopUiPlugin {
     this.bind('n', (player) => player.next()); // 'n' for next
     this.bind('p', (player) => player.previous()); // 'p' for previous
     this.bind('t', (player) => {
-      // 't' toggles theater mode — requires a theater state on your container
+      // 't' toggles theater mode, requires a theater state on your container
       player.container.classList.toggle('nm-theater');
     });
   }
@@ -52,8 +48,6 @@ class MyDesktopUi extends DesktopUiPlugin {
 
 player.addPlugin(MyDesktopUi);
 ```
-
----
 
 ## Standalone KeyHandlerPlugin (no DesktopUiPlugin)
 
@@ -72,13 +66,11 @@ player.addPlugin(KeyHandlerPlugin);
 // Bind keys via the plugin after registration:
 const keyHandler = player.getPlugin(KeyHandlerPlugin);
 
-keyHandler.bind(' ', (p) => p.togglePlayback()); // Space = toggle
-keyHandler.bind('f', (p) => p.fullscreenState(!p.fullscreenState())); // f = fullscreen
-keyHandler.bind('ArrowLeft', (p) => p.rewind(10)); // ← = seek back 10s
-keyHandler.bind('ArrowRight', (p) => p.forward(10)); // → = seek forward 10s
+keyHandler.bind(' ', (playerInstance) => playerInstance.togglePlayback()); // Space = toggle
+keyHandler.bind('f', (playerInstance) => playerInstance.fullscreenState(!playerInstance.fullscreenState())); // f = fullscreen
+keyHandler.bind('ArrowLeft', (playerInstance) => playerInstance.rewind(10)); // ← = seek back 10s
+keyHandler.bind('ArrowRight', (playerInstance) => playerInstance.forward(10)); // → = seek forward 10s
 ```
-
----
 
 ## Key name format
 
@@ -93,17 +85,16 @@ Key names follow the `KeyboardEvent.key` standard. Common values:
 | Escape     | `'Escape'`                                                |
 | Enter      | `'Enter'`                                                 |
 
----
-
 ## Conflict resolution
 
-`KeyHandlerPlugin` captures keyboard events on the player container. If you have page-level key handlers (e.g. a search input), the player should not steal those events.
+`KeyHandlerPlugin` captures keyboard events on the player container.
+If you have page-level key handlers (e.g. a search input), the player should not steal those events.
 
 By default, the plugin ignores key events when focus is on an `<input>`, `<textarea>`, or `[contenteditable]` element. To add more exclusions:
 
 ```ts
 player.addPlugin(KeyHandlerPlugin, {
-  // Selector string — key events are ignored when this element has focus
+  // Selector string: key events are ignored when this element has focus
   ignoreWhenFocused: 'input, textarea, [contenteditable], .my-modal',
 });
 ```
@@ -115,8 +106,6 @@ const keyHandler = player.getPlugin(KeyHandlerPlugin);
 keyHandler.pause(); // all bindings suspended
 keyHandler.resume(); // restore
 ```
-
----
 
 ## Removing a binding
 
@@ -130,10 +119,8 @@ keyHandler.unbind('c');
 keyHandler.unbindAll();
 ```
 
----
-
 ## What to read next
 
-- [Desktop UI](/nomercy-video-player/plugins/desktop-ui) — full list of default bindings and how DesktopUiPlugin manages them
-- [Plugin Authoring](/nomercy-player-kit/plugin-authoring) — writing a plugin that hooks into the key handler event stream
-- [Recipes: Media Session](/nomercy-video-player/plugins/media-session) — pairing keyboard shortcuts with system media keys
+- [Desktop UI](/nomercy-video-player/plugins/desktop-ui): full list of default bindings and how DesktopUiPlugin manages them
+- [Plugin Authoring](/nomercy-player-core/plugin-authoring): writing a plugin that hooks into the key handler event stream
+- [Recipes: Media Session](/nomercy-video-player/plugins/media-session): pairing keyboard shortcuts with system media keys

@@ -33,14 +33,13 @@ Subsequent plugins extend the chain by calling `insertEffect()` or the `pre()` /
 
 The chain topology looks like this:
 
-```
-[backend audio output]
-  └─ source node
-      ├─ (parallel tap) → shared AnalyserNode   (read by SpectrumPlugin)
-      ├─ preEffects[0..n]                        (e.g. EQ BiquadFilters)
-      └─ postEffects[0..n]                       (e.g. MixerPlugin gain/pan)
-          └─ AudioContext.destination
-```
+<LayerStack layers={[
+  { n: 5, name: 'Backend audio output', knows: 'The raw audio output produced by the active backend (Html5VideoBackend or WebAudioBackend).' },
+  { n: 4, name: 'Source node', knows: 'MediaElementSourceNode wrapping the backend output. Created once; reused if the backend already exposes an outputNode.' },
+  { n: 3, name: 'Parallel tap — shared AnalyserNode', knows: 'Tapped off the source in parallel. Read by SpectrumPlugin and custom visualisers; does not affect the main signal path.' },
+  { n: 2, name: 'preEffects[0..n]', knows: 'Serial pre-effect nodes inserted via pre() or insertEffect(node, "pre"). Typical use: EQ BiquadFilters.' },
+  { n: 1, name: 'postEffects[0..n] → AudioContext.destination', knows: 'Serial post-effect nodes inserted via post() or insertEffect(node, "post"). Typical use: MixerPlugin gain and pan. Last node wires to AudioContext.destination.' },
+]} />
 
 The `AudioContext` starts in `'suspended'` state per browser autoplay policy.
 The plugin resumes it on the first `'play'` event, which always fires inside or immediately after a user gesture.
@@ -142,6 +141,6 @@ player.on('plugin:audio-graph:context:ready', ({ sampleRate }) => {
 
 ## See also
 
-- [Plugin registration](/nomercy-player-kit/plugin-registration)
-- [Player Kit plugins reference](/nomercy-player-kit/plugins)
+- [Plugin registration](/nomercy-player-core/plugin-registration)
+- [Player Core plugins reference](/nomercy-player-core/plugins)
 - [Music player AudioGraphPlugin](/nomercy-music-player/plugins/audio-graph)

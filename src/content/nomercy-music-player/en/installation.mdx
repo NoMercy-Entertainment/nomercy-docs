@@ -8,10 +8,8 @@ draft: false
 
 ## Requirements
 
-- Node.js 18 or later (tooling only — the player itself runs in any modern browser)
+- Node.js 18 or later (tooling only, the player itself runs in any modern browser)
 - A module bundler (Vite, Webpack, Rollup, or similar)
-
----
 
 ## Install the package
 
@@ -27,7 +25,17 @@ yarn add @nomercy-entertainment/nomercy-music-player@beta
 pnpm add @nomercy-entertainment/nomercy-music-player@beta
 ```
 
----
+## CDN (no bundler)
+
+You can drop the player onto a page without a bundler.
+Load `hls.js` first (the IIFE bundle reads it from the `Hls` global), then the player bundle, which exposes a `nmMPlayer` global.
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@nomercy-entertainment/nomercy-music-player@beta/dist/nomercy-music-player.iife.js"></script>
+```
+
+Built-in plugins are not part of the IIFE bundle, so use the npm install above when you need them.
 
 ## Import paths
 
@@ -42,7 +50,7 @@ import type {
   IMusicPlayer,
 } from '@nomercy-entertainment/nomercy-music-player';
 
-// Plugins — always import from the /plugins subpath
+// Plugins, always import from the /plugins subpath
 import {
   AutoAdvancePlugin,
   LyricsPlugin,
@@ -50,13 +58,12 @@ import {
 } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
 
-Importing plugins from the main entry point is not supported — always use `/plugins`.
-
----
+Importing plugins from the main entry point is not supported, always use `/plugins`.
 
 ## TypeScript
 
-The package ships full TypeScript declarations. No `@types/` package is needed.
+The package ships full TypeScript declarations.
+No `@types/` package is needed.
 
 The recommended type for a consumer-held player reference is `IMusicPlayer<T>`:
 
@@ -67,8 +74,6 @@ let player: IMusicPlayer<MusicPlaylistItem>;
 ```
 
 Use the concrete `NMMusicPlayer<T>` type only when you need access to internals not exposed on the interface.
-
----
 
 ## Browser support
 
@@ -81,17 +86,15 @@ Use the concrete `NMMusicPlayer<T>` type only when you need access to internals 
 | iOS Safari      | 15.4            | Web Audio may require user gesture before `AudioContext.resume()` |
 | Android WebView | 90              | `setSinkId` (audio output routing) not available                  |
 
----
-
 ## HLS streams
 
-HLS support is handled by `hls.js`, which is a regular production dependency of the package. No separate install is needed. The library is loaded automatically when an `.m3u8` URL is detected on a browser that does not support native HLS.
+HLS support is handled by `hls.js`, which is a regular production dependency of the package.
+No separate install is needed.
+The library is loaded automatically when an `.m3u8` URL is detected on a browser that does not support native HLS.
 
 On Safari and iOS, native HLS is used directly and `hls.js` is not loaded.
 
----
-
 ## What to read next
 
-- [Quick Start](/nomercy-music-player/quickstart) — minimal working player in under 30 lines
-- [Configuration](/nomercy-music-player/configuration) — all `setup()` options
+- [Quick Start](/nomercy-music-player/quickstart), minimal working player in under 30 lines
+- [Configuration](/nomercy-music-player/configuration), all `setup()` options

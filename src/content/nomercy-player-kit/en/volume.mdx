@@ -8,17 +8,20 @@ draft: false
 
 ## Overview
 
-Volume methods control output level and mute state. The scale is 0–100 (not 0–1) to match the v1 API. The player translates to the 0–1 range internally when routing to the backend.
-
----
+Volume methods control output level and mute state.
+The scale is 0–100 (not 0–1) to match the v1 API.
+The player translates to the 0–1 range internally when routing to the backend.
 
 ## `volume(level?)`
 
 Read or write the playback volume.
 
-**Read:** `volume()` returns the effective level (0–100). Returns `0` when muted regardless of the stored pre-mute level.
+**Read:** `volume()` returns the effective level (0–100).
+Returns `0` when muted regardless of the stored pre-mute level.
 
-**Write:** `volume(level)` clamps `level` to [0, 100], persists it, and routes the new value to the active backend. Fires `beforeMutation` (cancellable) then `volume`. No-op when the mutation is cancelled.
+**Write:** `volume(level)` clamps `level` to [0, 100], persists it, and routes the new value to the active backend.
+Fires `beforeMutation` (cancellable) then `volume`.
+No-op when the mutation is cancelled.
 
 | Parameter | Type     | Required | Description         |
 | --------- | -------- | -------- | ------------------- |
@@ -36,7 +39,8 @@ const current = player.volume(); // e.g. 75
 player.volume(50);
 ```
 
-Persisting volume is a plugin concern — use the namespaced [storage adapter](/nomercy-player-kit/storage) (`this.storage`), not raw `localStorage`. The adapter is auto-scoped per player, async-compatible, and swappable via `setup({ storage })`:
+Persisting volume is a plugin concern, so use the namespaced [storage adapter](/nomercy-player-core/storage) (`this.storage`), not raw `localStorage`.
+The adapter is auto-scoped per player, async-compatible, and swappable via `setup({ storage })`:
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
@@ -54,27 +58,26 @@ class VolumeMemoryPlugin extends Plugin {
 player.addPlugin(VolumeMemoryPlugin);
 ```
 
----
-
 ## `mute()`
 
-Silence output without discarding the current volume level. Persists the current level so `unmute()` can restore it. No-op when already muted.
+Silence output without discarding the current volume level.
+Persists the current level so `unmute()` can restore it.
+No-op when already muted.
 
 **Events emitted:** `mute` with `{ muted: true }`
 
----
-
 ## `unmute()`
 
-Restore output after mute. Reinstates the level saved by the last `mute()` call. No-op when already unmuted.
+Restore output after mute.
+Reinstates the level saved by the last `mute()` call.
+No-op when already unmuted.
 
 **Events emitted:** `mute` with `{ muted: false }`
 
----
-
 ## `toggleMute()`
 
-Flip between muted and unmuted. Delegates to `mute()` or `unmute()`.
+Flip between muted and unmuted.
+Delegates to `mute()` or `unmute()`.
 
 ```ts
 button.addEventListener('click', () => player.toggleMute());
@@ -84,21 +87,19 @@ player.on('mute', ({ muted }) => {
 });
 ```
 
----
-
 ## `volumeUp(step?)`
 
-Raise volume by `step` percentage points. Delegates to `volume()`.
+Raise volume by `step` percentage points.
+Delegates to `volume()`.
 
 | Parameter | Type     | Default | Description        |
 | --------- | -------- | ------- | ------------------ |
 | `step`    | `number` | `5`     | Points to increase |
 
----
-
 ## `volumeDown(step?)`
 
-Lower volume by `step` percentage points. Delegates to `volume()`.
+Lower volume by `step` percentage points.
+Delegates to `volume()`.
 
 | Parameter | Type     | Default | Description        |
 | --------- | -------- | ------- | ------------------ |
@@ -106,16 +107,14 @@ Lower volume by `step` percentage points. Delegates to `volume()`.
 
 ```ts
 // keyboard volume controls
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowUp') player.volumeUp();
-  if (e.key === 'ArrowDown') player.volumeDown();
-  if (e.key === 'm') player.toggleMute();
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowUp') player.volumeUp();
+  if (event.key === 'ArrowDown') player.volumeDown();
+  if (event.key === 'm') player.toggleMute();
 });
 ```
 
----
-
 ## See also
 
-- [Events Reference](/nomercy-player-kit/events-reference) — `volume`, `mute`
-- [Playback State](/nomercy-player-kit/playback-state) — `volumeState()`
+- [Events Reference](/nomercy-player-core/events-reference): `volume`, `mute`
+- [Playback State](/nomercy-player-core/playback-state): `volumeState()`

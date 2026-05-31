@@ -3,11 +3,11 @@ title: 'Plugin Development'
 description: 'Writing plugins for nomercy-video-player v2. Video-specific concerns, typed events, and examples.'
 ---
 
-# Plugin Development — Video Player
+# Plugin Development: Video Player
 
-Plugins for `nomercy-video-player` follow the same contract as the kit's plugin system. This page covers video-player-specific patterns. For the full plugin authoring guide, see [Plugin Authoring](/nomercy-player-kit/plugin-authoring).
-
----
+Plugins for `nomercy-video-player` follow the same contract as the player core's plugin system.
+This page covers video-player-specific patterns.
+For the full plugin authoring guide, see [Plugin Authoring](/nomercy-player-core/plugin-authoring).
 
 ## Built-in plugin catalog
 
@@ -15,32 +15,32 @@ All built-in plugins are importable from `@nomercy-entertainment/nomercy-video-p
 
 | Plugin | Plugin id | What it does |
 | ------ | --------- | ------------ |
-| [`AutoAdvancePlugin`](/nomercy-video-player/plugins/auto-advance) | `'auto-advance'` | Calls `next()` on `'ended'` — automatic queue progression |
+| [`AutoAdvancePlugin`](/nomercy-video-player/plugins/auto-advance) | `'auto-advance'` | Calls `next()` on `'ended'`, automatic queue progression |
 | [`DesktopUiPlugin`](/nomercy-video-player/plugins/desktop-ui) | `'desktop-ui'` | Full controls overlay (progress bar, menus, activity hiding) for pointer devices |
 | [`SubtitleOverlayPlugin`](/nomercy-video-player/plugins/subtitle-overlay) | `'subtitle-overlay'` | Renders VTT subtitle cues as a positioned DOM overlay |
 | [`OctopusPlugin`](/nomercy-video-player/plugins/octopus) | `'octopus'` | High-fidelity ASS/SSA subtitle rendering via libass/WASM |
-| [`TouchZonesPlugin`](/nomercy-video-player/plugins/touch-zones) | `'touch-zones'` | Tap-zone overlay — double-tap to seek, single-tap to toggle playback |
-| [`KeyHandlerPlugin`](/nomercy-video-player/plugins/key-handler) | `'video-key-handler'` | Full keyboard binding set — playback, seek, volume, chapters, subtitles, speed |
+| [`TouchZonesPlugin`](/nomercy-video-player/plugins/touch-zones) | `'touch-zones'` | Tap-zone overlay: double-tap to seek, single-tap to toggle playback |
+| [`KeyHandlerPlugin`](/nomercy-video-player/plugins/key-handler) | `'video-key-handler'` | Full keyboard binding set: playback, seek, volume, chapters, subtitles, speed |
 | [`SkipperPlugin`](/nomercy-video-player/plugins/skipper) | `'skipper'` | Intro/recap/credits skip markers with optional auto-skip |
 | [`DrmPlugin`](/nomercy-video-player/plugins/drm) | `'drm'` | EME license acquisition for Widevine, FairPlay, and PlayReady |
-| [`LiveTranscodingPlugin`](/nomercy-video-player/plugins/live-transcoding) | `'live-transcoding'` | Server-side on-demand transcoding — WebSocket gating + backpressure |
-| [`CastSenderPlugin`](/nomercy-video-player/plugins/cast-sender) | `'cast-sender'` | Chromecast CAF sender — session lifecycle + metadata mirroring |
+| [`LiveTranscodingPlugin`](/nomercy-video-player/plugins/live-transcoding) | `'live-transcoding'` | Server-side on-demand transcoding with WebSocket gating and backpressure |
+| [`CastSenderPlugin`](/nomercy-video-player/plugins/cast-sender) | `'cast-sender'` | Chromecast CAF sender with session lifecycle and metadata mirroring |
 | [`MediaSessionPlugin`](/nomercy-video-player/plugins/media-session) | `'media-session'` | Populates the OS "Now Playing" surface (lock screen, notifications) |
 | [`TvUiPlugin`](/nomercy-video-player/plugins/tv-ui) | `'tv-ui'` | D-pad/remote control keyboard bindings for TV environments |
 | [`TabLeaderPlugin`](/nomercy-video-player/plugins/tab-leader) | `'tab-leader'` | Web Locks-based single-tab playback enforcement across browser tabs |
 | [`MessagePlugin`](/nomercy-video-player/plugins/message) | `'message'` | Toast and persistent overlay messages inside the player container |
 | [`EmbedPlugin`](/nomercy-video-player/plugins/embed) | `'embed'` | `postMessage`-based control API for players embedded in iframes |
-| [`AudioGraphPlugin`](/nomercy-video-player/plugins/audio-graph) | `'audio-graph'` | Web Audio API signal chain — foundation for EQ, mixer, and spectrum plugins |
-
----
+| [`AudioGraphPlugin`](/nomercy-video-player/plugins/audio-graph) | `'audio-graph'` | Web Audio API signal chain, foundation for EQ, mixer, and spectrum plugins |
 
 ## Typing against the video player
 
-Use `NMVideoPlayer<T>` as the `P` generic. This gives your plugin access to the full `VideoEventMap` and video-specific methods without casts:
+Use `IVideoPlayer` as the `P` generic.
+`IVideoPlayer` is the stable public interface for the video player — it is the correct type for plugins and consumer functions.
+`NMVideoPlayer` is the concrete class (implementation detail); prefer `IVideoPlayer` so your plugin does not depend on the class hierarchy.
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
-import type { NMVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+import type { IVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
 interface WatchProgressOptions {
   reportUrl: string;
@@ -52,7 +52,7 @@ interface WatchProgressEvents {
 }
 
 export class WatchProgressPlugin extends Plugin<
-  NMVideoPlayer,
+  IVideoPlayer,
   WatchProgressOptions,
   WatchProgressEvents
 > {
@@ -87,11 +87,10 @@ export class WatchProgressPlugin extends Plugin<
 }
 ```
 
----
-
 ## Accessing video-specific methods
 
-Inside a plugin, `this.player` is typed as `NMVideoPlayer`. Video-specific methods are available directly:
+Inside a plugin, `this.player` is typed as `IVideoPlayer`.
+Video-specific methods are available directly:
 
 ```ts
 use(): void {
@@ -105,8 +104,6 @@ use(): void {
 }
 ```
 
----
-
 ## Listening to video-specific events
 
 ```ts
@@ -116,7 +113,7 @@ use(): void {
     this.logQualityChange(level);
   });
 
-  // Subtitle cue stream — for custom rendering:
+  // Subtitle cue stream, for custom rendering:
   this.on('subtitleCue', ({ cues }) => {
     this.renderCues(cues);
   });
@@ -126,28 +123,25 @@ use(): void {
     this.updateChapterDisplay(index, title);
   });
 
-  // Back button pressed (UI plugin fires this):
-  this.on('back', () => {
-    this.router.back();
-  });
+  // Back button pressed (UI plugin fires this) — handle in the consumer, not here.
+  // Wire 'back' on the player object from your Vue component or app router, e.g.:
+  //   player.on('back', () => router.back());
 }
 ```
-
----
 
 ## Extending a built-in plugin
 
 Override `DesktopUiPlugin`'s key bindings without replacing the whole plugin:
 
 ```ts
-import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 class MyKeyHandler extends KeyHandlerPlugin {
-  static readonly id = 'key-handler'; // same id = replaces the built-in
+  static readonly id = 'video-key-handler'; // same id = replaces the built-in
 
-  protected addPlaybackKeys(): void {
+  protected override addPlaybackKeys(): void {
     super.addPlaybackKeys();
-    // Add custom binding — 'n' for next episode
+    // Add custom binding: 'n' for next episode
     this.bind('n', (player) => player.next({ source: 'user' }));
   }
 }
@@ -155,11 +149,10 @@ class MyKeyHandler extends KeyHandlerPlugin {
 player.addPlugin(MyKeyHandler);
 ```
 
----
-
 ## Video playlist item type extension
 
-Extend `VideoPlaylistItem` with your own fields. The type threads through `current()`, `queue()`, and `beforeLoad`:
+Extend `VideoPlaylistItem` with your own fields.
+The type threads through `current()`, `queue()`, and `beforeLoad`:
 
 ```ts
 interface MyItem extends VideoPlaylistItem {
@@ -169,7 +162,7 @@ interface MyItem extends VideoPlaylistItem {
 
 const player = nmplayer<MyItem>('main').setup({ ... });
 
-// Inside a plugin typed against NMVideoPlayer<MyItem>:
+// Inside a plugin typed against IVideoPlayer<MyItem>:
 this.on('current', ({ item }) => {
   if (item) {
     console.log(item.tmdbId);  // typed, no cast
@@ -178,8 +171,156 @@ this.on('current', ({ item }) => {
 });
 ```
 
----
+## Best practices
+
+### Memory-safe cleanup with `dispose()`
+
+The lifecycle helpers (`this.on`, `this.listen`, `this.timeout`, `this.interval`, `this.frame`, `this.websocket`, `this.mount`) all register automatic cleanup when the plugin is torn down. You only need `dispose()` for resources the kit cannot track -- third-party library instances, custom WebGL contexts, non-standard observers.
+
+```ts
+export class VisualizerPlugin extends Plugin<IVideoPlayer> {
+  static readonly id = 'nomercy:visualizer';
+
+  private canvas: HTMLCanvasElement | null = null;
+  private gl: WebGLRenderingContext | null = null;
+
+  use(): void {
+    // mount() is auto-removed on dispose -- no manual cleanup needed
+    const container = this.mount('canvas-wrap');
+    this.canvas = document.createElement('canvas');
+    container.appendChild(this.canvas);
+    this.gl = this.canvas.getContext('webgl');
+
+    // on() is auto-cleaned -- no stored reference or manual off() needed
+    this.on('play', () => this.startRender());
+    this.on('pause', () => this.stopRender());
+  }
+
+  dispose(): void {
+    // Only clean up what the lifecycle cannot track: the GL context
+    this.gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    this.gl = null;
+    this.canvas = null;
+  }
+}
+```
+
+### Use `this.listen()` instead of `addEventListener`
+
+`this.listen(target, event, handler)` wraps `addEventListener` and auto-removes on dispose. Raw `addEventListener` calls require manual tracking and are a common source of ghost listeners after the player is destroyed.
+
+```ts
+use(): void {
+  // Correct -- auto-removed on dispose
+  this.listen(document, 'keydown', this.handleKey);
+  this.listen(this.player.container, 'mousemove', this.handleMove);
+
+  // Wrong -- never use raw addEventListener inside a plugin
+  // document.addEventListener('keydown', this.handleKey);
+}
+```
+
+### Batch high-frequency time updates with `this.frame()`
+
+The `'time'` event fires on every HTMLVideoElement `timeupdate`, which can reach 25 Hz during playback. Driving DOM mutations directly from that handler causes layout thrashing. Use `this.frame()` to synchronise writes with the browser's paint cycle instead -- the kit drives the loop and cancels it on dispose.
+
+```ts
+private currentTime = 0;
+
+use(): void {
+  this.on('time', ({ time }) => {
+    this.currentTime = time; // cheap write to memory only
+  });
+
+  this.frame(() => {
+    // Runs once per animation frame -- batches all DOM writes
+    const pct = (this.currentTime / this.player.duration()) * 100;
+    this.progressEl.style.width = `${pct}%`;
+  });
+}
+```
+
+For a one-off deferred update (not a continuous loop), use `this.timeout(fn, 0)` instead.
+
+### Do not rely on DOM element order
+
+Other plugins can insert or remove elements from the player container at any time. Query your own elements by the class name `mount()` assigned them rather than positional selectors like `firstChild` or `querySelector('div:nth-child(2)')`.
+
+```ts
+use(): void {
+  // mount() returns the div it created -- hold the reference directly
+  const panel = this.mount('info-panel');
+  const title = document.createElement('h2');
+  panel.appendChild(title);
+
+  this.on('current', ({ item }) => {
+    // Query within your own mount point, not the whole container
+    panel.querySelector('h2')!.textContent = item?.title ?? '';
+  });
+}
+```
+
+### Prefer container CSS classes over JS for state-driven visibility
+
+The player sets classes on `this.player.container` (`.playing`, `.paused`, `.buffering`, `.active`, `.inactive`) whenever state changes. Keying visibility on those classes with CSS is cheaper than toggling styles from event handlers and avoids the class of bugs where a handler fires before the DOM is ready.
+
+```css
+/* plugin stylesheet */
+.nmplayer-myui-controls {
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.nomercyplayer.active .nmplayer-myui-controls,
+.nomercyplayer.paused .nmplayer-myui-controls {
+  opacity: 1;
+}
+```
+
+```ts
+use(): void {
+  const controls = this.mount('controls');
+  // No JS visibility toggling needed -- CSS handles it
+}
+```
+
+See [Plugin Authoring](/nomercy-player-core/plugin-authoring) for the full list of container state classes.
+
+### Inter-plugin communication via events, not direct references
+
+Use `this.emit()` to broadcast from a plugin and `this.on(PluginClass, event, fn)` to receive from a specific plugin. This keeps plugins decoupled and independently testable. Direct references (calling methods on another plugin instance) create hidden load-order dependencies.
+
+```ts
+// Emitting plugin
+interface ChapterMenuEvents {
+  selected: { index: number; title: string };
+}
+
+export class ChapterMenuPlugin extends Plugin<IVideoPlayer, unknown, ChapterMenuEvents> {
+  static readonly id = 'nomercy:chapter-menu';
+
+  private selectChapter(index: number, title: string): void {
+    this.player.seekToChapter(index);
+    this.emit('selected', { index, title }); // scoped to plugin:nomercy:chapter-menu:selected
+  }
+}
+
+// Receiving plugin
+export class TimelinePlugin extends Plugin<IVideoPlayer> {
+  static readonly id = 'nomercy:timeline';
+  static readonly requires = [ChapterMenuPlugin];
+
+  use(): void {
+    // on(PluginClass, event, fn) -- auto-cleaned, fully typed
+    this.on(ChapterMenuPlugin, 'selected', ({ index }) => {
+      this.highlightMarker(index);
+    });
+  }
+}
+```
+
+> **Note:** `this.on(PluginClass, event, fn)` is the typed form for listening to another plugin's events. The consumer-facing string form is `on('plugin:<id>:<event>', fn)` on the player object itself -- use the class form inside plugins.
 
 ## Full plugin standard
 
-See [Plugin Authoring](/nomercy-player-kit/plugin-authoring) for the complete contract: required static fields, lifecycle methods, error handling via `this.throw`/`this.report`, event namespacing, dependency declarations, advisories, and the conformance checklist.
+See [Plugin Authoring](/nomercy-player-core/plugin-authoring) for the complete contract: required static fields, lifecycle methods, error handling via `this.throw`/`this.report`, event namespacing, dependency declarations, advisories, and the conformance checklist.

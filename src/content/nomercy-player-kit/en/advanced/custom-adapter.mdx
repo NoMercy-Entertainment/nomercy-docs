@@ -5,24 +5,22 @@ description: 'Full walkthrough writing a custom IStorage backend backed by Index
 
 # Custom Adapter
 
-Read this when the default adapter implementations don't fit your use case — you need async persistence (IndexedDB Workers), translations from a CMS, or any other infrastructure replacement.
+Read this when the default adapter implementations don't fit your use case, for example when you need async persistence (IndexedDB Workers), translations from a CMS, or any other infrastructure replacement.
 
-**Prerequisites:** [Kit — Adapters](/nomercy-player-kit/adapters) for the port catalog. [Kit — Testing](/nomercy-player-kit/testing) for the test harness.
-
----
+**Prerequisites:** [Core: Adapters](/nomercy-player-core/adapters) for the port catalog. [Core: Testing](/nomercy-player-core/testing) for the test harness.
 
 ## What an adapter is
 
-An adapter is a class that implements a typed interface from the kit. You wire it through `setup()` and the player and its plugins use your implementation instead of the default.
+An adapter is a class that implements a typed interface from the core.
+You wire it through `setup()` and the player and its plugins use your implementation instead of the default.
 
-There are 28 kit-level ports plus 4 video-specific and 6 music-specific ones. This guide walks through two of the most commonly replaced ones:
+There are 28 core-level ports plus 4 video-specific and 6 music-specific ones.
+This guide walks through two of the most commonly replaced ones:
 
-1. `IStorage` — persistence backend (synchronous interface, but you can build async internally)
-2. `ITranslator` — translation backend (load strings from a CMS or i18n service)
+1. `IStorage`: persistence backend (synchronous interface, but you can build async internally)
+2. `ITranslator`: translation backend (load strings from a CMS or i18n service)
 
----
-
-## IStorage — custom persistence backend
+## IStorage: custom persistence backend
 
 ### The interface
 
@@ -35,10 +33,11 @@ interface IStorage {
 }
 ```
 
-The interface is synchronous. For async backends (IndexedDB, remote API), you need to either:
+The interface is synchronous.
+For async backends (IndexedDB, remote API), you need to either:
 
 - Use a write-through cache that flushes asynchronously
-- Use `IndexedDBBackend` (ships with the kit) if standard IndexedDB fits
+- Use `IndexedDBBackend` (ships with the core) if standard IndexedDB fits
 
 ### Custom backend backed by IndexedDB Workers
 
@@ -74,7 +73,7 @@ export class IndexedDBWorkerBackend implements IStorage {
   }
 
   get(key: string): string | null {
-    // Reads from the in-memory cache — always fast and synchronous
+    // Reads from the in-memory cache, always fast and synchronous
     return this.cache.get(key) ?? null;
   }
 
@@ -131,21 +130,21 @@ player.on('dispose', () => storage.dispose());
 
 ### Error handling in adapters
 
-If your adapter can fail (network error, worker crash), do not throw — return `null` from `get` and silently fail on `set`. The player is resilient to storage failures:
+If your adapter can fail (network error, worker crash), do not throw.
+Return `null` from `get` and silently fail on `set`.
+The player is resilient to storage failures:
 
 ```ts
 get(key: string): string | null {
   try {
     return this.cache.get(key) ?? null;
   } catch {
-    return null; // never throw — storage is non-critical
+    return null; // never throw, storage is non-critical
   }
 }
 ```
 
----
-
-## ITranslator — custom translation backend
+## ITranslator: custom translation backend
 
 ### The interface
 
@@ -191,7 +190,7 @@ export class CmsTranslator implements ITranslator {
 }
 ```
 
-Wire it up — load before `setup()`:
+Wire it up, load before `setup()`:
 
 ```ts
 const translator = new CmsTranslator('https://cms.example.com/api');
@@ -204,11 +203,11 @@ player.setup({
 });
 ```
 
----
-
 ## Lifecycle hooks
 
-Some adapter interfaces include lifecycle callbacks. For example, `IRealtimeChannel` has `open()` / `close()` methods called by the player's lifecycle. Always implement them even if your adapter does not need them — the player calls them unconditionally.
+Some adapter interfaces include lifecycle callbacks.
+For example, `IRealtimeChannel` has `open()` / `close()` methods called by the player's lifecycle.
+Always implement them even if your adapter does not need them, the player calls them unconditionally.
 
 ```ts
 interface IRealtimeChannel {
@@ -219,11 +218,10 @@ interface IRealtimeChannel {
 }
 ```
 
----
-
 ## Testing your adapter
 
-Use `MemoryStorageBackend` as the baseline in tests — it satisfies `IStorage` without any browser APIs. Test your custom backend in isolation:
+Use `MemoryStorageBackend` as the baseline in tests, it satisfies `IStorage` without any browser APIs.
+Test your custom backend in isolation:
 
 ```ts
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -265,7 +263,7 @@ describe('IndexedDBWorkerBackend', () => {
 });
 ```
 
-For testing a plugin that uses your adapter, wire `MemoryStorageBackend` through `setup()` in the kit test harness:
+For testing a plugin that uses your adapter, wire `MemoryStorageBackend` through `setup()` in the core test harness.
 
 ```ts
 import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
@@ -281,10 +279,8 @@ describePlugin(MyPlugin, ({ player }) => {
 });
 ```
 
----
-
 ## What to read next
 
-- [Kit — Adapters](/nomercy-player-kit/adapters) — full port catalog with all 28 interfaces
-- [Kit — Testing](/nomercy-player-kit/testing) — `describePlugin`, `assertNoListenerLeak`, and the full test harness
-- [Advanced: Custom Plugin](/nomercy-player-kit/advanced/custom-plugin) — writing a plugin that uses your custom adapter
+- [Core: Adapters](/nomercy-player-core/adapters): full port catalog with all 28 interfaces
+- [Core: Testing](/nomercy-player-core/testing): `describePlugin`, `assertNoListenerLeak`, and the full test harness
+- [Advanced: Custom Plugin](/nomercy-player-core/advanced/custom-plugin): writing a plugin that uses your custom adapter

@@ -7,24 +7,22 @@ description: 'All events emitted by NMVideoPlayer. Event names, payload shapes, 
 
 All events emitted by `NMVideoPlayer<T>`. Subscribe with `player.on(eventName, handler)`.
 
----
-
 ## Transport events
 
 | Event        | Payload         | Fires when                                |
 | ------------ | --------------- | ----------------------------------------- |
-| `play`       | `ActionOptions` | Playback starts or resumes                |
-| `pause`      | `ActionOptions` | Playback pauses                           |
-| `stop`       | `ActionOptions` | Playback stops and position resets to 0   |
-| `ended`      | `void`          | Current item plays to the end             |
-| `waiting`    | `void`          | Buffer underrun — waiting for data        |
-| `canplay`    | `void`          | Enough data buffered to start playing     |
-| `stalled`    | `void`          | Data unavailable for an unexpected period |
-| `firstFrame` | `void`          | First video frame decoded after a load    |
+| `play`       | `ActionOptions` | Playback starts or resumes                                                         |
+| `pause`      | `ActionOptions` | Playback pauses                                                                    |
+| `stop`       | `ActionOptions` | Playback stops and position resets to 0                                            |
+| `ended`      | `void`          | Current item plays to the end                                                      |
+| `playing`    | `void`          | Backend confirms media is actively rendering (after any buffering resolves)        |
+| `waiting`    | `void`          | Buffer underrun, waiting for data                                                  |
+| `canplay`    | `void`          | Enough data buffered to start playing                                              |
+| `stalled`    | `void`          | Data unavailable for an unexpected period                                          |
+| `firstFrame` | `void`          | First video frame decoded after a load                                             |
 
-`ActionOptions` carries `source: 'user' | 'auto' | 'remote'` — check this to distinguish user-initiated plays from auto-advances.
-
----
+`ActionOptions` carries `source: 'user' | 'remote' | 'plugin'`.
+Check this to distinguish user-initiated plays from plugin- or remote-triggered ones.
 
 ## Time events
 
@@ -33,75 +31,65 @@ All events emitted by `NMVideoPlayer<T>`. Subscribe with `player.on(eventName, h
 | `time`     | `{ time: number }`                                       | Position updates during playback (driven by `timeupdate`) |
 | `seeked`   | `{ time: number }`                                       | Seek operation completes                                  |
 | `duration` | `{ duration: number }`                                   | Duration becomes known (after `loadedmetadata`)           |
-| `progress` | `{ time: number; duration: number; percentage: number }` | Throttled position update (default every 10s)             |
+| `progress` | `{ time: number; duration: number; percentage: number }` | Throttled position update (default every 5s)              |
 
-Use `progress` for server watch-position saves. Use `time` for real-time UI updates.
-
----
+Use `progress` for server watch-position saves.
+Use `time` for real-time UI updates.
 
 ## Queue events
 
 | Event             | Payload                                   | Fires when                          |
 | ----------------- | ----------------------------------------- | ----------------------------------- |
 | `current`         | `{ item: T \| undefined; index: number }` | Current item changes                |
-| `queue`           | `ReadonlyArray<T>`                        | Queue is replaced                   |
-| `queue:append`    | `{ items: T[]; index: number }`           | Items appended                      |
-| `queue:prepend`   | `{ items: T[]; index: number }`           | Items prepended                     |
-| `queue:remove`    | `{ id: string \| number }`                | Item removed                        |
-| `queue:move`      | `{ from: number; to: number }`            | Item moved                          |
-| `queue:clear`     | `void`                                    | Queue cleared                       |
-| `queue:exhausted` | `void`                                    | Queue played through with no repeat |
-
----
+| `queue`           | `BasePlaylistItem[]`                                                | Queue is replaced                   |
+| `queue:append`    | `{ items: BasePlaylistItem[]; from: number }`                       | Items appended                      |
+| `queue:prepend`   | `{ items: BasePlaylistItem[] }`                                     | Items prepended                     |
+| `queue:remove`    | `{ id: string \| number; index: number; item: BasePlaylistItem }`   | Item removed                        |
+| `queue:move`      | `{ from: number; to: number }`                                      | Item moved                          |
+| `queue:clear`     | `{ previousLength: number }`                                        | Queue cleared                       |
+| `queue:exhausted` | `void`                                                              | Queue played through with no repeat |
 
 ## Playback state events
 
 | Event     | Payload                                  | Fires when                                                     |
 | --------- | ---------------------------------------- | -------------------------------------------------------------- |
-| `volume`  | `{ level: number }`                      | Volume changes. `level` is on the kit's 0–100 scale (NOT 0–1). |
+| `volume`  | `{ level: number }`                      | Volume changes. `level` is on the core's 0–100 scale (NOT 0–1). |
 | `mute`    | `{ muted: boolean }`                     | Mute state changes                                             |
 | `repeat`  | `{ state: RepeatState }`                 | Repeat state changes                                           |
 | `shuffle` | `{ state: ShuffleState }`                | Shuffle state changes                                          |
 | `phase`   | `{ from: PlayerPhase; to: PlayerPhase }` | Player phase transitions                                       |
 
----
-
 ## Video-specific state events
 
 | Event               | Payload                            | Fires when                                                                     |
 | ------------------- | ---------------------------------- | ------------------------------------------------------------------------------ |
-| `levels`            | `{ levels: QualityLevel[] }`       | HLS quality levels become available after manifest parse                       |
-| `level-switched`    | `{ level: number }`                | Active quality level changes                                                   |
-| `quality`           | `{ level: number; label: string }` | Quality level change confirmed                                                 |
-| `quality:requested` | `{ level: number \| 'auto' }`      | Quality level requested                                                        |
-| `audioTracks`       | `{ tracks: AudioTrack[] }`         | Audio track list changes                                                       |
-| `fullscreen`        | `{ active: boolean }`              | Fullscreen state changes                                                       |
-| `pip`               | `{ active: boolean }`              | PiP state changes                                                              |
-| `theater`           | `{ active: boolean }`              | Theater mode changes                                                           |
-| `float`             | `{ active: boolean }`              | Float state changes (consumer-managed)                                         |
-| `aspectRatio`       | `{ value: Stretching }`            | Aspect ratio / stretching changes                                              |
-| `chapter`           | `{ index: number; title: string }` | Active chapter changes                                                         |
-| `back`              | `void`                             | UI back button pressed (only emitted when at least one listener is registered) |
-
----
+| `levels`            | `{ levels: QualityLevel[] }`                       | HLS quality levels become available after manifest parse                       |
+| `level-switched`    | `{ level: number }`                                | Active quality level changes                                                   |
+| `quality:requested` | `{ level: number \| 'auto' }`                      | Quality level requested                                                        |
+| `audioTracks`       | `{ tracks: AudioTrack[] }`                         | Audio track list changes                                                       |
+| `fullscreen`        | `{ active: boolean }`                              | Fullscreen state changes                                                       |
+| `pip`               | `{ active: boolean }`                              | PiP state changes                                                              |
+| `theater`           | `{ active: boolean }`                              | Theater mode changes                                                           |
+| `aspectRatio`       | `{ value: Stretching }`                            | Aspect ratio / stretching changes                                              |
+| `chapter`           | `{ index: number; title: string }`                 | Active chapter changes                                                         |
+| `back`              | `void`                                             | UI back button pressed (only emitted when at least one listener is registered) |
+| `close`             | `void`                                             | UI close button pressed (only emitted when at least one listener is registered) |
 
 ## Subtitle events
 
 | Event         | Payload                     | Fires when                                 |
 | ------------- | --------------------------- | ------------------------------------------ |
-| `subtitle`    | `{ index: number \| null }` | Active subtitle track changes (null = off) |
+| `subtitle`    | `{ track: number \| null }` | Active subtitle track changes (null = off) |
 | `subtitleCue` | `SubtitleCueChange`         | Active subtitle cue content changes        |
 
 `SubtitleCueChange` shape:
 
 ```ts
 interface SubtitleCueChange {
-  trackIndex: number;
   cues: SubtitleCue[];
+  language?: string;
 }
 ```
-
----
 
 ## Setup and lifecycle events
 
@@ -115,27 +103,28 @@ interface SubtitleCueChange {
 | `playlistError`     | `{ url: string; error: Error; code: string }` | Playlist fetch or parse failed           |
 | `dispose`           | `void`                                        | Player teardown begins                   |
 
----
-
 ## Error events
 
 | Event     | Payload            | Fires when                             |
 | --------- | ------------------ | -------------------------------------- |
 | `error`   | `PlayerErrorEvent` | Recoverable error                      |
-| `fatal`   | `PlayerErrorEvent` | Non-recoverable error — playback stops |
+| `fatal`   | `PlayerErrorEvent` | Non-recoverable error, playback stops  |
 | `warning` | `PlayerErrorEvent` | Non-fatal degradation                  |
 
 ```ts
 interface PlayerErrorEvent {
-  code: string;
-  message: string;
-  severity: 'error' | 'fatal' | 'warning' | 'info';
-  cause?: unknown;
-  context?: Record<string, unknown>;
+  error: PlayerError;
+  severity: 'fatal' | 'error' | 'warning' | 'info';
+  scope: ErrorScope;
+  timestamp: number;
+  markHandled(): void;
+  isHandled(): boolean;
+  preventDefault(): void;
+  isDefaultPrevented(): boolean;
+  stopImmediatePropagation(): void;
+  isPropagationStopped(): boolean;
 }
 ```
-
----
 
 ## Before events (cancellable)
 
@@ -146,22 +135,18 @@ interface PlayerErrorEvent {
 | `beforeStop`     | `BeforeEvent<ActionOptions>`    | Cancels stop                                  |
 | `beforeNext`     | `BeforeEvent<ActionOptions>`    | Cancels next                                  |
 | `beforePrevious` | `BeforeEvent<ActionOptions>`    | Cancels previous                              |
-| `beforeLoad`     | `BeforeEvent<{ item: T }>`      | Cancels load or redirects to a different item |
-| `beforeSeek`     | `BeforeEvent<{ time: number }>` | Cancels or adjusts the seek target            |
-| `beforeSetup`    | `void` (cancellable)            | Cancels the entire setup pipeline             |
+| `beforeLoad`     | `BeforeEvent<{ item: BasePlaylistItem; source?: ActionSource }>` | Cancels load or redirects to a different item |
+| `beforeSeek`     | `BeforeEvent<{ time: number; source?: ActionSource }>`           | Cancels or adjusts the seek target            |
+| `beforeSetup`    | `void`                          | Fires before the setup pipeline begins        |
 
 Each has a paired `*Prevented` event when the action is cancelled.
 
----
-
 ## Auth events
 
-| Event            | Payload              | Fires when              |
-| ---------------- | -------------------- | ----------------------- |
-| `auth:refreshed` | `{ token: string }`  | Token refresh succeeded |
-| `auth:failed`    | `{ error: unknown }` | Token refresh failed    |
-
----
+| Event            | Payload                          | Fires when              |
+| ---------------- | -------------------------------- | ----------------------- |
+| `auth:refreshed` | `{ tokenAcquiredAt: number }`    | Token refresh succeeded |
+| `auth:failed`    | `{ error: PlayerError }`         | Token refresh failed    |
 
 ## Metrics events
 
@@ -169,19 +154,28 @@ Each has a paired `*Prevented` event when the action is cancelled.
 | ------------------ | ----------------- | --------------------------------------------- |
 | `playback:metrics` | `PlaybackMetrics` | Periodic metrics snapshot (default every 10s) |
 
----
-
 ## Plugin events
 
-Auto-fired by the base class for every registered plugin:
+Each plugin fires on two channels. The flat `plugin:*` events aggregate across all plugins; the namespaced `plugin:<id>:*` events are scoped to a single plugin.
 
-| Event                   | Payload                           |
-| ----------------------- | --------------------------------- |
-| `plugin:<id>:installed` | `{ id: string; version: string }` |
-| `plugin:<id>:enabled`   | `{ id: string }`                  |
-| `plugin:<id>:disabled`  | `{ id: string; reason: string }`  |
-| `plugin:<id>:failed`    | `{ id: string; error: unknown }`  |
-| `plugin:<id>:disposed`  | `{ id: string }`                  |
+Flat (aggregated) channel:
+
+| Event                  | Payload                              |
+| ---------------------- | ------------------------------------ |
+| `plugin:installed`     | `{ id: string; version: string }`    |
+| `plugin:enabled`       | `{ id: string }`                     |
+| `plugin:disabled`      | `{ id: string; reason?: string }`    |
+| `plugin:opts:changed`  | `{ id: string; opts: unknown }`      |
+| `plugin:disposed`      | `{ id: string }`                     |
+| `plugin:failed`        | `{ id: string; error: PlayerError }` |
+
+Namespaced (per-plugin) channel — same payloads, scoped to one plugin:
+
+| Event                   | Payload                              |
+| ----------------------- | ------------------------------------ |
+| `plugin:<id>:enabled`   | `{ id: string }`                     |
+| `plugin:<id>:disabled`  | `{ id: string; reason?: string }`    |
+| `plugin:<id>:opts:changed` | `{ id: string; opts: unknown }`   |
 
 Listen to a plugin's own events using the namespaced string form:
 
@@ -190,3 +184,152 @@ player.on('plugin:skipper:skipActivated', ({ kind }) => {
   console.log(`Skipping ${kind}`);
 });
 ```
+
+## Custom emit()
+
+`player.emit()` is fully typed against the event map and available to both plugins and consumer code. Use it to drive UI coordination without coupling components directly to each other.
+
+The most common consumer-facing use is requesting an OSD toast via `display-message`. The active UI plugin (desktop-ui or tv-ui) subscribes to this event and renders the text; your app code or a plugin just emits it:
+
+```ts
+// Ask the active UI plugin to show a toast for 3 seconds.
+player.emit('display-message', { text: 'Subtitles enabled', ms: 3000 });
+```
+
+The `ms` field is optional -- omit it to use the UI plugin's default display duration.
+
+Plugins use the same pattern to signal each other. For example, a custom skip-recap plugin can emit `display-message` after it seeks so the user gets visual feedback:
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { IVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+class SkipRecapPlugin extends Plugin<IVideoPlayer> {
+  static readonly id = 'skip-recap';
+  static readonly version = '1.0.0';
+  static readonly description = 'Automatically skips the recap segment on load.';
+
+  use() {
+    this.on('current', () => {
+      const item = this.player.current();
+      const recap = item?.skippers?.recap;
+      if (recap) {
+        this.once('firstFrame', () => {
+          this.player.currentTime(recap.end);
+          this.player.emit('display-message', { text: 'Recap skipped' });
+        });
+      }
+    });
+  }
+}
+```
+
+> **Note:** `emit()` is synchronous -- every registered handler runs before the call returns. Avoid heavy work inside event handlers on high-frequency events like `time`.
+
+## Event patterns
+
+Practical recipes for the most common event-driven UI tasks.
+
+### Loading state
+
+Show a spinner while the browser is waiting for data and hide it once playback can resume:
+
+```ts
+function showSpinner() { /* ... */ }
+function hideSpinner() { /* ... */ }
+
+player.on('waiting', () => showSpinner());
+player.on('stalled', () => showSpinner());
+player.on('canplay', () => hideSpinner());
+player.on('play',    () => hideSpinner());
+player.on('error',   () => hideSpinner());
+```
+
+`firstFrame` is the earliest safe moment to hide a poster image and reveal the video surface -- it fires once per load, after the first decoded frame is displayed:
+
+```ts
+player.once('firstFrame', () => {
+  document.getElementById('poster')?.remove();
+});
+```
+
+### Progress tracking
+
+`time` fires on every `timeupdate` tick (roughly every 250 ms during playback). For server-side watch-position saves, use `progress` instead -- it fires at most every `progressIntervalMs` milliseconds (default 5000 ms) and carries `time`, `duration`, and `percentage`:
+
+```ts
+async function savePosition(itemId: string, time: number) {
+  await fetch(`/api/progress/${itemId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ time }),
+  });
+}
+
+player.on('progress', ({ time }) => {
+  const item = player.current();
+  if (item?.id) savePosition(String(item.id), time);
+});
+```
+
+For a real-time scrubber position label, subscribe to `time` instead:
+
+```ts
+player.on('time', ({ time }) => {
+  scrubberLabel.textContent = formatTime(time);
+});
+```
+
+### Auto-hiding controls
+
+The desktop-ui and touch-zones plugins emit `activity` when the user moves the pointer, touches the screen, or presses a key, and again when the inactivity timer fires. Wire custom overlay elements to the same signal so they stay in sync with the built-in controls:
+
+```ts
+const overlay = document.getElementById('custom-overlay');
+
+player.on('activity', ({ active }) => {
+  if (overlay) overlay.style.opacity = active ? '1' : '0';
+});
+```
+
+### Quality-change notification
+
+`level-switched` fires every time HLS adaptive switching changes the active variant. Show the user a toast when the level changes by combining it with `display-message`:
+
+```ts
+player.on('level-switched', ({ level }) => {
+  const levels = player.qualityLevels();
+  const label = levels[level]?.label ?? String(level);
+  player.emit('display-message', { text: `Quality: ${label}`, ms: 2000 });
+});
+```
+
+To show a toast only when the user explicitly picks a quality (not on ABR decisions), subscribe to `quality:requested` instead:
+
+```ts
+player.on('quality:requested', ({ level }) => {
+  const label = level === 'auto' ? 'Auto' : player.qualityLevels()[level]?.label ?? String(level);
+  player.emit('display-message', { text: `Quality set to ${label}` });
+});
+```
+
+### Keyboard feedback
+
+The built-in key-handler plugin emits `display-message` for seek and volume actions. If you build a custom key-handler, follow the same pattern so the UI plugin renders your feedback without any extra wiring:
+
+```ts
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowRight') {
+    player.forward(10);
+    player.emit('display-message', { text: '+10s' });
+  } else if (event.key === 'ArrowLeft') {
+    player.rewind(10);
+    player.emit('display-message', { text: '-10s' });
+  } else if (event.key === 'm') {
+    player.toggleMute();
+    const muted = player.volumeState() === 'muted';
+    player.emit('display-message', { text: muted ? 'Muted' : 'Unmuted' });
+  }
+});
+```
+

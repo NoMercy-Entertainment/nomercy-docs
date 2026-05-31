@@ -1,6 +1,6 @@
 ---
 title: 'Equalizer'
-description: '10-band parametric EQ via EqualizerPlugin and AudioGraphPlugin — setup, band manipulation, presets, persistence, and all events.'
+description: '10-band parametric EQ via EqualizerPlugin and AudioGraphPlugin, covering setup, band manipulation, presets, persistence, and all events.'
 draft: false
 ---
 
@@ -8,21 +8,26 @@ draft: false
 
 # Equalizer
 
-10-band parametric EQ provided by `EqualizerPlugin` (re-exported from the kit). Import it from `@nomercy-entertainment/nomercy-music-player/plugins`.
-
----
+10-band parametric EQ provided by `EqualizerPlugin` (re-exported from the player core).
+Import it from `@nomercy-entertainment/nomercy-music-player/plugins`.
 
 ## The idea
 
-The equalizer is a set of tone controls you drop into the audio while it's playing. The actual audio plumbing lives in `AudioGraphPlugin`, the part that holds the `AudioContext` and wires everything together, so you add that one first. The equalizer just hooks its ten filters into that chain, and there is nothing to shape until the chain exists, which is the whole reason for the ordering.
+The equalizer is a set of tone controls you drop into the audio while it's playing.
+The actual audio plumbing lives in `AudioGraphPlugin`, the part that holds the `AudioContext` and wires everything together, so you add that one first.
+The equalizer just hooks its ten filters into that chain, and there is nothing to shape until the chain exists, which is the whole reason for the ordering.
 
-Most of the time you won't be touching bands from code. You put the sliders in front of your users and let them play. Each band pushes one frequency up or down by up to 12 dB, and pre-gain pulls the whole signal down a little so big boosts don't distort. The presets are just handy starting points we ship so nobody has to dial in "Rock" by hand. Set a `persistKey` and the plugin remembers wherever they leave it. Everything below is the reference for when you want finer control.
-
----
+Most of the time you won't be touching bands from code.
+You put the sliders in front of your users and let them play.
+Each band pushes one frequency up or down by up to 12 dB, and pre-gain pulls the whole signal down a little so big boosts don't distort.
+The presets are just handy starting points we ship so nobody has to dial in "Rock" by hand.
+Set a `persistKey` and the plugin remembers wherever they leave it.
+Everything below is the reference for when you want finer control.
 
 ## Requirements
 
-`EqualizerPlugin` requires `AudioGraphPlugin`. Register `AudioGraphPlugin` first.
+`EqualizerPlugin` requires `AudioGraphPlugin`.
+Register `AudioGraphPlugin` first.
 
 ```ts
 import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
@@ -33,9 +38,8 @@ const player = nmMPlayer('main')
   .setup({ playlist: myTracks });
 ```
 
-19 built-in presets are included (Classical, Club, Dance, Flat, Rock, Pop, and more). Pass `presets` in options to extend or override them.
-
----
+19 built-in presets are included (Classical, Club, Dance, Flat, Rock, Pop, and more).
+Pass `presets` in options to extend or override them.
 
 ## Options
 
@@ -49,8 +53,6 @@ const player = nmMPlayer('main')
 | `autoLoad` | `boolean` | `true` | Read persisted state on `use()`. Set to `false` to always start from `bands` / `preset` opts. |
 | `autoSave` | `boolean` | `true` when `persistKey` is set | Persist state after every `band()` / `preGain()` / `preset()` call. |
 | `smoothingTimeConstantSeconds` | `number` | `0.05` | Time constant (seconds) for `AudioParam.setTargetAtTime` gain ramps. Smaller = snappier; larger = silkier transitions. |
-
----
 
 ## Band frequencies
 
@@ -70,9 +72,8 @@ The plugin uses 10 peaking filter bands plus a pre-gain pseudo-band:
 | 14000 Hz  |                |
 | 16000 Hz  |                |
 
-Band gain range: −12 dB to +12 dB. Pre-gain range: −1 to +3.
-
----
+Band gain range: −12 dB to +12 dB.
+Pre-gain range: −1 to +3.
 
 ## Methods
 
@@ -111,8 +112,6 @@ eq.addCustomPreset({
 });
 ```
 
----
-
 ## Events
 
 | Event | Payload | Description |
@@ -120,7 +119,7 @@ eq.addCustomPreset({
 | `ready` | `void` | Fired at end of `use()` once the filter chain is wired and any persisted state is restored. |
 | `band:changed` | `{ band: EqBand }` | Fired when a single band's gain changes. |
 | `preset:changed` | `{ name: string \| undefined }` | Fired when a preset is applied or cleared. `name` is `undefined` after `reset()`. |
-| `change` | `{ bands: EqBand[]; selectedPreset: string \| undefined }` | Aggregate event after any mutation — carries the full band snapshot. |
+| `change` | `{ bands: EqBand[]; selectedPreset: string \| undefined }` | Aggregate event after any mutation, carrying the full band snapshot. |
 | `saved` | `void` | Fired after state is successfully written to storage. |
 
 ```ts
@@ -140,20 +139,17 @@ player.on('plugin:equalizer:preset:changed', ({ name }) => {
 });
 ```
 
----
-
 ## Persistence
 
-Set `persistKey` in `EqualizerPlugin` options to enable automatic persistence. EQ state (bands, selected preset, custom presets) saves on every change and restores on the next `setup()`.
+Set `persistKey` in `EqualizerPlugin` options to enable automatic persistence.
+EQ state (bands, selected preset, custom presets) saves on every change and restores on the next `setup()`.
 
 ```ts
 player.addPlugin(EqualizerPlugin, { persistKey: 'my-app-eq' });
 ```
 
----
-
 ## See also
 
-- [AudioGraphPlugin](/nomercy-music-player/plugins/audio-graph) — prerequisite
-- [Advanced: Equalizer Customization](/nomercy-music-player/advanced/equalizer-customization) — presets, preGain, storage
-- [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer) — combining EQ with lyrics
+- [AudioGraphPlugin](/nomercy-music-player/plugins/audio-graph), prerequisite
+- [Advanced: Equalizer Customization](/nomercy-music-player/advanced/equalizer-customization), presets, preGain, storage
+- [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer), combining EQ with lyrics

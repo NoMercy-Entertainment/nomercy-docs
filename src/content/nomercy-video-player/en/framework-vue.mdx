@@ -1,24 +1,24 @@
 ---
-title: 'Framework — Vue'
+title: 'Framework: Vue'
 description: 'Integrating nomercy-video-player with Vue 3. shallowRef pattern, composable, event cleanup.'
 ---
 
-# Video Player — Vue 3 Integration
-
----
+# Video Player: Vue 3 Integration
 
 ## The shallowRef pattern
 
-The player instance must be wrapped in `shallowRef`, not `ref`. The player is a class instance with many methods — deep reactivity (`ref`) will try to make every property reactive, which triggers proxies on internal state. Use `shallowRef` so Vue tracks the reference without proxying the instance.
+The player instance must be wrapped in `shallowRef`, not `ref`.
+The player is a class instance with many methods, and deep reactivity (`ref`) will try to make every property reactive, which triggers proxies on internal state.
+Use `shallowRef` so Vue tracks the reference without proxying the instance.
 
 ```ts
 // composables/useVideoPlayer.ts
 import { shallowRef, onUnmounted } from 'vue';
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
 import {
-  nmplayer,
   DesktopUiPlugin,
   AutoAdvancePlugin,
-} from '@nomercy-entertainment/nomercy-video-player';
+} from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 export function useVideoPlayer(containerId: string) {
   const player = shallowRef(
@@ -28,7 +28,9 @@ export function useVideoPlayer(containerId: string) {
     }),
   );
 
-  player.value.addPlugin(DesktopUiPlugin).addPlugin(AutoAdvancePlugin);
+  player.value
+    .addPlugin(DesktopUiPlugin)
+    .addPlugin(AutoAdvancePlugin);
 
   onUnmounted(() => {
     player.value.dispose();
@@ -38,14 +40,13 @@ export function useVideoPlayer(containerId: string) {
 }
 ```
 
----
-
 ## Component example
 
 ```vue
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
 
 const containerRef = ref<HTMLDivElement>();
@@ -95,8 +96,6 @@ onUnmounted(() => {
 </template>
 ```
 
----
-
 ## Shared player across components
 
 Create the player once and export the ref:
@@ -104,7 +103,8 @@ Create the player once and export the ref:
 ```ts
 // lib/player.ts
 import { shallowRef } from 'vue';
-import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 export const player = shallowRef(nmplayer('global'));
 
@@ -126,8 +126,6 @@ player.value.on('current', ({ item }) => {
 });
 ```
 
----
-
 ## Queue updates from Pinia / Vuex
 
 ```ts
@@ -146,14 +144,74 @@ watch(
 );
 ```
 
----
+## Reactive playlist updates
+
+To swap the entire queue while the player is running, call `player.queue(newItems)` to replace the list, then `player.current(0, { autoplay: true })` to jump to the first item and start playback.
+`queue()` accepts `VideoPlaylistItem[]`; `current()` accepts an item, an id string, or a numeric index.
+
+```ts
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+function loadNewPlaylist(items: VideoPlaylistItem[]) {
+  player.value?.queue(items);
+  player.value?.current(0, { autoplay: true });
+}
+```
+
+Use this inside a Pinia action or a Vue `watch` to react to catalogue navigation:
+
+```ts
+import { watch } from 'vue';
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+import { useLibraryStore } from '@/stores/library';
+import { player } from '@/lib/player';
+
+const store = useLibraryStore();
+
+watch(
+  () => store.selectedPlaylist,
+  (items: VideoPlaylistItem[]) => {
+    player.value.queue(items);
+    player.value.current(0, { autoplay: true });
+  },
+);
+```
+
+Example items using the NoMercy media catalogue:
+
+```ts
+const sintelPlaylist: VideoPlaylistItem[] = [
+  {
+    id: 'sintel',
+    title: 'Sintel',
+    url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+    image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+    duration: 888,
+    subtitles: [
+      { id: 'sintel-en', label: 'English', url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt', language: 'eng', kind: 'subtitles' },
+    ],
+  },
+  {
+    id: 'big-buck-bunny',
+    title: 'Big Buck Bunny',
+    url: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8',
+    image: '/w780/uVEFQvFMMsg4e6yb03xOfVsDz0o.jpg',
+    duration: 596,
+  },
+];
+
+loadNewPlaylist(sintelPlaylist);
+```
+
+> **Note:** Calling `queue()` replaces the list immediately but does not start loading. The `current(0, { autoplay: true })` call triggers the load and playback. If you want to append items to a running queue instead, use `player.queueAppend(items)`.
 
 ## Nuxt / SSR
 
-The player requires browser APIs. Wrap initialization in `onMounted` or use `client:only`:
+The player requires browser APIs.
+Wrap initialization in `onMounted` or use `client:only`:
 
 ```ts
-// In onMounted — player will not be created during SSR
+// In onMounted, player will not be created during SSR
 onMounted(() => {
   player.value = nmplayer('main').setup({ ... });
 });

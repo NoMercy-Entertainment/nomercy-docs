@@ -5,9 +5,8 @@ description: 'PlaybackMetrics shape, backend availability matrix, null-when-unav
 
 # Metrics
 
-The player automatically tracks a set of playback metrics. Access them via `player.metrics()` or receive periodic updates via the `playback:metrics` event.
-
----
+The player automatically tracks a set of playback metrics.
+Access them via `player.metrics()` or receive periodic updates via the `playback:metrics` event.
 
 ## Accessing metrics
 
@@ -21,11 +20,11 @@ if (metrics.droppedFrames !== null) {
 }
 ```
 
----
-
 ## PlaybackMetrics reference
 
-`metrics()` always returns a `PlaybackMetrics` object. It never returns `null`. Individual counters that cannot be measured by the current backend return `null` for that field.
+`metrics()` always returns a `PlaybackMetrics` object.
+It never returns `null`.
+Individual counters that cannot be measured by the current backend return `null` for that field.
 
 | Counter                  | Type             | Description                                                           |
 | ------------------------ | ---------------- | --------------------------------------------------------------------- |
@@ -37,30 +36,27 @@ if (metrics.droppedFrames !== null) {
 | `decoderStalls`          | `number \| null` | Number of times the decoder stalled waiting for data                  |
 | `joinTime`               | `number`         | ms from page load to the first `play()` call (session join latency)   |
 | `sessionDurationMs`      | `number`         | Total active playback time in this session in ms                      |
-| `[customMetric: string]` | `number \| null` | Extension slot — plugins publish namespaced counters here             |
-
----
+| `[customMetric: string]` | `number \| null` | Extension slot, plugins publish namespaced counters here             |
 
 ## Backend availability matrix
 
-| Counter             | html5VideoBackend                           | html5AudioBackend (music)    |
-| ------------------- | ------------------------------------------- | ---------------------------- |
-| `ttfb`              | `null` — not available from html5 backend   | `null`                       |
-| `ttff`              | `number` (from `firstFrame`)                | `number` (from `firstFrame`) |
-| `rebufferRatio`     | `number` (from `backend:waiting`)           | `number`                     |
-| `avgBitrate`        | `null` — not available from html5 backend   | `null`                       |
-| `droppedFrames`     | `number` (from `getVideoPlaybackQuality()`) | `null` — no video element    |
-| `decoderStalls`     | `null` — not available from html5 backend   | `null`                       |
-| `joinTime`          | `number`                                    | `number`                     |
-| `sessionDurationMs` | `number`                                    | `number`                     |
+| Counter             | html5VideoBackend                                    | html5AudioBackend (music)    |
+| ------------------- | ---------------------------------------------------- | ---------------------------- |
+| `ttfb`              | `null`, not available from html5 backend             | `null`                       |
+| `ttff`              | `number` (from `firstFrame`)                         | `number` (from `firstFrame`) |
+| `rebufferRatio`     | `number` (from `backend:waiting`)                    | `number`                     |
+| `avgBitrate`        | `null`, not available from html5 backend             | `null`                       |
+| `droppedFrames`     | `number` (from `getVideoPlaybackQuality()`)          | `null`, no video element     |
+| `decoderStalls`     | `null`, not available from html5 backend             | `null`                       |
+| `joinTime`          | `number`                                             | `number`                     |
+| `sessionDurationMs` | `number`                                             | `number`                     |
 
-`null` means the counter is structurally unavailable from that backend — it is not a temporary condition.
-
----
+`null` means the counter is structurally unavailable from that backend, it is not a temporary condition.
 
 ## Periodic metrics events
 
-The player emits `playback:metrics` on a configurable interval. Use this for server-side analytics ingestion:
+The player emits `playback:metrics` on a configurable interval.
+Use this for server-side analytics ingestion:
 
 ```ts
 player.on('playback:metrics', (metrics) => {
@@ -73,9 +69,9 @@ player.on('playback:metrics', (metrics) => {
 });
 ```
 
-Configure the interval via `setup({ metricsIntervalMs })`. Default is `10000` ms (10 seconds). Set to `0` to disable the periodic event.
-
----
+Configure the interval via `setup({ metricsIntervalMs })`.
+Default is `10000` ms (10 seconds).
+Set to `0` to disable the periodic event.
 
 ## Custom metrics
 
@@ -96,15 +92,15 @@ class ScrobblePlugin extends Plugin {
 
 Custom counters appear in `player.metrics()` and in the `playback:metrics` event payload under their key.
 
----
-
 ## `progress` vs `playback:metrics`
 
 Two separate throttled events serve different purposes:
 
-| Event              | Interval                          | Use for                                                                 |
-| ------------------ | --------------------------------- | ----------------------------------------------------------------------- |
-| `progress`         | `metricsIntervalMs` (default 10s) | Server watch-position saves — contains `{ time, duration, percentage }` |
-| `playback:metrics` | `metricsIntervalMs` (same timer)  | Analytics ingestion — contains the full `PlaybackMetrics` snapshot      |
+| Event              | Interval                          | Use for                                                                        |
+| ------------------ | --------------------------------- | ------------------------------------------------------------------------------ |
+| `progress`         | `metricsIntervalMs` (default 10s) | Server watch-position saves, contains `{ time, duration, percentage }`         |
+| `playback:metrics` | `metricsIntervalMs` (same timer)  | Analytics ingestion, contains the full `PlaybackMetrics` snapshot              |
 
-Both fire on the same interval. `progress` is the lightweight event for position reporting. `playback:metrics` carries the full metrics object.
+Both fire on the same interval.
+`progress` is the lightweight event for position reporting.
+`playback:metrics` carries the full metrics object.

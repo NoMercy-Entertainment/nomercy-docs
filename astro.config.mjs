@@ -14,33 +14,37 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // https://astro.build/config
 export default defineConfig({
   redirects: {
-    // -----------------------------------------------------------------------
-    // /player/kit/ → /nomercy-player-kit/
-    // -----------------------------------------------------------------------
-    "/player/kit/": "/nomercy-player-kit/",
-    "/player/kit/adapters": "/nomercy-player-kit/adapters",
-    "/player/kit/auth-fetch": "/nomercy-player-kit/auth-fetch",
-    "/player/kit/errors": "/nomercy-player-kit/errors",
-    "/player/kit/event-system": "/nomercy-player-kit/event-system",
-    "/player/kit/i18n": "/nomercy-player-kit/i18n",
-    "/player/kit/lifecycle": "/nomercy-player-kit/lifecycle",
-    "/player/kit/metrics": "/nomercy-player-kit/metrics",
-    "/player/kit/plugins": "/nomercy-player-kit/plugins",
-    "/player/kit/quickstart": "/nomercy-player-kit/quickstart",
-    "/player/kit/testing": "/nomercy-player-kit/testing",
+    // Legacy /nomercy-player-kit/ URLs, kept working after the rename to core.
+    "/nomercy-player-kit": "/nomercy-player-core/overview",
+    "/nomercy-player-kit/[...slug]": "/nomercy-player-core/[...slug]",
 
     // -----------------------------------------------------------------------
-    // /player/ root pages → /nomercy-player-kit/
+    // /player/kit/ → /nomercy-player-core/
     // -----------------------------------------------------------------------
-    "/player/": "/nomercy-player-kit/player-overview",
-    "/player/architecture": "/nomercy-player-kit/architecture",
-    "/player/faq": "/nomercy-player-kit/faq",
-    "/player/migration-v1-v2": "/nomercy-player-kit/migration-v1-v2",
-    "/player/plugin-authoring": "/nomercy-player-kit/plugin-authoring",
-    "/player/plugin-standard": "/nomercy-player-kit/plugin-standard",
-    "/player/quickstart": "/nomercy-player-kit/quickstart-kit",
-    "/player/troubleshooting": "/nomercy-player-kit/troubleshooting",
-    "/player/versioning": "/nomercy-player-kit/versioning",
+    "/player/kit/": "/nomercy-player-core/",
+    "/player/kit/adapters": "/nomercy-player-core/adapters",
+    "/player/kit/auth-fetch": "/nomercy-player-core/auth-fetch",
+    "/player/kit/errors": "/nomercy-player-core/errors",
+    "/player/kit/event-system": "/nomercy-player-core/event-system",
+    "/player/kit/i18n": "/nomercy-player-core/i18n",
+    "/player/kit/lifecycle": "/nomercy-player-core/lifecycle",
+    "/player/kit/metrics": "/nomercy-player-core/metrics",
+    "/player/kit/plugins": "/nomercy-player-core/plugins",
+    "/player/kit/quickstart": "/nomercy-player-core/quickstart",
+    "/player/kit/testing": "/nomercy-player-core/testing",
+
+    // -----------------------------------------------------------------------
+    // /player/ root pages → /nomercy-player-core/
+    // -----------------------------------------------------------------------
+    "/player/": "/nomercy-player-core/overview",
+    "/player/architecture": "/nomercy-player-core/architecture",
+    "/player/faq": "/nomercy-player-core/faq",
+    "/player/migration-v1-v2": "/nomercy-player-core/migration-v1-v2",
+    "/player/plugin-authoring": "/nomercy-player-core/plugin-authoring",
+    "/player/plugin-standard": "/nomercy-player-core/plugin-standard",
+    "/player/quickstart": "/nomercy-player-core/quickstart",
+    "/player/troubleshooting": "/nomercy-player-core/troubleshooting",
+    "/player/versioning": "/nomercy-player-core/versioning",
 
     // -----------------------------------------------------------------------
     // /player/video/ → /nomercy-video-player/
@@ -80,7 +84,7 @@ export default defineConfig({
     // -----------------------------------------------------------------------
     // /player/recipes/ — split by destination per R5 placements (git log)
     // -----------------------------------------------------------------------
-    "/player/recipes/": "/nomercy-player-kit/recipes-index",
+    "/player/recipes/": "/nomercy-player-core/recipes-index",
     "/player/recipes/auth-and-tokens": "/nomercy-video-player/recipes/auth-and-tokens",
     "/player/recipes/media-session": "/nomercy-video-player/recipes/media-session",
     "/player/recipes/persistence": "/nomercy-video-player/recipes/persistence",
@@ -95,11 +99,11 @@ export default defineConfig({
     // -----------------------------------------------------------------------
     // /player/advanced/ — split by destination per git log
     // -----------------------------------------------------------------------
-    "/player/advanced/": "/nomercy-player-kit/advanced/",
-    "/player/advanced/custom-adapter": "/nomercy-player-kit/advanced/custom-adapter",
-    "/player/advanced/custom-plugin": "/nomercy-player-kit/advanced/custom-plugin",
-    "/player/advanced/multi-instance": "/nomercy-player-kit/advanced/multi-instance",
-    "/player/advanced/custom-backend": "/nomercy-player-kit/advanced/writing-a-backend",
+    "/player/advanced/": "/nomercy-player-core/advanced/",
+    "/player/advanced/custom-adapter": "/nomercy-player-core/advanced/custom-adapter",
+    "/player/advanced/custom-plugin": "/nomercy-player-core/advanced/custom-plugin",
+    "/player/advanced/multi-instance": "/nomercy-player-core/advanced/multi-instance",
+    "/player/advanced/custom-backend": "/nomercy-player-core/advanced/writing-a-backend",
     "/player/advanced/distributed-playback": "/nomercy-video-player/advanced/distributed-playback",
     "/player/advanced/embedding": "/nomercy-video-player/advanced/embedding",
     "/player/advanced/migration-from-other-players": "/nomercy-video-player/advanced/migration-from-other-players",

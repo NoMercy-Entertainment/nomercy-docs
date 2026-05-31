@@ -6,21 +6,17 @@ draft: false
 
 # Lyrics Sync Deep Dive
 
-This page covers how `LyricsPlugin` works internally — the cue parser registry, `CueTracker` lifecycle, parser selection, and extending the system with custom formats.
-
----
+This page covers how `LyricsPlugin` works internally, covering the cue parser registry, `CueTracker` lifecycle, parser selection, and extending the system with custom formats.
 
 ## How LyricsPlugin works
 
 1. On every `current` event, `LyricsPlugin.use()` fires
-2. The plugin calls `resolveLyricsUrl(item)` — returns `item.lyricsUrl` or the custom `getLyricsUrl(item)` result
-3. The URL is passed to `resolveParser(url)` — which calls `player.resolveCueParser(url)`
-4. The kit walks the registered `CueParser[]` in registration order. The first parser whose `canParse(url)` returns `true` wins.
+2. The plugin calls `resolveLyricsUrl(item)`, which returns `item.lyricsUrl` or the custom `getLyricsUrl(item)` result
+3. The URL is passed to `resolveParser(url)`, which calls `player.resolveCueParser(url)`
+4. The core walks the registered `CueParser[]` in registration order. The first parser whose `canParse(url)` returns `true` wins.
 5. The plugin fetches the URL via `this.fetch(url)` (auth-aware, retried)
 6. The raw text is passed to `parser.parse(raw)` → returns a `CueList`
-7. A new `CueTracker` is attached to the player — it listens to the `time` event and fires `enter` / `exit` on the tracker
-
----
+7. A new `CueTracker` is attached to the player, which listens to the `time` event and fires `enter` / `exit` on the tracker
 
 ## CueParser interface
 
@@ -32,11 +28,10 @@ interface CueParser {
 }
 ```
 
-**`canParse(url)`** — inspects the URL (typically the file extension) and returns `true` if this parser can handle it.
+**`canParse(url)`** inspects the URL (typically the file extension) and returns `true` if this parser can handle it.
 
-**`parse(raw)`** — receives the raw text content and returns a `CueList`. The cue list is an array of `Cue<T>` objects with `startMs` and `endMs` fields.
-
----
+**`parse(raw)`** receives the raw text content and returns a `CueList`.
+The cue list is an array of `Cue<T>` objects with `startMs` and `endMs` fields.
 
 ## Built-in parsers
 
@@ -45,9 +40,7 @@ interface CueParser {
 | `lrc`     | `.lrc`    | LRC timestamp format: `[mm:ss.cc] text` |
 | `vtt`     | `.vtt`    | WebVTT: `HH:MM:SS.mmm --> HH:MM:SS.mmm` |
 
-Both are pre-registered in the kit.
-
----
+Both are pre-registered in the player core.
 
 ## Registering a custom parser
 
@@ -84,8 +77,6 @@ player.registerCueParser(jsonLrcParser);
 player.registerCueParser(jsonLrcParser, /* prepend */ true);
 ```
 
----
-
 ## LRC format reference
 
 Standard LRC:
@@ -96,15 +87,14 @@ Standard LRC:
 [00:22.40] Third line
 ```
 
-Enhanced LRC (word-level timing — not all players support this):
+Enhanced LRC (word-level timing, not all players support this):
 
 ```lrc
 [00:12.00] <00:12.00> First <00:12.50> line <00:13.00> of lyrics
 ```
 
-The built-in LRC parser supports standard LRC. Enhanced LRC (word-level `<>` tags) requires a custom parser if you want word-level highlighting.
-
----
+The built-in LRC parser supports standard LRC.
+Enhanced LRC (word-level `<>` tags) requires a custom parser if you want word-level highlighting.
 
 ## Word-level highlighting
 
@@ -116,28 +106,24 @@ const enhancedLrcParser: CueParser = {
   canParse: (url) => url.endsWith('.elrc'),
   parse(raw): CueList<{ text: string; words: Array<{ t: number; text: string }> }> {
     // Parse enhanced LRC format and return word-level cues
-    // Implementation left as an exercise — enhanced LRC is non-standard
+    // Implementation left as an exercise, enhanced LRC is non-standard
     return { cues: [] };
   },
 };
 ```
 
----
-
 ## CueTracker lifecycle
 
 `LyricsPlugin.attach(cueList)`:
 
-1. Calls `this.clear()` — disposes any existing tracker
+1. Calls `this.clear()`, which disposes any existing tracker
 2. Creates a new `CueTracker<LyricPayload>(list)`
 3. Binds `tracker.on('enter', cue => ...)` and `tracker.on('exit', cue => ...)`
-4. Calls `tracker.attach(this.player)` — the tracker subscribes to the player's `time` event
+4. Calls `tracker.attach(this.player)`, so the tracker subscribes to the player's `time` event
 
 When the player emits a `time` event, the tracker scans the cue list and fires `enter` / `exit` events for any cues whose `[startMs, endMs)` window crosses the current time.
 
-`LyricsPlugin.clear()` calls `tracker.dispose()` which unsubscribes the `time` listener — no leak.
-
----
+`LyricsPlugin.clear()` calls `tracker.dispose()` which unsubscribes the `time` listener, so there is no leak.
 
 ## Handling missing lyrics
 
@@ -157,15 +143,14 @@ When `autoFetch: false`, you control when lyrics load and can handle errors from
 
 ```ts
 const cueList = await lyricsPlugin.fetchLyrics(url);
+
 if (!cueList) {
   showNoLyricsMessage();
 }
 ```
 
----
-
 ## See also
 
-- [LyricsPlugin](/nomercy-music-player/plugins/lyrics) — options, methods, events
-- [ILyricSource](/nomercy-music-player/adapters/lyric-source) — resolver adapter
-- [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer) — practical implementation guide
+- [LyricsPlugin](/nomercy-music-player/plugins/lyrics): options, methods, events
+- [ILyricSource](/nomercy-music-player/adapters/lyric-source): resolver adapter
+- [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer): practical implementation guide

@@ -29,7 +29,7 @@ Plugin id: `'auto-advance'`
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
 | `enabled` | `boolean` | `true` | Master toggle. Set to `false` to pause all auto-advance behaviour without removing the plugin. |
-| `preloadNext` | `boolean` | `false` | When `true`, calls `player.load(next, { slot: 'next' })` on the `trackEndingSoon` event, buffering the next track before it is needed. |
+| `preloadNextOnEnding` | `boolean` | `false` | When `true`, calls `player.load(next, { slot: 'next' })` on the `trackEndingSoon` event, buffering the next track before it is needed. |
 | `crossfade` | `boolean` | `false` | When `true`, calls `player.crossfadeTo(next, { duration: crossfadeDuration })` on the `trackEndingSoon` event. |
 | `crossfadeDuration` | `number` | `0` | Crossfade duration in seconds when `crossfade: true`. `0` means a hard cut. Set this to match or be less than `trackEndingSoonThreshold` in the player config. |
 
@@ -85,7 +85,7 @@ Register an additional `trackEndingSoon` handler for crossfade behaviour.
 
 When `trackEndingSoon` fires:
 
-1. If `preloadNext: true`, calls `preloadNext()`
+1. If `preloadNextOnEnding: true`, calls `preloadNext()`
 2. If `crossfade: true` and there is a next track, calls `crossfadeTo(next, { duration })`
 3. All registered `preloadHandlers` run
 4. All registered `crossfadeHandlers` run
@@ -98,7 +98,9 @@ When `ended` fires:
 ## Registration
 
 ```ts
-const player = nmMPlayer('main').addPlugin(AutoAdvancePlugin).setup({ playlist: myTracks });
+const player = nmMPlayer('main')
+  .addPlugin(AutoAdvancePlugin)
+  .setup({ playlist: myTracks });
 ```
 
 With options:
@@ -106,7 +108,7 @@ With options:
 ```ts
 player.addPlugin(AutoAdvancePlugin, {
   enabled: true,
-  preloadNext: true,
+  preloadNextOnEnding: true,
   crossfade: true,
   crossfadeDuration: 5,
 });
@@ -119,7 +121,7 @@ const player = nmMPlayer('main')
   .addPlugin(AutoAdvancePlugin, {
     crossfade: true,
     crossfadeDuration: 5,
-    preloadNext: true,
+    preloadNextOnEnding: true,
   })
   .setup({
     baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',

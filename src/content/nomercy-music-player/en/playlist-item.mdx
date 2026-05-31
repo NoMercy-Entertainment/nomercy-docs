@@ -1,6 +1,6 @@
 ---
 title: 'MusicPlaylistItem'
-description: 'All fields of MusicPlaylistItem — id, name, url, cover, artistTracks, albumTracks, lyricsUrl, duration — with typing notes and real examples.'
+description: 'All fields of MusicPlaylistItem: id, name, url, cover, artistTracks, albumTracks, lyricsUrl, duration, with typing notes and real examples.'
 draft: false
 ---
 
@@ -11,8 +11,6 @@ The default track shape for `NMMusicPlayer`. Every item in the `playlist` array 
 ```ts
 import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 ```
-
----
 
 ## Interface
 
@@ -42,8 +40,6 @@ interface AlbumRef {
 }
 ```
 
----
-
 ## Fields
 
 ### `id` (required)
@@ -52,7 +48,9 @@ interface AlbumRef {
 id: string | number;
 ```
 
-Unique identifier for the track. Used by the player to locate items in the queue (`queueRemove`, `queueIndexOf`, `current`). Must be unique within a session.
+Unique identifier for the track.
+Used by the player to locate items in the queue (`queueRemove`, `queueIndexOf`, `current`).
+Must be unique within a session.
 
 ### `name` (required)
 
@@ -60,7 +58,8 @@ Unique identifier for the track. Used by the player to locate items in the queue
 name: string;
 ```
 
-Track title. Displayed by `MediaSessionPlugin` on lock screens and system media controls. `name` is required on music items — unlike the video player's `title?`, this field has no optional fallback.
+Track title. Displayed by `MediaSessionPlugin` on lock screens and system media controls.
+`name` is required on music items, unlike the video player's `title?`, this field has no optional fallback.
 
 ### `url`
 
@@ -71,7 +70,7 @@ url?: string
 Audio source URL. Supports:
 
 - Direct MP3/AAC/FLAC/OGG: `/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.mp3` (relative to `baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music'`)
-- HLS playlist: same pattern — `hls.js` is loaded automatically when native HLS is unsupported
+- HLS playlist: same pattern, `hls.js` is loaded automatically when native HLS is unsupported
 - Relative URL: resolved against `baseUrl` from config
 
 When `url` is absent, the item can still be in the queue (the player skips it on natural advance and throws on an explicit `load()` call).
@@ -82,7 +81,8 @@ When `url` is absent, the item can still be in the queue (the player skips it on
 cover?: string
 ```
 
-Album art URL. Consumed by `MediaSessionPlugin` (pushes to OS lock screen), `CastSenderPlugin` (included in `MusicTrackMediaMetadata`), and `MusicUiPlugin` (renders in the UI overlay).
+Album art URL.
+Consumed by `MediaSessionPlugin` (pushes to OS lock screen), `CastSenderPlugin` (included in `MusicTrackMediaMetadata`), and `MusicUiPlugin` (renders in the UI overlay).
 
 ### `artistTracks`
 
@@ -90,7 +90,9 @@ Album art URL. Consumed by `MediaSessionPlugin` (pushes to OS lock screen), `Cas
 artistTracks?: ArtistRef[]
 ```
 
-Contributing artists. Each entry has `id` and `name`. Multiple entries for compilations or features.
+Contributing artists.
+Each entry has `id` and `name`.
+Multiple entries for compilations or features.
 
 `MediaSessionPlugin` joins all names with `, ` to produce the `artist` field for OS media controls.
 
@@ -100,7 +102,9 @@ Contributing artists. Each entry has `id` and `name`. Multiple entries for compi
 albumTracks?: AlbumRef[]
 ```
 
-Album associations. Each entry has `id` and `name`. The first entry (`albumTracks[0].name`) is used as the album name in `MediaSessionPlugin` metadata.
+Album associations.
+Each entry has `id` and `name`.
+The first entry (`albumTracks[0].name`) is used as the album name in `MediaSessionPlugin` metadata.
 
 ### `lyricsUrl`
 
@@ -108,7 +112,9 @@ Album associations. Each entry has `id` and `name`. The first entry (`albumTrack
 lyricsUrl?: string
 ```
 
-URL of an LRC lyrics file for this track. `LyricsPlugin` reads this field when `autoFetch: true` (the default). On each `current` event, the plugin fetches the URL and parses it through the kit's cue parser registry.
+URL of an LRC lyrics file for this track.
+`LyricsPlugin` reads this field when `autoFetch: true` (the default).
+On each `current` event, the plugin fetches the URL and parses it through the player core's cue parser registry.
 
 If you need a different resolution strategy (e.g. looking up lyrics from a server API by track ID), pass a `getLyricsUrl` function in `LyricsPlugin` options instead of populating this field per item.
 
@@ -118,7 +124,9 @@ If you need a different resolution strategy (e.g. looking up lyrics from a serve
 duration?: number
 ```
 
-Track duration **in seconds**. This is a metadata-only fallback used by the player before the audio backend resolves the real duration from the file. When `loadedmetadata` fires and the backend returns `duration > 0`, the backend value takes precedence and this field is ignored.
+Track duration **in seconds**.
+This is a metadata-only fallback used by the player before the audio backend resolves the real duration from the file.
+When `loadedmetadata` fires and the backend returns `duration > 0`, the backend value takes precedence and this field is ignored.
 
 Use it to populate seekbars immediately on track load without waiting for the audio metadata probe to complete, especially on slow connections.
 
@@ -127,15 +135,14 @@ Use it to populate seekbars immediately on track load without waiting for the au
   id: 'kjc-01',
   name: 'Thaw You Out',
   url: '/01%20Thaw%20You%20Out.mp3',
-  duration: 204, // 3:24 — seekbar renders immediately
+  duration: 204, // 3:24, seekbar renders immediately
 }
 ```
 
----
-
 ## Custom fields
 
-The player is generic: `NMMusicPlayer<T>`. Extend `MusicPlaylistItem` with your own fields and pass the extended type at construction:
+The player is generic: `NMMusicPlayer<T>`.
+Extend `MusicPlaylistItem` with your own fields and pass the extended type at construction:
 
 ```ts
 import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
@@ -153,8 +160,6 @@ const player = nmMPlayer<TrackItem>('main');
 ```
 
 Custom fields are accessible in all event payloads (`current`, `crossfadeStart`, `trackEndingSoon`) and inside plugins via `this.player.current()`.
-
----
 
 ## Full example
 
@@ -183,11 +188,9 @@ const playlist: MusicPlaylistItem[] = [
 ];
 ```
 
----
-
 ## See also
 
-- [Configuration](/nomercy-music-player/configuration) — `playlist` option that accepts these items
-- [Events](/nomercy-music-player/events) — `current` event payload includes the item
-- [LyricsPlugin](/nomercy-music-player/plugins/lyrics) — reads `lyricsUrl` on each track change
-- [MediaSessionPlugin](/nomercy-music-player/plugins/media-session) — reads `name`, `artistTracks`, `albumTracks`, `cover`
+- [Configuration](/nomercy-music-player/configuration), `playlist` option that accepts these items
+- [Events](/nomercy-music-player/events), `current` event payload includes the item
+- [LyricsPlugin](/nomercy-music-player/plugins/lyrics), reads `lyricsUrl` on each track change
+- [MediaSessionPlugin](/nomercy-music-player/plugins/media-session), reads `name`, `artistTracks`, `albumTracks`, `cover`

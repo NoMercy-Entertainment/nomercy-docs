@@ -1,13 +1,12 @@
 ---
 title: API methods
-description: nomercy-music-player v2 — API methods
+description: nomercy-music-player v2 API methods
 ---
 
 # API Methods Reference
 
-All public methods on `NMMusicPlayer<T>`. Methods follow the overloaded getter/setter pattern: `method()` reads, `method(value)` writes.
-
----
+All public methods on `NMMusicPlayer<T>`.
+Methods follow the overloaded getter/setter pattern: `method()` reads, `method(value)` writes.
 
 ## Factory
 
@@ -20,8 +19,8 @@ nmMPlayer<T extends MusicPlaylistItem>(id?: string | number): NMMusicPlayer<T>
 
 Creates or retrieves a named player instance.
 
-- `id` is optional. When omitted, the kit generates a unique id.
-- Two calls with the same `id` return the **same** instance — no re-initialization.
+- `id` is optional. When omitted, the core generates a unique id.
+- Two calls with the same `id` return the **same** instance, no re-initialization.
 - The factory is the only entry point. Do not call `new NMMusicPlayer()` directly.
 - Instances persist until `dispose()` is called. After dispose, the same `id` creates a fresh instance.
 - When `setup({ expose: true })` is called, `window.nmMPlayer` is set to the factory for console access.
@@ -31,8 +30,6 @@ const player = nmMPlayer('main'); // creates or retrieves 'main'
 const same = nmMPlayer('main'); // same instance
 player === same; // true
 ```
-
----
 
 ## Setup
 
@@ -50,7 +47,8 @@ Initialize the player with config. Returns the player for chaining. See [Configu
 ready(): Promise<void>
 ```
 
-Resolves when setup is complete and all plugins' `use()` promises have resolved. Safe to await before calling transport methods.
+Resolves when setup is complete and all plugins' `use()` promises have resolved.
+Safe to await before calling transport methods.
 
 ### `dispose()`
 
@@ -58,9 +56,8 @@ Resolves when setup is complete and all plugins' `use()` promises have resolved.
 dispose(): void
 ```
 
-Tears down the player: stops playback, disposes all plugins, removes event listeners, frees the audio backend. The instance is removed from the internal registry.
-
----
+Tears down the player: stops playback, disposes all plugins, removes event listeners, frees the audio backend.
+The instance is removed from the internal registry.
 
 ## Transport
 
@@ -104,8 +101,6 @@ restart(opts?: ActionOptions): Promise<void>
 
 Seek to 0 and play.
 
----
-
 ## Queue navigation
 
 ### `next(opts?)`
@@ -148,8 +143,6 @@ peekPrevious(): T | undefined
 
 Return the previous track without changing the current track.
 
----
-
 ## Current track
 
 ### `current()`
@@ -182,9 +175,8 @@ Index of the current track in the queue. Returns `-1` if no track is loaded.
 load(item: T, opts?: LoadOptions): Promise<void>
 ```
 
-Load a single track into the player without requiring it to be in the queue first. Does not start playback.
-
----
+Load a single track into the player without requiring it to be in the queue first.
+Does not start playback.
 
 ## Time
 
@@ -196,10 +188,10 @@ currentTime(): number
 
 Return the current playback position in seconds.
 
-### `currentTime(t, opts?)`
+### `currentTime(seconds, opts?)`
 
 ```ts
-currentTime(t: number, opts?: ActionOptions): Promise<void>
+currentTime(seconds: number, opts?: ActionOptions): Promise<void>
 ```
 
 Seek to a position in seconds.
@@ -236,21 +228,21 @@ seekable(): TimeRanges
 
 Seekable time ranges.
 
-### `forward(s?, opts?)`
+### `forward(seconds?, opts?)`
 
 ```ts
-forward(s?: number, opts?: ActionOptions): Promise<void>
+forward(seconds?: number, opts?: ActionOptions): Promise<void>
 ```
 
-Skip forward by `s` seconds (default: 10).
+Skip forward by `seconds` seconds (default: 10).
 
-### `rewind(s?, opts?)`
+### `rewind(seconds?, opts?)`
 
 ```ts
-rewind(s?: number, opts?: ActionOptions): Promise<void>
+rewind(seconds?: number, opts?: ActionOptions): Promise<void>
 ```
 
-Skip backward by `s` seconds (default: 10).
+Skip backward by `seconds` seconds (default: 10).
 
 ### `seekByPercentage(pct, opts?)`
 
@@ -268,8 +260,6 @@ timeData(): TimeData
 
 Full time snapshot: `{ time, duration, buffered, seekable, playbackRate }`.
 
----
-
 ## Volume
 
 **Volume scale: 0–100.**
@@ -282,10 +272,10 @@ volume(): number
 
 Return the current volume (0–100). Returns 0 when muted regardless of the stored pre-mute level.
 
-### `volume(v)`
+### `volume(level)`
 
 ```ts
-volume(v: number): void
+volume(level: number): void
 ```
 
 Set the volume. Clamped to [0, 100]. Emits `volume`. No-op if cancelled by `beforeMutation`.
@@ -301,7 +291,10 @@ const level = player.volume(); // 80
 mute(): void
 ```
 
-Silence output. Persists the current level so `unmute()` can restore it. Emits `mute` with `{ muted: true }`. No-op when already muted.
+Silence output.
+Persists the current level so `unmute()` can restore it.
+Emits `mute` with `{ muted: true }`.
+No-op when already muted.
 
 ### `unmute()`
 
@@ -309,7 +302,9 @@ Silence output. Persists the current level so `unmute()` can restore it. Emits `
 unmute(): void
 ```
 
-Restore the pre-mute volume. Emits `mute` with `{ muted: false }`. No-op when already unmuted.
+Restore the pre-mute volume.
+Emits `mute` with `{ muted: false }`.
+No-op when already unmuted.
 
 ### `toggleMute()`
 
@@ -343,8 +338,6 @@ volumeState(): VolumeState
 
 Return `VolumeState` enum (`VolumeState.UNMUTED` or `VolumeState.MUTED`).
 
----
-
 ## Playback rate
 
 ### `playbackRate()`
@@ -355,10 +348,10 @@ playbackRate(): number
 
 Current playback rate (default: 1.0).
 
-### `playbackRate(r)`
+### `playbackRate(rate)`
 
 ```ts
-playbackRate(r: number): void
+playbackRate(rate: number): void
 ```
 
 Set playback rate.
@@ -370,8 +363,6 @@ playbackRates(): number[]
 ```
 
 Available playback rate options.
-
----
 
 ## Shuffle and repeat
 
@@ -406,8 +397,6 @@ repeatState(state: RepeatState): void
 ```
 
 Set repeat state.
-
----
 
 ## Queue management
 
@@ -515,11 +504,10 @@ queueLength(): number
 
 Number of tracks in the queue.
 
----
-
 ## Backlog
 
-The backlog is a secondary list for tracks that have been played. Used as a history buffer for `previous()`.
+The backlog is a secondary list for tracks that have been played.
+Used as a history buffer for `previous()`.
 
 ### `backlog()`
 
@@ -551,8 +539,6 @@ backlogRemove(id: string | number): void
 backlogClear(): void
 ```
 
----
-
 ## Crossfade
 
 ### `crossfadeTo(track, opts?)`
@@ -561,7 +547,8 @@ backlogClear(): void
 crossfadeTo(track: T, opts?: CrossfadeOpts): Promise<void>
 ```
 
-Start a crossfade to the given track immediately. Uses `crossfadeDefaults` from setup if no `opts` are provided.
+Start a crossfade to the given track immediately.
+Uses `crossfadeDefaults` from setup if no `opts` are provided.
 
 ### `isTransitioning()`
 
@@ -570,8 +557,6 @@ isTransitioning(): boolean
 ```
 
 Returns `true` if a crossfade is in progress.
-
----
 
 ## Audio output
 
@@ -599,8 +584,6 @@ currentAudioOutput(): string | undefined
 
 Id of the currently selected audio output device.
 
----
-
 ## Audio tracks
 
 ### `audioTracks()`
@@ -609,7 +592,8 @@ Id of the currently selected audio output device.
 audioTracks(): AudioTrack[]
 ```
 
-Available audio tracks exposed by the current backend. Most local files surface a single track; multi-track sources (HLS audio renditions, container with multiple `<audio>` streams, etc.) surface one entry per language/variant.
+Available audio tracks exposed by the current backend.
+Most local files surface a single track; multi-track sources (HLS audio renditions, container with multiple `<audio>` streams, etc.) surface one entry per language/variant.
 
 ### `currentAudioTrack()`
 
@@ -635,8 +619,6 @@ cycleAudioTracks(): void
 
 Cycle to the next available audio track.
 
----
-
 ## Subtitles and chapters
 
 ### `subtitles()`
@@ -645,14 +627,16 @@ Cycle to the next available audio track.
 subtitles(): never  // throws NotImplementedError
 ```
 
-Audio backends do not expose subtitle tracks. Calling `subtitles()` on the music player always throws `NotImplementedError` (code: `core:not-implemented/subtitles`). Catch by type if you share code between video and music players:
+Audio backends do not expose subtitle tracks.
+Calling `subtitles()` on the music player always throws `NotImplementedError` (code: `core:not-implemented/subtitles`).
+Catch by type if you share code between video and music players:
 
 ```ts
 try {
   const tracks = player.subtitles();
-} catch (e) {
-  if (e instanceof NotImplementedError) {
-    // expected on music player — audio backends don't have subtitle tracks
+} catch (error) {
+  if (error instanceof NotImplementedError) {
+    // expected on music player; audio backends don't have subtitle tracks
   }
 }
 ```
@@ -675,8 +659,6 @@ currentSubtitle(index: number | null): void
 chapters(): Chapter[]
 ```
 
----
-
 ## Backend
 
 ### `backend()`
@@ -685,7 +667,8 @@ chapters(): Chapter[]
 backend(): IAudioBackend
 ```
 
-Return the active audio backend instance. Instantiates `WebAudioBackend` or `AudioElementBackend` on first call (based on `setup({ backend })` option).
+Return the active audio backend instance.
+Instantiates `WebAudioBackend` or `AudioElementBackend` on first call (based on `setup({ backend })` option).
 
 ### `backend(kind)`
 
@@ -693,7 +676,9 @@ Return the active audio backend instance. Instantiates `WebAudioBackend` or `Aud
 backend(kind: 'webaudio' | 'audio-element'): Promise<void>
 ```
 
-Switch backends at runtime. Disposes the current backend, creates the new one, and re-wires events. The player remains in its current playback state (paused).
+Switch backends at runtime.
+Disposes the current backend, creates the new one, and re-wires events.
+The player remains in its current playback state (paused).
 
 ### `audioContext()`
 
@@ -702,8 +687,6 @@ audioContext(): AudioContext | undefined
 ```
 
 The underlying `AudioContext`. Only available when using `WebAudioBackend`.
-
----
 
 ## Auth
 
@@ -715,7 +698,8 @@ auth(config: AuthConfig): void
 auth(partial: Partial<AuthConfig>): void
 ```
 
-Read or merge auth config at runtime. Pass a full `AuthConfig` to replace, or a `Partial<AuthConfig>` to update only specified fields.
+Read or merge auth config at runtime.
+Pass a full `AuthConfig` to replace, or a `Partial<AuthConfig>` to update only specified fields.
 
 ### `refreshAuth()`
 
@@ -724,8 +708,6 @@ refreshAuth(): Promise<void>
 ```
 
 Trigger a manual auth refresh via `auth.refreshOnUnauthenticated()`.
-
----
 
 ## URL
 
@@ -744,7 +726,9 @@ Get or set the base URL prepended to relative audio source URLs.
 resolveUrl(url: string, category?: UrlCategory): Promise<ResolvedUrl>
 ```
 
-Resolve a URL through the configured `urlResolver`. Use for URLs that cannot carry `Authorization` headers. `UrlCategory` values: `'media' | 'subtitle' | 'poster' | 'thumbnail' | 'chapter' | 'license' | 'cast'`.
+Resolve a URL through the configured `urlResolver`.
+Use for URLs that cannot carry `Authorization` headers.
+`UrlCategory` values: `'media' | 'subtitle' | 'poster' | 'thumbnail' | 'chapter' | 'license' | 'cast'`.
 
 ### `urlResolver()` / `urlResolver(fn)`
 
@@ -752,8 +736,6 @@ Resolve a URL through the configured `urlResolver`. Use for URLs that cannot car
 urlResolver(): UrlResolver | undefined
 urlResolver(resolver: UrlResolver | undefined): void
 ```
-
----
 
 ## Plugins
 
@@ -787,7 +769,8 @@ Retrieve a plugin by its string id.
 removePlugin<P extends Plugin>(Cls: PluginClass<P>, opts?: { cascade?: boolean }): void
 ```
 
-Dispose and remove a plugin. Throws if other plugins depend on it (unless `cascade: true`).
+Dispose and remove a plugin.
+Throws if other plugins depend on it (unless `cascade: true`).
 
 ### `plugins()`
 
@@ -796,8 +779,6 @@ plugins(): Plugin[]
 ```
 
 All currently registered plugins.
-
----
 
 ## Phase and diagnostics
 
@@ -823,7 +804,11 @@ Current play state enum: `PlayState.IDLE | PlayState.LOADING | PlayState.PLAYING
 metrics(): PlaybackMetrics
 ```
 
-Playback metrics snapshot. Always returns a `PlaybackMetrics` object. Individual counters unavailable from the audio backend — `ttfb`, `avgBitrate`, `droppedFrames`, `decoderStalls` — are `null`. Guard before use: `if (metrics.droppedFrames !== null) { ... }`. See [Kit — Metrics](/nomercy-player-kit/metrics) for the full counter matrix.
+Playback metrics snapshot.
+Always returns a `PlaybackMetrics` object.
+Individual counters unavailable from the audio backend (`ttfb`, `avgBitrate`, `droppedFrames`, `decoderStalls`) are `null`.
+Guard before use: `if (metrics.droppedFrames !== null) { ... }`.
+See [Core Metrics](/nomercy-player-core/metrics) for the full counter matrix.
 
 ### `recordMetric(name, value)`
 
@@ -847,9 +832,8 @@ Current estimated bandwidth in bits/sec.
 now(): number
 ```
 
-Monotonic clock value from the configured `IClock`. Use for distributed time sync in group-listening scenarios.
-
----
+Monotonic clock value from the configured `IClock`.
+Use for distributed time sync in group-listening scenarios.
 
 ## i18n
 
@@ -859,7 +843,8 @@ Monotonic clock value from the configured `IClock`. Use for distributed time syn
 t(key: string, vars?: Record<string, string>): string
 ```
 
-Translate a key using the configured translator. Missing keys fall back to the key itself.
+Translate a key using the configured translator.
+Missing keys fall back to the key itself.
 
 ### `language()` / `language(lang)`
 
@@ -881,8 +866,6 @@ addTranslations(bundle: Translations): void
 ```ts
 removeTranslations(prefix: string, lang?: string): void
 ```
-
----
 
 ## Device capabilities
 
@@ -914,7 +897,8 @@ canPlay(profile: {
 }): Promise<MediaCapabilitiesDecodingInfo>
 ```
 
-Query `MediaCapabilities.decodingInfo()`. Used internally to probe format support before loading.
+Query `MediaCapabilities.decodingInfo()`.
+Used internally to probe format support before loading.
 
 ## Bandwidth estimation
 
@@ -1065,8 +1049,6 @@ audioTrackState(): AudioTrackState
 audioTrackState(idx: number): void
 ```
 
----
-
 ## Cast
 
 ### `castState()`
@@ -1083,8 +1065,6 @@ transferTo(target: CastTarget): Promise<void>
 
 Hand off playback to a Chromecast or AirPlay device.
 
----
-
 ## Announce (accessibility)
 
 ### `announce(text, level?)`
@@ -1094,8 +1074,6 @@ announce(text: string, level?: 'polite' | 'assertive'): void
 ```
 
 ARIA live-region announcement for screen readers.
-
----
 
 ## Event API
 

@@ -5,22 +5,24 @@ description: 'The authFetch wrapper, bearer token injection, 401 vs 403 handling
 
 # Auth & Fetch
 
-The player's `authFetch` pipeline handles all network requests made by the player and its built-in plugins. Bearer tokens are injected automatically, 401 responses trigger a single refresh attempt, and 403 responses propagate immediately.
-
----
+The player's `authFetch` pipeline handles all network requests made by the player and its built-in plugins.
+Bearer tokens are injected automatically, 401 responses trigger a single refresh attempt, and 403 responses propagate immediately.
 
 ## Token storage and security
 
-Tokens are **never stored in `localStorage` or `sessionStorage`** by the kit. The player holds the `auth` config object in memory only — in the `options` property on the player instance. When you pass a factory function for `bearerToken`, the function is called on every authenticated request. The token value is not cached between requests.
+Tokens are **never stored in `localStorage` or `sessionStorage`** by the core.
+The player holds the `auth` config object in memory only, in the `options` property on the player instance.
+When you pass a factory function for `bearerToken`, the function is called on every authenticated request.
+The token value is not cached between requests.
 
 This means:
 
-- Page reload clears all tokens — your app is responsible for restoring auth on mount.
-- The kit never reads from or writes to `localStorage` as part of auth. Any `localStorage` interaction is your app's responsibility.
-- A `bearerToken` factory that returns a stale token is the only way to accidentally replay an expired token — use a factory that always fetches the current token from your auth SDK.
+- Page reload clears all tokens, so your app is responsible for restoring auth on mount.
+- The core never reads from or writes to `localStorage` as part of auth. Any `localStorage` interaction is your app's responsibility.
+- A `bearerToken` factory that returns a stale token is the only way to accidentally replay an expired token, so use a factory that always fetches the current token from your auth SDK.
 
 ```ts
-// Correct — factory always returns the live token
+// Correct: factory always returns the live token
 player.setup({
   auth: {
     bearerToken: () => myAuth.getAccessToken(), // called on every request
@@ -31,13 +33,11 @@ player.setup({
   },
 });
 
-// Risky — static string baked in at setup time
+// Risky: static string baked in at setup time
 player.setup({
   auth: { bearerToken: 'eyJ...' }, // expires, never refreshes automatically
 });
 ```
-
----
 
 ## Configuration
 
@@ -49,15 +49,13 @@ player.setup({
       await myAuth.refresh();
       return myAuth.getAccessToken();
     },
-    signRequest: (request) => myHmac.sign(request), // optional — custom signing
-    headers: { 'X-App-Version': '2.0.0' }, // optional — static headers
+    signRequest: (request) => myHmac.sign(request), // optional, custom signing
+    headers: { 'X-App-Version': '2.0.0' }, // optional, static headers
   },
 });
 ```
 
 All fields are optional. Without `auth`, requests are unauthenticated.
-
----
 
 ## Auth config reference
 
@@ -67,7 +65,9 @@ All fields are optional. Without `auth`, requests are unauthenticated.
 bearerToken?: string | (() => string | Promise<string>)
 ```
 
-Token or factory. A factory is called on every authenticated request — use a factory when the token can expire. A static string is applied as-is.
+Token or factory.
+A factory is called on every authenticated request, use a factory when the token can expire.
+A static string is applied as-is.
 
 The token is injected as `Authorization: Bearer <token>`.
 
@@ -77,7 +77,10 @@ The token is injected as `Authorization: Bearer <token>`.
 refreshOnUnauthenticated?: () => Promise<string>
 ```
 
-Called once when a request returns 401. Must return a new valid token. The failed request is retried exactly once with the new token. If refresh fails, `auth:failed` fires and the error propagates to the caller.
+Called once when a request returns 401.
+Must return a new valid token.
+The failed request is retried exactly once with the new token.
+If refresh fails, `auth:failed` fires and the error propagates to the caller.
 
 ### `signRequest`
 
@@ -85,7 +88,8 @@ Called once when a request returns 401. Must return a new valid token. The faile
 signRequest?: (request: Request) => Request | Promise<Request>
 ```
 
-Custom request signer — called after the bearer token is applied. Use for HMAC, API key rotation, or any custom signing scheme.
+Custom request signer, called after the bearer token is applied.
+Use for HMAC, API key rotation, or any custom signing scheme.
 
 ### `headers`
 
@@ -95,8 +99,6 @@ headers?: Record<string, string>
 
 Static headers appended to every authenticated request.
 
----
-
 ## 401 vs 403 handling
 
 | Response | Behavior                                                                                                             |
@@ -104,7 +106,9 @@ Static headers appended to every authenticated request.
 | 401      | `refreshOnUnauthenticated` called once → request retried. If refresh fails → `auth:failed` event + error propagates. |
 | 403      | Error propagates immediately. `refreshOnUnauthenticated` is **never** called for 403.                                |
 
-Do not lump 401 and 403 together in your error handling. A 403 is an access policy decision — retrying with a refreshed token will not help. Check the server's entitlement configuration instead.
+Do not lump 401 and 403 together in your error handling.
+A 403 is an access policy decision, retrying with a refreshed token will not help.
+Check the server's entitlement configuration instead.
 
 Auth events:
 
@@ -118,11 +122,10 @@ player.on('auth:failed', ({ error }) => {
 });
 ```
 
----
-
 ## Retry policy
 
-The default retry policy retries failed network requests with exponential backoff. Configure it by passing a partial `IRetryPolicy` map to `setup()` — it is merged over `DEFAULT_RETRY_POLICY`, so only the codes you want to override need to appear:
+The default retry policy retries failed network requests with exponential backoff.
+Configure it by passing a partial `IRetryPolicy` map to `setup()`, it is merged over `DEFAULT_RETRY_POLICY`, so only the codes you want to override need to appear:
 
 ```ts
 import type { IRetryPolicy } from '@nomercy-entertainment/nomercy-player-core';
@@ -140,13 +143,14 @@ const retryPolicy: IRetryPolicy = {
 player.setup({ retryPolicy });
 ```
 
-Auth refresh retries are separate from the general retry policy — `refreshOnUnauthenticated` is called exactly once, not retried.
-
----
+Auth refresh retries are separate from the general retry policy, so `refreshOnUnauthenticated` is called exactly once, not retried.
 
 ## Inside plugins: `this.fetch`
 
-Plugins should use `this.fetch<T>(url, options?)` instead of the global `fetch`. The `<T>` parameter types the parsed response — no casts. The options' `responseType` (`'text'` | `'json'` | `'arrayBuffer'`) controls how the body is decoded; pass a custom `parser` to transform a `text` body. The player's auth config and retry policy are applied automatically:
+Plugins should use `this.fetch<T>(url, options?)` instead of the global `fetch`.
+The `<T>` parameter types the parsed response, no casts needed.
+The options' `responseType` (`'text'` | `'json'` | `'arrayBuffer'`) controls how the body is decoded; pass a custom `parser` to transform a `text` body.
+The player's auth config and retry policy are applied automatically:
 
 ```ts
 class MyPlugin extends Plugin<...> {
@@ -162,11 +166,9 @@ class MyPlugin extends Plugin<...> {
 
 If you need the raw `Request` object before it is dispatched (for example, to add a signature), use `signRequest` in the auth config rather than building it manually in the plugin.
 
----
-
 ## Updating auth at runtime
 
-Replace auth config after setup — for example, when a long-lived token is refreshed by an external mechanism:
+Replace auth config after setup, for example, when a long-lived token is refreshed by an external mechanism:
 
 ```ts
 player.auth({
@@ -174,4 +176,5 @@ player.auth({
 });
 ```
 
-This merges the provided partial config with the existing auth config. Only the fields you provide are updated.
+This merges the provided partial config with the existing auth config.
+Only the fields you provide are updated.

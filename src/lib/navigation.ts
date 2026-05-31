@@ -42,11 +42,11 @@ export interface NavigationResult {
   products: ProductNavigation[];
 }
 
-const PRODUCTS: Array<{ product: Product; label: string; collection: string; href: string; order: number }> = [
+const PRODUCTS: Array<{ product: Product; label: string; collection: string; href: string; order: number; urlBase?: string }> = [
   { product: 'nomercy-media-server',  label: 'Server',    collection: 'nomercy-media-server',  href: '/nomercy-media-server/overview',  order: 1 },
   { product: 'nomercy-app-web',       label: 'Web App',   collection: 'nomercy-app-web',        href: '/nomercy-app-web/overview',        order: 2 },
   { product: 'nomercy-app-android',   label: 'Android',   collection: 'nomercy-app-android',    href: '/nomercy-app-android/overview',    order: 3 },
-  { product: 'nomercy-player-kit',    label: 'Kit',       collection: 'nomercy-player-kit',     href: '/nomercy-player-kit/overview',     order: 4 },
+  { product: 'nomercy-player-kit',    label: 'Core',      collection: 'nomercy-player-kit',     href: '/nomercy-player-core/overview',    order: 4, urlBase: 'nomercy-player-core' },
   { product: 'nomercy-video-player',  label: 'Video',     collection: 'nomercy-video-player',   href: '/nomercy-video-player/overview',   order: 5 },
   { product: 'nomercy-music-player',  label: 'Music',     collection: 'nomercy-music-player',   href: '/nomercy-music-player/overview',   order: 6 },
   { product: 'nomercy-api',           label: 'API',       collection: 'nomercy-api',            href: '/nomercy-api/overview',            order: 7 },
@@ -57,7 +57,7 @@ export async function getNavigation(): Promise<NavigationResult> {
     PRODUCTS.map(async (meta) => {
       try {
         const entries = await getCollection(meta.collection as any, ({ data }: any) => data.draft !== true);
-        const groups = buildGroups(meta.collection, entries);
+        const groups = buildGroups(meta.collection, entries, meta.urlBase ?? meta.collection);
         return {
           product: meta.product,
           label: meta.label,
@@ -104,7 +104,8 @@ function stripLocalePrefix(slug: string): string {
 // vanishes silently; `npm run check:nav` turns that case into a build failure.
 function buildGroups(
   collection: string,
-  docs: Array<{ slug: string; data: { title: string } }>
+  docs: Array<{ slug: string; data: { title: string } }>,
+  urlBase: string
 ): NavGroup[] {
   const bySlug = new Map<string, { title: string }>();
   for (const doc of docs) {
@@ -123,7 +124,7 @@ function buildGroups(
       used.add(slug);
       return [{
         title: data.title,
-        href: `/${collection}/${slug}`.replace(/\/+/g, '/'),
+        href: `/${urlBase}/${slug}`.replace(/\/+/g, '/'),
       }];
     }),
   })).filter((group) => group.links.length > 0);
@@ -135,7 +136,7 @@ function buildGroups(
       order: groups.length,
       links: orphans.map((slug) => ({
         title: bySlug.get(slug)!.title,
-        href: `/${collection}/${slug}`.replace(/\/+/g, '/'),
+        href: `/${urlBase}/${slug}`.replace(/\/+/g, '/'),
       })),
     });
   }

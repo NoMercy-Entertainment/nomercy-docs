@@ -1,17 +1,17 @@
 ---
 title: 'Migrating from Other Players'
-description: 'Migration notes from hls.js, video.js, Plyr, and Tone.js to the NoMercy Player SDK — concept mapping and API translation.'
+description: 'Migration notes from hls.js, video.js, Plyr, and Tone.js to the NoMercy Player SDK, with concept mapping and API translation.'
 ---
 
 # Migrating from Other Players
 
-Read this when you are switching to the NoMercy Player SDK from another library. Each section maps that library's concepts to the kit's equivalents and highlights the most common translation mistakes.
-
----
+Read this when you are switching to the NoMercy Player SDK from another library.
+Each section maps that library's concepts to the player core's equivalents and highlights the most common translation mistakes.
 
 ## From hls.js (direct usage)
 
-hls.js is a low-level streaming library — it manages the `<video>` element and HLS parsing but provides no player abstraction. The NoMercy video player wraps hls.js behind `IVideoBackend`.
+hls.js is a low-level streaming library, it manages the `<video>` element and HLS parsing but provides no player abstraction.
+The NoMercy video player wraps hls.js behind `IVideoBackend`.
 
 ### Concept mapping
 
@@ -28,8 +28,8 @@ hls.js is a low-level streaming library — it manages the `<video>` element and
 
 ### Key differences
 
-- You do not instantiate hls.js directly. If you need custom hls.js config, use `backendFactory` — see [HLS](/nomercy-video-player/hls).
-- Auth header injection is handled by the kit's auth pipeline — remove any hls.js `xhrSetup` or `fetchSetup` you had.
+- You do not instantiate hls.js directly. If you need custom hls.js config, use `backendFactory`, see [HLS](/nomercy-video-player/hls).
+- Auth header injection is handled by the player core's auth pipeline, remove any hls.js `xhrSetup` or `fetchSetup` you had.
 
 ```ts
 // hls.js (direct):
@@ -42,8 +42,6 @@ player.setup({
   auth: { bearerToken: () => getToken() },
 });
 ```
-
----
 
 ## From video.js
 
@@ -66,7 +64,9 @@ video.js is a full-featured player with its own plugin system and UI.
 
 ### UI components
 
-video.js renders UI inside the player container using its own component system. The NoMercy equivalent is `DesktopUiPlugin`. To customize the UI, subclass `DesktopUiPlugin` — do not add elements directly to the container outside the plugin.
+video.js renders UI inside the player container using its own component system.
+The NoMercy equivalent is `DesktopUiPlugin`.
+To customize the UI, subclass `DesktopUiPlugin`, do not add elements directly to the container outside the plugin.
 
 ### Text tracks
 
@@ -85,11 +85,10 @@ player.setup({
 player.addPlugin(SubtitleOverlayPlugin);
 ```
 
----
-
 ## From Plyr
 
-Plyr is a minimal UI wrapper over the native `<video>` element. It has no HLS support built in — users typically pair it with hls.js manually.
+Plyr is a minimal UI wrapper over the native `<video>` element.
+It has no HLS support built in, so users typically pair it with hls.js manually.
 
 ### Concept mapping
 
@@ -107,7 +106,8 @@ Plyr is a minimal UI wrapper over the native `<video>` element. It has no HLS su
 
 ### HLS migration
 
-If you were wiring hls.js into Plyr manually, remove that code. The NoMercy player handles HLS internally:
+If you were wiring hls.js into Plyr manually, remove that code.
+The NoMercy player handles HLS internally:
 
 ```ts
 // Plyr + hls.js (old):
@@ -124,11 +124,11 @@ const player = nmplayer('main').setup({
 player.addPlugin(DesktopUiPlugin);
 ```
 
----
-
 ## From Tone.js (audio / music apps)
 
-Tone.js is a Web Audio framework for musical synthesis and scheduling. It is not a media player — it does not handle queue management, HLS streaming, or playlist state. The migration target depends on what you used Tone.js for.
+Tone.js is a Web Audio framework for musical synthesis and scheduling.
+It is not a media player, so it does not handle queue management, HLS streaming, or playlist state.
+The migration target depends on what you used Tone.js for.
 
 ### Tone.js as an audio effect chain
 
@@ -153,7 +153,7 @@ eq?.preset('Rock');    // or apply by name
 
 ### Tone.js for scheduling
 
-If you used `Tone.Transport` to schedule playback events, replace it with the kit's event system:
+If you used `Tone.Transport` to schedule playback events, replace it with the player core's event system:
 
 ```ts
 // Tone.js:
@@ -161,7 +161,7 @@ Tone.Transport.scheduleRepeat(() => {
   /* tick */
 }, '8n');
 
-// NoMercy player — use plugin interval:
+// NoMercy player, use plugin interval:
 this.interval(() => {
   /* tick */
 }, intervalMs);
@@ -169,15 +169,13 @@ this.interval(() => {
 
 ### Key differences
 
-- Tone.js is synthesis-first. The NoMercy music player is a media player — it streams pre-encoded audio, not synthesize it.
+- Tone.js is synthesis-first. The NoMercy music player is a media player, it streams pre-encoded audio and does not synthesize.
 - Tone.js `Tone.Player` does not handle HLS. The NoMercy player does.
 - Tone.js `Tone.Context` must be started by a user gesture. The NoMercy player handles the AudioContext unlock internally.
 
----
-
 ## What to read next
 
-- [Video Quick Start](/nomercy-video-player/quickstart) — minimal working player in under 30 lines
-- [Music Quick Start](/nomercy-music-player/quickstart) — minimal working music player
-- [Player migration guide (v1 → v2)](/nomercy-video-player/migration-v1-v2) — if you were on the v1 NoMercy player
-- [Advanced: Custom Backend](/nomercy-video-player/adapters/video-backend) — if you need to preserve hls.js direct access
+- [Video Quick Start](/nomercy-video-player/quickstart), minimal working player in under 30 lines
+- [Music Quick Start](/nomercy-music-player/quickstart), minimal working music player
+- [Player migration guide (v1 → v2)](/nomercy-video-player/migration-v1-v2), if you were on the v1 NoMercy player
+- [Advanced: Custom Backend](/nomercy-video-player/adapters/video-backend), if you need to preserve hls.js direct access

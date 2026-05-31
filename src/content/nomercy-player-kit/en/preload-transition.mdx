@@ -8,11 +8,11 @@ draft: false
 
 ## Overview
 
-The preload and transition system controls what happens at the boundary between two queue items. The preload strategy decides when and what to prefetch. The transition strategy decides how the handoff from outgoing to incoming item is handled.
+The preload and transition system controls what happens at the boundary between two queue items.
+The preload strategy decides when and what to prefetch.
+The transition strategy decides how the handoff from outgoing to incoming item is handled.
 
-Both are stateless — a single instance is reused across items — and swappable per player instance via `BasePlayerConfig` or at runtime.
-
----
+Both are stateless, a single instance is reused across items, and swappable per player instance via `BasePlayerConfig` or at runtime.
 
 ## PreloadStrategy
 
@@ -44,7 +44,9 @@ interface PreloadContext {
 
 ### DefaultPreloadStrategy
 
-Fires at `duration - preloadLeadSeconds` (config field, default `10`). Returns a generic manifest URL from the next item. Per-library players (music, video) compose domain-specific asset lists on top by providing their own `assetsToPreload` implementations.
+Fires at `duration - preloadLeadSeconds` (config field, default `10`).
+Returns a generic manifest URL from the next item.
+Per-library players (music, video) compose domain-specific asset lists on top by providing their own `assetsToPreload` implementations.
 
 ### Custom preload strategy
 
@@ -63,8 +65,6 @@ player.setup({
   },
 });
 ```
-
----
 
 ## TransitionStrategy
 
@@ -92,7 +92,8 @@ interface TransitionContext {
 
 ### ITransitionBackend
 
-The dual-playback surface required by the transition engine. Audio backends that support crossfade implement this:
+The dual-playback surface required by the transition engine.
+Audio backends that support crossfade implement this:
 
 ```ts
 interface ITransitionBackend {
@@ -106,13 +107,11 @@ interface ITransitionBackend {
 }
 ```
 
----
-
 ## Built-in strategies
 
 ### DefaultPreloadStrategy
 
-Standard preload — fires at `duration - preloadLeadSeconds`. Exported from:
+Standard preload, fires at `duration - preloadLeadSeconds`. Exported from:
 
 ```ts
 import { DefaultPreloadStrategy } from '@nomercy-entertainment/nomercy-player-core';
@@ -120,11 +119,15 @@ import { DefaultPreloadStrategy } from '@nomercy-entertainment/nomercy-player-co
 
 ### GaplessTransitionStrategy
 
-Hard-cut, no audio overlap. Default for the video player. Items are still preloaded; there is no audio crossfade.
+Hard-cut, no audio overlap.
+Default for the video player.
+Items are still preloaded; there is no audio crossfade.
 
 ### CrossfadeTransitionStrategy
 
-Overlap crossfade. Default for the music player. Outgoing item fades out over `crossfadeTailSeconds`; incoming item fades in starting `crossfadeLeadSeconds` before the outgoing ends.
+Overlap crossfade.
+Default for the music player.
+Outgoing item fades out over `crossfadeTailSeconds`; incoming item fades in starting `crossfadeLeadSeconds` before the outgoing ends.
 
 ```ts
 import {
@@ -133,8 +136,6 @@ import {
   CrossfadeTransitionStrategy,
 } from '@nomercy-entertainment/nomercy-player-core';
 ```
-
----
 
 ## Config fields
 
@@ -146,8 +147,6 @@ import {
 | `crossfadeEnabled`     | `boolean`            | `true` (music) / `false` (video) | Enable crossfade transition               |
 | `preloadStrategy`      | `PreloadStrategy`    | `DefaultPreloadStrategy`         | Custom preload strategy                   |
 | `transitionStrategy`   | `TransitionStrategy` | Per-library default              | Custom transition strategy                |
-
----
 
 ## Preload events
 
@@ -162,9 +161,7 @@ import {
 | `transitionComplete`  | `{ from, to }`                     | Transition done                       |
 | `transitionCancelled` | `{ reason }`                       | Transition aborted                    |
 
----
-
 ## See also
 
-- [setup()](/nomercy-player-kit/setup) — `preloadLeadSeconds`, `crossfadeEnabled`
-- [Events Reference](/nomercy-player-kit/events-reference) — preload and transition events
+- [setup()](/nomercy-player-core/setup): `preloadLeadSeconds`, `crossfadeEnabled`
+- [Events Reference](/nomercy-player-core/events-reference): preload and transition events

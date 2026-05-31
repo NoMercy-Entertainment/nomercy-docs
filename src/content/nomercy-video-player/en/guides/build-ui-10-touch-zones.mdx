@@ -1,0 +1,846 @@
+---
+title: 'Step 10: Touch Zones'
+description: 'Add double-tap to seek, single-tap to toggle playback, fullscreen and volume touch zones to your custom player UI plugin.'
+---
+
+{/* Source: packages/nomercy-video-player-v2/wiki/guides/Step-10-Touch-Zones.md */}
+
+# Step 10: Touch Zones
+
+This is the final step of the "Build a player UI" tutorial.
+You will add a transparent touch/click zone overlay to `PlayerUiPlugin` that handles double-tap to seek backward and forward, single-tap to toggle controls visibility, center double-tap for fullscreen, and, on mobile, top/bottom center zones for volume.
+
+This is the pattern the built-in `TouchZonesPlugin` uses.
+You are building it from scratch here to understand how it works.
+If you want the ready-made version, register `TouchZonesPlugin` directly and skip this step, see [Touch Zones plugin](/nomercy-video-player/plugins/touch-zones).
+
+## What you are building
+
+The overlay is a 3-column, 6-row CSS grid that covers the entire player container.
+On desktop the three columns span the full height.
+On mobile, the center column splits into three rows for volume up, play/pause, and volume down.
+
+```
+Desktop                           Mobile
+┌──────┬──────┬──────┐            ┌──────┬──────┬──────┐
+│      │      │      │            │      │ Vol  │      │
+│ Seek │Play/ │ Seek │            │ Seek │  Up  │ Seek │
+│ Back │Pause/│ Fwd  │            │ Back ├──────┤ Fwd  │
+│      │  FS  │      │            │      │Play/ │      │
+│      │      │      │            │      │Pause │      │
+│      │      │      │            │      ├──────┤      │
+│      │      │      │            │      │ Vol  │      │
+└──────┴──────┴──────┘            └──────┴──────┴──────┘
+```
+
+| Zone | Single tap | Double tap |
+| ---- | ---------- | ---------- |
+| Left | Hide controls (if visible) | Seek back `seekSeconds` |
+| Right | Hide controls (if visible) | Seek forward `seekSeconds` |
+| Center (desktop) | Toggle play/pause | Toggle fullscreen |
+| Center (mobile) | Toggle play/pause if controls shown | Toggle fullscreen |
+| Vol up (mobile) | Hide controls (if visible) | `volumeUp()` |
+| Vol down (mobile) | Hide controls (if visible) | `volumeDown()` |
+
+## Plugin scaffold
+
+This step uses the same `PlayerUiPlugin` class you have been building throughout the tutorial.
+The class shape stays the same: `static readonly id = 'player-ui'`, a `use()` method, and a `dispose()`.
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+class PlayerUiPlugin extends Plugin<NMVideoPlayer> {
+  static readonly id = 'player-ui';
+  static readonly version = '1.0.0';
+  static readonly description = 'Custom player UI with touch zones';
+
+  private zonesRoot!: HTMLDivElement;
+  private controlsVisible = false;
+  private isMobile = false;
+
+  use(): void {
+    // ... built up through this step
+  }
+
+  dispose(): void {
+    this.zonesRoot?.remove();
+  }
+}
+
+const player = nmplayer('nomercy-player')
+  .addPlugin(PlayerUiPlugin)
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playlist: [
+      {
+        id: 'sintel',
+        title: 'Sintel',
+        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+        image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+        duration: 888,
+      },
+    ],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+## Inject the CSS
+
+The overlay relies on a small amount of CSS.
+Inject it once when `use()` runs rather than bundling a separate stylesheet.
+The `STYLE_ID` guard prevents duplicate injection when multiple player instances share a page.
+
+```ts
+const STYLE_ID = 'player-ui-touch-zones-styles';
+
+function ensureTouchZoneStyles(): void {
+  if (document.getElementById(STYLE_ID)) return;
+
+  const style = document.createElement('style');
+  style.id = STYLE_ID;
+  style.textContent = `
+.player-ui-zones-root {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: repeat(6, 1fr);
+  pointer-events: none;
+}
+.player-ui-touch-box {
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+.player-ui-seek-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%) scale(0.85);
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 72px;
+  height: 72px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 0.78rem;
+  font-family: system-ui, sans-serif;
+  font-weight: 600;
+  pointer-events: none;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 120ms ease-out, transform 120ms ease-out;
+  user-select: none;
+}
+.player-ui-seek-indicator--left  { left: 16px; }
+.player-ui-seek-indicator--right { right: 16px; }
+.player-ui-seek-indicator--visible {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+.player-ui-seek-indicator svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+`;
+  document.head.appendChild(style);
+}
+```
+
+> **Tailwind note:** the tutorial uses utility classes elsewhere in the series for control bar elements. CSS is used here instead because grid-area assignments and `z-index` layering need to be precise and are easier to verify when they are not mixed with utility classes. Substitute Tailwind if your project uses it.
+
+## Double-tap detection
+
+The core utility for this step is a function that returns an event handler distinguishing single-tap from double-tap.
+Two taps within `threshold` milliseconds trigger the double-tap callback; a tap that arrives after the threshold fires the single-tap callback.
+
+```ts
+interface DoubleTapHandlers {
+  onDouble: (event: Event) => void;
+  onSingle?: (event: Event) => void;
+}
+
+function makeDoubleTapHandler(
+  { onDouble, onSingle }: DoubleTapHandlers,
+  threshold = 300,
+): EventListener {
+  let lastTap = 0;
+  let singleTimer: ReturnType<typeof setTimeout> | null = null;
+
+  return (event: Event): void => {
+    const now = Date.now();
+    const gap = now - lastTap;
+    lastTap = now;
+
+    if (gap > 0 && gap < threshold) {
+      if (singleTimer !== null) {
+        clearTimeout(singleTimer);
+        singleTimer = null;
+      }
+      event.preventDefault();
+      onDouble(event);
+    }
+    else {
+      singleTimer = setTimeout(() => {
+        singleTimer = null;
+        onSingle?.(event);
+      }, threshold);
+    }
+  };
+}
+```
+
+The threshold is configurable so your plugin can expose it as an option, matching `TouchZonesPlugin`'s `doubleTapThreshold` option.
+
+## Building the grid overlay
+
+Add `buildZonesOverlay()` and call it from `use()`.
+The method creates the root grid div, appends it to the player container, detects touch capability, and places the appropriate zones.
+
+```ts
+private buildZonesOverlay(): void {
+  ensureTouchZoneStyles();
+
+  this.isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+  const root = document.createElement('div');
+  root.className = 'player-ui-zones-root';
+  // Insert as first child so desktop-ui controls layer above it.
+  this.player.container.insertBefore(root, this.player.container.firstChild);
+  this.zonesRoot = root;
+
+  if (this.isMobile) {
+    this.buildSeekBack(root, { col: '1 / 2', row: '2 / 7' });
+    this.buildPlayback(root, { col: '2 / 3', row: '3 / 6' });
+    this.buildSeekForward(root, { col: '3 / 4', row: '2 / 7' });
+    this.buildVolUp(root, { col: '2 / 3', row: '1 / 3' });
+    this.buildVolDown(root, { col: '2 / 3', row: '5 / 7' });
+  }
+  else {
+    this.buildSeekBack(root, { col: '1 / 2', row: '1 / 7' });
+    this.buildPlayback(root, { col: '2 / 3', row: '1 / 7' });
+    this.buildSeekForward(root, { col: '3 / 4', row: '1 / 7' });
+  }
+}
+```
+
+The `col` and `row` strings are CSS grid-column and grid-row shorthand values assigned directly on each zone element.
+
+## Tracking controls visibility
+
+The zones need to know whether the controls overlay is currently visible so that single-tap can conditionally hide it.
+The `activity` event is how `DesktopUiPlugin` broadcasts its show/hide state.
+
+Wire it up in `use()` with a short debounce so that a tap that just woke the controls does not immediately re-hide them on the click that follows the touchstart.
+
+```ts
+use(): void {
+  let activityTimer: ReturnType<typeof setTimeout> | null = null;
+
+  this.on('activity', (data) => {
+    if (activityTimer !== null) {
+      clearTimeout(activityTimer);
+      activityTimer = null;
+    }
+    const delay = 310; // just past the double-tap threshold
+    activityTimer = setTimeout(() => {
+      this.controlsVisible = data.active;
+      activityTimer = null;
+    }, delay);
+  });
+
+  this.buildZonesOverlay();
+}
+```
+
+`this.on(...)` from the `Plugin` base class auto-unsubscribes on `dispose()`.
+Do not use `this.player.on(...)` directly.
+
+## Zone box factory
+
+A helper that creates a positioned grid cell div:
+
+```ts
+interface GridPos {
+  col: string; // e.g. '1 / 2'
+  row: string; // e.g. '1 / 7'
+}
+
+private makeBox(parent: HTMLElement, pos: GridPos): HTMLDivElement {
+  const el = document.createElement('div');
+  el.className = 'player-ui-touch-box';
+  el.style.gridColumn = pos.col;
+  el.style.gridRow = pos.row;
+  parent.appendChild(el);
+  return el;
+}
+```
+
+## Seek feedback indicator
+
+Each seek zone gets a floating circular indicator that shows the accumulated seek time for the current tap burst.
+It is lazy-created on the first double-tap and lives in the DOM for the plugin's lifetime.
+
+```ts
+interface SeekIndicatorState {
+  el: HTMLDivElement;
+  textEl: HTMLSpanElement;
+  accumulated: number;
+  collapseTimer: ReturnType<typeof setTimeout> | null;
+  hideTimer: ReturnType<typeof setTimeout> | null;
+}
+
+private leftIndicator: SeekIndicatorState | null = null;
+private rightIndicator: SeekIndicatorState | null = null;
+
+private createSeekIndicator(
+  parent: HTMLElement,
+  side: 'left' | 'right',
+): SeekIndicatorState {
+  const el = document.createElement('div');
+  el.className = `player-ui-seek-indicator player-ui-seek-indicator--${side}`;
+
+  const svgNs = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNs, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+
+  const path = document.createElementNS(svgNs, 'path');
+  path.setAttribute(
+    'd',
+    side === 'left'
+      ? 'M11 17l-5-5 5-5M18 17l-5-5 5-5'
+      : 'M13 7l5 5-5 5M6 7l5 5-5 5',
+  );
+  svg.appendChild(path);
+
+  const textEl = document.createElement('span');
+  textEl.textContent = side === 'left' ? '-10s' : '+10s';
+
+  el.appendChild(svg);
+  el.appendChild(textEl);
+  parent.appendChild(el);
+
+  return { el, textEl, accumulated: 0, collapseTimer: null, hideTimer: null };
+}
+
+private showSeekIndicator(
+  state: SeekIndicatorState,
+  seconds: number,
+  direction: 'back' | 'forward',
+): void {
+  if (state.collapseTimer !== null) {
+    clearTimeout(state.collapseTimer);
+    state.collapseTimer = null;
+  }
+  if (state.hideTimer !== null) {
+    clearTimeout(state.hideTimer);
+    state.hideTimer = null;
+  }
+
+  state.accumulated += seconds;
+  state.textEl.textContent =
+    direction === 'back'
+      ? `-${state.accumulated}s`
+      : `+${state.accumulated}s`;
+
+  state.el.classList.add('player-ui-seek-indicator--visible');
+
+  state.collapseTimer = setTimeout(() => {
+    state.accumulated = 0;
+    state.collapseTimer = null;
+    state.hideTimer = setTimeout(() => {
+      state.el.classList.remove('player-ui-seek-indicator--visible');
+      state.hideTimer = null;
+    }, 200);
+  }, 1000);
+}
+```
+
+## Seek zones
+
+```ts
+private readonly seekSeconds = 10;
+
+private buildSeekBack(parent: HTMLElement, pos: GridPos): void {
+  const el = this.makeBox(parent, pos);
+
+  const handler = makeDoubleTapHandler({
+    onDouble: () => {
+      void this.player.rewind?.(this.seekSeconds);
+
+      if (this.leftIndicator === null) {
+        this.leftIndicator = this.createSeekIndicator(el, 'left');
+      }
+      this.showSeekIndicator(this.leftIndicator, this.seekSeconds, 'back');
+    },
+    onSingle: () => {
+      if (this.controlsVisible) {
+        this.player.emit('activity', { active: false });
+      }
+    },
+  });
+
+  this.listen(el, 'click', handler);
+}
+
+private buildSeekForward(parent: HTMLElement, pos: GridPos): void {
+  const el = this.makeBox(parent, pos);
+
+  const handler = makeDoubleTapHandler({
+    onDouble: () => {
+      void this.player.forward?.(this.seekSeconds);
+
+      if (this.rightIndicator === null) {
+        this.rightIndicator = this.createSeekIndicator(el, 'right');
+      }
+      this.showSeekIndicator(this.rightIndicator, this.seekSeconds, 'forward');
+    },
+    onSingle: () => {
+      if (this.controlsVisible) {
+        this.player.emit('activity', { active: false });
+      }
+    },
+  });
+
+  this.listen(el, 'click', handler);
+}
+```
+
+`this.listen(el, 'click', handler)` is the `Plugin` base class helper.
+It registers the event listener and removes it automatically on `dispose()`.
+Never use `el.addEventListener` directly, as that bypasses the lifecycle registry and leaks on teardown.
+
+## Playback zone
+
+The center zone toggles play/pause on single-tap and fullscreen on double-tap.
+On desktop the single-tap always fires; on mobile it only fires when controls are already visible (the first tap wakes the overlay via the container's own touchstart, not this zone).
+
+```ts
+private buildPlayback(parent: HTMLElement, pos: GridPos): void {
+  const el = this.makeBox(parent, pos);
+  el.style.display = 'flex';
+  el.style.alignItems = 'center';
+  el.style.justifyContent = 'center';
+
+  const handler = makeDoubleTapHandler({
+    onDouble: () => {
+      void this.player.toggleFullscreen?.();
+    },
+    onSingle: () => {
+      if (!this.isMobile || this.controlsVisible) {
+        void this.player.togglePlayback?.();
+      }
+    },
+  });
+
+  this.listen(el, 'click', handler);
+}
+```
+
+## Volume zones (mobile only)
+
+```ts
+private buildVolUp(parent: HTMLElement, pos: GridPos): void {
+  const el = this.makeBox(parent, pos);
+
+  const handler = makeDoubleTapHandler({
+    onDouble: () => { this.player.volumeUp?.(); },
+    onSingle: () => {
+      if (this.controlsVisible) {
+        this.player.emit('activity', { active: false });
+      }
+    },
+  });
+
+  this.listen(el, 'click', handler);
+}
+
+private buildVolDown(parent: HTMLElement, pos: GridPos): void {
+  const el = this.makeBox(parent, pos);
+
+  const handler = makeDoubleTapHandler({
+    onDouble: () => { this.player.volumeDown?.(); },
+    onSingle: () => {
+      if (this.controlsVisible) {
+        this.player.emit('activity', { active: false });
+      }
+    },
+  });
+
+  this.listen(el, 'click', handler);
+}
+```
+
+## Complete `use()` and `dispose()`
+
+```ts
+use(): void {
+  let activityTimer: ReturnType<typeof setTimeout> | null = null;
+
+  this.on('activity', (data) => {
+    if (activityTimer !== null) {
+      clearTimeout(activityTimer);
+      activityTimer = null;
+    }
+    activityTimer = setTimeout(() => {
+      this.controlsVisible = data.active;
+      activityTimer = null;
+    }, 310);
+  });
+
+  this.buildZonesOverlay();
+}
+
+dispose(): void {
+  this.zonesRoot?.remove();
+}
+```
+
+## Putting it together
+
+Here is the full plugin in one block, using Sintel as the test stream:
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+// ── Styles ───────────────────────────────────────────────────────────────────
+
+const STYLE_ID = 'player-ui-touch-zones-styles';
+
+function ensureTouchZoneStyles(): void {
+  if (document.getElementById(STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = STYLE_ID;
+  style.textContent = `
+.player-ui-zones-root {
+  position: absolute; inset: 0; z-index: 10;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: repeat(6, 1fr);
+  pointer-events: none;
+}
+.player-ui-touch-box {
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+.player-ui-seek-indicator {
+  position: absolute; top: 50%;
+  transform: translateY(-50%) scale(0.85);
+  z-index: 15;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 6px;
+  width: 72px; height: 72px;
+  background: rgba(0,0,0,0.45); color: #fff;
+  font-size: 0.78rem; font-family: system-ui,sans-serif; font-weight: 600;
+  pointer-events: none; border-radius: 50%; opacity: 0;
+  transition: opacity 120ms ease-out, transform 120ms ease-out;
+  user-select: none;
+}
+.player-ui-seek-indicator--left  { left: 16px; }
+.player-ui-seek-indicator--right { right: 16px; }
+.player-ui-seek-indicator--visible { opacity: 1; transform: translateY(-50%) scale(1); }
+.player-ui-seek-indicator svg {
+  width: 20px; height: 20px; fill: none; stroke: #fff;
+  stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+}
+`;
+  document.head.appendChild(style);
+}
+
+// ── Double-tap helper ─────────────────────────────────────────────────────────
+
+function makeDoubleTapHandler(
+  onDouble: (e: Event) => void,
+  onSingle?: (e: Event) => void,
+  threshold = 300,
+): EventListener {
+  let lastTap = 0;
+  let singleTimer: ReturnType<typeof setTimeout> | null = null;
+  return (e: Event): void => {
+    const now = Date.now();
+    const gap = now - lastTap;
+    lastTap = now;
+    if (gap > 0 && gap < threshold) {
+      if (singleTimer !== null) { clearTimeout(singleTimer); singleTimer = null; }
+      e.preventDefault();
+      onDouble(e);
+    }
+    else {
+      singleTimer = setTimeout(() => { singleTimer = null; onSingle?.(e); }, threshold);
+    }
+  };
+}
+
+// ── Plugin ────────────────────────────────────────────────────────────────────
+
+interface GridPos { col: string; row: string; }
+
+interface SeekIndicatorState {
+  el: HTMLDivElement;
+  textEl: HTMLSpanElement;
+  accumulated: number;
+  collapseTimer: ReturnType<typeof setTimeout> | null;
+  hideTimer: ReturnType<typeof setTimeout> | null;
+}
+
+class PlayerUiPlugin extends Plugin<NMVideoPlayer> {
+  static readonly id = 'player-ui';
+  static readonly version = '1.0.0';
+  static readonly description = 'Custom player UI — step 10: touch zones';
+
+  private zonesRoot!: HTMLDivElement;
+  private controlsVisible = false;
+  private isMobile = false;
+  private readonly seekSeconds = 10;
+
+  private leftIndicator: SeekIndicatorState | null = null;
+  private rightIndicator: SeekIndicatorState | null = null;
+
+  override use(): void {
+    let activityTimer: ReturnType<typeof setTimeout> | null = null;
+
+    this.on('activity', (data) => {
+      if (activityTimer !== null) { clearTimeout(activityTimer); activityTimer = null; }
+      activityTimer = setTimeout(() => {
+        this.controlsVisible = data.active;
+        activityTimer = null;
+      }, 310);
+    });
+
+    this.buildZonesOverlay();
+  }
+
+  override dispose(): void {
+    this.zonesRoot?.remove();
+  }
+
+  private buildZonesOverlay(): void {
+    ensureTouchZoneStyles();
+    this.isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    const root = document.createElement('div');
+    root.className = 'player-ui-zones-root';
+    this.player.container.insertBefore(root, this.player.container.firstChild);
+    this.zonesRoot = root;
+
+    if (this.isMobile) {
+      this.buildSeekBack(root,    { col: '1 / 2', row: '2 / 7' });
+      this.buildPlayback(root,    { col: '2 / 3', row: '3 / 6' });
+      this.buildSeekForward(root, { col: '3 / 4', row: '2 / 7' });
+      this.buildVolUp(root,       { col: '2 / 3', row: '1 / 3' });
+      this.buildVolDown(root,     { col: '2 / 3', row: '5 / 7' });
+    }
+    else {
+      this.buildSeekBack(root,    { col: '1 / 2', row: '1 / 7' });
+      this.buildPlayback(root,    { col: '2 / 3', row: '1 / 7' });
+      this.buildSeekForward(root, { col: '3 / 4', row: '1 / 7' });
+    }
+  }
+
+  private makeBox(parent: HTMLElement, pos: GridPos): HTMLDivElement {
+    const el = document.createElement('div');
+    el.className = 'player-ui-touch-box';
+    el.style.gridColumn = pos.col;
+    el.style.gridRow = pos.row;
+    parent.appendChild(el);
+    return el;
+  }
+
+  private createSeekIndicator(parent: HTMLElement, side: 'left' | 'right'): SeekIndicatorState {
+    const el = document.createElement('div');
+    el.className = `player-ui-seek-indicator player-ui-seek-indicator--${side}`;
+    const svgNs = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNs, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    const path = document.createElementNS(svgNs, 'path');
+    path.setAttribute('d', side === 'left' ? 'M11 17l-5-5 5-5M18 17l-5-5 5-5' : 'M13 7l5 5-5 5M6 7l5 5-5 5');
+    svg.appendChild(path);
+    const textEl = document.createElement('span');
+    textEl.textContent = side === 'left' ? '-10s' : '+10s';
+    el.appendChild(svg);
+    el.appendChild(textEl);
+    parent.appendChild(el);
+    return { el, textEl, accumulated: 0, collapseTimer: null, hideTimer: null };
+  }
+
+  private showSeekIndicator(state: SeekIndicatorState, seconds: number, direction: 'back' | 'forward'): void {
+    if (state.collapseTimer !== null) { clearTimeout(state.collapseTimer); state.collapseTimer = null; }
+    if (state.hideTimer !== null) { clearTimeout(state.hideTimer); state.hideTimer = null; }
+    state.accumulated += seconds;
+    state.textEl.textContent = direction === 'back' ? `-${state.accumulated}s` : `+${state.accumulated}s`;
+    state.el.classList.add('player-ui-seek-indicator--visible');
+    state.collapseTimer = setTimeout(() => {
+      state.accumulated = 0;
+      state.collapseTimer = null;
+      state.hideTimer = setTimeout(() => {
+        state.el.classList.remove('player-ui-seek-indicator--visible');
+        state.hideTimer = null;
+      }, 200);
+    }, 1000);
+  }
+
+  private buildSeekBack(parent: HTMLElement, pos: GridPos): void {
+    const el = this.makeBox(parent, pos);
+    this.listen(el, 'click', makeDoubleTapHandler(
+      () => {
+        void this.player.rewind?.(this.seekSeconds);
+        if (this.leftIndicator === null) this.leftIndicator = this.createSeekIndicator(el, 'left');
+        this.showSeekIndicator(this.leftIndicator, this.seekSeconds, 'back');
+      },
+      () => {
+        if (this.controlsVisible) this.player.emit('activity', { active: false });
+      },
+    ));
+  }
+
+  private buildSeekForward(parent: HTMLElement, pos: GridPos): void {
+    const el = this.makeBox(parent, pos);
+    this.listen(el, 'click', makeDoubleTapHandler(
+      () => {
+        void this.player.forward?.(this.seekSeconds);
+        if (this.rightIndicator === null) this.rightIndicator = this.createSeekIndicator(el, 'right');
+        this.showSeekIndicator(this.rightIndicator, this.seekSeconds, 'forward');
+      },
+      () => {
+        if (this.controlsVisible) this.player.emit('activity', { active: false });
+      },
+    ));
+  }
+
+  private buildPlayback(parent: HTMLElement, pos: GridPos): void {
+    const el = this.makeBox(parent, pos);
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.justifyContent = 'center';
+    this.listen(el, 'click', makeDoubleTapHandler(
+      () => { void this.player.toggleFullscreen?.(); },
+      () => {
+        if (!this.isMobile || this.controlsVisible) void this.player.togglePlayback?.();
+      },
+    ));
+  }
+
+  private buildVolUp(parent: HTMLElement, pos: GridPos): void {
+    const el = this.makeBox(parent, pos);
+    this.listen(el, 'click', makeDoubleTapHandler(
+      () => { this.player.volumeUp?.(); },
+      () => { if (this.controlsVisible) this.player.emit('activity', { active: false }); },
+    ));
+  }
+
+  private buildVolDown(parent: HTMLElement, pos: GridPos): void {
+    const el = this.makeBox(parent, pos);
+    this.listen(el, 'click', makeDoubleTapHandler(
+      () => { this.player.volumeDown?.(); },
+      () => { if (this.controlsVisible) this.player.emit('activity', { active: false }); },
+    ));
+  }
+}
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+
+const player = nmplayer('nomercy-player')
+  .addPlugin(DesktopUiPlugin)
+  .addPlugin(PlayerUiPlugin)
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playlist: [
+      {
+        id: 'sintel',
+        title: 'Sintel',
+        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+        image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+        duration: 888,
+        subtitles: [
+          {
+            id: 'eng-full',
+            kind: 'subtitles',
+            language: 'eng',
+            label: 'English',
+            url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
+          },
+        ],
+      },
+    ],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+## Key patterns to remember
+
+**`this.listen(el, event, handler)`** is the correct way to attach DOM listeners inside a plugin.
+The lifecycle registry removes them when `dispose()` runs.
+Using raw `addEventListener` bypasses cleanup and leaks listeners when the player is destroyed.
+
+**`this.on('activity', ...)`** is how you subscribe to player events inside a plugin.
+The string form subscribes to a player-level event from `VideoEventMap`.
+Both forms auto-clean on dispose.
+
+**`this.player.emit('activity', { active: false })`** is how the zones signal the desktop-ui overlay to hide.
+The plugin does not call `this.emit(...)` for this because `activity` is a player-level event, not a plugin-scoped event.
+`this.emit(...)` would send `plugin:player-ui:activity`, which nothing listens to.
+
+**`dispose()`** only needs to remove the grid root from the DOM.
+Listeners registered through `this.listen` and `this.on` are already removed by the lifecycle registry before `dispose()` is called.
+
+## Using the built-in version
+
+If you do not need to customize the zone layout or feedback style, register `TouchZonesPlugin` directly and skip building this yourself:
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import {
+  DesktopUiPlugin,
+  TouchZonesPlugin,
+} from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('nomercy-player')
+  .addPlugin(DesktopUiPlugin)
+  .addPlugin(TouchZonesPlugin, { seekSeconds: 10 })
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playlist: [
+      {
+        id: 'sintel',
+        title: 'Sintel',
+        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+        duration: 888,
+      },
+    ],
+  });
+```
+
+See [Touch Zones plugin](/nomercy-video-player/plugins/touch-zones) for the full options reference.
+
+## That's the tutorial
+
+You have built a complete custom player UI plugin across ten steps, starting from a bare plugin scaffold and adding controls, progress, menus, subtitles, previews, and now touch zones.
+
+Where to go next:
+
+- [Plugin Development](/nomercy-video-player/plugin-development) for the full plugin authoring contract, error handling, i18n, and the conformance checklist.
+- [API Methods](/nomercy-video-player/api-methods) for the complete set of player methods your plugin can call.
+- [Events](/nomercy-video-player/events) for all events and their payload shapes.
+- [Touch Zones plugin](/nomercy-video-player/plugins/touch-zones) for the production `TouchZonesPlugin` reference.

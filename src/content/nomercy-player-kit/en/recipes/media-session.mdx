@@ -1,15 +1,14 @@
 ---
 title: 'Media Session'
-description: 'System MediaSession integration via MediaSessionPlugin — lock-screen controls, notification metadata, and album artwork.'
+description: 'System MediaSession integration via MediaSessionPlugin: lock-screen controls, notification metadata, and album artwork.'
 ---
 
 # Media Session
 
-Read this when you want lock-screen controls, browser media notification widgets, or hardware media key support. Both the video and music players support this via `MediaSessionPlugin`.
+Read this when you want lock-screen controls, browser media notification widgets, or hardware media key support.
+Both the video and music players support this via `MediaSessionPlugin`.
 
-The [Media Session API](https://developer.mozilla.org/en-US/docs/Web/API/Media_Session_API) is a browser standard that exposes playback controls to the OS — Android lock screen, iOS Control Center, Windows system tray, desktop browser toolbars, and hardware media keys (keyboards, headsets, remotes).
-
----
+The [Media Session API](https://developer.mozilla.org/en-US/docs/Web/API/Media_Session_API) is a browser standard that exposes playback controls to the OS: Android lock screen, iOS Control Center, Windows system tray, desktop browser toolbars, and hardware media keys (keyboards, headsets, remotes).
 
 ## Basic setup
 
@@ -36,9 +35,9 @@ await player.ready();
 await player.play();
 ```
 
-That is all that is needed. The plugin reads `name`, `artist`, `album`, and `artwork` from the current queue item and writes them to `navigator.mediaSession.metadata`. It wires `play`, `pause`, `previoustrack`, `nexttrack`, `seekbackward`, `seekforward`, and `stop` action handlers.
-
----
+That is all that is needed.
+The plugin reads `name`, `artist`, `album`, and `artwork` from the current queue item and writes them to `navigator.mediaSession.metadata`.
+It wires `play`, `pause`, `previoustrack`, `nexttrack`, `seekbackward`, `seekforward`, and `stop` action handlers.
 
 ## Video player
 
@@ -65,11 +64,10 @@ player.addPlugin(MediaSessionPlugin);
 
 For video, the plugin reads `title` and `poster` from the item.
 
----
-
 ## Multiple artwork sizes
 
-Browsers prefer the largest artwork that fits the display. Provide multiple sizes for the best result:
+Browsers prefer the largest artwork that fits the display.
+Provide multiple sizes for the best result:
 
 ```ts
 {
@@ -84,8 +82,6 @@ Browsers prefer the largest artwork that fits the display. Provide multiple size
 ```
 
 When `artwork` is a string (single URL), the plugin wraps it in a single-entry array with `sizes: '512x512'`.
-
----
 
 ## Customizing metadata
 
@@ -114,8 +110,6 @@ class MyMediaSession extends MediaSessionPlugin {
 player.addPlugin(MyMediaSession);
 ```
 
----
-
 ## Observing media key actions
 
 If you need to respond to media key presses independently (e.g. for analytics):
@@ -127,16 +121,13 @@ player.on('plugin:media-session:action', ({ action }) => {
 });
 ```
 
----
-
 ## Browser support
 
-The Media Session API is available in Chrome 73+, Firefox 82+, Safari 15+, and Edge 79+. On unsupported browsers, `MediaSessionPlugin` detects the absence of `navigator.mediaSession` at `use()` time and self-disables gracefully — no errors thrown.
-
----
+The Media Session API is available in Chrome 73+, Firefox 82+, Safari 15+, and Edge 79+.
+On unsupported browsers, `MediaSessionPlugin` detects the absence of `navigator.mediaSession` at `use()` time and self-disables gracefully, no errors thrown.
 
 ## What to read next
 
-- [Recipes: Keyboard Shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts) — pairing media key handling with custom keyboard bindings
-- [Recipes: Persistence](/nomercy-player-kit/recipes/persistence) — saving playback position so resuming from lock screen continues from the right point
-- [Music — API Methods](/nomercy-music-player/api-methods) — `current()`, `peekNext()`, `artwork` field reference
+- [Recipes: Keyboard Shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts), pairing media key handling with custom keyboard bindings
+- [Recipes: Persistence](/nomercy-player-core/recipes/persistence), saving playback position so resuming from lock screen continues from the right point
+- [Music: API Methods](/nomercy-music-player/api-methods), `current()`, `peekNext()`, `artwork` field reference

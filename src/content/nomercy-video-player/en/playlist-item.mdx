@@ -8,7 +8,8 @@ draft: false
 
 ## VideoPlaylistItem
 
-`VideoPlaylistItem` is the shape of each item in the player's playlist. Pass it in `VideoPlayerConfig.playlist` or supply it to `player.current(item)`.
+`VideoPlaylistItem` is the shape of each item in the player's playlist.
+Pass it in `VideoPlayerConfig.playlist` or supply it to `player.current(item)`.
 
 ```ts
 import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
@@ -26,15 +27,18 @@ import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-pla
 
 ### Cover art
 
-Three field names are accepted in priority order: `image` → `poster` → `thumbnail`. The player reads whichever is first populated. Use any name your backend already uses.
+Three field names are accepted in priority order: `image` → `poster` → `thumbnail`.
+The player reads whichever is first populated.
+Use any name your backend already uses.
 
 | Field       | Type     | Description                         |
 | ----------- | -------- | ----------------------------------- |
-| `image`     | `string` | Poster/cover URL — highest priority |
-| `poster`    | `string` | Poster URL — second priority        |
-| `thumbnail` | `string` | Thumbnail URL — third priority      |
+| `image`     | `string` | Poster/cover URL, highest priority |
+| `poster`    | `string` | Poster URL, second priority        |
+| `thumbnail` | `string` | Thumbnail URL, third priority      |
 
-When `VideoPlayerConfig.imageBasePath` is set, relative paths like `/abc.jpg` are resolved against that base. Absolute URLs pass through unchanged.
+When `VideoPlayerConfig.imageBasePath` is set, relative paths like `/abc.jpg` are resolved against that base.
+Absolute URLs pass through unchanged.
 
 ### Subtitles
 
@@ -42,7 +46,8 @@ When `VideoPlayerConfig.imageBasePath` is set, relative paths like `/abc.jpg` ar
 subtitles?: SubtitleTrackRef[];
 ```
 
-Typed array of subtitle tracks. Each entry is a `SubtitleTrackRef` (re-export of the kit's `SubtitleTrack`):
+Typed array of subtitle tracks.
+Each entry is a `SubtitleTrackRef` (re-export of the core's `SubtitleTrack`):
 
 ```ts
 import type { SubtitleTrackRef } from '@nomercy-entertainment/nomercy-video-player';
@@ -52,14 +57,14 @@ const item: VideoPlaylistItem = {
   url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
   subtitles: [
     {
-      id: 1,
+      id: 'eng',
       kind: 'subtitles',
       label: 'English',
       language: 'en',
       url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
     },
     {
-      id: 2,
+      id: 'dut',
       kind: 'subtitles',
       label: 'Dutch',
       language: 'nl',
@@ -77,15 +82,17 @@ The player uses `defaultSubtitleLanguage` from config to auto-select a track at 
 chapters?: ChapterRef[];
 ```
 
-Typed array of chapter markers. Each `ChapterRef` is a `{ title: string; start: number; end: number }` (re-export of the kit's `Chapter`). The player renders these in the progress bar when the DesktopUiPlugin is active.
+Typed array of chapter markers.
+Each `ChapterRef` is a `{ index: number; start: number; end: number; title: string }` (re-export of the core's `Chapter`).
+The player renders these in the progress bar when the DesktopUiPlugin is active.
 
 ```ts
 import type { ChapterRef } from '@nomercy-entertainment/nomercy-video-player';
 
 chapters: [
-  { title: 'Intro',   start: 0,    end: 90   },
-  { title: 'Act 1',   start: 90,   end: 1200 },
-  { title: 'Credits', start: 3400, end: 3480 },
+  { index: 0, title: 'Intro',   start: 0,    end: 90   },
+  { index: 1, title: 'Act 1',   start: 90,   end: 1200 },
+  { index: 2, title: 'Credits', start: 3400, end: 3480 },
 ],
 ```
 
@@ -95,7 +102,8 @@ chapters: [
 skippers?: SkipperData;
 ```
 
-Optional skip ranges consumed by the SkipperPlugin. Each range has `start` and `end` in seconds.
+Optional skip ranges consumed by the SkipperPlugin.
+Each range has `start` and `end` in seconds.
 
 ```ts
 import type { SkipperData } from '@nomercy-entertainment/nomercy-video-player';
@@ -113,7 +121,8 @@ skippers: {
 previewSpriteUrl?: string;
 ```
 
-URL of a WebVTT sprite manifest used by the progress bar hover thumbnail. This is the canonical field — the VttSpriteThumbnailSource adapter reads it automatically.
+URL of a WebVTT sprite manifest used by the progress bar hover thumbnail.
+This is the canonical field, and the VttSpriteThumbnailSource adapter reads it automatically.
 
 ```ts
 // baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films'
@@ -126,7 +135,8 @@ previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.vtt',
 fonts?: FontTrackRef[];
 ```
 
-Font manifests for ASS/SSA subtitle rendering via OctopusPlugin. Each entry is either a `fonts.json` manifest URL or a direct font file URL.
+Font manifests for ASS/SSA subtitle rendering via OctopusPlugin.
+Each entry is either a `fonts.json` manifest URL or a direct font file URL.
 
 ```ts
 import type { FontTrackRef } from '@nomercy-entertainment/nomercy-video-player';
@@ -153,7 +163,9 @@ This is the canonical alternative to the deprecated `tracks` field for fonts.
 progress?: WatchProgress;
 ```
 
-Consumer-supplied watch progress. The player reads this to render the playlist menu progress bar. The player does not write to this field — persistence is the consumer's responsibility.
+Consumer-supplied watch progress.
+The player reads this to render the playlist menu progress bar.
+The player does not write to this field, so persistence is the consumer's responsibility.
 
 ```ts
 import type { WatchProgress } from '@nomercy-entertainment/nomercy-video-player';
@@ -171,7 +183,9 @@ progress: {
 tracks?: Array<{ id?: number | string; kind?: string; file?: string; label?: string; language?: string }>;
 ```
 
-Generic escape hatch for track kinds without a typed field. All built-in cases now have typed fields (`subtitles`, `chapters`, `previewSpriteUrl`, `fonts`). The `tracks` field will be removed in a future major release.
+Generic escape hatch for track kinds without a typed field.
+All built-in cases now have typed fields (`subtitles`, `chapters`, `previewSpriteUrl`, `fonts`).
+The `tracks` field will be removed in a future major release.
 
 ## Full example
 
@@ -186,14 +200,14 @@ const item: VideoPlaylistItem = {
   duration: 12 * 60 + 10,
   subtitles: [
     {
-      id: 1,
+      id: 'eng',
       kind: 'subtitles',
       label: 'English',
       language: 'en',
       url: '/Tears.of.Steel.(2012)/subtitles/Tears.of.Steel.(2012).NoMercy.eng.full.vtt',
     },
   ],
-  chapters: [{ title: 'Opening', start: 0, end: 120 }],
+  chapters: [{ index: 0, title: 'Opening', start: 0, end: 120 }],
   previewSpriteUrl: '/Tears.of.Steel.(2012)/previews.vtt',
   skippers: {
     intro: { start: 5, end: 90 },
@@ -218,6 +232,6 @@ import type {
 ## See also
 
 - [Types Reference](/nomercy-video-player/types)
-- [OctopusPlugin — ASS/SSA fonts](/nomercy-video-player/plugins/octopus)
+- [OctopusPlugin, ASS/SSA fonts](/nomercy-video-player/plugins/octopus)
 - [SkipperPlugin](/nomercy-video-player/plugins/skipper)
 - [Thumbnail Source adapter](/nomercy-video-player/adapters/thumbnail-source)

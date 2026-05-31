@@ -1,45 +1,44 @@
 ---
 title: 'Architecture'
-description: 'The five-layer model that separates generic player infrastructure from your application code. How kit, libraries, and plugins relate to each other.'
+description: 'The five-layer model that separates generic player infrastructure from your application code. How the player core, libraries, and plugins relate to each other.'
 ---
 
 # Architecture
 
-The Player SDK is built on a strict five-layer model. Every piece of code has a designated layer, and no layer may reach "down" into a layer below it or "up" into a layer above it without going through a defined port.
-
----
+The Player SDK is organized into five layers so that generic infrastructure never gets tangled up with your application-specific code.
+Each layer only knows about the layer directly below it, and it communicates upward through defined ports.
+That discipline is what lets you swap a backend, replace a UI plugin, or write a consumer plugin that talks to SignalR without any of those changes leaking into the shared core.
 
 ## The five layers
 
 No layer may reach "down" past the layer below it or "up" into a layer above it except through a defined port. Listed highest to lowest:
 
 <LayerStack layers={[
-  { n: 5, name: 'Consumer plugin', pkg: 'Your app code', knows: 'Everything — NoMercy server endpoints, SignalR hubs, auth tokens, watch-party logic, business rules.' },
-  { n: 4, name: 'Built-in plugin', pkg: 'Shipped inside the kit / library packages', knows: 'Generic behaviour — EQ, Lyrics, AutoAdvance, UI. No knowledge of any server API.' },
-  { n: 3, name: 'Per-library', pkg: 'nomercy-video-player / nomercy-music-player', knows: 'Domain types (VideoPlaylistItem, MusicPlaylistItem) and domain methods. Builds on the kit engine.' },
-  { n: 2, name: 'Kit', pkg: 'nomercy-player-core', knows: 'Generic contracts: lifecycle, queue, auth pipeline, plugin system, event bus, i18n, storage, and a set of adapter ports.' },
-  { n: 1, name: 'Backend', pkg: 'Html5VideoBackend / WebAudioBackend', knows: 'Browser media APIs only — the video/audio elements, MediaSource, AudioContext.' },
+  { n: 5, name: 'Consumer plugin', pkg: 'Your app code', knows: 'Everything: NoMercy server endpoints, SignalR hubs, auth tokens, watch-party logic, business rules.' },
+  { n: 4, name: 'Built-in plugin', pkg: 'Shipped inside the core / library packages', knows: 'Generic behaviour: EQ, Lyrics, AutoAdvance, UI. No knowledge of any server API.' },
+  { n: 3, name: 'Per-library', pkg: 'nomercy-video-player / nomercy-music-player', knows: 'Domain types (VideoPlaylistItem, MusicPlaylistItem) and domain methods. Builds on the core engine.' },
+  { n: 2, name: 'Core', pkg: 'nomercy-player-core', knows: 'Generic contracts: lifecycle, queue, auth pipeline, plugin system, event bus, i18n, storage, and a set of adapter ports.' },
+  { n: 1, name: 'Backend', pkg: 'Html5VideoBackend / WebAudioBackend', knows: 'Browser media APIs only: the video/audio elements, MediaSource, AudioContext.' },
 ]} />
-
----
 
 ## Why this matters
 
-The boundary between layer 4 and layer 5 is the enforcement point. Anything NoMercy-specific lives at layer 5. Built-in plugins (layer 4) must work for any consumer, with any backend, without any knowledge of the NoMercy infrastructure.
+The boundary between layer 4 and layer 5 is the enforcement point.
+Anything NoMercy-specific lives at layer 5.
+Built-in plugins (layer 4) must work for any consumer, with any backend, without any knowledge of the NoMercy infrastructure.
 
-The practical consequence: when you add a built-in plugin from the package, it does not import from your app. When you write a consumer plugin, it can import from anywhere, but it should not modify kit internals.
-
----
+The practical consequence: when you add a built-in plugin from the package, it does not import from your app.
+When you write a consumer plugin, it can import from anywhere, but it should not modify core internals.
 
 ## Adapter ports
 
-Layer 2 (kit) exposes a set of named adapter ports. Each port has a typed interface and a default implementation. You replace a port only when you need different behavior, for example swapping `LocalStorageBackend` for `IndexedDBBackend`, or replacing the browser network monitor with a Capacitor native adapter.
+Layer 2 (core) exposes a set of named adapter ports.
+Each port has a typed interface and a default implementation.
+You replace a port only when you need different behavior, for example swapping `LocalStorageBackend` for `IndexedDBBackend`, or replacing the browser network monitor with a Capacitor native adapter.
 
 The video and music library layers add ports of their own on top of these, documented with each library.
 
-See [Kit — Adapters](/nomercy-player-kit/adapters) for the full port catalog.
-
----
+See [Core Adapters](/nomercy-player-core/adapters) for the full port catalog.
 
 ## Plugin layering in practice
 
@@ -72,26 +71,28 @@ this.on(EqualizerPlugin, 'band:changed', ({ band }) => {
 });
 ```
 
----
-
 ## Three-package layout
 
 | npm package                                        | Layer                          | Consumers                                                                    |
 | -------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------- |
-| `@nomercy-entertainment/nomercy-player-core@beta`  | 2 (kit) + 4 (built-in plugins) | Library authors, advanced consumers writing plugins directly against the kit |
+| `@nomercy-entertainment/nomercy-player-core@beta`  | 2 (core) + 4 (built-in plugins) | Library authors, advanced consumers writing plugins directly against the core |
 | `@nomercy-entertainment/nomercy-video-player@beta` | 3 + 4                          | Anyone building a video player                                               |
 | `@nomercy-entertainment/nomercy-music-player@beta` | 3 + 4                          | Anyone building a music player                                               |
 
-Both library packages re-export everything from the kit, so consumers of the video or music player do not need to install the kit separately unless they are writing kit-level plugins.
-
----
+Both library packages re-export everything from the core, so consumers of the video or music player do not need to install the core separately unless they are writing core-level plugins.
 
 ## Container class system boundary
 
-State classes on `.nomercyplayer` (the player container element) are applied by the kit's container-class-emit mixin — `nm-playing`, `nm-paused`, `nm-buffering`, `nm-fullscreen`, etc. These are kit-level, present regardless of which UI plugin is active.
+State classes on `.nomercyplayer` (the player container element) are applied by the core's container-class-emit mixin: `nm-playing`, `nm-paused`, `nm-buffering`, `nm-fullscreen`, etc.
+These are core-level, present regardless of which UI plugin is active.
 
-The UI overlay (controls bar, seek bar, menus, spinner) is `DesktopUiPlugin`'s domain. It reads the kit's state classes and adds its own DOM into the container. `DesktopUiPlugin` never modifies state classes — it only reads them.
+The UI overlay (controls bar, seek bar, menus, spinner) is `DesktopUiPlugin`'s domain.
+It reads the core's state classes and adds its own DOM into the container.
+`DesktopUiPlugin` never modifies state classes; it only reads them.
 
-This boundary is intentional: a consumer can build a completely custom UI plugin that responds to the same state classes without touching `DesktopUiPlugin`. The state source (kit) and the UI renderer (plugin) are decoupled.
+This boundary is intentional: a consumer can build a completely custom UI plugin that responds to the same state classes without touching `DesktopUiPlugin`.
+The state source (core) and the UI renderer (plugin) are decoupled.
 
-The exact class inventory and which mixin owns each class is tracked by the player-architect (Spine). Pending Spine's confirmation, assume: `nm-playing`, `nm-paused`, `nm-buffering`, `nm-ended`, `nm-fullscreen`, `nm-pip`, `nm-theater`, `nm-muted` are kit-owned. `nm-controls-visible`, `nm-controls-hidden`, `nm-subtitles-on` are `DesktopUiPlugin`-owned.
+The exact class inventory and which mixin owns each class is tracked by the player-architect (Spine).
+Pending Spine's confirmation, assume: `nm-playing`, `nm-paused`, `nm-buffering`, `nm-ended`, `nm-fullscreen`, `nm-pip`, `nm-theater`, `nm-muted` are core-owned.
+`nm-controls-visible`, `nm-controls-hidden`, `nm-subtitles-on` are `DesktopUiPlugin`-owned.

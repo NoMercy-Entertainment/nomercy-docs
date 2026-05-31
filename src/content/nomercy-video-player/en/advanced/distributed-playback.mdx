@@ -5,15 +5,16 @@ description: 'Group listening, tab-leader coordination, clock synchronization, a
 
 # Distributed Playback
 
-Read this when you are building synchronized playback across multiple clients — watch parties, group listening, or any scenario where multiple users or devices must play the same content in lockstep.
+Read this when you are building synchronized playback across multiple clients: watch parties, group listening, or any scenario where multiple users or devices must play the same content in lockstep.
 
-**Status note:** The NoMercy Player SDK's first-class group listening feature (planned for v2.1) is not yet released. This guide covers the architectural patterns you can implement today using existing kit primitives. The v2.1 `GroupListeningPlugin` will replace the manual setup here.
-
----
+**Status note:** The NoMercy Player SDK's first-class group listening feature (planned for v2.1) is not yet released.
+This guide covers the architectural patterns you can implement today using existing player core primitives.
+The v2.1 `GroupListeningPlugin` will replace the manual setup here.
 
 ## The core problem
 
-Two clients playing the same HLS stream independently will drift apart. Sources of drift:
+Two clients playing the same HLS stream independently will drift apart.
+Sources of drift:
 
 - Network buffering differences (one client buffers, the other doesn't)
 - Clock skew between devices (system clocks are rarely identical)
@@ -21,8 +22,6 @@ Two clients playing the same HLS stream independently will drift apart. Sources 
 - Tab visibility and OS throttling (background tabs get fewer CPU cycles)
 
 A robust sync system must measure drift continuously and apply small corrections.
-
----
 
 ## Architecture: leader + followers
 
@@ -36,11 +35,9 @@ Leader:                   Followers:
   - sends periodic sync      - detect significant drift
 ```
 
----
-
 ## Implementing with SignalR (or WebSocket)
 
-Wire the player to a realtime channel via the kit's realtime adapter:
+Wire the player to a realtime channel via the player core's realtime adapter:
 
 ```ts
 import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
@@ -85,7 +82,7 @@ ws.onmessage = (event) => {
   }
 
   if (msg.type === 'sync-tick') {
-    // Periodic correction — if drift exceeds threshold, correct:
+    // Periodic correction: if drift exceeds threshold, correct:
     const localPosition = player.currentTime();
     const drift = localPosition - msg.serverPosition;
     if (Math.abs(drift) > DRIFT_CORRECTION_THRESHOLD_SECONDS) {
@@ -95,31 +92,30 @@ ws.onmessage = (event) => {
 };
 ```
 
----
-
 ## Drift correction
 
 Continuous correction without visible seeks:
 
 ```ts
-const DRIFT_THRESHOLD = 0.5; // seconds — correct if drift > 500ms
+const DRIFT_THRESHOLD = 0.5; // seconds, correct if drift > 500ms
 const MAX_RATE_CORRECTION = 0.1; // slow/speed up by 10% max
 
 function applyDriftCorrection(localTime: number, serverTime: number): void {
   const drift = localTime - serverTime;
 
   if (Math.abs(drift) > 2.0) {
-    // Drift too large — hard seek:
+    // Drift too large, hard seek:
     player.currentTime(serverTime);
+
     return;
   }
 
   if (Math.abs(drift) > DRIFT_THRESHOLD) {
-    // Small drift — adjust playback rate to catch up gradually:
+    // Small drift, adjust playback rate to catch up gradually:
     const correction = Math.max(-MAX_RATE_CORRECTION, Math.min(MAX_RATE_CORRECTION, -drift * 0.5));
     player.playbackRate(1.0 + correction);
   } else {
-    // Within tolerance — restore normal rate:
+    // Within tolerance, restore normal rate:
     player.playbackRate(1.0);
   }
 }
@@ -127,11 +123,10 @@ function applyDriftCorrection(localTime: number, serverTime: number): void {
 
 Trigger correction on periodic sync ticks from the server (every 2–5 seconds is typical).
 
----
-
 ## Clock synchronization
 
-System clocks differ between clients. Measure the offset before using server timestamps:
+System clocks differ between clients.
+Measure the offset before using server timestamps:
 
 ```ts
 async function measureClockOffset(serverUrl: string): Promise<number> {
@@ -143,6 +138,7 @@ async function measureClockOffset(serverUrl: string): Promise<number> {
   // RTT / 2 is the one-way latency estimate:
   const latency = (t1 - t0) / 2;
   const clockOffset = serverTime + latency - t1;
+
   return clockOffset; // add this to Date.now() to get estimated server time
 }
 
@@ -152,8 +148,6 @@ function serverNow(): number {
   return Date.now() + clockOffset;
 }
 ```
-
----
 
 ## Tab leader coordination
 
@@ -176,7 +170,7 @@ function claimLeadership(): void {
 
 LEADER_CHANNEL.onmessage = (event) => {
   if (event.data.type === 'i-am-leader' && event.data.tabId !== TAB_ID) {
-    // Another tab claimed leadership first — we become a follower:
+    // Another tab claimed leadership first, so we become a follower:
     isLeader = false;
     clearInterval(leaderHeartbeatTimer);
   }
@@ -186,14 +180,12 @@ LEADER_CHANNEL.onmessage = (event) => {
 claimLeadership();
 ```
 
----
-
 ## v2.1 GroupListeningPlugin (planned)
 
 When released, the `GroupListeningPlugin` will replace the manual setup above:
 
 ```ts
-// Future API — not yet available:
+// Future API, not yet available:
 import { GroupListeningPlugin } from '@nomercy-entertainment/nomercy-video-player';
 
 player.addPlugin(GroupListeningPlugin, {
@@ -207,10 +199,8 @@ player.addPlugin(GroupListeningPlugin, {
 
 The existing manual patterns in this guide will remain valid alongside the plugin.
 
----
-
 ## What to read next
 
-- [Advanced: Custom Plugin](/nomercy-video-player/plugin-development) — watch-party-lite plugin for same-device sync
-- [Advanced: Multi-Instance](/nomercy-player-kit/advanced/multi-instance) — multiple players on one page
-- [Kit — Auth & Fetch](/nomercy-player-kit/auth-fetch) — securing WebSocket connections with bearer tokens
+- [Advanced: Custom Plugin](/nomercy-video-player/plugin-development), watch-party-lite plugin for same-device sync
+- [Advanced: Multi-Instance](/nomercy-player-core/advanced/multi-instance), multiple players on one page
+- [Core: Auth and Fetch](/nomercy-player-core/auth-fetch), securing WebSocket connections with bearer tokens

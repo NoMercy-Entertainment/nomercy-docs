@@ -8,11 +8,9 @@ draft: false
 
 ## Overview
 
-Every player instance emits events from `BaseEventMap`. Subscribe with `player.on(name, handler)`, unsubscribe with `player.off(name, handler)`, subscribe once with `player.once(name, handler)`.
-
+Every player instance emits events from `BaseEventMap`.
+Subscribe with `player.on(name, handler)`, unsubscribe with `player.off(name, handler)`, subscribe once with `player.once(name, handler)`.
 Library-specific maps (`MusicEventMap`, `VideoEventMap`) extend `BaseEventMap` with domain-only events and may narrow payload types for shared events.
-
----
 
 ## Setup lifecycle
 
@@ -35,8 +33,6 @@ Ordered sequence: `beforeSetup` → `setupStart` → `configResolved` → `plugi
 
 **Error events** (each stage emits `<stage>Error: PlayerErrorEvent` on failure):
 `setupStartError`, `configResolvedError`, `pluginsRegisteringError`, `pluginsRegisteredError`, `streamsReadyError`, `authReadyError`, `playlistResolveError`, `mediaReadyError`
-
----
 
 ## Play-path lifecycle
 
@@ -65,9 +61,9 @@ Every `before*` event is cancellable (`preventDefault()`), delayable (`delay(pro
 | `loadPrevented`     | `{ reason, cause? }`             | `beforeLoad` was prevented                                              |
 | `ended`             | `void`                           | Current item ended naturally                                            |
 
-> `playing` fires when the backend confirms media is rendering — equivalent to the HTML `playing` event. It fires after buffering resolves, not just on the `play()` call. Wired by the per-library backend.
-
----
+> `playing` fires when the backend confirms media is rendering, equivalent to the HTML `playing` event.
+> It fires after buffering resolves, not just on the `play()` call.
+> Wired by the per-library backend.
 
 ## Seek events
 
@@ -75,12 +71,11 @@ Every `before*` event is cancellable (`preventDefault()`), delayable (`delay(pro
 | --------------- | -------------------------------- | ----------------------------------------------------- |
 | `beforeSeek`    | `BeforeEvent<{ time, source? }>` | Before any seek executes                              |
 | `seek`          | `{ time, source? }`              | Seek dispatched; backend receiving new position       |
-| `seeked`        | `{ time }`                       | Seek settled — backend has confirmed the new position |
+| `seeked`        | `{ time }`                       | Seek settled, backend has confirmed the new position |
 | `seekPrevented` | `{ reason, cause? }`             | `beforeSeek` was prevented                            |
 
-`seek` fires at dispatch time. `seeked` fires after the backend repositions.
-
----
+`seek` fires at dispatch time.
+`seeked` fires after the backend repositions.
 
 ## Mutation guards
 
@@ -89,15 +84,11 @@ Every `before*` event is cancellable (`preventDefault()`), delayable (`delay(pro
 | `beforeMutation`    | `BeforeEvent<{ method, args, phase, dispatchStack }>` | Before a mutating method executes (when guards are active) |
 | `mutationPrevented` | `{ method, reason, cause? }`                          | `beforeMutation` was prevented                             |
 
----
-
 ## Phase transitions
 
 | Event   | Payload                                  | When                                  |
 | ------- | ---------------------------------------- | ------------------------------------- |
 | `phase` | `{ from: PlayerPhase; to: PlayerPhase }` | Player moves between lifecycle phases |
-
----
 
 ## Time and progress
 
@@ -105,11 +96,10 @@ Every `before*` event is cancellable (`preventDefault()`), delayable (`delay(pro
 | ---------- | -------------------------------- | ------------------------------------------------------------ |
 | `time`     | `{ time: number }`               | Every animation frame during playback                        |
 | `duration` | `{ duration: number }`           | Backend resolves the total duration                          |
-| `progress` | `{ time, duration, percentage }` | Throttled — at most every `progressIntervalMs` (default 5 s) |
+| `progress` | `{ time, duration, percentage }` | Throttled, at most every `progressIntervalMs` (default 5 s) |
 
-Use `progress` instead of `time` for server-side watch-position saves. `time` fires on every frame.
-
----
+Use `progress` instead of `time` for server-side watch-position saves.
+`time` fires on every frame.
 
 ## Volume and mode state
 
@@ -119,8 +109,6 @@ Use `progress` instead of `time` for server-side watch-position saves. `time` fi
 | `mute`    | `{ muted: boolean }`                 | Mute toggled           |
 | `repeat`  | `{ state: 'off' \| 'all' \| 'one' }` | Repeat mode changed    |
 | `shuffle` | `{ state: 'off' \| 'on' }`           | Shuffle mode changed   |
-
----
 
 ## Queue events
 
@@ -138,8 +126,6 @@ Use `progress` instead of `time` for server-side watch-position saves. `time` fi
 | `queue:exhausted` | `void`                                                   | `next()` reached the end with no next item and repeat is `'off'` |
 | `current`         | `{ item: BasePlaylistItem \| undefined; index: number }` | Active item cursor moved                                         |
 
----
-
 ## Backlog events
 
 | Event            | Payload               | When                      |
@@ -148,8 +134,6 @@ Use `progress` instead of `time` for server-side watch-position saves. `time` fi
 | `backlog:append` | `{ items }`           | Items added to backlog    |
 | `backlog:remove` | `{ id, index, item }` | Item removed from backlog |
 | `backlog:clear`  | `{ previousLength }`  | Backlog cleared           |
-
----
 
 ## Media track events
 
@@ -165,8 +149,6 @@ Use `progress` instead of `time` for server-side watch-position saves. `time` fi
 | `audioTrackState` | `{ state: 'default' \| 'manual' }`           | Audio track selection mode changed    |
 | `level-switched`  | `{ level: number }`                          | HLS adaptive level switched           |
 
----
-
 ## Backend events
 
 | Event                | Payload                   | When                         |
@@ -179,8 +161,6 @@ Use `progress` instead of `time` for server-side watch-position saves. `time` fi
 | `backend:ratechange` | `{ rate }`                | Playback rate changed        |
 | `backend:waiting`    | `void`                    | Backend is waiting for data  |
 
----
-
 ## Stream events
 
 | Event                     | Payload                          | When                      |
@@ -192,8 +172,6 @@ Use `progress` instead of `time` for server-side watch-position saves. `time` fi
 | `stream:error`            | `{ details, fatal }`             | Stream-level error        |
 | `stream:encrypted`        | `{ initData, initDataType }`     | Encrypted stream detected |
 
----
-
 ## Network and visibility
 
 | Event                | Payload                          | When                                                                                                                                                                                                                          |
@@ -204,8 +182,6 @@ Use `progress` instead of `time` for server-side watch-position saves. `time` fi
 | `visibility:visible` | `void`                           | Tab became visible                                                                                                                                                                                                            |
 | `visibility:hidden`  | `void`                           | Tab was hidden                                                                                                                                                                                                                |
 
----
-
 ## Auth events
 
 | Event            | Payload                       | When                         |
@@ -213,15 +189,11 @@ Use `progress` instead of `time` for server-side watch-position saves. `time` fi
 | `auth:refreshed` | `{ tokenAcquiredAt: number }` | Token refreshed successfully |
 | `auth:failed`    | `{ error }`                   | Token refresh failed         |
 
----
-
 ## Cast events
 
 | Event       | Payload                | When                       |
 | ----------- | ---------------------- | -------------------------- |
 | `castState` | `{ state: CastState }` | Cast session state changed |
-
----
 
 ## Preload and transition events
 
@@ -236,16 +208,12 @@ Use `progress` instead of `time` for server-side watch-position saves. `time` fi
 | `transitionComplete`  | `{ from, to }`                     | Transition done                       |
 | `transitionCancelled` | `{ reason }`                       | Transition aborted                    |
 
----
-
 ## Cue tracker events
 
 | Event       | Payload           | When                                |
 | ----------- | ----------------- | ----------------------------------- |
 | `cue:enter` | `CueEventPayload` | Playback entered a cue's time range |
 | `cue:exit`  | `CueEventPayload` | Playback exited a cue's time range  |
-
----
 
 ## Plugin lifecycle events
 
@@ -260,18 +228,14 @@ Use `progress` instead of `time` for server-side watch-position saves. `time` fi
 | `plugin:error`        | `PlayerErrorEvent` | Plugin emitted an error (template-literal code at `plugin/base.ts:606`) |
 | `plugin:warning`      | `PlayerErrorEvent` | Plugin emitted a warning                                                |
 
----
-
 ## Error severity events
 
 | Event     | Payload            | When                                       |
 | --------- | ------------------ | ------------------------------------------ |
-| `fatal`   | `PlayerErrorEvent` | Unrecoverable error — player shutting down |
+| `fatal`   | `PlayerErrorEvent` | Unrecoverable error, player shutting down |
 | `error`   | `PlayerErrorEvent` | Recoverable error                          |
 | `warning` | `PlayerErrorEvent` | Observability only                         |
 | `info`    | `PlayerErrorEvent` | Informational                              |
-
----
 
 ## Metrics and activity
 
@@ -285,10 +249,8 @@ Use `progress` instead of `time` for server-side watch-position saves. `time` fi
 | `listeners-changed` | `{ name, count }`                              | Listener count for a named event changed                            |
 | `dispose`           | `void`                                         | Player disposed                                                     |
 
----
-
 ## See also
 
-- [BeforeEvent contract](/nomercy-player-kit/types/interfaces) — `preventDefault`, `delay`, `stopImmediatePropagation`
-- [Transport](/nomercy-player-kit/transport) — `play`, `pause`, `stop`, `next`, `previous`
-- [Mutation Guards](/nomercy-player-kit/mutation-guards) — `beforeMutation`, `mutationPrevented`
+- [BeforeEvent contract](/nomercy-player-core/types/interfaces): `preventDefault`, `delay`, `stopImmediatePropagation`
+- [Transport](/nomercy-player-core/transport): `play`, `pause`, `stop`, `next`, `previous`
+- [Mutation Guards](/nomercy-player-core/mutation-guards): `beforeMutation`, `mutationPrevented`

@@ -25,18 +25,16 @@ import {
 } from '@nomercy-entertainment/nomercy-player-core';
 ```
 
----
-
 ## Base: PlayerError
 
-All kit and plugin errors descend from `PlayerError`.
+All core and plugin errors descend from `PlayerError`.
 
 ```ts
 class PlayerError extends Error {
   readonly code: string; // string id: 'core:auth/forbidden', 'fillz:viz/...'
   readonly id?: number; // optional numeric id from the registry
   readonly severity: Severity; // 'fatal' | 'error' | 'warning' | 'info'
-  readonly scope: ErrorScope; // discriminated union — { kind: 'core' } | { kind: 'plugin', id }
+  readonly scope: ErrorScope; // discriminated union: { kind: 'core' } | { kind: 'plugin', id }
   readonly cause?: unknown; // chained underlying error
   readonly context?: Record<string, unknown>; // track id, time, url, status, etc.
   readonly suggestion?: string; // actionable hint for the user
@@ -54,15 +52,11 @@ type ErrorScope =
   | { kind: 'backend'; id?: string };
 ```
 
----
-
 ## StateError
 
 Thrown when a player method is called in an invalid lifecycle state (e.g. transport before `setup()`, `setup()` called twice).
 
 Common codes: `core:player/not-ready`, `core:player/disposed`, `core:lifecycle/already-setup`, `core:plugin/duplicate-id`
-
----
 
 ## AuthError
 
@@ -70,13 +64,10 @@ Thrown by the auth pipeline when token acquisition or refresh fails.
 
 Common codes: `core:auth/forbidden`, `core:auth/refresh-failed`
 
----
-
 ## NetworkError
 
-Thrown by `authFetch` on network failures (no response received — not 4xx/5xx). Carries `context.url`.
-
----
+Thrown by `authFetch` on network failures (no response received, not 4xx/5xx).
+Carries `context.url`.
 
 ## MediaFormatError
 
@@ -84,25 +75,17 @@ Thrown when a media item cannot be loaded due to missing or malformed data.
 
 Common codes: `core:media/missing-url`, `core:media/unsupported-format`
 
----
-
 ## StreamError
 
 Thrown by stream backends when a fatal stream-level error occurs.
-
----
 
 ## ResourceError
 
 Thrown when a remote resource (subtitle file, playlist, license) cannot be fetched or parsed.
 
----
-
 ## DrmError
 
 Thrown by DRM plugins when EME key acquisition fails.
-
----
 
 ## BrowserPolicyError
 
@@ -122,23 +105,17 @@ Common codes:
 | `core:policy/fullscreenUnsupported`        | Fullscreen API absent                   |
 | `core:policy/pipUnsupported`               | PiP API absent                          |
 
----
-
 ## PluginError
 
 Thrown by the plugin runtime when registration constraints are violated.
 
 Common codes: `core:plugin/duplicate-id`, `core:plugin/missing-dep`, `core:plugin/version-mismatch`, `core:plugin/incompatible-core-version`, `core:plugin/init-timeout`
 
----
-
 ## NotImplementedError
 
 Thrown by methods intentionally not implemented for a given library (e.g. `subtitles()` on the music player).
 
 Common codes: `core:not-implemented/<method>`
-
----
 
 ## Severity
 
@@ -153,11 +130,9 @@ const SEVERITY = {
 } as const;
 ```
 
-- `fatal` — unrecoverable; player shutting down
-- `error` — recoverable problem
-- `warning` / `info` — observability only
-
----
+- `fatal`: unrecoverable; player shutting down
+- `error`: recoverable problem
+- `warning` / `info`: observability only
 
 ## PlayerErrorEvent
 
@@ -176,8 +151,6 @@ interface PlayerErrorEvent {
 }
 ```
 
----
-
 ## Retry policy
 
 ```ts
@@ -190,9 +163,7 @@ interface RetryPolicy {
 }
 ```
 
----
-
 ## See also
 
-- [Events Reference](/nomercy-player-kit/events-reference) — `fatal`, `error`, `warning`, `info`
-- [Cast and Remote Playback](/nomercy-player-kit/cast) — `BrowserPolicyError` codes
+- [Events Reference](/nomercy-player-core/events-reference): `fatal`, `error`, `warning`, `info`
+- [Cast and Remote Playback](/nomercy-player-core/cast): `BrowserPolicyError` codes

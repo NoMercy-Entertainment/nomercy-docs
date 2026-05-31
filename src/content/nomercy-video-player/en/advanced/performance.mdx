@@ -5,9 +5,8 @@ description: 'Bundle-size tuning via subpath imports, tree-shake hits to avoid, 
 
 # Performance
 
-Read this when bundle size, memory usage, or long-session stability matter to your app. Covers tree-shaking, subpath imports, memory budgeting, and verifying there are no leaks.
-
----
+Read this when bundle size, memory usage, or long-session stability matter to your app.
+Covers tree-shaking, subpath imports, memory budgeting, and verifying there are no leaks.
 
 ## Bundle size
 
@@ -15,27 +14,27 @@ Read this when bundle size, memory usage, or long-session stability matter to yo
 
 | Package                | Core size (min+gzip) | With all built-in plugins                                     |
 | ---------------------- | -------------------- | ------------------------------------------------------------- |
-| `nomercy-player-core`  | ~18 kB               | ~32 kB (kit + all adapters)                                   |
+| `nomercy-player-core`  | ~18 kB               | ~32 kB (core + all adapters)                                  |
 | `nomercy-video-player` | ~28 kB               | ~95 kB (incl. hls.js, DesktopUiPlugin, SubtitleOverlayPlugin) |
 | `nomercy-music-player` | ~24 kB               | ~60 kB (incl. WebAudioBackend, LyricsPlugin, EqualizerPlugin) |
 
-These are rough estimates — the actual size depends on which plugins you register and how your bundler tree-shakes.
+These are rough estimates, and the actual size depends on which plugins you register and how your bundler tree-shakes.
 
 ### Tree-shake by importing only what you use
 
 Named imports let bundlers eliminate unused code:
 
 ```ts
-// Good — only bundles nmplayer and DesktopUiPlugin:
+// Good: only bundles nmplayer and DesktopUiPlugin:
 import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
 
-// Bad — imports everything, defeating tree-shaking:
+// Bad: imports everything, defeating tree-shaking:
 import * as NMVideoPlayer from '@nomercy-entertainment/nomercy-video-player';
 ```
 
-### Subpath imports for kit-level features
+### Subpath imports for core-level features
 
-If you only need the kit (no video or music library), import from `nomercy-player-core` directly:
+If you only need the core (no video or music library), import from `nomercy-player-core` directly:
 
 ```ts
 // Saves ~10 kB vs importing from nomercy-video-player when you don't need video:
@@ -46,16 +45,17 @@ import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testi
 ### Avoid barrel re-exports in your app
 
 ```ts
-// Bad — re-exporting everything pulls the full package into every module that uses yours:
+// Bad: re-exporting everything pulls the full package into every module that uses yours:
 export * from '@nomercy-entertainment/nomercy-video-player';
 
-// Good — only export what you actually provide:
+// Good: only export what you actually provide:
 export { MyPlugin } from './my-plugin';
 ```
 
 ### hls.js split chunk
 
-hls.js is the largest dependency in the video player. Configure your bundler to split it into a separate chunk so the player core loads immediately and hls.js loads async:
+hls.js is the largest dependency in the video player.
+Configure your bundler to split it into a separate chunk so the player core loads immediately and hls.js loads async:
 
 ```ts
 // vite.config.ts
@@ -72,8 +72,6 @@ export default {
 };
 ```
 
----
-
 ## Tree-shake hit list
 
 These patterns prevent effective tree-shaking:
@@ -84,8 +82,6 @@ These patterns prevent effective tree-shaking:
 | Side-effect imports (`import 'package'`) | Bundler cannot know what is safe to drop | Only use for polyfills          |
 | Dynamic access (`pkg[key]`)              | Bundler cannot statically analyze        | Use a switch statement          |
 | Re-exporting everything                  | Pulls full package into dependents       | Export only what consumers need |
-
----
 
 ## Memory budget
 
@@ -112,8 +108,6 @@ For long sessions (6+ hours), watch for:
 - Event listener accumulation (not calling `off()` or not using `this.on` inside plugins)
 - Queue growth (unbounded `queueAppend` calls)
 - Subtitle cue accumulation (very long VTT files with thousands of cues)
-
----
 
 ## Detecting listener leaks
 
@@ -144,21 +138,17 @@ player.on('dispose', () => {
 });
 ```
 
----
-
 ## Long-session checklist
 
 Before shipping a player that runs for hours (streaming platform, music app with autoplay):
 
-- [ ] Every plugin uses `this.on(...)` not `player.on(...)` — listeners auto-dispose
+- [ ] Every plugin uses `this.on(...)` not `player.on(...)`, so listeners auto-dispose
 - [ ] All `setTimeout`/`setInterval` inside plugins use `this.timeout`/`this.interval`
-- [ ] Queue has a max length — unbounded `queueAppend` grows memory indefinitely
-- [ ] Subtitle cue array is cleared between items — large VTT files leave stale cues
-- [ ] `IndexedDBBackend` has a max entry count — prune old entries on write
+- [ ] Queue has a max length, so unbounded `queueAppend` does not grow memory indefinitely
+- [ ] Subtitle cue array is cleared between items, because large VTT files leave stale cues
+- [ ] `IndexedDBBackend` has a max entry count, so prune old entries on write
 - [ ] `OctopusPlugin` is disposed and re-created when the item changes (it holds a WASM heap)
-- [ ] Test with browser DevTools memory profiler: record a heap snapshot, play for 30 minutes, take another — compare retained objects
-
----
+- [ ] Test with browser DevTools memory profiler: record a heap snapshot, play for 30 minutes, take another, then compare retained objects
 
 ## Profiling in Chrome DevTools
 
@@ -166,14 +156,14 @@ Before shipping a player that runs for hours (streaming platform, music app with
 2. Take a heap snapshot before playback starts
 3. Play for several minutes (simulate a long session with fast-forward if needed)
 4. Take a second snapshot
-5. Select "Comparison" mode — look for growing `EventEmitter`, `Plugin`, or `Array` entries in the diff
+5. Select "Comparison" mode and look for growing `EventEmitter`, `Plugin`, or `Array` entries in the diff
 
-A healthy player shows a flat memory profile after initial setup. Growth in `Array` suggests an unbounded queue or cue accumulation. Growth in `EventListener` suggests a listener leak.
-
----
+A healthy player shows a flat memory profile after initial setup.
+Growth in `Array` suggests an unbounded queue or cue accumulation.
+Growth in `EventListener` suggests a listener leak.
 
 ## What to read next
 
-- [Kit — Testing](/nomercy-player-kit/testing) — `assertNoListenerLeak` and the full test harness
-- [Advanced: Multi-Instance](/nomercy-player-kit/advanced/multi-instance) — memory budget multiplies per instance
-- [Advanced: Server-Side Rendering](/nomercy-video-player/advanced/server-side-rendering) — SSR reduces initial JS parse time
+- [Core: Testing](/nomercy-player-core/testing), `assertNoListenerLeak` and the full test harness
+- [Advanced: Multi-Instance](/nomercy-player-core/advanced/multi-instance), memory budget multiplies per instance
+- [Advanced: Server-Side Rendering](/nomercy-video-player/advanced/server-side-rendering), SSR reduces initial JS parse time

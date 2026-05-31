@@ -8,9 +8,8 @@ draft: false
 
 ## Overview
 
-Player state methods expose the current health of the backend, network, and track selection as typed enum values. These are snapshot reads — subscribe to the corresponding events for reactive updates.
-
----
+Player state methods expose the current health of the backend, network, and track selection as typed enum values.
+These are snapshot reads, so subscribe to the corresponding events for reactive updates.
 
 ## `bufferState()`
 
@@ -35,8 +34,6 @@ player.on('phase', () => {
 });
 ```
 
----
-
 ## `networkState()`
 
 Current network reachability via the platform's network monitor.
@@ -50,23 +47,20 @@ Current network reachability via the platform's network monitor.
 
 **Returns:** `NetworkState`
 
----
-
 ## `streamState()`
 
-Raw state string from the backend (`'idle'`, `'loading'`, `'playing'`, etc.). Returns `'idle'` when no backend is registered or the backend does not expose a `state()` method. Prefer `bufferState()` for typed enum access.
+Raw state string from the backend (`'idle'`, `'loading'`, `'playing'`, etc.).
+Returns `'idle'` when no backend is registered or the backend does not expose a `state()` method.
+Prefer `bufferState()` for typed enum access.
 
 **Returns:** `string`
 
----
-
 ## `visibilityState()`
 
-Tab / page visibility. Returns `VisibilityState.VISIBLE` when no visibility monitor is configured (safe default for SSR / headless environments).
+Tab / page visibility.
+Returns `VisibilityState.VISIBLE` when no visibility monitor is configured (safe default for SSR / headless environments).
 
 **Returns:** `VisibilityState`
-
----
 
 ## `qualityState(target?)`
 
@@ -74,13 +68,13 @@ Get or set the ABR quality selection mode.
 
 **Read:** returns `QualityState.AUTO` or `QualityState.MANUAL`.
 
-**Write:** `qualityState(level)` switches to MANUAL mode and forwards to the backend. `qualityState('auto')` switches back to AUTO.
+**Write:** `qualityState(level)` switches to MANUAL mode and forwards to the backend.
+`qualityState('auto')` switches back to AUTO.
 
-Note: `currentQuality(idx)` also updates `_qualityState`. Both paths keep the state in sync.
+Note: `currentQuality(idx)` also updates `_qualityState`.
+Both paths keep the state in sync.
 
 **Events emitted:** `qualityState` with `{ state: 'auto' | 'manual' }`
-
----
 
 ## `audioTrackState(idx?)`
 
@@ -90,15 +84,14 @@ Get or set the audio track selection mode.
 
 **Write:** `audioTrackState(idx)` selects the track at `idx` and marks the state as MANUAL.
 
-Note: `currentAudioTrack(idx)` also updates `_audioTrackState`. Both paths keep the state in sync.
+Note: `currentAudioTrack(idx)` also updates `_audioTrackState`.
+Both paths keep the state in sync.
 
 **Events emitted:** `audioTrackState` with `{ state: 'default' | 'manual' }`
 
----
-
 ## See also
 
-- [Playback State](/nomercy-player-kit/playback-state) — `playState`, `volumeState`, `repeatState`, `shuffleState`
-- [Media Tracks](/nomercy-player-kit/media-tracks) — `currentQuality`, `currentAudioTrack`
-- [Events Reference](/nomercy-player-kit/events-reference) — `qualityState`, `audioTrackState`
-- [Enums](/nomercy-player-kit/types/enums) — `BufferState`, `NetworkState`, `VisibilityState`, `QualityState`, `AudioTrackState`
+- [Playback State: playState, volumeState, repeatState, shuffleState](/nomercy-player-core/playback-state)
+- [Media Tracks: currentQuality, currentAudioTrack](/nomercy-player-core/media-tracks)
+- [Events Reference: qualityState, audioTrackState](/nomercy-player-core/events-reference)
+- [Enums: BufferState, NetworkState, VisibilityState, QualityState, AudioTrackState](/nomercy-player-core/types/enums)

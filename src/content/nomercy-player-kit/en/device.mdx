@@ -8,47 +8,42 @@ draft: false
 
 ## Overview
 
-Device detection methods classify the current runtime environment using the user-agent string. Detection is best-effort — UA strings lie. For production capability-gating, pair these methods with a platform probe-based bridge via `setup({ platform: ... })`.
+Device detection methods classify the current runtime environment using the user-agent string.
+Detection is best-effort, UA strings lie.
+For production capability-gating, pair these methods with a platform probe-based bridge via `setup({ platform: ... })`.
 
-Results are cached after the first call — the UA does not change at runtime.
-
----
+Results are cached after the first call, the UA does not change at runtime.
 
 ## `isTv()`
 
 Whether the current environment appears to be a Smart TV or set-top box.
 
-TV detection runs before mobile detection — "Smart TV running Android" is classified as `isTv: true`, not `isMobile: true`.
+TV detection runs before mobile detection, so "Smart TV running Android" is classified as `isTv: true`, not `isMobile: true`.
 
 UA hints checked: `SmartTV`, `GoogleTV`, `AppleTV`, `HbbTV`, `NetCast`, `WebOS`, `Tizen`, `VIDAA`, `BRAVIA`, `AFTS`, `AFTM`, `AFTB`, `AFTT`, `AFTN`, `FireTV`, `Crkey`, `PlayStation`, `Xbox`.
 
 **Returns:** `boolean`
 
----
-
 ## `isMobile()`
 
 Whether the current environment appears to be a mobile phone or tablet.
 
-Returns `false` on TV environments even when the OS is Android — TV detection takes priority.
+Returns `false` on TV environments even when the OS is Android, TV detection takes priority.
 
 UA hints checked: `Android`, `iPhone`, `iPad`, `iPod`, `Mobile`, `Tablet`, `Silk`, `Kindle`, `Opera Mini`.
 
 **Returns:** `boolean`
 
----
-
 ## `isDesktop()`
 
-Whether the current environment is classified as desktop — the catch-all when neither TV nor mobile hints are detected.
+Whether the current environment is classified as desktop, the catch-all when neither TV nor mobile hints are detected.
 
 **Returns:** `boolean`
 
----
-
 ## `device()`
 
-Full device capabilities snapshot. Combines UA-based classification with platform API probes.
+Full device capabilities snapshot.
+Combines UA-based classification with platform API probes.
 
 **Returns:** `DeviceCapabilities`
 
@@ -60,7 +55,7 @@ interface DeviceCapabilities {
   pipSupported: boolean;
   fullscreenSupported: boolean;
   webLocksSupported: boolean;
-  /** Always 'unknown' — synchronous autoplay detection is unreliable. */
+  /** Always 'unknown', synchronous autoplay detection is unreliable. */
   autoplayAllowed: 'unknown';
   /** 'powerEfficient' on TV + mobile; 'smooth' on desktop. */
   preferred: 'powerEfficient' | 'smooth';
@@ -79,11 +74,10 @@ if (!caps.pipSupported) {
 }
 ```
 
----
-
 ## OS detection
 
-The device classifier also probes `os` internally (not exposed on the public `DeviceCapabilities` surface). The `preferred` field uses it to pick the appropriate ABR quality preference:
+The device classifier also probes `os` internally (not exposed on the public `DeviceCapabilities` surface).
+The `preferred` field uses it to pick the appropriate ABR quality preference:
 
 | `os`                        | `preferred`        |
 | --------------------------- | ------------------ |
@@ -92,10 +86,8 @@ The device classifier also probes `os` internally (not exposed on the public `De
 | `ios`                       | `'powerEfficient'` |
 | `windows`, `macos`, `linux` | `'smooth'`         |
 
----
-
 ## See also
 
-- [Cast and Remote Playback](/nomercy-player-kit/cast) — `transferTo`, `castState`
-- [Platform Adapter](/nomercy-player-kit/platform) — `IPlatform`, `ICapabilitiesProbe`
-- [Audio Output Selection](/nomercy-player-kit/audio-output) — `audioOutputs`, `currentAudioOutput`
+- [Cast and Remote Playback](/nomercy-player-core/cast): `transferTo`, `castState`
+- [Platform Adapter](/nomercy-player-core/platform): `IPlatform`, `ICapabilitiesProbe`
+- [Audio Output Selection](/nomercy-player-core/audio-output): `audioOutputs`, `currentAudioOutput`

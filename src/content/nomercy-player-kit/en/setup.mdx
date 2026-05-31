@@ -8,11 +8,10 @@ draft: false
 
 ## Overview
 
-`setup(config)` is the entry point for every player instance. It is synchronous in its first pass (wiring, seeding state, emitting `beforeSetup`) and asynchronous in the pipeline it kicks off (which emits `ready` when done).
+`setup(config)` is the entry point for every player instance.
+It is synchronous in its first pass (wiring, seeding state, emitting `beforeSetup`) and asynchronous in the pipeline it kicks off (which emits `ready` when done).
 
-You can call `setup()` immediately and safely enqueue `addPlugin()` and `queue()` calls before `ready` — they are buffered and applied during the right pipeline stage.
-
----
+You can call `setup()` immediately and safely enqueue `addPlugin()` and `queue()` calls before `ready`, they are buffered and applied during the right pipeline stage.
 
 ## Signature
 
@@ -24,16 +23,15 @@ Returns the player instance for chaining.
 
 **Throws:** `core:lifecycle/already-setup` if called twice without `dispose()` first; `core:player/disposed` if called after `dispose()`.
 
----
-
 ## Setup pipeline
 
-The async pipeline fires events in this order. Each stage has a paired error event; any unhandled error rejects the `ready()` promise.
+The async pipeline fires events in this order.
+Each stage has a paired error event; any unhandled error rejects the `ready()` promise.
 
 | Stage event          | Error event               | What happens                                                         |
 | -------------------- | ------------------------- | -------------------------------------------------------------------- |
-| `beforeSetup`        | —                         | Last chance to add plugins before the pipeline starts                |
-| `setupStart`         | `setupStartError`         | Phase → `setup`, container element resolved                          |
+| `beforeSetup`        |                           | Last chance to add plugins before the pipeline starts                |
+| `setupStart`         | `setupStartError`         | Phase to `setup`, container element resolved                         |
 | `configResolved`     | `configResolvedError`     | Options normalised and validated                                     |
 | `pluginsRegistering` | `pluginsRegisteringError` | Queued plugins registered in priority order                          |
 | `pluginsRegistered`  | `pluginsRegisteredError`  | All plugins' `use()` promises settled                                |
@@ -41,20 +39,18 @@ The async pipeline fires events in this order. Each stage has a paired error eve
 | `authReady`          | `authReadyError`          | Auth config resolved; token factory called once to warm              |
 | `playlistReady`      | `playlistResolveError`    | `config.playlist` URL fetched (if string) or items queued (if array) |
 | `mediaReady`         | `mediaReadyError`         | First item loaded into backend (when `config.playlist` had items)    |
-| `ready`              | —                         | Player is ready to accept commands                                   |
-
----
+| `ready`              |                           | Player is ready to accept commands                                   |
 
 ## Key config fields
 
-The full `BasePlayerConfig` is documented in [Key Interfaces — BasePlayerConfig](/nomercy-player-kit/types/interfaces). Most common fields:
+The full `BasePlayerConfig` is documented in [Key Interfaces, BasePlayerConfig](/nomercy-player-core/types/interfaces). Most common fields:
 
 | Field                | Type                                         | Default               | Description                                        |
 | -------------------- | -------------------------------------------- | --------------------- | -------------------------------------------------- |
-| `baseUrl`            | `string`                                     | —                     | Prepended to relative media URLs in playlist items |
+| `baseUrl`            | `string`                                     | none                  | Prepended to relative media URLs in playlist items |
 | `logLevel`           | `'debug' \| 'info' \| 'warn' \| 'error'`     | `'warn'`              | Log verbosity                                      |
-| `auth`               | `AuthConfig`                                 | —                     | Bearer token, headers, refresh function            |
-| `playlist`           | `BasePlaylistItem[] \| string`               | —                     | Initial playlist (items or URL to fetch)           |
+| `auth`               | `AuthConfig`                                 | none                  | Bearer token, headers, refresh function            |
+| `playlist`           | `BasePlaylistItem[] \| string`               | none                  | Initial playlist (items or URL to fetch)           |
 | `storage`            | `IStorage`                                   | `LocalStorageBackend` | Pluggable storage backend                          |
 | `platform`           | `IPlatform`                                  | `browserPlatform`     | Platform abstraction                               |
 | `expose`             | `boolean`                                    | `false`               | Attach instance to `window.player` for debugging   |
@@ -63,13 +59,12 @@ The full `BasePlayerConfig` is documented in [Key Interfaces — BasePlayerConfi
 | `progressIntervalMs` | `number`                                     | `5000`                | How often the throttled `progress` event fires     |
 | `metricsIntervalMs`  | `number`                                     | `10000`               | How often `playback:metrics` fires (`0` = off)     |
 | `mutationGuards`     | `false \| 'all' \| string[]`                 | `undefined`           | Mutation advisory control                          |
-| `cast`               | `CastConfig`                                 | —                     | Chromecast configuration                           |
-
----
+| `cast`               | `CastConfig`                                 | none                  | Chromecast configuration                           |
 
 ## `ready()`
 
-Returns a promise that resolves when the setup pipeline reaches `ready`, or rejects if any stage fails or `dispose()` is called first. Memoised — repeated calls return the same promise.
+Returns a promise that resolves when the setup pipeline reaches `ready`, or rejects if any stage fails or `dispose()` is called first.
+Memoised, so repeated calls return the same promise.
 
 ```ts
 const player = nmplayer('main').setup({
@@ -82,8 +77,6 @@ await player.ready();
 await player.play();
 ```
 
----
-
 ## `setupState()`
 
 Coarse lifecycle readiness as a `SetupState` enum value.
@@ -95,11 +88,9 @@ Coarse lifecycle readiness as a `SetupState` enum value.
 | `disposing`, `disposed` | `SetupState.DISPOSED`   |
 | anything else           | `SetupState.READY`      |
 
----
-
 ## See also
 
-- [Phase API](/nomercy-player-kit/phase) — `phase()`, `dispatching()`
-- [dispose()](/nomercy-player-kit/dispose) — teardown
-- [Key Interfaces — BasePlayerConfig](/nomercy-player-kit/types/interfaces)
-- [Events Reference](/nomercy-player-kit/events-reference) — setup lifecycle events
+- [Phase API, phase() and dispatching()](/nomercy-player-core/phase)
+- [dispose(), teardown](/nomercy-player-core/dispose)
+- [Key Interfaces, BasePlayerConfig](/nomercy-player-core/types/interfaces)
+- [Events Reference, setup lifecycle events](/nomercy-player-core/events-reference)

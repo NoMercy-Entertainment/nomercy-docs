@@ -1,22 +1,25 @@
 ---
 title: 'Backends Overview'
-description: 'Choosing between AudioElementBackend and WebAudioBackend — capabilities, crossfade accuracy, and platform constraints.'
+description: 'Choosing between AudioElementBackend and WebAudioBackend: capabilities, crossfade accuracy, and platform constraints.'
 draft: false
 ---
 
 # Backends Overview
 
-The music player routes all audio through an `IAudioBackend` implementation. Two built-in backends are available.
-
----
+The music player separates playback transport into swappable backends, each implementing `IAudioBackend`.
+Two are built in, and you can inject your own via `backendFactory`.
+The choice affects crossfade accuracy, iOS compatibility, and how much Web Audio overhead you pay.
 
 ## AudioElementBackend (default)
 
 **Kind:** `'audio-element'`
 
-Uses a native `<audio>` element for transport. Crossfade is driven by a `requestAnimationFrame` loop at approximately 50 fps — not sample-accurate. Expect ±20 ms seams at track boundaries during a crossfade.
+Uses a native `<audio>` element for transport.
+Crossfade is driven by a `requestAnimationFrame` loop at approximately 50 fps, not sample-accurate.
+Expect ±20 ms seams at track boundaries during a crossfade.
 
-Web Audio graph access is available lazily: a `MediaElementAudioSourceNode` is created the first time a plugin requests `outputNode()` or `analyserSource()`. You pay zero Web Audio overhead if no plugin requests the graph.
+Web Audio graph access is available lazily: a `MediaElementAudioSourceNode` is created the first time a plugin requests `outputNode()` or `analyserSource()`.
+You pay zero Web Audio overhead if no plugin requests the graph.
 
 **Choose this when:**
 
@@ -25,23 +28,22 @@ Web Audio graph access is available lazily: a `MediaElementAudioSourceNode` is c
 - Crossfade timing accuracy of ±20 ms is acceptable
 - You do not need sample-accurate crossfades but still want EQ via `AudioGraphPlugin`
 
----
-
 ## WebAudioBackend
 
 **Kind:** `'webaudio'`
 
-Routes audio through a full `AudioContext` graph. Crossfade uses `linearRampToValueAtTime` for sample-accurate gain ramps. Volume changes are smoothed with a 10 ms ramp to eliminate clicks.
+Routes audio through a full `AudioContext` graph.
+Crossfade uses `linearRampToValueAtTime` for sample-accurate gain ramps.
+Volume changes are smoothed with a 10 ms ramp to eliminate clicks.
 
-HLS streams fall back to `MediaElementAudioSourceNode` even in `webaudio` mode, because `hls.js` requires a `<audio>` element. Pure file playback (MP3, AAC, FLAC, OGG) decodes through `AudioBufferSourceNode`.
+HLS streams fall back to `MediaElementAudioSourceNode` even in `webaudio` mode, because `hls.js` requires a `<audio>` element.
+Pure file playback (MP3, AAC, FLAC, OGG) decodes through `AudioBufferSourceNode`.
 
 **Choose this when:**
 
 - You need sample-accurate crossfades
 - You are building a custom audio processing chain
 - `AudioGraphPlugin` and `EqualizerPlugin` are in use
-
----
 
 ## Capability comparison
 
@@ -55,8 +57,6 @@ HLS streams fall back to `MediaElementAudioSourceNode` even in `webaudio` mode, 
 | `setSinkId` (output routing) | Yes                             | Yes                                   |
 | `captureStream()`            | Yes                             | Yes                                   |
 
----
-
 ## Switching at runtime
 
 ```ts
@@ -68,9 +68,8 @@ const backend = player.backend();
 console.log(backend.kind); // 'webaudio'
 ```
 
-Switching disposes the current backend, constructs the new one, and re-wires all events. The player enters a paused state after the switch.
-
----
+Switching disposes the current backend, constructs the new one, and re-wires all events.
+The player enters a paused state after the switch.
 
 ## Custom backend
 
@@ -82,11 +81,9 @@ player.setup({
 });
 ```
 
----
-
 ## See also
 
-- [AudioElementBackend](/nomercy-music-player/backends/audio-element) — implementation details
-- [WebAudioBackend](/nomercy-music-player/backends/web-audio) — implementation details
-- [IAudioBackend](/nomercy-music-player/backends/backend-interface) — full interface reference
-- [Configuration](/nomercy-music-player/configuration) — `backend` and `backendFactory` options
+- [AudioElementBackend](/nomercy-music-player/backends/audio-element), implementation details
+- [WebAudioBackend](/nomercy-music-player/backends/web-audio), implementation details
+- [IAudioBackend](/nomercy-music-player/backends/backend-interface), full interface reference
+- [Configuration](/nomercy-music-player/configuration), `backend` and `backendFactory` options

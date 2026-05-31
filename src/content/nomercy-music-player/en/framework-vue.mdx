@@ -1,14 +1,13 @@
 ---
 title: 'Vue Integration'
-description: 'Using NMMusicPlayer in a Vue 3 composable — reactive state, event subscriptions, and cleanup.'
+description: 'Using NMMusicPlayer in a Vue 3 composable: reactive state, event subscriptions, and cleanup.'
 draft: false
 ---
 
 # Vue Integration
 
-`NMMusicPlayer` is framework-agnostic. In Vue 3, wrap it in a composable to expose reactive state.
-
----
+`NMMusicPlayer` is framework-agnostic.
+In Vue 3, wrap it in a composable to expose reactive state.
 
 ## Composable pattern
 
@@ -77,12 +76,11 @@ export function useMusicPlayer() {
 }
 ```
 
----
-
 ## Using in a component
 
 ```vue
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useMusicPlayer } from '@/composables/useMusicPlayer';
 
 const { player, currentTrack, isPlaying, currentTime, duration } = useMusicPlayer();
@@ -116,8 +114,6 @@ function seek(event: MouseEvent) {
 </template>
 ```
 
----
-
 ## Providing the player globally
 
 For apps where multiple components need the same player, provide it at the app root:
@@ -140,10 +136,317 @@ import type { IMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
 const player = inject<IMusicPlayer>('player')!;
 ```
 
----
+## Pinia store pattern
+
+When several components share the same player, a Pinia store is the cleanest way to centralise state and expose actions. Install Pinia first if it is not already in the project:
+
+```bash
+npm install pinia
+```
+
+```ts
+// stores/musicPlayer.ts
+import { defineStore } from 'pinia';
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import {
+  AutoAdvancePlugin,
+  MediaSessionPlugin,
+} from '@nomercy-entertainment/nomercy-music-player/plugins';
+import {
+  RepeatState,
+  ShuffleState,
+} from '@nomercy-entertainment/nomercy-music-player';
+import type { MusicPlaylistItem, NMMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
+
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+export const useMusicPlayerStore = defineStore('musicPlayer', {
+  state: () => ({
+    player: null as NMMusicPlayer | null,
+    isPlaying: false,
+    currentTrack: null as MusicPlaylistItem | null,
+    currentTime: 0,
+    duration: 0,
+    volume: 100,
+    shuffle: ShuffleState.OFF,
+    repeat: RepeatState.OFF,
+  }),
+
+  getters: {
+    progress: (state) =>
+      state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0,
+    hasNext: (state) => (state.player?.peekNext() !== undefined),
+    hasPrevious: (state) => (state.player?.peekPrevious() !== undefined),
+    formattedCurrentTime: (state) => formatTime(state.currentTime),
+    formattedDuration: (state) => formatTime(state.duration),
+    artistNames: (state) =>
+      state.currentTrack?.artistTracks?.map((a) => a.name).join(', ') ?? '',
+  },
+
+  actions: {
+    init(baseUrl: string) {
+      const player = nmMPlayer('global')
+        .addPlugin(AutoAdvancePlugin)
+        .addPlugin(MediaSessionPlugin)
+        .setup({ baseUrl, playlist: [] });
+
+      player.on('current', ({ item }) => {
+        this.currentTrack = item ?? null;
+      });
+      player.on('play', () => { this.isPlaying = true; });
+      player.on('pause', () => { this.isPlaying = false; });
+      player.on('ended', () => { this.isPlaying = false; });
+      player.on('time', ({ time }) => { this.currentTime = time; });
+      player.on('duration', ({ duration }) => { this.duration = duration; });
+      player.on('volume', ({ level }) => { this.volume = level; });
+      player.on('shuffle', ({ state }) => { this.shuffle = state; });
+      player.on('repeat', ({ state }) => { this.repeat = state; });
+
+      this.player = player;
+    },
+
+    togglePlayback() { void this.player?.togglePlayback(); },
+    next() { void this.player?.next(); },
+    previous() { void this.player?.previous(); },
+
+    seekByPercentage(pct: number) {
+      this.player?.seekByPercentage(pct);
+    },
+
+    toggleShuffle() {
+      const next = this.shuffle === ShuffleState.OFF
+        ? ShuffleState.ON
+        : ShuffleState.OFF;
+      this.player?.shuffleState(next);
+    },
+
+    cycleRepeat() {
+      const order = [RepeatState.OFF, RepeatState.ALL, RepeatState.ONE] as const;
+      const nextMode = order[(order.indexOf(this.repeat) + 1) % order.length];
+      this.player?.repeatState(nextMode);
+    },
+
+    dispose() {
+      this.player?.dispose();
+      this.player = null;
+      this.$reset();
+    },
+  },
+});
+```
+
+Wire the store at app startup:
+
+```ts
+// main.ts
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+import App from './App.vue';
+import { useMusicPlayerStore } from '@/stores/musicPlayer';
+
+const app = createApp(App);
+app.use(createPinia());
+app.mount('#app');
+
+// Init after Pinia is installed so the store is ready.
+useMusicPlayerStore().init('https://protected.cdn.your-domain.com');
+```
+
+## Progress bar component
+
+A click-to-seek progress bar using `seekByPercentage` from the store:
+
+```vue
+<!-- components/MusicProgressBar.vue -->
+<script setup lang="ts">
+import { ref } from 'vue';
+import { storeToRefs } from 'pinia';
+import { useMusicPlayerStore } from '@/stores/musicPlayer';
+
+const musicStore = useMusicPlayerStore();
+const progressBarRef = ref<HTMLElement>();
+
+const {
+  progress,
+  formattedCurrentTime,
+  formattedDuration,
+} = storeToRefs(musicStore);
+
+function handleClick(event: MouseEvent) {
+  if (!progressBarRef.value) return;
+  const rect = progressBarRef.value.getBoundingClientRect();
+  const pct = ((event.clientX - rect.left) / rect.width) * 100;
+  musicStore.seekByPercentage(Math.max(0, Math.min(100, pct)));
+}
+</script>
+
+<template>
+  <div class="progress-section">
+    <span>{{ formattedCurrentTime }}</span>
+    <div
+      ref="progressBarRef"
+      class="progress-track"
+      role="slider"
+      :aria-valuenow="progress"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      tabindex="0"
+      @click="handleClick"
+    >
+      <div class="progress-played" :style="{ width: `${progress}%` }" />
+    </div>
+    <span>{{ formattedDuration }}</span>
+  </div>
+</template>
+```
+
+## usePlayerControls composable
+
+Extract transport controls into a reusable composable so any component can call them without importing the store directly:
+
+```ts
+// composables/usePlayerControls.ts
+import { storeToRefs } from 'pinia';
+import { useMusicPlayerStore } from '@/stores/musicPlayer';
+
+export function usePlayerControls() {
+  const musicStore = useMusicPlayerStore();
+
+  const {
+    isPlaying,
+    shuffle,
+    repeat,
+    hasNext,
+    hasPrevious,
+  } = storeToRefs(musicStore);
+
+  return {
+    isPlaying,
+    shuffle,
+    repeat,
+    hasNext,
+    hasPrevious,
+    togglePlayback: () => musicStore.togglePlayback(),
+    next: () => musicStore.next(),
+    previous: () => musicStore.previous(),
+    toggleShuffle: () => musicStore.toggleShuffle(),
+    cycleRepeat: () => musicStore.cycleRepeat(),
+  };
+}
+```
+
+Use it in any controls component:
+
+```vue
+<!-- components/MusicControls.vue -->
+<script setup lang="ts">
+import { usePlayerControls } from '@/composables/usePlayerControls';
+import { RepeatState, ShuffleState } from '@nomercy-entertainment/nomercy-music-player';
+
+const {
+  isPlaying,
+  shuffle,
+  repeat,
+  hasNext,
+  hasPrevious,
+  togglePlayback,
+  next,
+  previous,
+  toggleShuffle,
+  cycleRepeat,
+} = usePlayerControls();
+</script>
+
+<template>
+  <div class="controls">
+    <button :disabled="!hasPrevious" @click="previous">Prev</button>
+    <button @click="togglePlayback">{{ isPlaying ? 'Pause' : 'Play' }}</button>
+    <button :disabled="!hasNext" @click="next">Next</button>
+
+    <button
+      :class="{ active: shuffle === ShuffleState.ON }"
+      @click="toggleShuffle"
+    >
+      Shuffle
+    </button>
+
+    <button
+      :class="{ active: repeat !== RepeatState.OFF }"
+      @click="cycleRepeat"
+    >
+      {{ repeat === RepeatState.ONE ? 'Repeat one' : 'Repeat' }}
+    </button>
+  </div>
+</template>
+```
+
+## App-level plugin / provide-inject pattern
+
+If you prefer a Vue plugin over Pinia, you can provide the player instance at the app root and inject it in components. This pattern suits small apps where full store infrastructure would be overkill.
+
+```ts
+// plugins/musicPlayer.ts
+import type { App } from 'vue';
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import {
+  AutoAdvancePlugin,
+  MediaSessionPlugin,
+} from '@nomercy-entertainment/nomercy-music-player/plugins';
+import type { NMMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
+
+export const MusicPlayerKey = Symbol('MusicPlayer');
+
+export default {
+  install(app: App, options: { baseUrl: string }) {
+    const player = nmMPlayer('global')
+      .addPlugin(AutoAdvancePlugin)
+      .addPlugin(MediaSessionPlugin)
+      .setup({ baseUrl: options.baseUrl, playlist: [] });
+
+    app.provide(MusicPlayerKey, player);
+
+    // Clean up when the app unmounts.
+    app.unmount = (function (original) {
+      return function () {
+        player.dispose();
+        return original.call(app);
+      };
+    })(app.unmount);
+  },
+};
+```
+
+Register it in `main.ts`:
+
+```ts
+// main.ts
+import { createApp } from 'vue';
+import App from './App.vue';
+import MusicPlayerPlugin, { MusicPlayerKey } from './plugins/musicPlayer';
+
+const app = createApp(App);
+app.use(MusicPlayerPlugin, { baseUrl: 'https://protected.cdn.your-domain.com' });
+app.mount('#app');
+```
+
+Inject in any component:
+
+```ts
+import { inject } from 'vue';
+import type { NMMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
+import { MusicPlayerKey } from '@/plugins/musicPlayer';
+
+const player = inject<NMMusicPlayer>(MusicPlayerKey)!;
+```
+
+> **Note:** `MusicPlayerKey` is a typed Symbol. Prefer it over the bare string key from the "Providing the player globally" example above -- it prevents key collisions in larger apps.
 
 ## See also
 
-- [Quick Start](/nomercy-music-player/quickstart) — vanilla TypeScript setup
-- [Events](/nomercy-music-player/events) — all events to bind to reactive state
-- [React Integration](/nomercy-music-player/framework-react) — same pattern for React
+- [Quick Start](/nomercy-music-player/quickstart), vanilla TypeScript setup
+- [Events](/nomercy-music-player/events), all events to bind to reactive state
+- [React Integration](/nomercy-music-player/framework-react), same pattern for React

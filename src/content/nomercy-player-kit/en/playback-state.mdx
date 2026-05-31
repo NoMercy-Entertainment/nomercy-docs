@@ -8,25 +8,22 @@ draft: false
 
 ## Overview
 
-Playback state methods expose and control coarse play, volume, repeat, and shuffle tokens. These are the high-level selectors that UI components subscribe to via `player.on('play', ...)` events and read via these snapshot getters.
-
----
+Playback state methods expose and control coarse play, volume, repeat, and shuffle tokens.
+These are the high-level selectors that UI components subscribe to via `player.on('play', ...)` events and read via these snapshot getters.
 
 ## `playState()`
 
-Current play-state token. Read-only snapshot — subscribe to `play` / `pause` / `stop` events to track changes reactively.
+Current play-state token.
+Read-only snapshot. Subscribe to `play` / `pause` / `stop` events to track changes reactively.
 
-**Returns:** `PlayStateToken` — `'playing' | 'paused' | 'stopped' | 'idle'`
-
----
+**Returns:** `PlayStateToken`, one of `'playing' | 'paused' | 'stopped' | 'idle'`
 
 ## `volumeState()`
 
-Current volume-state token. Read-only snapshot — subscribe to `mute` events.
+Current volume-state token.
+Read-only snapshot. Subscribe to `mute` events.
 
-**Returns:** `VolumeStateToken` — `'unmuted' | 'muted'`
-
----
+**Returns:** `VolumeStateToken`, one of `'unmuted' | 'muted'`
 
 ## `repeatState(state?)`
 
@@ -34,13 +31,14 @@ Read or write the repeat mode.
 
 **Read:** `repeatState()` returns the current `RepeatStateToken`.
 
-**Write:** `repeatState(state)` sets the repeat mode and emits `repeat` with the new token. The transport mixin honours this token inside `next()`:
+**Write:** `repeatState(state)` sets the repeat mode and emits `repeat` with the new token.
+The transport mixin honours this token inside `next()`:
 
-- `'none'` — no repeat; `next()` emits `queue:exhausted` at the end
-- `'one'` — reload the current item on `next()`; cursor does not move
-- `'all'` — wrap to the first item when `next()` reaches the last item
+- `'none'`, no repeat; `next()` emits `queue:exhausted` at the end
+- `'one'`, reload the current item on `next()`; cursor does not move
+- `'all'`, wrap to the first item when `next()` reaches the last item
 
-**Returns:** `RepeatStateToken | void` — `'none' | 'one' | 'all'`
+**Returns:** `RepeatStateToken | void`, one of `'none' | 'one' | 'all'`
 
 **Events emitted:** `repeat` with `{ state: RepeatStateToken }`
 
@@ -54,8 +52,6 @@ repeatButton.addEventListener('click', () => {
 });
 ```
 
----
-
 ## `shuffleState(state?)`
 
 Read or write the shuffle mode.
@@ -64,10 +60,10 @@ Read or write the shuffle mode.
 
 **Write:**
 
-- `shuffleState('on')` — randomises the queue order immediately via `queueShuffle()`, then emits `shuffle`.
-- `shuffleState('off')` — updates the token and emits `shuffle`. The queue order is NOT restored; the current (shuffled) order is kept. Re-supply the queue to restore the original order.
+- `shuffleState('on')`, randomises the queue order immediately via `queueShuffle()`, then emits `shuffle`.
+- `shuffleState('off')`, updates the token and emits `shuffle`. The queue order is NOT restored; the current (shuffled) order is kept. Re-supply the queue to restore the original order.
 
-Accepts a `ShuffleStateToken` or a plain boolean (`true` → `'on'`, `false` → `'off'`).
+Accepts a `ShuffleStateToken` or a plain boolean (`true` becomes `'on'`, `false` becomes `'off'`).
 
 **Events emitted:** `shuffle` with `{ state: 'on' | 'off' }`; `queue:shuffle` (via `queueShuffle()`) when enabling
 
@@ -80,18 +76,15 @@ player.on('shuffle', ({ state }) => {
 });
 ```
 
----
-
 ## Mutation guards and hot mutations
 
-`playState` and `volumeState` are read-only getters (no before-mutation guard). `repeatState` and `shuffleState` write mutations go through `_emitBeforeMutation` when `mutationGuards` is not `false`.
-
-`currentTime`, `volume`, and `playbackRate` are classified as hot mutations and skip the guard by default — they fire too often. Pass `mutationGuards: 'all'` to `setup()` to guard them during debugging.
-
----
+`playState` and `volumeState` are read-only getters with no before-mutation guard.
+`repeatState` and `shuffleState` write mutations go through `_emitBeforeMutation` when `mutationGuards` is not `false`.
+`currentTime`, `volume`, and `playbackRate` are classified as hot mutations and skip the guard by default, because they fire too often.
+Pass `mutationGuards: 'all'` to `setup()` to guard them during debugging.
 
 ## See also
 
-- [Volume](/nomercy-player-kit/volume) — `volume()`, `mute()`, `unmute()`
-- [Transport](/nomercy-player-kit/transport) — `play()`, `pause()`, `stop()`, `next()`
-- [Events Reference](/nomercy-player-kit/events-reference) — `repeat`, `shuffle`, `play`, `pause`
+- [Volume](/nomercy-player-core/volume): `volume()`, `mute()`, `unmute()`
+- [Transport](/nomercy-player-core/transport): `play()`, `pause()`, `stop()`, `next()`
+- [Events Reference](/nomercy-player-core/events-reference): `repeat`, `shuffle`, `play`, `pause`

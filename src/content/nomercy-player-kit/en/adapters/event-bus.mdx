@@ -9,7 +9,7 @@ draft: false
 # IEventBus
 
 The event bus is the connective tissue between the player, its plugins, and your application code.
-Every `on()`, `once()`, `off()`, and `emit()` call inside the kit goes through `EventEmitter`, the default implementation.
+Every `on()`, `once()`, `off()`, and `emit()` call inside the core goes through `EventEmitter`, the default implementation.
 
 You almost certainly never swap this out.
 It is wired internally before `setup()` runs and is not a `setup()` option.
@@ -71,10 +71,10 @@ The player calls this during disposal to prevent handler leaks.
 ## When you'd replace it
 
 You probably won't.
-This port has no `setup()` config key because the kit constructs the bus before `setup()` runs.
+This port has no `setup()` config key because the core constructs the bus before `setup()` runs.
 
 If you do need to replace it, the typical case is routing all player events through an existing pub/sub or store-event system so you can observe them in one place without adding a separate subscriber.
-Implement `IEventBus<E>` with the store's publish/subscribe primitives, pass it to the player constructor, and the rest of the kit keeps calling `this.emit` without knowing anything changed.
+Implement `IEventBus<E>` with the store's publish/subscribe primitives, pass it to the player constructor, and the rest of the core keeps calling `this.emit` without knowing anything changed.
 
 ```ts
 import type { IEventBus } from '@nomercy-entertainment/nomercy-player-core/adapters/event-bus';
@@ -118,5 +118,5 @@ class StoreEventBus<E extends Record<string, any>> implements IEventBus<E> {
 
 ## See also
 
-- [Adapters](/nomercy-player-kit/adapters), the full port catalog
-- [Lifecycle Registry](/nomercy-player-kit/adapters/lifecycle-registry), the other internal resource plugins depend on
+- [Adapters](/nomercy-player-core/adapters), the full port catalog
+- [Lifecycle Registry](/nomercy-player-core/adapters/lifecycle-registry), the other internal resource plugins depend on

@@ -14,12 +14,12 @@ type Stretching = 'uniform' | 'fill' | 'exactfit' | 'none';
 
 Controls how the video frame is scaled to fill the player container.
 
-| Value        | Behaviour                                                    |
-| ------------ | ------------------------------------------------------------ |
-| `'uniform'`  | Letterbox/pillarbox — preserves aspect ratio, may leave bars |
-| `'fill'`     | Stretch to fill container — may crop content                 |
-| `'exactfit'` | Stretch width and height independently to fill — may distort |
-| `'none'`     | No scaling — renders at native video resolution              |
+| Value        | Behaviour                                                             |
+| ------------ | --------------------------------------------------------------------- |
+| `'uniform'`  | Letterbox/pillarbox, preserves aspect ratio, may leave bars           |
+| `'fill'`     | Stretch to fill container, may crop content                           |
+| `'exactfit'` | Stretch width and height independently to fill, may distort           |
+| `'none'`     | No scaling, renders at native video resolution                        |
 
 ## aspectRatio
 
@@ -28,7 +28,8 @@ player.aspectRatio(): Stretching
 player.aspectRatio(value: Stretching): void
 ```
 
-Read or set the current stretching mode. Emits `'aspectRatio'` when the value changes.
+Read or set the current stretching mode.
+Emits `'aspectRatio'` when the value changes.
 
 ```ts
 import { Stretching } from '@nomercy-entertainment/nomercy-video-player';
@@ -43,16 +44,18 @@ player.aspectRatio('fill');
 player.cycleAspectRatio(): void
 ```
 
-Steps through `['uniform', 'fill', 'exactfit', 'none']` in order, wrapping around. Useful for remote-control and keyboard binding contexts where a menu is not practical.
+Steps through `['uniform', 'fill', 'exactfit', 'none']` in order, wrapping around.
+Useful for remote-control and keyboard binding contexts where a menu is not practical.
 
 ```ts
 // Bind to the 'a' key
-player.on('keydown', (e) => {
-  if (e.key === 'a') player.cycleAspectRatio();
+player.on('keydown', (event) => {
+  if (event.key === 'a') player.cycleAspectRatio();
 });
 ```
 
-The KeyHandlerPlugin binds `'a'` and `'BrowserFavorites'` to `cycleAspectRatio()` by default. The TvUiPlugin overrides this to also emit an OSD message confirming the change.
+The KeyHandlerPlugin binds `'a'` and `'BrowserFavorites'` to `cycleAspectRatio()` by default.
+The TvUiPlugin overrides this to also emit an OSD message confirming the change.
 
 ## Event
 

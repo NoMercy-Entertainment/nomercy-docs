@@ -8,15 +8,16 @@ draft: false
 
 ## Overview
 
-Chapter methods navigate within a single playlist item. Chapter data comes from either an inline `chapters` array on the item or a sidecar VTT file referenced in `tracks: [{ kind: 'chapters', file }]`. The kit fetches and parses sidecar VTTs asynchronously during `load()` or on cursor change.
+Chapter methods navigate within a single playlist item. Chapter data comes from either an inline `chapters` array on the item or a sidecar VTT file referenced in `tracks: [{ kind: 'chapters', file }]`.
+The core fetches and parses sidecar VTTs asynchronously during `load()` or on cursor change.
 
 Subscribe to the `chapters` event to know when the list is ready.
 
----
-
 ## `chapters()`
 
-The chapter list for the active item. Returns `[]` until the asynchronous fetch settles. Subscribe to the `chapters` event for the ready signal.
+The chapter list for the active item.
+Returns `[]` until the asynchronous fetch settles.
+Subscribe to the `chapters` event for the ready signal.
 
 **Returns:** `ReadonlyArray<Chapter>`
 
@@ -35,11 +36,11 @@ player.on('chapters', ({ chapters }) => {
 });
 ```
 
----
-
 ## `seekToChapter(idx, opts?)`
 
-Seek to the start of the chapter at `idx`. Out-of-range indexes no-op. The seek goes through `currentTime()` so `beforeSeek` fires and the seek is cancellable.
+Seek to the start of the chapter at `idx`.
+Out-of-range indexes no-op.
+The seek goes through `currentTime()` so `beforeSeek` fires and the seek is cancellable.
 
 | Parameter | Type            | Description              |
 | --------- | --------------- | ------------------------ |
@@ -54,27 +55,24 @@ player.on('chapter', ({ index, title }) => {
 });
 ```
 
----
-
 ## `nextChapter(opts?)`
 
-Seek to the chapter immediately after the current playback position. No-op when the chapter list is empty or playback is already in or past the last chapter.
-
----
+Seek to the chapter immediately after the current playback position.
+No-op when the chapter list is empty or playback is already in or past the last chapter.
 
 ## `previousChapter(opts?)`
 
-Seek to the previous chapter. UX rule: if more than 10 seconds into the current chapter, jumps to that chapter's start instead of the previous one — the standard media remote "restart this chapter" behaviour.
+Seek to the previous chapter.
+UX rule: if more than 10 seconds into the current chapter, jumps to that chapter's start instead of the previous one, the standard media remote "restart this chapter" behaviour.
 
 No-op when the chapter list is empty or playback is before the first chapter.
-
----
 
 ## `currentChapter(idx?)`
 
 **Read:** `currentChapter()` returns the `Chapter` whose time range contains `currentTime`, or `null` when playback is between chapters or the list is empty.
 
-**Write:** `currentChapter(idx)` jump to the chapter at `idx` (equivalent to `seekToChapter(idx)`). No-op when `idx` is out of range.
+**Write:** `currentChapter(idx)` jump to the chapter at `idx` (equivalent to `seekToChapter(idx)`).
+No-op when `idx` is out of range.
 
 ```ts
 // highlight the active chapter in a UI list
@@ -84,20 +82,18 @@ player.on('seek', () => {
 });
 ```
 
----
-
 ## Inline chapters vs sidecar VTT
 
-**Inline:** Item carries `chapters: Chapter[]` — the list is available immediately, no fetch needed.
+**Inline:** Item carries `chapters: Chapter[]`, the list is available immediately, no fetch needed.
 
-**Sidecar:** Item carries `tracks: [{ kind: 'chapters', file: 'https://...' }]` — the kit fetches the VTT, parses it, writes the chapters back onto the queue entry, and emits `chapters`. A network or parse failure resolves to an empty list (chapters are an enhancement, never a blocker).
+**Sidecar:** Item carries `tracks: [{ kind: 'chapters', file: 'https://...' }]`, the core fetches the VTT, parses it, writes the chapters back onto the queue entry, and emits `chapters`.
+A network or parse failure resolves to an empty list (chapters are an enhancement, never a blocker).
 
-**Priority:** Inline chapters always win. If an item has both inline chapters and a sidecar chapter track, the sidecar is never fetched.
-
----
+**Priority:** Inline chapters always win.
+If an item has both inline chapters and a sidecar chapter track, the sidecar is never fetched.
 
 ## See also
 
-- [Media Tracks](/nomercy-player-kit/media-tracks) — `subtitles`, `audioTracks`, `qualityLevels`
-- [Loading](/nomercy-player-kit/loading) — `resolveItemTrackUrls`
-- [Events Reference](/nomercy-player-kit/events-reference) — `chapters`, `chapter`
+- [Media Tracks](/nomercy-player-core/media-tracks): `subtitles`, `audioTracks`, `qualityLevels`
+- [Loading](/nomercy-player-core/loading): `resolveItemTrackUrls`
+- [Events Reference](/nomercy-player-core/events-reference): `chapters`, `chapter`

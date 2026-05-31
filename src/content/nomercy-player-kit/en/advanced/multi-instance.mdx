@@ -1,17 +1,16 @@
 ---
 title: 'Multi-Instance'
-description: 'Running multiple players on one page — PiP + main player, watch-party tile grid, tab-leader pattern, and event-bus isolation between instances.'
+description: 'Running multiple players on one page: PiP + main player, watch-party tile grid, tab-leader pattern, and event-bus isolation between instances.'
 ---
 
 # Multi-Instance
 
-Read this when you need more than one player active on the same page — a mini-player or PiP alongside a main player, a grid of synchronized tiles, or a podcast player running in the background while a video plays.
-
----
+Read this when you need more than one player active on the same page: a mini-player or PiP alongside a main player, a grid of synchronized tiles, or a podcast player running in the background while a video plays.
 
 ## How instances are isolated
 
-Each call to `nmplayer(id)` or `nmMPlayer(id)` returns a scoped player singleton keyed by `id`. Two players with different ids are completely independent:
+Each call to `nmplayer(id)` or `nmMPlayer(id)` returns a scoped player singleton keyed by `id`.
+Two players with different ids are completely independent:
 
 - Separate event buses
 - Separate storage namespaces (`nmplayer-<id>-*`)
@@ -19,8 +18,6 @@ Each call to `nmplayer(id)` or `nmMPlayer(id)` returns a scoped player singleton
 - Separate queue state
 
 There is no shared mutable global between two player instances unless you introduce it explicitly (e.g. a `BroadcastChannel` or a shared module-level variable).
-
----
 
 ## Two players on one page
 
@@ -58,11 +55,10 @@ videoPlayer.on('play', () => musicPlayer.pause());
 videoPlayer.on('pause', () => musicPlayer.play());
 ```
 
----
-
 ## PiP + main player pattern
 
-The browser's native Picture-in-Picture API keeps one `<video>` element in a floating window. The player exposes PiP control:
+The browser's native Picture-in-Picture API keeps one `<video>` element in a floating window.
+The player exposes PiP control:
 
 ```ts
 // Main player:
@@ -83,9 +79,7 @@ mainPlayer.pipState(true);  // enter PiP
 mainPlayer.pipState(false); // exit PiP
 ```
 
-No second player instance is needed for native PiP — the single player's `<video>` element moves to the PiP window.
-
----
+No second player instance is needed for native PiP, the single player's `<video>` element moves to the PiP window.
 
 ## Watch-party tile grid
 
@@ -110,22 +104,21 @@ await Promise.all(players.map((player) => player.ready()));
 // Sync: when the first tile plays, play all others at the same position:
 players[0].on('play', () => {
   const time = players[0].currentTime();
-  players.slice(1).forEach((p) => {
-    p.currentTime(time); // sync position
-    p.play();
+  players.slice(1).forEach((tile) => {
+    tile.currentTime(time); // sync position
+    tile.play();
   });
 });
 
 players[0].on('pause', () => {
-  players.slice(1).forEach((p) => p.pause());
+  players.slice(1).forEach((tile) => tile.pause());
 });
 ```
 
----
-
 ## Tab-leader pattern
 
-When multiple browser tabs have the same player open (e.g. a podcast player that persists across navigation), elect a leader tab that owns playback. Other tabs follow.
+When multiple browser tabs have the same player open (e.g. a podcast player that persists across navigation), elect a leader tab that owns playback.
+Other tabs follow.
 
 Use `BroadcastChannel` for cross-tab communication:
 
@@ -158,19 +151,18 @@ function electLeader(playerId: string): 'leader' | 'follower' {
 }
 ```
 
-In practice, use the [WatchPartyLitePlugin](/nomercy-player-kit/advanced/custom-plugin#watch-party-lite) worked example as a starting point and extend it with a leader election algorithm.
-
----
+In practice, use the [WatchPartyLitePlugin](/nomercy-player-core/advanced/custom-plugin#watch-party-lite) worked example as a starting point and extend it with a leader election algorithm.
 
 ## Event-bus isolation
 
-Two player instances never share an event bus. If you need a player to react to another player's events, wire them explicitly:
+Two player instances never share an event bus.
+If you need a player to react to another player's events, wire them explicitly:
 
 ```ts
-// Correct — explicit cross-player wiring:
+// Correct, explicit cross-player wiring:
 playerA.on('play', () => playerB.pause());
 
-// Incorrect — trying to listen to playerA's events from playerB:
+// Incorrect, trying to listen to playerA's events from playerB:
 playerB.on('play', ...) // only fires for playerB's own events
 ```
 
@@ -187,16 +179,15 @@ class PlayerCoordinator {
   }
 
   dispose(): void {
-    // Event listeners are on the player instances — they dispose with the player
+    // Event listeners are on the player instances, they dispose with the player
   }
 }
 ```
 
----
-
 ## Storage namespace isolation
 
-Each player's storage is namespaced by its `id`. Two players with ids `'main'` and `'pip'` write to different storage keys:
+Each player's storage is namespaced by its `id`.
+Two players with ids `'main'` and `'pip'` write to different storage keys:
 
 - `nmplayer-main-volume`
 - `nmplayer-pip-volume`
@@ -213,10 +204,8 @@ nmplayer('main').setup({ storage: sharedStorage });
 nmplayer('pip').setup({ storage: sharedStorage });
 ```
 
----
-
 ## What to read next
 
-- [Advanced: Custom Plugin](/nomercy-player-kit/advanced/custom-plugin) — the watch-party-lite plugin for cross-instance sync
-- [Advanced: Embedding](/nomercy-video-player/advanced/embedding) — cross-frame (iframe) player control
-- [Advanced: Performance](/nomercy-video-player/advanced/performance) — memory budget when running multiple instances
+- [Advanced: Custom Plugin](/nomercy-player-core/advanced/custom-plugin), the watch-party-lite plugin for cross-instance sync
+- [Advanced: Embedding](/nomercy-video-player/advanced/embedding), cross-frame (iframe) player control
+- [Advanced: Performance](/nomercy-video-player/advanced/performance), memory budget when running multiple instances

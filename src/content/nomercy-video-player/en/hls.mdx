@@ -5,29 +5,30 @@ description: 'HDR-aware ABR, quality level constraints, multi-monitor handling, 
 
 # HLS
 
-The video player uses hls.js for HLS playback. The kit's stream adapter wraps hls.js behind the `IVideoBackend` interface. HDR-aware ABR is automatic.
-
----
+The video player uses hls.js for HLS playback.
+The player core's stream adapter wraps hls.js behind the `IVideoBackend` interface.
+HDR-aware ABR is automatic.
 
 ## How hls.js is bundled
 
-hls.js ships with `nomercy-video-player` as a regular dependency — installing the player installs hls.js too. You don't add it yourself:
+hls.js ships with `nomercy-video-player` as a regular dependency, so installing the player installs hls.js too.
+You don't add it yourself:
 
 ```
 npm install @nomercy-entertainment/nomercy-video-player@beta
 ```
 
-The player loads hls.js via dynamic import on first HLS source, so it stays out of your initial bundle until you actually play `.m3u8`. On Safari / iOS, native HLS is used and hls.js is never instantiated.
-
----
+The player loads hls.js via dynamic import on first HLS source, so it stays out of your initial bundle until you actually play `.m3u8`.
+On Safari / iOS, native HLS is used and hls.js is never instantiated.
 
 ## Adaptive bitrate (ABR)
 
-ABR is on by default. hls.js selects quality levels automatically based on estimated bandwidth.
+ABR is on by default.
+hls.js selects quality levels automatically based on estimated bandwidth.
 
 ```ts
 player.setup({
-  defaultQuality: 'auto', // default — ABR active
+  defaultQuality: 'auto', // default, ABR active
 });
 ```
 
@@ -53,17 +54,17 @@ player.on('levels', ({ levels }) => {
 });
 ```
 
----
-
 ## HDR-aware ABR
 
-On SDR displays, the player filters HDR levels out of the ABR selection pool. hls.js will not automatically promote to an HDR level when the display cannot render it.
+On SDR displays, the player filters HDR levels out of the ABR selection pool.
+hls.js will not automatically promote to an HDR level when the display cannot render it.
 
-Detection is done once at setup via `MediaCapabilities.decodingInfo()`. No configuration is required. On HDR-capable displays, all levels are eligible.
+Detection is done once at setup via `MediaCapabilities.decodingInfo()`.
+No configuration is required.
+On HDR-capable displays, all levels are eligible.
 
-Multi-monitor handling: when a player window moves across displays (e.g. from an HDR monitor to an SDR one), the player re-evaluates display capabilities and constrains the ABR pool accordingly. The check runs on the `screen-change` platform event.
-
----
+Multi-monitor handling: when a player window moves across displays (e.g. from an HDR monitor to an SDR one), the player re-evaluates display capabilities and constrains the ABR pool accordingly.
+The check runs on the `screen-change` platform event.
 
 ## Quality level shape
 
@@ -83,19 +84,17 @@ interface QualityLevel {
 }
 ```
 
----
-
 ## Auth on HLS segments
 
-The player's auth pipeline injects `Authorization: Bearer <token>` on every HLS manifest and segment request. No hls.js config needed — the `IVideoBackend` intercepts requests before they reach hls.js.
+The player's auth pipeline injects `Authorization: Bearer <token>` on every HLS manifest and segment request.
+No hls.js config needed, the `IVideoBackend` intercepts requests before they reach hls.js.
 
-See [Kit — Auth & Fetch](/nomercy-player-kit/auth-fetch) for the full auth pipeline.
-
----
+See [Core, Auth and Fetch](/nomercy-player-core/auth-fetch) for the full auth pipeline.
 
 ## Stream registration
 
-The player ships an HLS stream factory and a native stream factory. The stream registry picks the right one based on the URL and browser capabilities:
+The player ships an HLS stream factory and a native stream factory.
+The stream registry picks the right one based on the URL and browser capabilities:
 
 - `.m3u8` URLs → HLS stream via hls.js
 - Other URLs → native `<video>` src
@@ -108,8 +107,6 @@ import { myDashStreamFactory } from './dash-adapter';
 player.registerStream(myDashStreamFactory, true); // true = prepend (higher priority)
 player.streams(); // ['dash', 'hls', 'native']
 ```
-
----
 
 ## Custom backend
 
@@ -127,11 +124,10 @@ player.setup({
 });
 ```
 
----
-
 ## Low-latency HLS
 
-hls.js supports low-latency HLS (LL-HLS). Configure via `backendFactory` to pass custom hls.js config:
+hls.js supports low-latency HLS (LL-HLS).
+Configure via `backendFactory` to pass custom hls.js config:
 
 ```ts
 import Hls from 'hls.js';

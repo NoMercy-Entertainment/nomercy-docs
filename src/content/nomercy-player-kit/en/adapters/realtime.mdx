@@ -8,7 +8,7 @@ draft: false
 
 # IRealtimeChannel
 
-By default the kit opens realtime connections using a thin wrapper around the browser's native `WebSocket`.
+By default the core opens realtime connections using a thin wrapper around the browser's native `WebSocket`.
 It satisfies the `IRealtimeChannel` shape and gets out of the way, so the plugin that calls `this.websocket()` never touches a `WebSocket` directly.
 
 That works fine for most setups, but sometimes you're already running SignalR or Socket.IO in the same app, and spinning up bare WebSockets next to them creates two competing connection stacks.
@@ -28,7 +28,7 @@ import type { IRealtimeChannel, RealtimeFactory, RealtimeFactoryOptions } from '
 ### `nativeWebSocketAdapter`
 
 A `RealtimeFactory` that wraps the browser's native `WebSocket` to satisfy `IRealtimeChannel`.
-The kit uses it as the final fallback when no `websocketFactory` is configured.
+The core uses it as the final fallback when no `websocketFactory` is configured.
 
 It normalises the four DOM events (`open`, `message`, `close`, `error`) into the channel's `on`/`off` listener model, maps `readyState` from numeric constants to the string literals the interface defines, and shields listeners from each other so an error in one handler doesn't stop the rest from firing.
 
@@ -178,12 +178,12 @@ interface RealtimeFactoryOptions {
 ## Custom implementation
 
 Any object that satisfies `IRealtimeChannel` works.
-The only contract the kit enforces is the shape: `send`, `close`, `on`, `off`, and `readyState`.
+The only contract the core enforces is the shape: `send`, `close`, `on`, `off`, and `readyState`.
 
 Plugin authors calling `this.websocket()` never construct a channel themselves.
-The kit creates one and hands it back, using whichever factory is in effect at that point.
+The core creates one and hands it back, using whichever factory is in effect at that point.
 
 ## See also
 
-- [Adapters](/nomercy-player-kit/adapters), the full port catalog
-- [Plugin API](/nomercy-player-kit/plugin-authoring), how plugins open and manage channel lifetimes
+- [Adapters](/nomercy-player-core/adapters), the full port catalog
+- [Plugin API](/nomercy-player-core/plugin-authoring), how plugins open and manage channel lifetimes

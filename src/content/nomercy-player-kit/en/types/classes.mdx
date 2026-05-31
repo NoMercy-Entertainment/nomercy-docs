@@ -12,11 +12,10 @@ draft: false
 import { Logger, Plugin, LifecycleRegistry } from '@nomercy-entertainment/nomercy-player-core';
 ```
 
----
-
 ## Logger
 
-Lightweight scoped logger. The kit and every plugin share a single root instance per player.
+Lightweight scoped logger.
+The core and every plugin share a single root instance per player.
 
 Level ranks from least to most verbose: `silent < error < warn < info < debug < trace`.
 
@@ -47,9 +46,12 @@ type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
 type LogSink = (level: LogLevel, prefix: string, args: unknown[]) => void;
 ```
 
-**`addSink`** pipes all future log lines to an additional sink. Multiple sinks compose in registration order. Returns an unsubscribe function.
+**`addSink`** pipes all future log lines to an additional sink.
+Multiple sinks compose in registration order.
+Returns an unsubscribe function.
 
-**`child`** returns a scoped sub-logger that prepends an additional prefix segment. Children share the parent's registered sinks.
+**`child`** returns a scoped sub-logger that prepends an additional prefix segment.
+Children share the parent's registered sinks.
 
 ```ts
 import { Logger } from '@nomercy-entertainment/nomercy-player-core';
@@ -67,13 +69,13 @@ const unsub = logger.addSink((level, prefix, args) => {
 unsub();
 ```
 
-Pass a custom logger via `setup({ logger })` to replace the kit's default implementation. The `ILogger` interface is the full contract.
-
----
+Pass a custom logger via `setup({ logger })` to replace the core's default implementation.
+The `ILogger` interface is the full contract.
 
 ## ILogger
 
-The pluggable logger contract. Implement this to swap in Pino, Winston, Bunyan, or any telemetry-tapped logger.
+The pluggable logger contract.
+Implement this to swap in Pino, Winston, Bunyan, or any telemetry-tapped logger.
 
 ```ts
 interface ILogger {
@@ -91,15 +93,16 @@ interface ILogger {
 }
 ```
 
-Plugin authors never construct a logger directly — they receive `this.logger` from the kit, already scoped to their plugin id.
-
----
+Plugin authors never construct a logger directly, they receive `this.logger` from the core, already scoped to their plugin id.
 
 ## LifecycleRegistry
 
-Disposable registry — every plugin gets one. Records every listener, timer, observer, abort controller, and RAF loop the plugin registers. A single `dispose()` call tears them all down. Idempotent: calling `dispose()` twice is safe.
+Disposable registry, every plugin gets one.
+Records every listener, timer, observer, abort controller, and RAF loop the plugin registers.
+A single `dispose()` call tears them all down.
+Idempotent: calling `dispose()` twice is safe.
 
-Plugin authors never construct or dispose this directly — the player creates one per plugin and calls `dispose()` automatically.
+Plugin authors never construct or dispose this directly, the player creates one per plugin and calls `dispose()` automatically.
 
 ```ts
 class LifecycleRegistry {
@@ -138,11 +141,10 @@ this.lifecycle.observe(new ResizeObserver(cb)).observe(el);
 
 `frame()` is silent in environments without `requestAnimationFrame` (Node, SSR).
 
----
-
 ## Plugin
 
-Base plugin class. Subclass to write a plugin.
+Base plugin class.
+Subclass to write a plugin.
 
 ```ts
 class Plugin<
@@ -167,7 +169,7 @@ class Plugin<
   static readonly advisories?: ReadonlyArray<PluginAdvisory>;
   static readonly translations?: Translations;
 
-  // Instance — set by the player before use() runs
+  // Instance, set by the player before use() runs
   declare player: P;
   declare opts: O;
   declare readonly __events__: E; // phantom type carrier
@@ -235,10 +237,10 @@ class Plugin<
 
 | Static           | Required    | Description                                                                             |
 | ---------------- | ----------- | --------------------------------------------------------------------------------------- |
-| `id`             | Yes         | Unique string — `'myvendor:feature'`. Lint-enforced namespacing for third-party.        |
+| `id`             | Yes         | Unique string, `'myvendor:feature'`. Lint-enforced namespacing for third-party.         |
 | `description`    | Yes         | One-line human-readable. Used in error messages and listings.                           |
 | `version`        | Recommended | Semver string. Defaults to `'0.0.0'`.                                                   |
-| `minCoreVersion` | No          | Minimum kit version (semver). Checked at registration.                                  |
+| `minCoreVersion` | No          | Minimum core version (semver). Checked at registration.                                 |
 | `moduleUrl`      | No          | Set to `import.meta.url`. Required for `appendStyles` to resolve relative paths.        |
 | `requires`       | No          | Dependency class refs. Required-missing throws; optional-missing warns.                 |
 | `replaces`       | No          | Opt-in same-id replacement. Without it, duplicate id throws `core:plugin/duplicate-id`. |
@@ -286,12 +288,12 @@ player.setup({
 ### Plugin event forms
 
 ```ts
-// Player event — string form
+// Player event, string form
 this.on('play', () => {
   /* handler */
 });
 
-// Another plugin's event — class form
+// Another plugin's event, class form
 this.on(EqualizerPlugin, 'band:changed', ({ band }) => {
   console.log(band.frequency, band.gain);
 });
@@ -303,33 +305,34 @@ this.on(EqualizerPlugin, 'band:changed', ({ band }) => {
 type PluginRecoveryAction = 'ignore' | 'disable' | 'retry-once' | 'fallback';
 ```
 
-Map error codes to actions in `static onError`. When the error fires, the registry applies the action automatically:
+Map error codes to actions in `static onError`.
+When the error fires, the registry applies the action automatically:
 
-- `'ignore'` — no further action after surfacing
-- `'disable'` — calls `this.disable(reason)`
-- `'retry-once'` — calls `this.retryLastOperation()` if implemented
-- `'fallback'` — calls `this.activateFallback()` if implemented
+- `'ignore'`: no further action after surfacing
+- `'disable'`: calls `this.disable(reason)`
+- `'retry-once'`: calls `this.retryLastOperation()` if implemented
+- `'fallback'`: calls `this.activateFallback()` if implemented
 
 ### `derive` and `clone`
 
-`Plugin.derive(opts, newId?)` produces a derived class with options pre-baked. Consumer-supplied opts at registration time win (shallow merge):
+`Plugin.derive(opts, newId?)` produces a derived class with options pre-baked.
+Consumer-supplied opts at registration time win (shallow merge):
 
 ```ts
 const LoudPlugin = MyPlugin.derive({ volume: 1.0 }, 'loud-myplugin');
 player.setup({ plugins: [[LoudPlugin]] });
 ```
 
-`clone()` captures the current instance's options via `export()` and calls `derive()`:
+`clone()` captures the current instance's options via `export()` and calls `derive()`.
 
 ```ts
 const snapshot = runningPlugin.clone();
 ```
 
----
-
 ## PluginState
 
-Snapshot type returned by `plugin.state()`. Used by debug overlays and save/restore tooling.
+Snapshot type returned by `plugin.state()`.
+Used by debug overlays and save/restore tooling.
 
 ```ts
 interface PluginState<O> {
@@ -343,11 +346,9 @@ interface PluginState<O> {
 
 `runtime` is populated by overriding `protected getRuntimeState()` in the plugin subclass.
 
----
-
 ## See also
 
-- [Plugin Registration](/nomercy-player-kit/plugin-registration) — `addPlugin`, `removePlugin`, `getPlugin`
-- [Built-in Plugins](/nomercy-player-kit/plugins-builtin) — plugins shipped with the kit
-- [Key Interfaces](/nomercy-player-kit/types/interfaces) — `IPlayer`, `BasePlayerConfig`, `BaseEventMap`
-- [Storage Adapter](/nomercy-player-kit/storage) — `IStorage` and backend implementations
+- [Plugin Registration](/nomercy-player-core/plugin-registration): `addPlugin`, `removePlugin`, `getPlugin`
+- [Built-in Plugins](/nomercy-player-core/plugins-builtin): plugins shipped with the core
+- [Key Interfaces](/nomercy-player-core/types/interfaces): `IPlayer`, `BasePlayerConfig`, `BaseEventMap`
+- [Storage Adapter](/nomercy-player-core/storage): `IStorage` and backend implementations

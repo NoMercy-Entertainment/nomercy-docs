@@ -6,21 +6,20 @@ draft: false
 
 # Crossfade
 
----
-
 ## `crossfadeTo(track, opts?)`
 
 ```ts
 crossfadeTo(track: T, opts?: CrossfadeOptions & ActionOptions): Promise<void>
 ```
 
-Start a crossfade to `track`. Resolves when the fade completes and the new track is the primary.
+Start a crossfade to `track`.
+Resolves when the fade completes and the new track is the primary.
 
 Short-circuits:
 
-- `isTransitioning() === true` — no-op (stacked crossfades are rejected)
-- `opts.duration === 0` — instant swap, no gain ramp
-- `track.url` is absent — throws `MediaFormatError`
+- `isTransitioning() === true`, no-op (stacked crossfades are rejected)
+- `opts.duration === 0`, instant swap, no gain ramp
+- `track.url` is absent, throws `MediaFormatError`
 
 ```ts
 await player.crossfadeTo(nextTrack, {
@@ -30,23 +29,20 @@ await player.crossfadeTo(nextTrack, {
 });
 ```
 
----
-
 ## `isTransitioning()`
 
 ```ts
 isTransitioning(): boolean
 ```
 
-Returns `true` while a crossfade is in progress. Check before calling `crossfadeTo()` when the caller needs to guard against re-entrancy.
+Returns `true` while a crossfade is in progress.
+Check before calling `crossfadeTo()` when the caller needs to guard against re-entrancy.
 
 ```ts
 if (!player.isTransitioning()) {
   await player.crossfadeTo(nextTrack, { duration: 5 });
 }
 ```
-
----
 
 ## `CrossfadeOptions`
 
@@ -60,22 +56,23 @@ interface CrossfadeOptions {
 
 ### `duration`
 
-Crossfade length **in seconds**. When omitted per-call, falls back to `crossfadeDefaults.duration` from `setup()`. There is no built-in default — if neither is set, `crossfadeTo()` will use `0` (instant swap).
+Crossfade length **in seconds**.
+When omitted per-call, falls back to `crossfadeDefaults.duration` from `setup()`.
+There is no built-in default, so if neither is set, `crossfadeTo()` will use `0` (instant swap).
 
 ### `curve`
 
 Gain ramp shape:
 
-- `'equal-power'` — `cos` / `sin` ramps. Perceived loudness stays constant throughout. Recommended for music.
-- `'linear'` — straight ramp. Creates a ~3 dB dip at the midpoint.
+- `'equal-power'`: `cos` / `sin` ramps. Perceived loudness stays constant throughout. Recommended for music.
+- `'linear'`: straight ramp. Creates a ~3 dB dip at the midpoint.
 
 Default: falls back to `crossfadeDefaults.curve` from `setup()`, or `'linear'` if neither is configured.
 
 ### `startAt`
 
-Start position **in milliseconds** of the incoming track (default 0). Use to begin the fade mid-track rather than from the beginning.
-
----
+Start position **in milliseconds** of the incoming track (default 0).
+Use to begin the fade mid-track rather than from the beginning.
 
 ## Events
 
@@ -85,7 +82,7 @@ Start position **in milliseconds** of the incoming track (default 0). Use to beg
 player.on('crossfadeStart', ({ from, to, duration }) => {
   // from: BasePlaylistItem | null (null when no current track)
   // to: BasePlaylistItem
-  // duration: number (milliseconds — converted from the seconds in CrossfadeOptions)
+  // duration: number (milliseconds, converted from the seconds in CrossfadeOptions)
   showFadeUI(to.name, duration);
 });
 ```
@@ -101,24 +98,19 @@ player.on('crossfadeComplete', ({ track }) => {
 });
 ```
 
----
-
 ## Execution sequence
 
-```
-crossfadeTo(track, opts)
-  ├─ guards: isTransitioning? → nop; url missing? → MediaFormatError
-  ├─ _isTransitioning = true
-  ├─ emit crossfadeStart
-  ├─ backend.loadSecondary(url)
-  ├─ backend.primeSecondary(opts.startAt)
-  ├─ backend.crossfade(durationMs)
-  ├─ current(track.id)   ← updates queue cursor, emits 'current'
-  ├─ _isTransitioning = false
-  └─ emit crossfadeComplete
-```
-
----
+| Step | Action | Notes |
+| ---- | ------ | ----- |
+| 1 | guards | `isTransitioning` true → no-op; `url` missing → `MediaFormatError` |
+| 2 | `_isTransitioning = true` | marks transition in progress |
+| 3 | emit `crossfadeStart` | fires before audio nodes are touched |
+| 4 | `backend.loadSecondary(url)` | loads incoming track into secondary audio node |
+| 5 | `backend.primeSecondary(opts.startAt)` | seeks secondary to the requested start position |
+| 6 | `backend.crossfade(durationMs)` | runs the gain ramp on both nodes |
+| 7 | `current(track.id)` | updates queue cursor, emits `current` |
+| 8 | `_isTransitioning = false` | clears transition flag |
+| 9 | emit `crossfadeComplete` | signals callers that the new track is primary |
 
 ## Full example
 
@@ -167,11 +159,9 @@ player.on('ready', () => {
 });
 ```
 
----
-
 ## See also
 
-- [AutoAdvancePlugin](/nomercy-music-player/plugins/auto-advance) — automatic crossfade on `trackEndingSoon`
-- [Configuration](/nomercy-music-player/configuration) — `crossfadeDefaults` option
-- [Events](/nomercy-music-player/events) — `crossfadeStart`, `crossfadeComplete`, `trackEndingSoon`
-- [Recipes: Crossfade and Gapless](/nomercy-music-player/recipes/crossfade-and-gapless) — timing guide
+- [AutoAdvancePlugin](/nomercy-music-player/plugins/auto-advance): automatic crossfade on `trackEndingSoon`
+- [Configuration](/nomercy-music-player/configuration): `crossfadeDefaults` option
+- [Events](/nomercy-music-player/events): `crossfadeStart`, `crossfadeComplete`, `trackEndingSoon`
+- [Recipes: Crossfade and Gapless](/nomercy-music-player/recipes/crossfade-and-gapless): timing guide

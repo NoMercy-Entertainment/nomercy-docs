@@ -6,11 +6,9 @@ draft: false
 
 # Writing an Audio Backend
 
-Implement `IAudioBackend` to replace the built-in `AudioElementBackend` or `WebAudioBackend` with a custom audio pipeline — for example, a Capacitor native audio bridge, a Cordova plugin wrapper, or a WebCodecs-based decoder.
+Implement `IAudioBackend` to replace the built-in `AudioElementBackend` or `WebAudioBackend` with a custom audio pipeline, for example a Capacitor native audio bridge, a Cordova plugin wrapper, or a WebCodecs-based decoder.
 
 For the general `IAudioBackend` interface reference, see [IAudioBackend](/nomercy-music-player/backends/backend-interface).
-
----
 
 ## Minimal implementation
 
@@ -74,21 +72,24 @@ export class NativeAudioBackend implements IAudioBackend {
   // ── Time ──────────────────────────────────────────────────────────────────
 
   currentTime(): number;
-  currentTime(t: number): void;
-  currentTime(t?: number): number | void {
-    if (t === undefined) return NativeAudio.currentTime();
-    NativeAudio.seek(t);
+  currentTime(seconds: number): void;
+  currentTime(seconds?: number): number | void {
+    if (seconds === undefined) return NativeAudio.currentTime();
+    NativeAudio.seek(seconds);
   }
 
   duration(): number {
     return NativeAudio.duration();
   }
+
   buffered(): number {
     return NativeAudio.buffered();
   }
+
   bufferedRanges(): TimeRanges {
     return NativeAudio.bufferedRanges();
   }
+
   seekable(): TimeRanges {
     return NativeAudio.seekable();
   }
@@ -103,15 +104,16 @@ export class NativeAudioBackend implements IAudioBackend {
   // ── Volume ─────────────────────────────────────────────────────────────────
 
   volume(): number;
-  volume(v: number): void;
-  volume(v?: number): number | void {
-    if (v === undefined) return NativeAudio.volume();
-    NativeAudio.setVolume(v);
+  volume(level: number): void;
+  volume(level?: number): number | void {
+    if (level === undefined) return NativeAudio.volume();
+    NativeAudio.setVolume(level);
   }
 
   mute(): void {
     NativeAudio.mute();
   }
+
   unmute(): void {
     NativeAudio.unmute();
   }
@@ -122,11 +124,12 @@ export class NativeAudioBackend implements IAudioBackend {
     return this._state;
   }
 
-  // ── Graph (stubs — native bridge doesn't expose Web Audio) ────────────────
+  // ── Graph (stubs, native bridge doesn't expose Web Audio) ────────────────
 
   outputNode(ctx: AudioContext): AudioNode {
     return ctx.destination;
   }
+
   analyserSource(ctx: AudioContext): AudioNode {
     return ctx.destination;
   }
@@ -136,6 +139,7 @@ export class NativeAudioBackend implements IAudioBackend {
   mediaElement(): HTMLMediaElement {
     throw new Error('No media element in native backend');
   }
+
   captureStream(): MediaStream {
     throw new Error('Not supported');
   }
@@ -145,6 +149,7 @@ export class NativeAudioBackend implements IAudioBackend {
   async setSinkId(_deviceId: string): Promise<void> {
     /* no-op */
   }
+
   getSinkId(): string {
     return 'default';
   }
@@ -154,9 +159,11 @@ export class NativeAudioBackend implements IAudioBackend {
   mediaKeys(): MediaKeys | undefined {
     return undefined;
   }
+
   async setMediaKeys(_keys: MediaKeys): Promise<void> {
     /* no-op */
   }
+
   outputProtectionState(): 'unrestricted' {
     return 'unrestricted';
   }
@@ -166,9 +173,11 @@ export class NativeAudioBackend implements IAudioBackend {
   pauseLoader(): void {
     /* no-op */
   }
+
   resumeLoader(): void {
     /* no-op */
   }
+
   loaderState(): BackendLoaderState {
     return 'running';
   }
@@ -183,15 +192,19 @@ export class NativeAudioBackend implements IAudioBackend {
   async loadSecondary(_url: string): Promise<void> {
     throw new Error('Crossfade not supported by this backend');
   }
+
   disposeSecondary(): void {
     /* no-op */
   }
+
   async primeSecondary(_seekMs?: number): Promise<void> {
     throw new Error('Crossfade not supported by this backend');
   }
+
   async crossfade(_durationMs: number): Promise<void> {
     throw new Error('Crossfade not supported by this backend');
   }
+
   secondaryGain(): number;
   secondaryGain(_value: number): void;
   secondaryGain(_value?: number): number | void {
@@ -215,8 +228,6 @@ export class NativeAudioBackend implements IAudioBackend {
 }
 ```
 
----
-
 ## Wiring with backendFactory
 
 ```ts
@@ -225,11 +236,10 @@ player.setup({
 });
 ```
 
----
-
 ## timeupdate requirement
 
-The player drives its `time` event from the backend's `timeupdate` event. Fire it at regular intervals during playback:
+The player drives its `time` event from the backend's `timeupdate` event.
+Fire it at regular intervals during playback:
 
 ```ts
 async play(): Promise<void> {
@@ -250,10 +260,8 @@ private tickTime(): void {
 }
 ```
 
----
-
 ## See also
 
-- [IAudioBackend](/nomercy-music-player/backends/backend-interface) — full interface reference
-- [Backends overview](/nomercy-music-player/backends/overview) — built-in backend capabilities
-- [Configuration](/nomercy-music-player/configuration) — `backendFactory` option
+- [IAudioBackend](/nomercy-music-player/backends/backend-interface), full interface reference
+- [Backends overview](/nomercy-music-player/backends/overview), built-in backend capabilities
+- [Configuration](/nomercy-music-player/configuration), `backendFactory` option

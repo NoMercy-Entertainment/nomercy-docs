@@ -3,14 +3,15 @@ title: 'Plugin Standard'
 description: 'The contract every plugin in the NoMercy player ecosystem must follow. Required surface, naming conventions, lifecycle, error handling, and testing.'
 ---
 
-# Plugin Standard — v1.0
+# Plugin Standard, v1.0
 
 **Status:** Locked 2026-05-08.
-**Audience:** Core and library maintainers AND third-party plugin authors.
+**Audience:** Core and library maintainers and third-party plugin authors.
 
-This standard defines the contract every plugin extending `Plugin<P, O, E>` must follow. Lint rules enforce the **MUST** requirements. **SHOULD** requirements generate warnings. **MAY** requirements are available when applicable.
-
----
+This standard defines the contract every plugin extending `Plugin<P, O, E>` must follow.
+Lint rules enforce the **MUST** requirements.
+**SHOULD** requirements generate warnings.
+**MAY** requirements are available when applicable.
 
 ## 1. Required surface (MUST)
 
@@ -20,12 +21,12 @@ This standard defines the contract every plugin extending `Plugin<P, O, E>` must
 static readonly id: string;          // vendored: 'lyrics', 'fillz:viz'
 static readonly version: string;     // semver: '1.0.0'
 static readonly description: string; // one-line, shown in errors + listings
-static readonly minCoreVersion?: string; // optional minimum kit version
+static readonly minCoreVersion?: string; // optional minimum core version
 ```
 
 Id conventions:
 
-- Kit-shipped plugins: bare kebab-case (`'lyrics'`, `'auto-advance'`)
+- Core-shipped plugins: bare kebab-case (`'lyrics'`, `'auto-advance'`)
 - Third-party / consumer plugins: `vendor:name` (`'nomercy:sync'`, `'fillz:winamp'`)
 
 ### 1.2 Lifecycle methods
@@ -35,15 +36,17 @@ Id conventions:
 use(): void | Promise<void>                // wire listeners, mount DOM, fetch resources
 dispose(): void                            // explicit teardown
 
-// Internal (base class — never override, never call from your plugin):
-initialize(player, opts, lifecycle): void  // kit calls this before use() to inject player + opts + lifecycle
+// Internal (base class, never override, never call from your plugin):
+initialize(player, opts, lifecycle): void  // core calls this before use() to inject player + opts + lifecycle
 ```
 
-`player.setup()` awaits every plugin's `use()` promise before emitting `ready`. A plugin whose `use()` rejects is marked failed — it does not bring down the player. Other plugins continue.
+`player.setup()` awaits every plugin's `use()` promise before emitting `ready`.
+A plugin whose `use()` rejects is marked failed, so it does not bring down the player.
+Other plugins continue.
 
 ### 1.3 State surface
 
-Provided by the base class — no code needed for default behavior:
+Provided by the base class, no code needed for default behavior:
 
 ```ts
 enabled(): boolean           // is the plugin active?
@@ -51,18 +54,21 @@ enable(): void               // re-activate. Idempotent.
 disable(): void              // deactivate without unloading. Idempotent.
 state(): PluginState<O>      // { id, enabled, opts, runtime }
 options(): Readonly<O>       // current options (read)
-options(partial): void       // shallow-merge patch (write) — emits opts:changed
+options(partial): void       // shallow-merge patch (write), emits opts:changed
 ```
 
 Override `protected getRuntimeState()` to expose plugin-specific runtime fields in `state()`.
 
 ### 1.4 Options handling
 
-Options arrive via `addPlugin(Class, opts)`. Default `options(patch)` shallow-merges and emits `opts:changed`. Override when you need to react to specific changes:
+Options arrive via `addPlugin(Class, opts)`.
+Default `options(patch)` shallow-merges and emits `opts:changed`.
+Override when you need to react to specific changes:
 
 ```ts
 options(patch: Partial<O>) {
   super.options(patch);
+
   if ('endpoint' in patch) this.reconnect();
 }
 ```
@@ -70,7 +76,7 @@ options(patch: Partial<O>) {
 ### 1.5 Event emission
 
 ```ts
-// Fire-and-forget — auto-namespaced to plugin:<id>:<name>:
+// Fire-and-forget, auto-namespaced to plugin:<id>:<name>:
 this.emit('dataFetched', { count: 5 });
 
 // Cancellable, mutable, async-aware:
@@ -111,7 +117,7 @@ this.on('time', ({ time }) => {
   /* typed */
 });
 
-// Cross-plugin events — typed via imported class:
+// Cross-plugin events, typed via imported class:
 this.on(EqualizerPlugin, 'band:changed', ({ band }) => {
   // band is EqBand, typed from EqualizerPlugin's E generic
 });
@@ -129,7 +135,7 @@ const result = await this.dispatchBefore('beforeSetBand', { index, gain });
 
 ```ts
 interface BeforeEvent<TData> {
-  data: TData; // mutable — player reads back after dispatch
+  data: TData; // mutable, player reads back after dispatch
   preventDefault(): void; // skip the default action
   isDefaultPrevented(): boolean;
   stopImmediatePropagation(): void; // skip remaining listeners
@@ -153,21 +159,21 @@ interface BeforeEvent<TData> {
 Never throw raw errors or call `player.emit('error', ...)` directly:
 
 ```ts
-// Fatal — plugin fails, marks itself disabled. Player survives.
+// Fatal: plugin fails, marks itself disabled. Player survives.
 this.throw({
   severity: 'fatal',
   code: 'my-plugin/connection-lost',
   message: '...',
 });
 
-// Non-fatal — operation fails, plugin keeps running.
+// Non-fatal: operation fails, plugin keeps running.
 this.throw({
   severity: 'error',
   code: 'my-plugin/fetch-failed',
   message: '...',
 });
 
-// Degradation — plugin survives, caller continues.
+// Degradation: plugin survives, caller continues.
 this.report({
   severity: 'warning',
   code: 'my-plugin/rate-limited',
@@ -181,8 +187,6 @@ this.report({
   message: '...',
 });
 ```
-
----
 
 ## 2. Recommended conventions (SHOULD)
 
@@ -239,7 +243,7 @@ If you have `setBand(idx, gain)`, you must have `getBand(idx)`. No write-only st
 
 ### 2.5 Plugin-to-plugin discovery via `requires`
 
-Class refs only — type-safe, refactor-safe:
+Class refs only, type-safe and refactor-safe:
 
 ```ts
 class MyPlugin extends Plugin {
@@ -282,8 +286,6 @@ static readonly advisories: PluginAdvisory[] = [
 ];
 ```
 
----
-
 ## 3. Optional conventions (MAY)
 
 ### 3.1 Plugin replacement via `replaces`
@@ -313,7 +315,7 @@ use() {
 }
 ```
 
-Mount names are scoped per plugin — `MessagePlugin`'s `'toast'` becomes `nmplayer-message-toast`.
+Mount names are scoped per plugin, so `MessagePlugin`'s `'toast'` becomes `nmplayer-message-toast`.
 
 ### 3.4 Plugin-scoped storage
 
@@ -328,8 +330,6 @@ this.storage.set('volume', 0.8);
 this.logger.debug('something'); // outputs [nmplayer][my-plugin] something
 ```
 
----
-
 ## 4. Naming conventions
 
 ### Method naming
@@ -342,7 +342,7 @@ this.logger.debug('something'); // outputs [nmplayer][my-plugin] something
 | Boolean query                   | `isLeader()`, `isMuted()`, `hasListeners()`                                                                |
 | Collection mutators             | `queueAppend`, `queueClear`, `queueRemove`                                                                 |
 | Override hooks                  | `protected addX()` for groups, `protected getX()` for defaults                                             |
-| Lifecycle (author)              | `use()` to set up, `dispose()` to tear down (kit calls `initialize()` first — base class; do not override) |
+| Lifecycle (author)              | `use()` to set up, `dispose()` to tear down (core calls `initialize()` first, base class; do not override) |
 
 ### Event naming
 
@@ -361,17 +361,14 @@ this.logger.debug('something'); // outputs [nmplayer][my-plugin] something
 - Values with units: include unit (`durationMs`, `frameRate`, `cooldownMs`)
 - Callbacks: `on<Event>` for event-shaped, `<verb>` for transforms (`transformUrl`)
 
----
-
 ## 5. Event emission rules
 
 - Plugin → player: `this.emit(name, data)` only
 - Plugin → plugin: `this.player.on('plugin:<other-id>:<event>', handler)` via the class-form
-- Plugin → iframe host: `embedPlugin.sendToHost(message)` — no direct `postMessage`
+- Plugin → iframe host: `embedPlugin.sendToHost(message)`, no direct `postMessage`
 
-Events fire **after** the state change they describe. Pre-action events use `before<X>` naming.
-
----
+Events fire **after** the state change they describe.
+Pre-action events use `before<X>` naming.
 
 ## 6. Player phases and dispatch context
 
@@ -379,17 +376,21 @@ Events fire **after** the state change they describe. Pre-action events use `bef
 
 `player.phase()` returns one of 13 stable values:
 
-```
-idle → setup → ready
-                ↓
-           loading → ready → starting → playing ⇄ buffering ⇄ seeking
-                                              ↓
-                                           paused → starting
-                                              ↓
-                                           ended / stopped → starting
-                                              ↓
-                                    dispose() → disposing → disposed
-```
+| Phase | Transitions to |
+| ----------- | ----------------------------------- |
+| `idle` | `setup` |
+| `setup` | `ready` |
+| `ready` | `loading`, `starting` |
+| `loading` | `ready` |
+| `starting` | `playing` |
+| `playing` | `buffering`, `seeking`, `paused` |
+| `buffering` | `playing`, `seeking` |
+| `seeking` | `playing`, `buffering` |
+| `paused` | `starting`, `ended`, `stopped` |
+| `ended` | `starting`, `disposing` |
+| `stopped` | `starting`, `disposing` |
+| `disposing` | `disposed` |
+| `disposed` | — |
 
 Listen to the `phase` event for transitions: `{ from: PlayerPhase; to: PlayerPhase }`.
 
@@ -416,13 +417,12 @@ interface PluginAdvisory {
 }
 ```
 
----
-
 ## 7. Error handling and recovery
 
 ### Quarantine
 
-Any throw inside a plugin is caught, wrapped in `PluginError`, emitted, and the plugin is marked failed. The player and other plugins continue.
+Any throw inside a plugin is caught, wrapped in `PluginError`, emitted, and the plugin is marked failed.
+The player and other plugins continue.
 
 ### Recovery policy
 
@@ -435,7 +435,8 @@ class MyPlugin extends Plugin {
 }
 ```
 
-Options: `'retry-once'` | `'fallback'` | `'disable'` | `'ignore'`. Consumer overrides via `setup({ errorPolicy })`.
+Options: `'retry-once'` | `'fallback'` | `'disable'` | `'ignore'`.
+Consumer overrides via `setup({ errorPolicy })`.
 
 ### Dependency cascade
 
@@ -446,8 +447,6 @@ Options: `'retry-once'` | `'fallback'` | `'disable'` | `'ignore'`. Consumer over
 | Dep `disable()`'d                              | Cascade-disable dependents                  |
 | `removePlugin(dep)` with dependents registered | Throws unless `{ cascade: true }`           |
 | Dep manually re-enabled                        | Dependents do NOT auto-re-enable            |
-
----
 
 ## 8. Replacement and extension
 
@@ -486,8 +485,6 @@ const restore = player.experimental.override('subtitles', () => mySubtitles);
 
 Lint-flagged. Requires inline comment explaining why no lower tier works.
 
----
-
 ## 9. Testing
 
 ### Leak harness (required)
@@ -509,7 +506,7 @@ import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testi
 describePlugin(MyPlugin, ({ player, plugin }) => {
   test('emits dataFetched on track change', async () => {
     const events: unknown[] = [];
-    player.on('plugin:my-plugin:dataFetched', (e) => events.push(e));
+    player.on('plugin:my-plugin:dataFetched', (event) => events.push(event));
     player.current({ id: '1', name: 'Track', url: '...' });
     await vi.waitFor(() => events.length > 0);
     expect(events[0]).toMatchObject({ count: expect.any(Number) });
@@ -518,8 +515,6 @@ describePlugin(MyPlugin, ({ player, plugin }) => {
 ```
 
 `describePlugin` provides a fresh player + registered plugin per test with auto-dispose in `afterEach`.
-
----
 
 ## 10. Conformance checklist
 

@@ -1,22 +1,22 @@
 ---
 title: 'FAQ'
-description: 'Frequently asked questions about the NoMercy Music Player — setup, crossfade, lyrics, backends, and TypeScript.'
+description: 'Frequently asked questions about the NoMercy Music Player: setup, crossfade, lyrics, backends, and TypeScript.'
 draft: false
 ---
 
 # FAQ
 
----
-
 ## Can I use this player without the NoMercy media server?
 
-Yes. `@nomercy-entertainment/nomercy-music-player` is a standalone npm package. Point it at any reachable audio URL — a CDN, an S3 bucket, a local dev server, anything. The server integration (`auth.bearerToken`, HLS stream handling) is opt-in.
-
----
+Yes. `@nomercy-entertainment/nomercy-music-player` is a standalone npm package.
+Point it at any reachable audio URL, a CDN, an S3 bucket, a local dev server, anything.
+The server integration (`auth.bearerToken`, HLS stream handling) is opt-in.
 
 ## What is the difference between `IMusicPlayer` and `NMMusicPlayer`?
 
-`NMMusicPlayer<T>` is the concrete class. `IMusicPlayer<T>` is the interface you should use for consumer-held references (props, context, dependency injection). This prevents consumers from depending on the concrete constructor and keeps the type boundary clean.
+`NMMusicPlayer<T>` is the concrete class.
+`IMusicPlayer<T>` is the interface you should use for consumer-held references (props, context, dependency injection).
+This prevents consumers from depending on the concrete constructor and keeps the type boundary clean.
 
 ```ts
 // Do this:
@@ -26,19 +26,19 @@ const player: IMusicPlayer = nmMPlayer('main').setup(config);
 const player: NMMusicPlayer = nmMPlayer('main').setup(config);
 ```
 
----
-
 ## How many player instances can I have?
 
-As many as you need. Each `nmMPlayer(id)` call with a unique id creates an independent instance. They share no state and each has its own audio backend, queue, and plugin set. A typical app has one global instance. A multi-room app might have one per room.
-
----
+As many as you need.
+Each `nmMPlayer(id)` call with a unique id creates an independent instance.
+They share no state and each has its own audio backend, queue, and plugin set.
+A typical app has one global instance.
+A multi-room app might have one per room.
 
 ## Does the player work server-side (SSR/Node)?
 
-No. The player requires browser APIs: `HTMLAudioElement`, `AudioContext`, `requestAnimationFrame`, `navigator.mediaSession`. It will throw on import in a Node environment. In SSR frameworks (Next.js, Nuxt), import and initialize only in browser-side code.
-
----
+No. The player requires browser APIs: `HTMLAudioElement`, `AudioContext`, `requestAnimationFrame`, `navigator.mediaSession`.
+It will throw on import in a Node environment.
+In SSR frameworks (Next.js, Nuxt), import and initialize only in browser-side code.
 
 ## Why does autoplay block in the browser?
 
@@ -47,9 +47,8 @@ Browsers require a user gesture before allowing audio playback. Common patterns:
 - Call `player.play()` inside a `click` or `keydown` event handler.
 - On page load, set up the player and queue, but defer `play()` until the first interaction.
 
-The `ready` event fires when setup is complete. You can queue tracks there, but do not call `play()` from `ready` unless you know a user gesture has already occurred.
-
----
+The `ready` event fires when setup is complete.
+You can queue tracks there, but do not call `play()` from `ready` unless you know a user gesture has already occurred.
 
 ## What formats are supported?
 
@@ -62,26 +61,24 @@ The `ready` event fires when setup is complete. You can queue tracks there, but 
 | WAV           | Universal                                         |
 | HLS (`.m3u8`) | Native on Safari; `hls.js` handles other browsers |
 
-The player ships `hls.js` as a production dependency. No extra install required for HLS.
-
----
+The player ships `hls.js` as a production dependency.
+No extra install required for HLS.
 
 ## How do I crossfade?
 
 Two ways:
 
-1. **Automatic** — Use `AutoAdvancePlugin` with `crossfade: true` and `crossfadeDuration: 5`. The plugin starts the crossfade automatically before each track ends.
+1. **Automatic:** Use `AutoAdvancePlugin` with `crossfade: true` and `crossfadeDuration: 5`. The plugin starts the crossfade automatically before each track ends.
 
-2. **Manual** — Call `player.crossfadeTo(track, { duration: 3, curve: 'equal-power' })` from your own code.
+2. **Manual:** Call `player.crossfadeTo(track, { duration: 3, curve: 'equal-power' })` from your own code.
 
-The default backend (`audio-element`) uses a `requestAnimationFrame` loop (~50 fps). For sample-accurate fades, switch to `WebAudioBackend` first:
+The default backend (`audio-element`) uses a `requestAnimationFrame` loop (~50 fps).
+For sample-accurate fades, switch to `WebAudioBackend` first:
 
 ```ts
 await player.backend('webaudio');
 await player.crossfadeTo(nextTrack, { duration: 5 });
 ```
-
----
 
 ## What is the difference between `audio-element` and `webaudio` backends?
 
@@ -95,13 +92,11 @@ await player.crossfadeTo(nextTrack, { duration: 5 });
 
 Switch at any time with `await player.backend('webaudio')`.
 
----
-
 ## Can I switch backends at runtime?
 
-Yes. `await player.backend('webaudio')` disposes the current backend, creates the new one, and re-wires all events. Playback pauses during the switch. Resume with `player.play()`.
-
----
+Yes. `await player.backend('webaudio')` disposes the current backend, creates the new one, and re-wires all events.
+Playback pauses during the switch.
+Resume with `player.play()`.
 
 ## How do I persist volume / shuffle / repeat preferences?
 
@@ -118,9 +113,7 @@ const player = nmMPlayer('main').setup({
 });
 ```
 
-The kit automatically reads and writes `volume`, `shuffleState`, `repeatState`, and `playbackRate` through the storage adapter.
-
----
+The core automatically reads and writes `volume`, `shuffleState`, `repeatState`, and `playbackRate` through the storage adapter.
 
 ## How do I add lyrics?
 
@@ -136,8 +129,6 @@ player.on('plugin:lyrics:lineEnter', ({ text }) => {
 
 See [Lyrics](/nomercy-music-player/lyrics) for full details.
 
----
-
 ## Can I use a custom lyric format?
 
 Yes. Register a `CueParser`:
@@ -152,9 +143,8 @@ player.registerCueParser({
 });
 ```
 
-Parser selection is by URL extension. The built-in LRC and VTT parsers are registered by default.
-
----
+Parser selection is by URL extension.
+The built-in LRC and VTT parsers are registered by default.
 
 ## How do I show a spectrum analyzer or equalizer?
 
@@ -177,34 +167,30 @@ import {
 } from '@nomercy-entertainment/nomercy-music-player/plugins';
 ```
 
----
-
 ## How do I integrate with React?
 
-Use a custom hook with `useRef` for the player instance and `useState` for reactive state. See [React Integration](/nomercy-music-player/framework-react) for the complete pattern.
-
----
+Use a custom hook with `useRef` for the player instance and `useState` for reactive state.
+See [React Integration](/nomercy-music-player/framework-react) for the complete pattern.
 
 ## How do I integrate with Vue?
 
-Use a composable with `ref` for reactive state. See [Vue Integration](/nomercy-music-player/framework-vue) for the complete pattern.
-
----
+Use a composable with `ref` for reactive state.
+See [Vue Integration](/nomercy-music-player/framework-vue) for the complete pattern.
 
 ## Is TypeScript required?
 
-No, but strongly recommended. All events, methods, and configuration options are typed. Without TypeScript you lose autocomplete and will have to consult the docs for every method signature.
-
----
+No, but strongly recommended.
+All events, methods, and configuration options are typed.
+Without TypeScript you lose autocomplete and will have to consult the docs for every method signature.
 
 ## How do I clean up the player?
 
-Call `player.dispose()`. This stops playback, removes all event listeners, disposes all plugins, frees the audio backend, and removes the instance from the internal registry. After `dispose()`, calling `nmMPlayer('same-id')` creates a fresh instance.
-
----
+Call `player.dispose()`.
+This stops playback, removes all event listeners, disposes all plugins, frees the audio backend, and removes the instance from the internal registry.
+After `dispose()`, calling `nmMPlayer('same-id')` creates a fresh instance.
 
 ## See also
 
-- [Troubleshooting](/nomercy-music-player/troubleshooting) — error diagnosis
-- [Quick Start](/nomercy-music-player/quickstart) — minimal working example
-- [Configuration](/nomercy-music-player/configuration) — all setup options
+- [Troubleshooting](/nomercy-music-player/troubleshooting): error diagnosis
+- [Quick Start](/nomercy-music-player/quickstart): minimal working example
+- [Configuration](/nomercy-music-player/configuration): all setup options

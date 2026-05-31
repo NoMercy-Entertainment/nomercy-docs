@@ -1,6 +1,6 @@
 ---
 title: 'IAudioBackend Interface'
-description: 'Full method table for IAudioBackend — lifecycle, transport, time, volume, state, graph, raw, capture, routing, DRM, backpressure, crossfade, and events.'
+description: 'Full method table for IAudioBackend: lifecycle, transport, time, volume, state, graph, raw, capture, routing, DRM, backpressure, crossfade, and events.'
 draft: false
 ---
 
@@ -8,13 +8,12 @@ draft: false
 
 # IAudioBackend
 
-Concrete contract every audio backend implements. The player calls these methods; plugins tap `outputNode()` and `analyserSource()` to build effect chains.
+Concrete contract every audio backend implements.
+The player calls these methods; plugins tap `outputNode()` and `analyserSource()` to build effect chains.
 
 ```ts
 import type { IAudioBackend } from '@nomercy-entertainment/nomercy-music-player/adapters/audio-backend';
 ```
-
----
 
 ## `kind`
 
@@ -22,7 +21,8 @@ import type { IAudioBackend } from '@nomercy-entertainment/nomercy-music-player/
 readonly kind: AudioBackendKind  // 'audio-element' | 'webaudio'
 ```
 
-Discriminates the backend type. Use `.kind` to branch — do not compare the return value of `player.backend()` as a string.
+Discriminates the backend type.
+Use `.kind` to branch; do not compare the return value of `player.backend()` as a string.
 
 ```ts
 const backend = player.backend();
@@ -30,8 +30,6 @@ if (backend.kind === 'webaudio') {
   // WebAudioBackend-specific code
 }
 ```
-
----
 
 ## Lifecycle
 
@@ -57,9 +55,8 @@ Detach the current source. Does not dispose the backend.
 dispose(): void
 ```
 
-Tear down the backend: pause, disconnect all nodes, release all resources. After `dispose()`, the backend must not be used.
-
----
+Tear down the backend: pause, disconnect all nodes, release all resources.
+After `dispose()`, the backend must not be used.
 
 ## Transport
 
@@ -87,15 +84,13 @@ stop(): void
 
 Stop playback and reset position to 0.
 
----
-
 ## Time
 
 ### `currentTime()`
 
 ```ts
 currentTime(): number
-currentTime(t: number): void
+currentTime(seconds: number): void
 ```
 
 Get or set the current playback position in seconds.
@@ -141,15 +136,13 @@ playbackRate(rate: number): void
 
 Get or set the playback rate.
 
----
-
 ## Volume
 
 ### `volume()`
 
 ```ts
 volume(): number
-volume(v: number): void
+volume(level: number): void
 ```
 
 Get or set the volume (0–1 scale at the backend level; the player converts from its 0–100 scale).
@@ -170,8 +163,6 @@ unmute(): void
 
 Restore output.
 
----
-
 ## State
 
 ### `state()`
@@ -182,8 +173,6 @@ state(): BackendState
 
 `BackendState` values: `'idle' | 'loading' | 'ready' | 'playing' | 'paused' | 'error'`
 
----
-
 ## Effect chain
 
 ### `outputNode(ctx)`
@@ -192,7 +181,8 @@ state(): BackendState
 outputNode(ctx: AudioContext): AudioNode
 ```
 
-The output node of the backend's audio graph. Connect your processing chain here.
+The output node of the backend's audio graph.
+Connect your processing chain here.
 
 ### `analyserSource(ctx)`
 
@@ -200,9 +190,8 @@ The output node of the backend's audio graph. Connect your processing chain here
 analyserSource(ctx: AudioContext): AudioNode
 ```
 
-A tap node suitable for `AnalyserNode` connection (spectrum, waveform visualization). Does not interrupt the main signal path.
-
----
+A tap node suitable for `AnalyserNode` connection (spectrum, waveform visualization).
+Does not interrupt the main signal path.
 
 ## Raw access
 
@@ -212,9 +201,8 @@ A tap node suitable for `AnalyserNode` connection (spectrum, waveform visualizat
 mediaElement(): HTMLMediaElement
 ```
 
-The underlying `<audio>` element. Used by Cast SDKs and other integrations that need direct element access.
-
----
+The underlying `<audio>` element.
+Used by Cast SDKs and other integrations that need direct element access.
 
 ## Capture
 
@@ -224,9 +212,8 @@ The underlying `<audio>` element. Used by Cast SDKs and other integrations that 
 captureStream(): MediaStream
 ```
 
-MediaStream of the audio output. Use for recording, WebRTC, or piping to `<video>`.
-
----
+MediaStream of the audio output.
+Use for recording, WebRTC, or piping to `<video>`.
 
 ## Audio output routing
 
@@ -245,8 +232,6 @@ getSinkId(): string
 ```
 
 Id of the current output device.
-
----
 
 ## DRM (planned v2.1)
 
@@ -267,8 +252,6 @@ setMediaKeys(keys: MediaKeys): Promise<void>
 ```ts
 outputProtectionState(): 'unrestricted' | 'restricted' | 'unsupported'
 ```
-
----
 
 ## Loader backpressure
 
@@ -292,8 +275,6 @@ resumeLoader(): void
 loaderState(): 'running' | 'paused'
 ```
 
----
-
 ## Crossfade
 
 ### `supportsCrossfade()`
@@ -302,7 +283,9 @@ loaderState(): 'running' | 'paused'
 supportsCrossfade(): boolean
 ```
 
-Whether this backend supports parallel playback for crossfade. Both built-in backends return `true`. Custom backends that cannot allocate a second handle should return `false`.
+Whether this backend supports parallel playback for crossfade.
+Both built-in backends return `true`.
+Custom backends that cannot allocate a second handle should return `false`.
 
 ### `loadSecondary(url)`
 
@@ -318,7 +301,8 @@ Allocate the secondary playback handle and load `url` into it without affecting 
 primeSecondary(seekMs?: number): Promise<void>
 ```
 
-Pre-roll the secondary to position `seekMs` (default 0). Waits for `canplay` before resolving.
+Pre-roll the secondary to position `seekMs` (default 0).
+Waits for `canplay` before resolving.
 
 ### `crossfade(durationMs)`
 
@@ -326,7 +310,8 @@ Pre-roll the secondary to position `seekMs` (default 0). Waits for `canplay` bef
 crossfade(durationMs: number): Promise<void>
 ```
 
-Ramp primary gain → 0 and secondary gain → current volume over `durationMs`. At completion, secondary becomes primary and the old primary is disposed.
+Ramp primary gain → 0 and secondary gain → current volume over `durationMs`.
+At completion, secondary becomes primary and the old primary is disposed.
 
 ### `disposeSecondary()`
 
@@ -343,9 +328,8 @@ secondaryGain(): number
 secondaryGain(value: number): void
 ```
 
-Read or write the secondary's gain (0–1). Returns 0 when no secondary is allocated.
-
----
+Read or write the secondary's gain (0–1).
+Returns 0 when no secondary is allocated.
 
 ## Events
 
@@ -356,16 +340,17 @@ on<E extends BackendEvent>(event: E, fn: (data?: BackendEventPayload[E]) => void
 off<E extends BackendEvent>(event: E, fn: (data?: BackendEventPayload[E]) => void): void
 ```
 
-Backend events are forwarded to the player's event bus by the player's wiring layer. Subscribe to player-level events (`player.on(...)`) rather than backend-level events directly.
+Backend events are forwarded to the player's event bus by the player's wiring layer.
+Subscribe to player-level events (`player.on(...)`) rather than backend-level events directly.
 
 `BackendEvent` values: `'loadstart' | 'loadedmetadata' | 'canplay' | 'play' | 'playing' | 'pause' | 'ended' | 'timeupdate' | 'waiting' | 'stalled' | 'ratechange' | 'encrypted' | 'error' | 'backend:loading' | 'backend:loaded'`
 
-`backend:loading` payload: `{ url: string; kind: AudioBackendKind }`. `backend:loaded` payload: `{ url: string; kind: AudioBackendKind; duration: number }`. All DOM-bridge events carry the original `Event` object.
-
----
+`backend:loading` payload: `{ url: string; kind: AudioBackendKind }`.
+`backend:loaded` payload: `{ url: string; kind: AudioBackendKind; duration: number }`.
+All DOM-bridge events carry the original `Event` object.
 
 ## See also
 
-- [AudioElementBackend](/nomercy-music-player/backends/audio-element) — implementation details
-- [WebAudioBackend](/nomercy-music-player/backends/web-audio) — implementation details
-- [Advanced: Writing an Audio Backend](/nomercy-music-player/advanced/writing-an-audio-backend) — implementing this interface
+- [AudioElementBackend](/nomercy-music-player/backends/audio-element), implementation details
+- [WebAudioBackend](/nomercy-music-player/backends/web-audio), implementation details
+- [Advanced: Writing an Audio Backend](/nomercy-music-player/advanced/writing-an-audio-backend), implementing this interface

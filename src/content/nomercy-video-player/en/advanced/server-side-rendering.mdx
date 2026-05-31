@@ -5,23 +5,24 @@ description: 'SSR caveats, hydration patterns, deferred client-only mounting, an
 
 # Server-Side Rendering
 
-Read this when you are running Next.js, Nuxt, Astro, or any other framework that server-renders HTML before sending it to the browser. The player is browser-only — it requires `document`, `window`, `HTMLVideoElement`, and the Web Audio API. None of these exist on the server.
+Read this when you are running Next.js, Nuxt, Astro, or any other framework that server-renders HTML before sending it to the browser.
+The player is browser-only, requiring `document`, `window`, `HTMLVideoElement`, and the Web Audio API.
+None of these exist on the server.
 
-**Prerequisites:** familiarity with your framework's hydration model. For framework integration basics see [Vue](/nomercy-video-player/framework-vue) and [React](/nomercy-video-player/framework-react).
-
----
+**Prerequisites:** familiarity with your framework's hydration model.
+For framework integration basics see [Vue](/nomercy-video-player/framework-vue) and [React](/nomercy-video-player/framework-react).
 
 ## The core rule
 
-**Never call `nmplayer()`, `nmMPlayer()`, or `setup()` during server execution.** These APIs access browser globals immediately. Calling them on the server throws or produces `undefined` reference errors.
+**Never call `nmplayer()`, `nmMPlayer()`, or `setup()` during server execution.**
+These APIs access browser globals immediately.
+Calling them on the server throws or produces `undefined` reference errors.
 
 All player initialization must be deferred to the client, after the first render.
 
----
-
 ## Next.js (App Router)
 
-Mark the player component `'use client'` and wrap `setup()` in a `useEffect`:
+Mark the player component `'use client'` and wrap `setup()` in a `useEffect`.
 
 ```tsx
 // components/VideoPlayer.tsx
@@ -43,7 +44,7 @@ export function VideoPlayer({ src, title }: VideoPlayerProps) {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Safe — runs only in the browser:
+    // Safe, runs only in the browser:
     const player = nmplayer('main').setup({
       container: containerRef.current,
       playlist: [{ id: '1', url: src, title }],
@@ -57,13 +58,13 @@ export function VideoPlayer({ src, title }: VideoPlayerProps) {
       player.dispose();
       playerRef.current = null;
     };
-  }, []); // empty deps — run once on mount
+  }, []); // empty deps, run once on mount
 
   return <div ref={containerRef} style={{ width: '100%', aspectRatio: '16/9' }} />;
 }
 ```
 
-Use it in a server component page — the `'use client'` boundary handles the split:
+Use it in a server component page, and the `'use client'` boundary handles the split:
 
 ```tsx
 // app/watch/page.tsx
@@ -77,8 +78,6 @@ export default function WatchPage() {
   );
 }
 ```
-
----
 
 ## Next.js (Pages Router)
 
@@ -98,8 +97,6 @@ export default function WatchPage() {
   return <VideoPlayer src="https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8" title="My Video" />;
 }
 ```
-
----
 
 ## Nuxt 3
 
@@ -159,11 +156,10 @@ onBeforeUnmount(() => {
 </template>
 ```
 
----
-
 ## Astro
 
-Astro renders components on the server by default. Use a `client:only` directive:
+Astro renders components on the server by default.
+Use a `client:only` directive:
 
 ```astro
 ---
@@ -189,11 +185,10 @@ For React:
 
 Inside the component, initialize in `onMounted` (Vue) or `useEffect` (React) exactly as shown above.
 
----
-
 ## Storage on the server
 
-The default `LocalStorageBackend` accesses `window.localStorage`. On the server, substitute `MemoryStorageBackend`:
+The default `LocalStorageBackend` accesses `window.localStorage`.
+On the server, substitute `MemoryStorageBackend`:
 
 ```ts
 import { MemoryStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
@@ -207,25 +202,21 @@ const storage =
 player.setup({ storage });
 ```
 
-In practice, `setup()` should never run on the server if you follow the patterns above — but this guard prevents crashes if it does.
-
----
+In practice, `setup()` should never run on the server if you follow the patterns above, but this guard prevents crashes if it does.
 
 ## Hydration mismatch
 
 If your framework complains about hydration mismatches for the player container:
 
 1. Ensure the server renders a blank `<div>` (no player markup).
-2. The player writes to the container after mount — this is fine.
+2. The player writes to the container after mount, so this is fine.
 3. Do not pre-render `<video>` elements with `src` attributes server-side.
 
 A blank container element with a fixed size is the correct server-rendered output.
 
----
-
 ## What to read next
 
-- [Advanced: Multi-Instance](/nomercy-player-kit/advanced/multi-instance) — managing multiple players after SSR hydration
-- [Video — Vue Integration](/nomercy-video-player/framework-vue) — Vue composable patterns
-- [Video — React Integration](/nomercy-video-player/framework-react) — React hook patterns
-- [Advanced: Performance](/nomercy-video-player/advanced/performance) — reducing JS size for SSR-heavy apps
+- [Advanced: Multi-Instance](/nomercy-player-core/advanced/multi-instance): managing multiple players after SSR hydration
+- [Video: Vue Integration](/nomercy-video-player/framework-vue): Vue composable patterns
+- [Video: React Integration](/nomercy-video-player/framework-react): React hook patterns
+- [Advanced: Performance](/nomercy-video-player/advanced/performance): reducing JS size for SSR-heavy apps

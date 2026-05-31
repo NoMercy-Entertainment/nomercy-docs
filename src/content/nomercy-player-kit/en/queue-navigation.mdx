@@ -8,9 +8,9 @@ draft: false
 
 ## Overview
 
-Navigation methods read and move the queue cursor. Moving the cursor triggers `load()` on the newly-selected item (unless the player is idle or disposed). A monotonic `_currentEpoch` guard prevents in-flight loads from overwriting a newer navigation.
-
----
+Navigation methods read and move the queue cursor.
+Moving the cursor triggers `load()` on the newly-selected item (unless the player is idle or disposed).
+A monotonic `_currentEpoch` guard prevents in-flight loads from overwriting a newer navigation.
 
 ## `current(target?, opts?)`
 
@@ -25,7 +25,10 @@ Read or write the active queue cursor.
 - A zero-based index number
 - A predicate function `(item) => boolean`
 
-Fires `beforeMutation` (cancellable). Emits the `current` event when the cursor moves. Calls `load()` on the selected item (deferred to after `ready()` when called during setup). If `opts.autoplay` is true, `play()` is called after load resolves.
+Fires `beforeMutation` (cancellable).
+Emits the `current` event when the cursor moves.
+Calls `load()` on the selected item (deferred to after `ready()` when called during setup).
+If `opts.autoplay` is true, `play()` is called after load resolves.
 
 | Parameter       | Type                                                          | Description              |
 | --------------- | ------------------------------------------------------------- | ------------------------ |
@@ -49,21 +52,19 @@ player.current((item) => item.title === 'Tears of Steel');
 player.current(0, { autoplay: true });
 ```
 
----
-
 ## `currentIndex()`
 
 Return the zero-based index of the currently active item, or `-1` when the queue is empty.
 
 **Returns:** `number`
 
----
-
 ## `seekToIndex(position, opts?)`
 
-Navigate to a playlist item by 1-based ordinal position. `seekToIndex(1)` loads the first item; `seekToIndex(queueLength())` loads the last.
+Navigate to a playlist item by 1-based ordinal position.
+`seekToIndex(1)` loads the first item; `seekToIndex(queueLength())` loads the last.
 
-Out-of-range values are silently ignored. Fires `beforeMutation` / `current` lifecycle (same as `current(target)`).
+Out-of-range values are silently ignored.
+Fires `beforeMutation` / `current` lifecycle (same as `current(target)`).
 
 | Parameter  | Type            | Description                         |
 | ---------- | --------------- | ----------------------------------- |
@@ -77,22 +78,18 @@ Out-of-range values are silently ignored. Fires `beforeMutation` / `current` lif
 player.seekToIndex(3);
 ```
 
----
-
 ## `next(opts?)` / `previous(opts?)`
 
-See [Transport — next / previous](/nomercy-player-kit/transport) for the full method spec including repeat-mode behaviour. These are listed here because they move the cursor and load the adjacent item.
-
----
+See [Transport, next and previous](/nomercy-player-core/transport) for the full method spec including repeat-mode behaviour.
+These are listed here because they move the cursor and load the adjacent item.
 
 ## `peekNext()` / `peekPrevious()`
 
-Read-only look-ahead without cursor mutation. See [Queue Methods — peekNext / peekPrevious](/nomercy-player-kit/queue).
-
----
+Read-only look-ahead without cursor mutation.
+See [Queue Methods, peekNext and peekPrevious](/nomercy-player-core/queue).
 
 ## See also
 
-- [Queue Methods](/nomercy-player-kit/queue) — `queue`, `queueAppend`, `queueClear`
-- [Transport](/nomercy-player-kit/transport) — `next`, `previous`, and repeat mode
-- [Events Reference](/nomercy-player-kit/events-reference) — `current`, `queue:exhausted`
+- [Queue Methods](/nomercy-player-core/queue), `queue`, `queueAppend`, `queueClear`
+- [Transport](/nomercy-player-core/transport), `next`, `previous`, and repeat mode
+- [Events Reference](/nomercy-player-core/events-reference), `current`, `queue:exhausted`

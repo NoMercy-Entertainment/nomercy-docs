@@ -1,0 +1,473 @@
+---
+title: 'Step 4: Time Display and Skip Buttons'
+description: 'Add current time and duration labels to the bottom row, then wire 10-second skip-back and skip-forward buttons.'
+---
+
+{/* Source: packages/nomercy-video-player-v2/wiki/guides/Step-4-Time-Display-and-Skip-Buttons.md */}
+
+# Step 4: Time Display and Skip Buttons
+
+This is step 4 of the "Build a Player UI" tutorial.
+By the end you will have a current-time label, a duration label, and two skip buttons (10 s back, 10 s forward) sitting in the bottom row of your `PlayerUiPlugin`.
+
+## What we are adding
+
+| Element | What it does |
+| ------- | ------------ |
+| `current-time` span | Shows elapsed playback time, updated on every `time` event. |
+| `time-separator` span | A `/` spacer between the two time labels. |
+| `duration` span | Shows total duration, set once from the `duration` event. |
+| skip-back button | Calls `player.rewind(10)` — seeks 10 seconds backward. |
+| skip-forward button | Calls `player.forward(10)` — seeks 10 seconds forward. |
+
+## Event and method facts
+
+Two events drive the time display:
+
+- `'time'` — fires on every `timeupdate`. Payload: `{ time: number }`. The `time` field is the current position in seconds.
+- `'duration'` — fires when `loadedmetadata` arrives. Payload: `{ duration: number }`.
+
+Both are in `BaseEventMap` so they are available on every player instance without video-specific imports.
+
+`player.rewind(seconds?)` and `player.forward(seconds?)` are first-class methods on `NMVideoPlayer`. They are the correct API for skip buttons — do not compute `currentTime + offset` manually.
+
+## Time formatter
+
+The player's built-in `fmt` helper (used internally by `DesktopUiPlugin`) lives in a private module. Add a small formatter to your plugin file instead:
+
+```ts
+function fmt(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  return hours > 0
+    ? `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    : `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+```
+
+`M:SS` for content under an hour, `H:MM:SS` above it.
+
+## New instance fields
+
+Add these to the class alongside the fields from previous steps:
+
+```ts
+private currentTimeLabel!: HTMLSpanElement;
+private durationLabel!: HTMLSpanElement;
+```
+
+## Building the time display
+
+Call `createTimeDisplay()` from `use()`, after `createProgressBar()` and before (or after) the skip buttons. The labels are appended to `this.bottomRow`, the same `<div>` that holds the play button from step 2.
+
+```ts
+private createTimeDisplay(): void {
+  this.currentTimeLabel = this.player
+    .createElement('span', 'current-time')
+    .addClasses(['text-white', 'text-xs', 'tabular-nums', 'ml-2'])
+    .appendTo(this.bottomRow)
+    .get();
+  this.currentTimeLabel.textContent = '0:00';
+
+  const separator = this.player
+    .createElement('span', 'time-separator')
+    .addClasses(['text-white/50', 'text-xs', 'mx-1'])
+    .appendTo(this.bottomRow)
+    .get();
+  separator.textContent = '/';
+
+  this.durationLabel = this.player
+    .createElement('span', 'duration')
+    .addClasses(['text-white', 'text-xs', 'tabular-nums'])
+    .appendTo(this.bottomRow)
+    .get();
+  this.durationLabel.textContent = '0:00';
+}
+```
+
+> **Note:** `tabular-nums` keeps the label width stable as digits change, so the layout does not shift during playback.
+
+## Wiring the time and duration events
+
+The labels need live data from the player. Wire both listeners inside `use()` using `this.listen()` so they are cleaned up automatically when the plugin is removed:
+
+```ts
+// Inside use(), after createTimeDisplay():
+this.on('time', ({ time }) => {
+  this.currentTimeLabel.textContent = fmt(time);
+});
+
+this.on('duration', ({ duration }) => {
+  this.durationLabel.textContent = fmt(duration);
+});
+```
+
+`this.on(event, handler)` is the plugin's own listener helper. It registers on the player and auto-removes on `dispose()` — no manual `off()` needed.
+
+## Building the skip buttons
+
+Call `createSkipButtons()` from `use()` after `createPlaybackButton()` and before `createTimeDisplay()` so the buttons sit between play and the time labels.
+
+```ts
+private createSkipButtons(): void {
+  const skipBack = this.player.createButton(
+    'skip-back',
+    'Skip back 10 seconds',
+    () => { this.player.rewind(10); },
+  );
+  this.player.addClasses(skipBack, [
+    'btn', 'text-white', 'p-1', 'rounded', 'hover:bg-white/20',
+  ]);
+  skipBack.setAttribute('aria-label', 'Skip back 10 seconds');
+  this.bottomRow.appendChild(skipBack);
+
+  const skipForward = this.player.createButton(
+    'skip-forward',
+    'Skip forward 10 seconds',
+    () => { this.player.forward(10); },
+  );
+  this.player.addClasses(skipForward, [
+    'btn', 'text-white', 'p-1', 'rounded', 'hover:bg-white/20',
+  ]);
+  skipForward.setAttribute('aria-label', 'Skip forward 10 seconds');
+  this.bottomRow.appendChild(skipForward);
+}
+```
+
+`this.player.createButton(id, title, clickHandler)` is the player's button factory. It returns an `HTMLButtonElement` with an `id`, a `title` attribute, and the click handler already wired. `addClasses` appends Tailwind utilities.
+
+## Updated `use()`
+
+```ts
+use(): void {
+  const root = this.mount('overlay');
+  this.player.addClasses(root, ['overlay']);
+
+  this.topBar = this.buildTopBar(root);
+  this.centerOverlay = this.buildCenter(root);
+  this.bottomBar = this.buildBottomBar(root);
+  this.bottomRow = this.buildBottomRow(this.bottomBar);
+
+  this.createPlaybackButton();
+  this.createSkipButtons();
+  this.createProgressBar();
+  this.createTimeDisplay();
+
+  this.on('time', ({ time }) => {
+    this.currentTimeLabel.textContent = fmt(time);
+  });
+
+  this.on('duration', ({ duration }) => {
+    this.durationLabel.textContent = fmt(duration);
+  });
+}
+```
+
+`dispose()` stays empty — the lifecycle registry removes all `this.on()` listeners and the mounted root div automatically.
+
+## Full file so far
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+function fmt(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const hours = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  return hours > 0
+    ? `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    : `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+export class PlayerUiPlugin extends Plugin<NMVideoPlayer> {
+  static readonly id = 'player-ui';
+  static readonly description = 'Custom player UI overlay';
+
+  private topBar!: HTMLDivElement;
+  private centerOverlay!: HTMLDivElement;
+  private bottomBar!: HTMLDivElement;
+  private bottomRow!: HTMLDivElement;
+  private playBtn!: HTMLButtonElement;
+  private sliderBar!: HTMLDivElement;
+  private sliderProgress!: HTMLDivElement;
+  private sliderNipple!: HTMLDivElement;
+  private isMouseDown = false;
+  private currentTimeLabel!: HTMLSpanElement;
+  private durationLabel!: HTMLSpanElement;
+
+  use(): void {
+    const root = this.mount('overlay');
+    this.player.addClasses(root, ['overlay']);
+
+    this.topBar = this.buildTopBar(root);
+    this.centerOverlay = this.buildCenter(root);
+    this.bottomBar = this.buildBottomBar(root);
+    this.bottomRow = this.buildBottomRow(this.bottomBar);
+
+    this.createPlaybackButton();
+    this.createSkipButtons();
+    this.createProgressBar();
+    this.createTimeDisplay();
+
+    this.on('time', ({ time }) => {
+      if (!this.isMouseDown) {
+        const dur = this.player.duration();
+        const pct = dur > 0 ? (time / dur) * 100 : 0;
+        this.sliderProgress.style.width = `${pct}%`;
+        this.sliderNipple.style.left = `${pct}%`;
+      }
+      this.currentTimeLabel.textContent = fmt(time);
+    });
+
+    this.on('duration', ({ duration }) => {
+      this.durationLabel.textContent = fmt(duration);
+    });
+  }
+
+  dispose(): void {}
+
+  // ── Layout ──────────────────────────────────────────────────────────────
+
+  private buildTopBar(parent: HTMLElement): HTMLDivElement {
+    return this.player
+      .createElement('div', 'top-bar')
+      .addClasses([
+        'absolute', 'top-0', 'left-0', 'right-0',
+        'flex', 'items-center', 'gap-2',
+        'p-4', 'pb-12',
+        'bg-gradient-to-b', 'from-black/80', 'to-transparent',
+        'opacity-0', 'transition-opacity', 'duration-300', 'pointer-events-none',
+        'group-[&.nomercyplayer.active]:opacity-100',
+        'group-[&.nomercyplayer.active]:pointer-events-auto',
+        'group-[&.nomercyplayer.paused]:opacity-100',
+        'group-[&.nomercyplayer.paused]:pointer-events-auto',
+      ])
+      .appendTo(parent)
+      .get();
+  }
+
+  private buildCenter(parent: HTMLElement): HTMLDivElement {
+    return this.player
+      .createElement('div', 'center-overlay')
+      .addClasses([
+        'absolute', 'inset-0',
+        'flex', 'items-center', 'justify-center',
+        'pointer-events-none',
+      ])
+      .appendTo(parent)
+      .get();
+  }
+
+  private buildBottomBar(parent: HTMLElement): HTMLDivElement {
+    return this.player
+      .createElement('div', 'bottom-bar')
+      .addClasses([
+        'absolute', 'bottom-0', 'left-0', 'right-0',
+        'flex', 'flex-col', 'gap-1',
+        'px-4', 'pt-12', 'pb-2',
+        'bg-gradient-to-t', 'from-black/80', 'to-transparent',
+        'opacity-0', 'transition-opacity', 'duration-300', 'pointer-events-none',
+        'group-[&.nomercyplayer.active]:opacity-100',
+        'group-[&.nomercyplayer.active]:pointer-events-auto',
+        'group-[&.nomercyplayer.paused]:opacity-100',
+        'group-[&.nomercyplayer.paused]:pointer-events-auto',
+      ])
+      .appendTo(parent)
+      .get();
+  }
+
+  private buildBottomRow(parent: HTMLElement): HTMLDivElement {
+    return this.player
+      .createElement('div', 'bottom-row')
+      .addClasses(['flex', 'items-center', 'gap-1', 'w-full'])
+      .appendTo(parent)
+      .get();
+  }
+
+  // ── Controls ─────────────────────────────────────────────────────────────
+
+  private createPlaybackButton(): void {
+    this.playBtn = this.player.createButton('play', 'Play', () => {
+      void this.player.togglePlayback();
+    });
+    this.player.addClasses(this.playBtn, [
+      'btn', 'text-white', 'p-1', 'rounded', 'hover:bg-white/20',
+    ]);
+    this.playBtn.setAttribute('aria-label', 'Play / Pause');
+    this.bottomRow.appendChild(this.playBtn);
+  }
+
+  private createSkipButtons(): void {
+    const skipBack = this.player.createButton(
+      'skip-back',
+      'Skip back 10 seconds',
+      () => { this.player.rewind(10); },
+    );
+    this.player.addClasses(skipBack, [
+      'btn', 'text-white', 'p-1', 'rounded', 'hover:bg-white/20',
+    ]);
+    skipBack.setAttribute('aria-label', 'Skip back 10 seconds');
+    this.bottomRow.appendChild(skipBack);
+
+    const skipForward = this.player.createButton(
+      'skip-forward',
+      'Skip forward 10 seconds',
+      () => { this.player.forward(10); },
+    );
+    this.player.addClasses(skipForward, [
+      'btn', 'text-white', 'p-1', 'rounded', 'hover:bg-white/20',
+    ]);
+    skipForward.setAttribute('aria-label', 'Skip forward 10 seconds');
+    this.bottomRow.appendChild(skipForward);
+  }
+
+  private createProgressBar(): void {
+    this.sliderBar = this.player
+      .createElement('div', 'slider-bar')
+      .addClasses([
+        'relative', 'w-full', 'h-1', 'mx-2',
+        'bg-white/20', 'rounded-full',
+        'cursor-pointer', 'group/slider',
+        'hover:h-2', 'transition-all', 'duration-150',
+      ])
+      .appendTo(this.bottomRow)
+      .get();
+
+    this.player
+      .createElement('div', 'slider-buffer')
+      .addClasses([
+        'absolute', 'top-0', 'left-0', 'h-full',
+        'bg-white/30', 'rounded-full', 'pointer-events-none',
+      ])
+      .appendTo(this.sliderBar);
+
+    this.sliderProgress = this.player
+      .createElement('div', 'slider-progress')
+      .addClasses([
+        'absolute', 'top-0', 'left-0', 'h-full',
+        'bg-white', 'rounded-full', 'pointer-events-none',
+      ])
+      .appendTo(this.sliderBar)
+      .get();
+
+    this.sliderNipple = this.player
+      .createElement('div', 'slider-nipple')
+      .addClasses([
+        'absolute', 'top-1/2', '-translate-y-1/2', '-translate-x-1/2',
+        'w-3', 'h-3', 'rounded-full', 'bg-white',
+        'hidden', 'group-hover/slider:flex',
+        'pointer-events-none', 'left-0', 'z-20',
+      ])
+      .appendTo(this.sliderBar)
+      .get();
+
+    this.listen(this.sliderBar, 'click', (e: Event) => {
+      const rect = this.sliderBar.getBoundingClientRect();
+      const clientX = (e as MouseEvent).clientX;
+      const pct = Math.max(0, Math.min((clientX - rect.left) / rect.width, 1)) * 100;
+      const dur = this.player.duration();
+      void this.player.currentTime(dur * (pct / 100));
+      this.sliderNipple.style.left = `${pct}%`;
+    });
+
+    this.listen(this.sliderBar, 'mousedown', () => { this.isMouseDown = true; });
+    this.listen(this.sliderBar, 'mouseleave', () => { this.isMouseDown = false; });
+  }
+
+  private createTimeDisplay(): void {
+    this.currentTimeLabel = this.player
+      .createElement('span', 'current-time')
+      .addClasses(['text-white', 'text-xs', 'tabular-nums', 'ml-2'])
+      .appendTo(this.bottomRow)
+      .get();
+    this.currentTimeLabel.textContent = '0:00';
+
+    const separator = this.player
+      .createElement('span', 'time-separator')
+      .addClasses(['text-white/50', 'text-xs', 'mx-1'])
+      .appendTo(this.bottomRow)
+      .get();
+    separator.textContent = '/';
+
+    this.durationLabel = this.player
+      .createElement('span', 'duration')
+      .addClasses(['text-white', 'text-xs', 'tabular-nums'])
+      .appendTo(this.bottomRow)
+      .get();
+    this.durationLabel.textContent = '0:00';
+  }
+}
+```
+
+## Registering the plugin
+
+Nothing changes in the registration call:
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { PlayerUiPlugin } from './PlayerUiPlugin';
+
+const player = nmplayer('nomercy-player')
+  .addPlugin(PlayerUiPlugin)
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playlist: [
+      {
+        id: 'sintel',
+        title: 'Sintel',
+        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+        image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+        duration: 888,
+      },
+    ],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+## Plain CSS alternative
+
+If you are not using Tailwind, the time labels need a monospaced digit width and the buttons need pointer cursors:
+
+```css
+.nmplayer-player-ui-overlay .bottom-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.nmplayer-player-ui-overlay .current-time,
+.nmplayer-player-ui-overlay .duration {
+  color: #fff;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.nmplayer-player-ui-overlay .time-separator {
+  color: rgba(255,255,255,0.5);
+  font-size: 0.75rem;
+  margin: 0 2px;
+}
+
+.nmplayer-player-ui-overlay .btn {
+  color: #fff;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.nmplayer-player-ui-overlay .btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+```
+
+Next: [Step 5: Volume Control](/nomercy-video-player/guides/build-ui-5-volume)

@@ -6,13 +6,12 @@ draft: false
 
 # Lyrics and Equalizer
 
-Read this when you are building a Now Playing screen that shows synced lyrics and includes an equalizer. Both are opt-in — include only what you need.
+Read this when you are building a Now Playing screen that shows synced lyrics and includes an equalizer.
+Both are opt-in, so include only what you need.
 
 **Prerequisites:** [Quick Start](/nomercy-music-player/quickstart). Full references: [LyricsPlugin](/nomercy-music-player/plugins/lyrics), [Equalizer](/nomercy-music-player/equalizer).
 
----
-
-## Lyrics — setup
+## Lyrics setup
 
 ```ts
 import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
@@ -39,9 +38,7 @@ player.on('ready', () => {
 });
 ```
 
-`LyricsPlugin` reads `lyricsUrl` from each track on the `current` event, fetches the file, parses it through the kit's cue parser registry (the LRC parser is pre-registered), and attaches a `CueTracker` that fires timed events as playback progresses.
-
----
+`LyricsPlugin` reads `lyricsUrl` from each track on the `current` event, fetches the file, parses it through the player core's cue parser registry (the LRC parser is pre-registered), and attaches a `CueTracker` that fires timed events as playback progresses.
 
 ## Displaying synced lyrics
 
@@ -85,11 +82,9 @@ player.on('plugin:lyrics:lineExit', () => {
 });
 ```
 
----
-
 ## Custom lyrics URL resolver
 
-When `lyricsUrl` on the track item is not available — for example when loading lyrics from a server API by track ID — pass a `getLyricsUrl` resolver to `addPlugin`:
+When `lyricsUrl` on the track item is not available, for example when loading lyrics from a server API by track ID, pass a `getLyricsUrl` resolver to `addPlugin`:
 
 ```ts
 import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
@@ -104,11 +99,9 @@ player.addPlugin(LyricsPlugin, {
 
 The `getLyricsUrl` function receives the full `MusicPlaylistItem` and returns a URL string or `undefined` (no lyrics for this track).
 
----
-
 ## Manual lyrics fetch
 
-For explicit control — loading lyrics on demand rather than automatically:
+For explicit control, loading lyrics on demand rather than automatically:
 
 ```ts
 const lyricsPlugin = player.getPlugin(LyricsPlugin)!;
@@ -123,11 +116,9 @@ if (cueList) {
 }
 ```
 
----
-
 ## LRC format
 
-The kit's LRC parser handles the standard timestamped format:
+The player core's LRC parser handles the standard timestamped format:
 
 ```
 [00:12.00] First line of lyrics
@@ -135,23 +126,24 @@ The kit's LRC parser handles the standard timestamped format:
 [00:22.40] Third line
 ```
 
-No extra configuration is needed. Parser selection is driven by the URL file extension: `.lrc` files use the LRC parser; `.vtt` files use the WebVTT parser. To add a custom parser for another format, register it with `player.registerCueParser(myParser)`.
+No extra configuration is needed.
+Parser selection is driven by the URL file extension: `.lrc` files use the LRC parser; `.vtt` files use the WebVTT parser.
+To add a custom parser for another format, register it with `player.registerCueParser(myParser)`.
 
----
-
-## Equalizer — setup
+## Equalizer setup
 
 `EqualizerPlugin` requires `AudioGraphPlugin`. Register `AudioGraphPlugin` first.
 
 ```ts
 import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
-player.addPlugin(AudioGraphPlugin).addPlugin(EqualizerPlugin);
+player
+  .addPlugin(AudioGraphPlugin)
+  .addPlugin(EqualizerPlugin);
 ```
 
-19 built-in presets are included. To customize, supply `presets` in options or call `eq.addCustomPreset()` after setup.
-
----
+19 built-in presets are included.
+To customize, supply `presets` in options or call `eq.addCustomPreset()` after setup.
 
 ## Building an EQ UI
 
@@ -191,8 +183,6 @@ player.on('plugin:equalizer:band:changed', ({ band }) => {
 });
 ```
 
----
-
 ## Applying presets
 
 ```ts
@@ -210,9 +200,8 @@ const name = eq.preset();
 eq.reset();
 ```
 
-EQ state is automatically persisted to the configured storage backend when `persistKey` is set. On the next `nmMPlayer('main').setup()`, the EQ restores its previous state.
-
----
+EQ state is automatically persisted to the configured storage backend when `persistKey` is set.
+On the next `nmMPlayer('main').setup()`, the EQ restores its previous state.
 
 ## Combining lyrics and EQ
 
@@ -248,12 +237,10 @@ player.on('plugin:equalizer:band:changed', ({ band }) => {
 });
 ```
 
-The EQ graph applies to both the primary and secondary audio paths during a crossfade — no extra handling required.
-
----
+The EQ graph applies to both the primary and secondary audio paths during a crossfade, so no extra handling is required.
 
 ## See also
 
-- [LyricsPlugin](/nomercy-music-player/plugins/lyrics) — `getLyricsUrl`, `autoFetch`, `fetchLyrics()`, all events
-- [Equalizer](/nomercy-music-player/equalizer) — full `EqualizerPlugin` method and event reference
-- [Crossfade and Gapless](/nomercy-music-player/recipes/crossfade-and-gapless) — EQ applies through crossfade transitions
+- [LyricsPlugin](/nomercy-music-player/plugins/lyrics): `getLyricsUrl`, `autoFetch`, `fetchLyrics()`, all events
+- [Equalizer](/nomercy-music-player/equalizer): full `EqualizerPlugin` method and event reference
+- [Crossfade and Gapless](/nomercy-music-player/recipes/crossfade-and-gapless): EQ applies through crossfade transitions

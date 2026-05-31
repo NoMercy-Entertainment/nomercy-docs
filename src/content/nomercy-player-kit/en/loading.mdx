@@ -8,9 +8,9 @@ draft: false
 
 ## Overview
 
-Loading methods mount a single item or a remote playlist into the player. `load()` is the core action — it dispatches `beforeLoad`, resolves the URL through the auth pipeline, and calls the backend's `load(url)`. A monotonic epoch guard prevents race conditions when `load()` is called in rapid succession.
-
----
+Loading methods mount a single item or a remote playlist into the player.
+`load()` is the core action: it dispatches `beforeLoad`, resolves the URL through the auth pipeline, and calls the backend's `load(url)`.
+A monotonic epoch guard prevents race conditions when `load()` is called in rapid succession.
 
 ## `load(item, opts?)`
 
@@ -18,11 +18,12 @@ Load a single playlist item into the player.
 
 **Before loading:**
 
-1. Dispatches `beforeLoad` — a listener may `preventDefault()`, which emits `loadPrevented` and returns without touching the backend.
+1. Dispatches `beforeLoad`; a listener may `preventDefault()`, which emits `loadPrevented` and returns without touching the backend.
 2. Resolves `item.url` through `auth.transformUrl` when configured.
 3. Resolves sidecar track URLs via `resolveItemTrackUrls` (subtitle, chapter file URLs are made absolute relative to `baseUrl`).
 
-**Phase transitions:** the player enters `loading` while the backend mounts, then returns to `ready` on success. The transition is skipped when called during initial setup to avoid a flash.
+**Phase transitions:** the player enters `loading` while the backend mounts, then returns to `ready` on success.
+The transition is skipped when called during initial setup to avoid a flash.
 
 **After loading:**
 
@@ -32,10 +33,10 @@ Load a single playlist item into the player.
 
 | Parameter       | Type                  | Default     | Description                                     |
 | --------------- | --------------------- | ----------- | ----------------------------------------------- |
-| `item.url`      | `string`              | —           | Required. The playable media URL                |
+| `item.url`      | `string`              | none        | Required. The playable media URL                |
 | `opts.slot`     | `'current' \| 'next'` | `'current'` | `'next'` preloads without interrupting playback |
-| `opts.startAt`  | `number`              | —           | Start position in seconds                       |
-| `opts.fadeIn`   | `number`              | —           | Volume fade-in duration in seconds              |
+| `opts.startAt`  | `number`              | none        | Start position in seconds                       |
+| `opts.fadeIn`   | `number`              | none        | Volume fade-in duration in seconds              |
 | `opts.source`   | `ActionSource`        | `'user'`    | Source attribution                              |
 | `opts.autoplay` | `boolean`             | `false`     | Call `play()` after load resolves               |
 
@@ -43,9 +44,9 @@ Load a single playlist item into the player.
 
 **Events emitted:**
 
-- `beforeLoad` — cancellable
-- `loadPrevented` — fires instead when prevented
-- `mediaReady` — fires after a successful load
+- `beforeLoad`: cancellable
+- `loadPrevented`: fires instead when prevented
+- `mediaReady`: fires after a successful load
 
 **Throws:** `core:media/missing-url` when `item.url` is absent; `core:player/backend-missing` when no backend is wired.
 
@@ -71,13 +72,13 @@ await player.load(
 );
 ```
 
----
-
 ## `loadQueue(url, parser?)`
 
 Fetch a remote playlist URL and replace the current queue with the parsed result.
 
-The request goes through the same auth pipeline as all other player fetches. When `parser` is omitted, the response body is parsed as JSON. Supply a custom parser for M3U, XSPF, or other playlist formats.
+The request goes through the same auth pipeline as all other player fetches.
+When `parser` is omitted, the response body is parsed as JSON.
+Supply a custom parser for M3U, XSPF, or other playlist formats.
 
 | Parameter | Type                   | Description            |
 | --------- | ---------------------- | ---------------------- |
@@ -96,22 +97,19 @@ The request goes through the same auth pipeline as all other player fetches. Whe
 await player.loadQueue('https://api.nomercy.tv/v1/library/movie/1/playlist.json');
 ```
 
----
-
 ## `resolveItemTrackUrls(item)`
 
-Resolve every relative sidecar track URL on an item against `baseUrl` and `auth.transformUrl`. Items with no tracks are returned unchanged.
+Resolve every relative sidecar track URL on an item against `baseUrl` and `auth.transformUrl`.
+Items with no tracks are returned unchanged.
 
 Also populates `chapters` from a sidecar `tracks: [{ kind: 'chapters', file }]` VTT when the item carries no inline chapters.
 
-Called automatically by `load()` — this method is exposed for consumers building custom preload pipelines.
+Called automatically by `load()`, this method is exposed for consumers building custom preload pipelines.
 
 **Returns:** `Promise<T>` (the item, potentially with resolved track URLs)
 
----
-
 ## See also
 
-- [Media Tracks](/nomercy-player-kit/media-tracks) — `subtitles()`, `chapters()`, `currentSubtitle()`
-- [Transport](/nomercy-player-kit/transport) — `play()`, `stop()`
-- [Events Reference](/nomercy-player-kit/events-reference) — `beforeLoad`, `mediaReady`, `playlistReady`
+- [Media Tracks](/nomercy-player-core/media-tracks): `subtitles()`, `chapters()`, `currentSubtitle()`
+- [Transport](/nomercy-player-core/transport): `play()`, `stop()`
+- [Events Reference](/nomercy-player-core/events-reference): `beforeLoad`, `mediaReady`, `playlistReady`

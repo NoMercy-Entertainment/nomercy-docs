@@ -12,14 +12,16 @@ draft: false
 player.cycleSubtitles(): void
 ```
 
-Walks the subtitle track list in order: `off → 0 → 1 → … → N-1 → off`. Each call activates the next track; when the end is reached it cycles back to off.
+Walks the subtitle track list in order: `off → 0 → 1 → … → N-1 → off`.
+Each call activates the next track; when the end is reached it cycles back to off.
 
-This method is designed for remote-control contexts (keyboard, TV D-pad) where the user cannot pick from a dropdown menu. UI plugins that render a subtitle menu should call `player.currentSubtitle(idx)` directly instead.
+This method is designed for remote-control contexts (keyboard, TV D-pad) where the user cannot pick from a dropdown menu.
+UI plugins that render a subtitle menu should call `player.currentSubtitle(idx)` directly instead.
 
 ```ts
 // Bind to a keyboard shortcut
-player.on('keydown', (e) => {
-  if (e.key === 'v') player.cycleSubtitles();
+player.on('keydown', (event) => {
+  if (event.key === 'v') player.cycleSubtitles();
 });
 ```
 
@@ -33,11 +35,12 @@ The KeyHandlerPlugin binds `'v'`, `'5'`, and the `'Subtitle'` media key to `cycl
 player.cycleAudioTracks(): void
 ```
 
-Walks the audio track list in order, wrapping around: `0 → 1 → … → N-1 → 0`. Useful when the source has multiple audio renditions (e.g. original language + dub).
+Walks the audio track list in order, wrapping around: `0 → 1 → … → N-1 → 0`.
+Useful when the source has multiple audio renditions (e.g. original language + dub).
 
 The KeyHandlerPlugin binds `'b'`, `'2'`, and the `'Audio'` media key to `cycleAudioTracks()` by default.
 
-**Emits:** `'audioTracks'` when the track list changes, and the kit's `'audioTrack'` event when the active track changes.
+**Emits:** `'audioTracks'` when the track list changes, and the player core's `'audioTrack'` event when the active track changes.
 
 ## Checking available tracks
 
@@ -54,7 +57,7 @@ if (subtitles.length > 0) {
 
 Note: the audio track list may not be populated until after the `'audioTracks'` event fires following HLS manifest parse.
 
-## Example — subtitle cycle button
+## Example: subtitle cycle button
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -92,4 +95,4 @@ document.getElementById('sub-btn')?.addEventListener('click', () => {
 - [Aspect Ratio](/nomercy-video-player/api/aspect-ratio)
 - [KeyHandler plugin](/nomercy-video-player/plugins/key-handler)
 - [SubtitleOverlay plugin](/nomercy-video-player/plugins/subtitle-overlay)
-- [Player Kit — Event System](/nomercy-player-kit/event-system)
+- [Player Core, Event System](/nomercy-player-core/event-system)

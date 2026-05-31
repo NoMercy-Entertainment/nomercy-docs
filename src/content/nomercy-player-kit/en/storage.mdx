@@ -8,11 +8,11 @@ draft: false
 
 ## Overview
 
-The storage adapter gives plugins a namespaced, async-compatible key-value store. Each plugin receives an auto-namespaced wrapper around the shared backend — plugin keys never collide with each other or with player-level keys.
+The storage adapter gives plugins a namespaced, async-compatible key-value store.
+Each plugin receives an auto-namespaced wrapper around the shared backend, so plugin keys never collide with each other or with player-level keys.
 
-The default backend is `LocalStorageBackend`. Swap it via `setup({ storage })`.
-
----
+The default backend is `LocalStorageBackend`.
+Swap it via `setup({ storage })`.
 
 ## IStorage interface
 
@@ -26,15 +26,16 @@ interface IStorage {
 }
 ```
 
-Methods may return values or Promises — synchronous backends (`localStorage`) and asynchronous ones (IndexedDB, remote API) share one interface. Plugin code always uses `await`.
-
----
+Methods may return values or Promises, so synchronous backends (`localStorage`) and asynchronous ones (IndexedDB, remote API) share one interface.
+Plugin code always uses `await`.
 
 ## Built-in backends
 
 ### LocalStorageBackend
 
-Default. Synchronous. Silently falls back to `MemoryStorageBackend` when `localStorage` is blocked (third-party cookie restrictions, private browsing mode, SSR).
+Default.
+Synchronous.
+Silently falls back to `MemoryStorageBackend` when `localStorage` is blocked (third-party cookie restrictions, private browsing mode, SSR).
 
 ```ts
 import { LocalStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
@@ -42,7 +43,9 @@ import { LocalStorageBackend } from '@nomercy-entertainment/nomercy-player-core'
 
 ### MemoryStorageBackend
 
-In-process memory store. Ideal for testing or SSR environments where `localStorage` is absent. Data does not persist across page loads.
+In-process memory store.
+Ideal for testing or SSR environments where `localStorage` is absent.
+Data does not persist across page loads.
 
 ```ts
 import { MemoryStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
@@ -52,7 +55,8 @@ player.setup({ storage: new MemoryStorageBackend() });
 
 ### IndexedDBBackend
 
-Asynchronous IndexedDB-backed store. Use for large values where the `localStorage` 5 MB cap is too small (e.g. offline playlist caches, waveform data).
+Asynchronous IndexedDB-backed store.
+Use for large values where the `localStorage` 5 MB cap is too small (e.g. offline playlist caches, waveform data).
 
 ```ts
 import { IndexedDBBackend } from '@nomercy-entertainment/nomercy-player-core';
@@ -60,19 +64,19 @@ import { IndexedDBBackend } from '@nomercy-entertainment/nomercy-player-core';
 player.setup({ storage: new IndexedDBBackend({ dbName: 'nomercy-player', version: 1 }) });
 ```
 
----
-
 ## Plugin storage access
 
-Inside a plugin, `this.storage` is the auto-namespaced wrapper — no need to prefix keys:
+Inside a plugin, `this.storage` is the auto-namespaced wrapper, so there is no need to prefix keys:
 
 ```ts
 class VolumePlugin extends Plugin {
   async use() {
     const saved = await this.storage.get('volume');
+
     if (saved !== null) {
       this.player.volume(Number(saved));
     }
+
     this.player.on('volume', async ({ level }) => {
       await this.storage.set('volume', String(level));
     });
@@ -82,19 +86,20 @@ class VolumePlugin extends Plugin {
 
 The wrapper automatically prefixes all keys with `plugin.<pluginId>.` so there is no risk of collision with another plugin's `'volume'` key.
 
----
-
 ## Custom backend
 
-Any class implementing `IStorage` works — including an API-backed remote store for cross-device persistence:
+Any class implementing `IStorage` works, including an API-backed remote store for cross-device persistence:
 
 ```ts
 class RemoteStorage implements IStorage {
   async get(key: string) {
     const response = await fetch(`/api/prefs/${key}`, { credentials: 'include' });
+
     if (!response.ok) return null;
+
     return response.text();
   }
+
   async set(key: string, value: string) {
     await fetch(`/api/prefs/${key}`, {
       method: 'PUT',
@@ -102,18 +107,23 @@ class RemoteStorage implements IStorage {
       body: value,
     });
   }
+
   async remove(key: string) {
     await fetch(`/api/prefs/${key}`, { method: 'DELETE', credentials: 'include' });
   }
+
   async getJSON<T>(key: string) {
     const raw = await this.get(key);
+
     if (raw === null) return null;
+
     try {
       return JSON.parse(raw) as T;
     } catch {
       return null;
     }
   }
+
   async setJSON<T>(key: string, value: T) {
     await this.set(key, JSON.stringify(value));
   }
@@ -122,9 +132,7 @@ class RemoteStorage implements IStorage {
 player.setup({ storage: new RemoteStorage() });
 ```
 
----
-
 ## See also
 
-- [setup()](/nomercy-player-kit/setup) — `storage` config field
-- [Plugin Registration](/nomercy-player-kit/plugin-registration) — plugin `static` contract
+- [setup()](/nomercy-player-core/setup), `storage` config field
+- [Plugin Registration](/nomercy-player-core/plugin-registration), plugin `static` contract

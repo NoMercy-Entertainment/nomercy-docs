@@ -1,19 +1,20 @@
 ---
 title: 'Custom Adapters'
-description: 'Writing custom ISubtitleStyleStore, IChapterSource, and IThumbnailSource adapters — IndexedDB, server-backed, and in-memory examples.'
+description: 'Writing custom ISubtitleStyleStore, IChapterSource, and IThumbnailSource adapters. IndexedDB, server-backed, and in-memory examples.'
 ---
 
 # Custom Adapters
 
-The video player uses four adapter ports for pluggable storage and data loading. This page shows how to implement custom adapters for each port.
+The video player uses four adapter ports for pluggable storage and data loading.
+This page shows how to implement custom adapters for each port.
 
-**Prerequisites:** Read [Adapters — Video Backend](/nomercy-video-player/adapters/video-backend), [Adapters — Chapter Source](/nomercy-video-player/adapters/chapter-source), [Adapters — Thumbnail Source](/nomercy-video-player/adapters/thumbnail-source), and [Adapters — Subtitle Style Store](/nomercy-video-player/adapters/subtitle-style-store) first — they cover the interface contracts. This page focuses on non-trivial implementations.
+**Prerequisites:** Read [Adapters, Video Backend](/nomercy-video-player/adapters/video-backend), [Adapters, Chapter Source](/nomercy-video-player/adapters/chapter-source), [Adapters, Thumbnail Source](/nomercy-video-player/adapters/thumbnail-source), and [Adapters, Subtitle Style Store](/nomercy-video-player/adapters/subtitle-style-store) first, as they cover the interface contracts.
+This page focuses on non-trivial implementations.
 
----
+## ISubtitleStyleStore, IndexedDB backend
 
-## ISubtitleStyleStore — IndexedDB backend
-
-The default `StorageBackedSubtitleStyleStore` writes to `localStorage`. For larger style objects or cross-tab sync, use IndexedDB:
+The default `StorageBackedSubtitleStyleStore` writes to `localStorage`.
+For larger style objects or cross-tab sync, use IndexedDB:
 
 ```ts
 import type {
@@ -68,13 +69,12 @@ player.setup({
 });
 ```
 
----
-
-## IChapterSource — cache-aside pattern
+## IChapterSource, cache-aside pattern
 
 When chapters come from an API, avoid refetching per-item with a simple cache:
 
 ```ts
+import { authFetch } from '@nomercy-entertainment/nomercy-player-core';
 import type {
   IChapterSource,
   Chapter,
@@ -89,23 +89,27 @@ class CachedApiChapterSource implements IChapterSource {
       return this.cache.get(item.id)!;
     }
 
-    const response = await fetch(`/api/v1/chapters/${item.id}`, {
-      headers: { Authorization: `Bearer ${await getToken()}` },
-    });
+    let chapterData: Array<{ id: string; start_ms: number; end_ms: number; title: string }>;
 
-    if (!response.ok) return []; // player handles empty chapters gracefully
+    try {
+      chapterData = await authFetch<Array<{ id: string; start_ms: number; end_ms: number; title: string }>>({
+        url: `/api/v1/chapters/${item.id}`,
+        responseType: 'json',
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch {
+      return [];
+    }
 
-    const data: Array<{ id: string; start_ms: number; end_ms: number; title: string }> =
-      await response.json();
-
-    const chapters: Chapter[] = data.map((ch, index) => ({
+    const chapters: Chapter[] = chapterData.map((entry, index) => ({
       index,
-      start: ch.start_ms / 1000,
-      end: ch.end_ms / 1000,
-      title: ch.title,
+      start: entry.start_ms / 1000,
+      end: entry.end_ms / 1000,
+      title: entry.title,
     }));
 
     this.cache.set(item.id, chapters);
+
     return chapters;
   }
 
@@ -116,13 +120,12 @@ class CachedApiChapterSource implements IChapterSource {
 }
 ```
 
----
-
-## IThumbnailSource — sprite-sheet from API
+## IThumbnailSource, sprite-sheet from API
 
 When your server generates preview sprites on demand instead of serving a static VTT file:
 
 ```ts
+import { authFetch } from '@nomercy-entertainment/nomercy-player-core';
 import type {
   IThumbnailSource,
   ThumbnailFrame,
@@ -138,10 +141,7 @@ class ApiThumbnailSource implements IThumbnailSource {
     this.currentItemId = item.id;
     this.cache = [];
 
-    const response = await fetch(`/api/v1/thumbnails/${item.id}`);
-    if (!response.ok) return false;
-
-    const frames: Array<{
+    let frames: Array<{
       url: string;
       x: number;
       y: number;
@@ -149,17 +149,36 @@ class ApiThumbnailSource implements IThumbnailSource {
       height: number;
       start: number;
       end: number;
-    }> = await response.json();
+    }>;
 
-    this.cache = frames.map((data) => ({
-      spriteUrl: data.url,
-      x: data.x,
-      y: data.y,
-      w: data.width,
-      h: data.height,
-      start: data.start,
-      end: data.end,
+    try {
+      frames = await authFetch<Array<{
+        url: string;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        start: number;
+        end: number;
+      }>>({
+        url: `/api/v1/thumbnails/${item.id}`,
+        responseType: 'json',
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch {
+      return false;
+    }
+
+    this.cache = frames.map((frame) => ({
+      spriteUrl: frame.url,
+      x: frame.x,
+      y: frame.y,
+      w: frame.width,
+      h: frame.height,
+      start: frame.start,
+      end: frame.end,
     }));
+
     return this.cache.length > 0;
   }
 
@@ -178,13 +197,14 @@ player.setup({
 });
 ```
 
-`lookup()` is called synchronously on every scrub hover event. `load()` is called once per playlist item when it loads — fetch and cache all frames there. Keep `lookup()` a pure array scan with no I/O.
+`lookup()` is called synchronously on every scrub hover event.
+`load()` is called once per playlist item when it loads, so fetch and cache all frames there.
+Keep `lookup()` a pure array scan with no I/O.
 
----
+## IStorage (core), MemoryStorageBackend
 
-## IStorage (kit) — MemoryStorageBackend
-
-The kit's `IStorage` port controls where plugin state (volume preference, subtitle index, repeat mode) is persisted. For testing or SSR environments where `localStorage` is unavailable:
+The player core's `IStorage` port controls where plugin state (volume preference, subtitle index, repeat mode) is persisted.
+For testing or SSR environments where `localStorage` is unavailable:
 
 ```ts
 import { MemoryStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
@@ -194,14 +214,12 @@ player.setup({
 });
 ```
 
-For a cross-tab storage adapter, see [Kit — Storage](/nomercy-player-kit/storage).
-
----
+For a cross-tab storage adapter, see [Core, Storage](/nomercy-player-core/storage).
 
 ## What to read next
 
-- [Adapters — Video Backend](/nomercy-video-player/adapters/video-backend) — replacing the entire HLS engine
-- [Adapters — Subtitle Style Store](/nomercy-video-player/adapters/subtitle-style-store) — full ISubtitleStyleStore interface
-- [Adapters — Chapter Source](/nomercy-video-player/adapters/chapter-source) — full IChapterSource interface
-- [Adapters — Thumbnail Source](/nomercy-video-player/adapters/thumbnail-source) — full IThumbnailSource interface
-- [Kit — Storage](/nomercy-player-kit/storage) — IStorage port for plugin state persistence
+- [Adapters, Video Backend](/nomercy-video-player/adapters/video-backend), replacing the entire HLS engine
+- [Adapters, Subtitle Style Store](/nomercy-video-player/adapters/subtitle-style-store), full ISubtitleStyleStore interface
+- [Adapters, Chapter Source](/nomercy-video-player/adapters/chapter-source), full IChapterSource interface
+- [Adapters, Thumbnail Source](/nomercy-video-player/adapters/thumbnail-source), full IThumbnailSource interface
+- [Core, Storage](/nomercy-player-core/storage), IStorage port for plugin state persistence

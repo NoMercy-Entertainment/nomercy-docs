@@ -5,15 +5,14 @@ description: 'Choosing a storage backend, saving playback position, and restorin
 
 # Persistence
 
-Read this when you need to save and restore playback state across page loads — resume position, last-played track, volume level, subtitle preferences. The kit's storage adapter system handles all of this.
+Read this when you need to save and restore playback state across page loads: resume position, last-played track, volume level, subtitle preferences.
+The player core's storage adapter system handles all of this.
 
-**Prerequisites:** [Kit — Adapters](/nomercy-player-kit/adapters) covers the three built-in storage backends.
-
----
+**Prerequisites:** [Core: Adapters](/nomercy-player-core/adapters) covers the three built-in storage backends.
 
 ## Storage backends
 
-Three implementations ship with the kit:
+Three implementations ship with the core:
 
 ```ts
 import {
@@ -22,19 +21,18 @@ import {
   IndexedDBBackend,
 } from '@nomercy-entertainment/nomercy-player-core';
 
-// Default — persists across sessions, synchronous, shared across tabs:
+// Default: persists across sessions, synchronous, shared across tabs:
 player.setup({ storage: new LocalStorageBackend() });
 
-// Ephemeral — ideal for tests or incognito; no persistence:
+// Ephemeral: ideal for tests or incognito; no persistence:
 player.setup({ storage: new MemoryStorageBackend() });
 
-// High-capacity — for large datasets (EQ preset libraries, subtitle cache):
+// High-capacity: for large datasets (EQ preset libraries, subtitle cache):
 player.setup({ storage: new IndexedDBBackend('my-player-db') });
 ```
 
-The player and all built-in plugins write to storage under the player's namespace (`nmplayer-<id>-*`). You don't need to manage keys manually for built-in features.
-
----
+The player and all built-in plugins write to storage under the player's namespace (`nmplayer-<id>-*`).
+You don't need to manage keys manually for built-in features.
 
 ## What the player persists automatically
 
@@ -47,9 +45,8 @@ With the default `LocalStorageBackend`, the player saves and restores:
 - EQ state (if `EqualizerPlugin` is registered)
 - Subtitle style preferences (if `SubtitleOverlayPlugin` is registered)
 
-Playback position is **not** saved automatically — that requires a consumer plugin because the player does not know where your server stores watch history.
-
----
+Playback position is **not** saved automatically, because the player does not know where your server stores watch history.
+That requires a consumer plugin.
 
 ## Saving and restoring playback position
 
@@ -144,8 +141,6 @@ player.addPlugin(ResumePlugin, {
 });
 ```
 
----
-
 ## Local-only position saving (no server)
 
 For a purely client-side implementation, use `this.storage` directly:
@@ -162,21 +157,18 @@ private loadPosition(itemId: string): number | null {
 }
 ```
 
-`this.storage` reads from the same `IStorage` backend the player is configured with. Keys are automatically namespaced.
-
----
+`this.storage` reads from the same `IStorage` backend the player is configured with.
+Keys are automatically namespaced.
 
 ## Choosing the right storage backend for your context
 
 | Scenario                | Backend                                                                                                                         |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Standard web app        | `LocalStorageBackend` (default)                                                                                                 |
-| SSR (Next.js, Nuxt)     | `MemoryStorageBackend` on server, `LocalStorageBackend` on client — see [Advanced: SSR](/nomercy-video-player/advanced/server-side-rendering) |
-| Test suite              | `MemoryStorageBackend` — no cross-test contamination                                                                            |
+| SSR (Next.js, Nuxt)     | `MemoryStorageBackend` on server, `LocalStorageBackend` on client. See [Advanced: SSR](/nomercy-video-player/advanced/server-side-rendering) |
+| Test suite              | `MemoryStorageBackend`, no cross-test contamination                                                                             |
 | Large EQ preset library | `IndexedDBBackend`                                                                                                              |
 | Sync across devices     | Custom backend calling your API                                                                                                 |
-
----
 
 ## IndexedDB backend
 
@@ -190,12 +182,12 @@ player.setup({
 });
 ```
 
-`IndexedDBBackend` is async internally but the `IStorage` interface is synchronous. Writes are fire-and-forget; reads return the last committed value. For a fully async custom backend, see [Advanced: Custom Adapter](/nomercy-player-kit/advanced/custom-adapter).
-
----
+`IndexedDBBackend` is async internally but the `IStorage` interface is synchronous.
+Writes are fire-and-forget; reads return the last committed value.
+For a fully async custom backend, see [Advanced: Custom Adapter](/nomercy-player-core/advanced/custom-adapter).
 
 ## What to read next
 
-- [Kit — Adapters](/nomercy-player-kit/adapters) — full `IStorage` interface and the backend catalog
-- [Advanced: Custom Adapter](/nomercy-player-kit/advanced/custom-adapter) — writing an async IndexedDB-Worker backend
-- [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer) — EQ state is persisted through this same storage system
+- [Core: Adapters](/nomercy-player-core/adapters): full `IStorage` interface and the backend catalog
+- [Advanced: Custom Adapter](/nomercy-player-core/advanced/custom-adapter): writing an async IndexedDB-Worker backend
+- [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer): EQ state is persisted through this same storage system

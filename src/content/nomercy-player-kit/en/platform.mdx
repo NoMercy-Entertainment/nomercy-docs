@@ -8,11 +8,10 @@ draft: false
 
 ## Overview
 
-The platform adapter bundles every primitive the kit hardcodes against browser APIs — wake-lock, network monitoring, visibility, codec capabilities, fullscreen, and PiP. Swapping the bundle lets Capacitor, Tauri, and Electron consumers inject platform-native equivalents in one place.
+The platform adapter bundles every primitive the core hardcodes against browser APIs: wake-lock, network monitoring, visibility, codec capabilities, fullscreen, and PiP.
+Swapping the bundle lets Capacitor, Tauri, and Electron consumers inject platform-native equivalents in one place.
 
-The default `browserPlatform` ships with the kit and works in any modern browser.
-
----
+The default `browserPlatform` ships with the core and works in any modern browser.
 
 ## IPlatform interface
 
@@ -27,8 +26,6 @@ interface IPlatform {
 }
 ```
 
----
-
 ## IWakeLock
 
 Prevents the device display from sleeping while media is playing.
@@ -42,9 +39,8 @@ interface IWakeLock {
 }
 ```
 
-`acquire()` throws `BrowserPolicyError('core:policy/wakeLockUnsupported')` when the Screen Wake Lock API is absent. Call `isSupported()` before offering the feature.
-
----
+`acquire()` throws `BrowserPolicyError('core:policy/wakeLockUnsupported')` when the Screen Wake Lock API is absent.
+Call `isSupported()` before offering the feature.
 
 ## INetworkMonitor
 
@@ -60,9 +56,8 @@ interface INetworkMonitor {
 }
 ```
 
-`downlinkMbps()` and `rttMs()` return `undefined` on browsers where the Network Information API is absent (Firefox, Safari as of 2025). The `subscribe()` function returns a teardown disposer.
-
----
+`downlinkMbps()` and `rttMs()` return `undefined` on browsers where the Network Information API is absent (Firefox, Safari as of 2025).
+The `subscribe()` function returns a teardown disposer.
 
 ## IVisibilityMonitor
 
@@ -74,8 +69,6 @@ interface IVisibilityMonitor {
   subscribe(fn: (visible: boolean) => void): () => void;
 }
 ```
-
----
 
 ## ICapabilitiesProbe
 
@@ -102,8 +95,6 @@ interface DecodeCapability {
 }
 ```
 
----
-
 ## IFullscreenController (video only)
 
 ```ts
@@ -116,8 +107,6 @@ interface IFullscreenController {
 }
 ```
 
----
-
 ## IPipController (video only)
 
 ```ts
@@ -129,8 +118,6 @@ interface IPipController {
   subscribe(fn: (active: boolean) => void): () => void;
 }
 ```
-
----
 
 ## Partial override
 
@@ -148,16 +135,13 @@ player.setup({
 });
 ```
 
----
-
 ## `player.platform()`
 
-Returns the active platform bundle. Available before `setup()` — returns `browserPlatform` as the default so early reads don't need a null check.
-
----
+Returns the active platform bundle.
+Available before `setup()`, returns `browserPlatform` as the default so early reads don't need a null check.
 
 ## See also
 
-- [setup()](/nomercy-player-kit/setup) — `platform` config field, `wakeLock` policy
-- [Device Detection](/nomercy-player-kit/device) — `device()`, `DeviceCapabilities`
-- [Events Reference](/nomercy-player-kit/events-reference) — `network:online`, `network:offline`, `network:slow`, `visibility:visible`, `visibility:hidden`
+- [setup()](/nomercy-player-core/setup): `platform` config field, `wakeLock` policy
+- [Device Detection](/nomercy-player-core/device): `device()`, `DeviceCapabilities`
+- [Events Reference](/nomercy-player-core/events-reference): `network:online`, `network:offline`, `network:slow`, `visibility:visible`, `visibility:hidden`

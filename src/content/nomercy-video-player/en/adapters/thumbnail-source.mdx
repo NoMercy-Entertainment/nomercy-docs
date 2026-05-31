@@ -8,7 +8,9 @@ draft: false
 
 ## What is a thumbnail source?
 
-`IThumbnailSource` is the adapter the player calls to supply hover thumbnail frames for the progress bar. The default implementation (`VttSpriteThumbnailSource`) fetches a WebVTT sprite manifest and parses the sprite coordinates from each cue. A custom implementation could use a different manifest format or a server-side lookup.
+`IThumbnailSource` is the adapter the player calls to supply hover thumbnail frames for the progress bar.
+The default implementation (`VttSpriteThumbnailSource`) fetches a WebVTT sprite manifest and parses the sprite coordinates from each cue.
+A custom implementation could use a different manifest format or a server-side lookup.
 
 ## IThumbnailSource interface
 
@@ -19,7 +21,7 @@ import type { IThumbnailSource } from '@nomercy-entertainment/nomercy-video-play
 | Method                | Signature                                         | Description                                                                                              |
 | --------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `load(item)`          | `(item: BasePlaylistItem) => Promise<boolean>`    | Fetch and cache thumbnails for the item. Returns `true` when thumbnails are available, `false` otherwise |
-| `lookup(timeSeconds)` | `(timeSeconds: number) => ThumbnailFrame \| null` | Return the frame covering `timeSeconds`. Must be synchronous — called on every scrub event               |
+| `lookup(timeSeconds)` | `(timeSeconds: number) => ThumbnailFrame \| null` | Return the frame covering `timeSeconds`. Must be synchronous, called on every scrub event                |
 | `unload()`            | `() => void`                                      | Release cached data. Called on unload and dispose                                                        |
 
 ## ThumbnailFrame
@@ -40,7 +42,8 @@ interface ThumbnailFrame {
 
 ## Default implementation: VttSpriteThumbnailSource
 
-`VttSpriteThumbnailSource` is used automatically. It reads the `previewSpriteUrl` field on `VideoPlaylistItem`:
+`VttSpriteThumbnailSource` is used automatically.
+It reads the `previewSpriteUrl` field on `VideoPlaylistItem`:
 
 ```ts
 import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
@@ -70,7 +73,7 @@ WEBVTT
 
 ```ts
 player.on('timeupdate', () => {
-  // Called during scrub — lookup is synchronous
+  // Called during scrub, lookup is synchronous
   const frame = thumbnailSource.lookup(hoverTime);
   if (!frame) return;
 
@@ -85,6 +88,6 @@ The DesktopUiPlugin uses the thumbnail source internally to show hover thumbnail
 
 ## See also
 
-- [VideoPlaylistItem — previewSpriteUrl field](/nomercy-video-player/playlist-item)
+- [VideoPlaylistItem, previewSpriteUrl field](/nomercy-video-player/playlist-item)
 - [Chapter Source adapter](/nomercy-video-player/adapters/chapter-source)
 - [DesktopUi plugin](/nomercy-video-player/plugins/desktop-ui)

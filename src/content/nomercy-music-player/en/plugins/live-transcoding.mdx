@@ -12,7 +12,7 @@ draft: false
 The plugin gates playback until the server transcoder has produced enough buffer, and instructs the backend to pause segment fetching when the buffer is full.
 
 **This plugin is a stub in v2.0.**
-`use()` throws `NotImplementedError` internally, but the kit's plugin registration catches that error, logs it, disables the plugin, and emits `plugin:failed`.
+`use()` throws `NotImplementedError` internally, but the core's plugin registration catches that error, logs it, disables the plugin, and emits `plugin:failed`.
 No exception surfaces to your code.
 Do not register it in production until v2.1 ships.
 
@@ -22,8 +22,6 @@ import { LiveTranscodingPlugin } from '@nomercy-entertainment/nomercy-music-play
 
 Plugin id: `'live-transcoding'`
 
----
-
 ## What it does
 
 The plugin is responsible for two things once it is implemented.
@@ -31,8 +29,6 @@ First, it holds playback at start until the transcoder has produced at least `re
 Second, it signals the segment loader to pause when the buffer is full and resume when it drains, so the encoder does not race ahead and waste compute.
 
 This behavior is roadmapped for v2.1 and is not active in v2.0.
-
----
 
 ## Options
 
@@ -45,8 +41,6 @@ They are reserved now so you can write your integration code against them today.
 | `pollIntervalMs` | `number` | `undefined` | Optional polling fallback for environments without WebSocket support. |
 | `resumeAheadSeconds` | `number` | `undefined` | Seconds of buffer that must exist beyond `currentTime` before resuming. |
 | `seekTimeoutMs` | `number` | `undefined` | When seeking, maximum seconds to wait for the transcoder to reach the target position. |
-
----
 
 ## Events
 
@@ -61,14 +55,12 @@ The `LiveTranscodingEvents` payload shapes are reserved for v2.1.
 
 **Reserved for v2.1 (not emitted today):** `job:started`, `job:progress`, `job:ready-to-play`, `job:error`, `job:complete`, `segment:ready`, `unsupported`.
 
----
-
 ## Registration
 
 The plugin class is exported under two names: `LiveTranscodingPlugin` (class) and `liveTranscodingPlugin` (alias constant).
 Both work with `addPlugin()`.
 
-Because `use()` fails internally in v2.0, the kit disables the plugin silently.
+Because `use()` fails internally in v2.0, the core disables the plugin silently.
 Listen to `plugin:failed` or `plugin:live-transcoding:failed` after `setup()` to detect this:
 
 ```ts
@@ -95,8 +87,6 @@ player.on('plugin:live-transcoding:failed', ({ id, error }) => {
   console.warn(`${id} is not available in v2.0:`, error.message);
 });
 ```
-
----
 
 ## See also
 

@@ -23,21 +23,17 @@ import type { OctopusOptions } from '@nomercy-entertainment/nomercy-video-player
 
 Plugin id: `'octopus'`
 
----
-
 ## What it does
 
 The plugin listens to the player's `'subtitle'` event.
 When a track is selected it resolves the URL by calling `player.subtitles?.()` and indexing into that list by the zero-based index the event carries.
 If the resolved extension is not `.ass` or `.ssa` the renderer is torn down and the track is left to the native text-track pipeline or `SubtitleOverlayPlugin`.
-For ASS/SSA files it pre-fetches the subtitle body via `this.fetch` (the kit's auth pipeline), resolves fonts into blob URLs the same way, and instantiates the libass WASM renderer.
+For ASS/SSA files it pre-fetches the subtitle body via `this.fetch` (the player core's auth pipeline), resolves fonts into blob URLs the same way, and instantiates the libass WASM renderer.
 
 On the `'current'` event the renderer is torn down and the per-item font cache is cleared so the new item starts clean.
 
-All network I/O goes through the kit auth pipeline.
+All network I/O goes through the player core auth pipeline.
 The WASM worker receives pre-fetched content as blob URLs and inline strings, it never performs authenticated XHR itself.
-
----
 
 ## Options
 
@@ -48,13 +44,11 @@ The WASM worker receives pre-fetched content as blob URLs and inline strings, it
 | `fallbackFont` | `string` | none | Font URL used when a requested font is not in the item's fonts list. |
 | `fonts` | `string[]` | `[]` | Static font URLs preloaded for every item, supplementing per-item fonts. |
 | `targetFps` | `number` | library default | Renderer target FPS. Leave unset to let the library choose. |
-| `renderMode` | `'wasm-blend' \| 'js-blend' \| 'lossy'` | library default (wasm-blend) | Render quality vs. performance trade-off. Leave unset for the library default. |
+| `renderMode` | `'wasm-blend' \| 'js-blend' \| 'lossy'` | `'wasm-blend'` | Render quality vs. performance trade-off. |
 | `lazyFileLoading` | `boolean` | `false` | Fetch subtitle chunks lazily, useful for very large ASS files. |
 | `prescaleFactor` | `number` | library default | Internal scaler ratio. Leave unset for default scaling. |
 | `renderAhead` | `number` | `10` | Frames pre-computed ahead of `currentTime`. Higher values smooth playback through heavy ASS effects at the cost of memory. |
 | `debug` | `boolean` | `false` | Enable debug logging in the libass WASM worker. |
-
----
 
 ## Events
 
@@ -70,8 +64,6 @@ player.on('plugin:octopus:renderer:ready', ({ url }) => {
 });
 ```
 
----
-
 ## Methods
 
 ### subtitle
@@ -81,7 +73,7 @@ plugin.subtitle(): string | null
 plugin.subtitle(url: string | null): Promise<void>
 ```
 
-Read or set the active subtitle URL directly, bypassing the kit's track list.
+Read or set the active subtitle URL directly, bypassing the player core's track list.
 Use this for ASS files the consumer supplies outside the `subtitles` array.
 
 ```ts
@@ -118,8 +110,6 @@ Returns the raw libass renderer handle for advanced consumers.
 The returned value is an opaque object; its type is not part of the public API.
 The plugin retains lifecycle ownership, do not call `dispose()` on the returned instance directly.
 
----
-
 ## Font resolution
 
 Fonts are resolved in this order for each item:
@@ -128,11 +118,9 @@ Fonts are resolved in this order for each item:
 2. `OctopusOptions.fonts`, static URLs registered at plugin level, applied to all items.
 3. `OctopusOptions.fallbackFont`, a single URL used when ASS requests a font not found above.
 
-All font fetches go through the kit's auth pipeline.
+All font fetches go through the player core's auth pipeline.
 Each binary is converted to a blob URL and passed to the WASM worker.
 Blob URLs are revoked when the renderer is torn down to avoid memory leaks.
-
----
 
 ## Registration
 
@@ -171,8 +159,6 @@ const player = nmplayer('player')
     ],
   });
 ```
-
----
 
 ## See also
 

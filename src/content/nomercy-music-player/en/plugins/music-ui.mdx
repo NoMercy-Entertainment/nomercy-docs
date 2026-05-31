@@ -10,8 +10,8 @@ draft: false
 
 `MusicUiPlugin` is the built-in transport UI for `NMMusicPlayer`.
 Drop it in when you want a ready-made album art display, track info block, seekable progress bar, and playback controls without building the DOM yourself.
-The plugin mounts a self-contained overlay inside the kit-managed `.nomercyplayer` container and wires itself to player events automatically.
-State classes on the container (`.playing`, `.paused`, `.muted`, `.buffering`) are applied by the kit; the plugin reads them via CSS selectors so no extra toggling is needed.
+The plugin mounts a self-contained overlay inside the core-managed `.nomercyplayer` container and wires itself to player events automatically.
+State classes on the container (`.playing`, `.paused`, `.muted`, `.buffering`) are applied by the player core; the plugin reads them via CSS selectors so no extra toggling is needed.
 
 ```ts
 import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
@@ -21,8 +21,6 @@ import type { MusicUiOptions } from '@nomercy-entertainment/nomercy-music-player
 
 Plugin id: `'music-ui'`
 
----
-
 ## What it does
 
 The plugin builds and inserts a `.nmmusic-ui` element into the player container on `use()`.
@@ -30,8 +28,6 @@ It subscribes to player events (`play`, `pause`, `ended`, `time`, `duration`, `v
 Clicking the seek bar calls `player.currentTime(time)` with the target position to perform the seek, and emits a `seek` event for observation.
 Volume slider orientation adapts to container width and touch capability unless you lock it with the `volumeSlider` option.
 Styles are injected once into the document on first use.
-
----
 
 ## Options
 
@@ -48,8 +44,6 @@ Styles are injected once into the document on first use.
 
 You can also update options after setup by calling `player.getPlugin(MusicUiPlugin)!.options({ showSpeed: true })`.
 
----
-
 ## Events
 
 | Event | Payload | Description |
@@ -61,8 +55,6 @@ player.on('plugin:music-ui:seek', ({ time }) => {
   console.log('seeked to', time);
 });
 ```
-
----
 
 ## Methods
 
@@ -78,45 +70,41 @@ const currentOptions = ui.options();
 ui.options({ showSpeed: true, volumeSlider: 'vertical' });
 ```
 
----
-
 ## DOM structure
 
-```
-.nmmusic-ui
-  ├─ .nmmusic-art
-  │   ├─ img.nmmusic-art-img
-  │   └─ .nmmusic-art-placeholder
-  ├─ .nmmusic-track-info
-  │   ├─ p.nmmusic-track-title
-  │   ├─ p.nmmusic-track-artist
-  │   └─ p.nmmusic-track-album
-  ├─ .nmmusic-progress-row
-  │   ├─ span.nmmusic-time.nmmusic-current-time
-  │   ├─ .nmmusic-seek-bar [role=slider]
-  │   │   ├─ .nmmusic-seek-buffer
-  │   │   ├─ .nmmusic-seek-fill
-  │   │   └─ .nmmusic-seek-thumb
-  │   └─ span.nmmusic-time.nmmusic-duration-time
-  └─ .nmmusic-controls-row
-      ├─ .nmmusic-btn[data-action=shuffle]    (priority 3)
-      ├─ .nmmusic-btn[data-action=previous]   (priority 2)
-      ├─ .nmmusic-btn.nmmusic-play-btn        (priority 0)
-      ├─ .nmmusic-btn[data-action=next]       (priority 2)
-      ├─ .nmmusic-btn[data-action=repeat]     (priority 3)
-      ├─ .nmmusic-btn.nmmusic-speed-btn       (hidden unless showSpeed: true)
-      └─ .nmmusic-volume-group
-          ├─ .nmmusic-btn[data-action=mute]   (priority 0)
-          ├─ input.nmmusic-vol-slider
-          └─ .nmmusic-vol-slider-vertical     (vertical mode popup)
-              ├─ input.nmmusic-vol-slider-vertical-input
-              └─ button.nmmusic-vol-popup-mute
-```
+| Selector | Parent | Notes |
+| -------- | ------ | ----- |
+| `.nmmusic-ui` | player container | Root overlay element |
+| `.nmmusic-art` | `.nmmusic-ui` | Album art section |
+| `img.nmmusic-art-img` | `.nmmusic-art` | Album art image |
+| `.nmmusic-art-placeholder` | `.nmmusic-art` | Shown when no cover is available |
+| `.nmmusic-track-info` | `.nmmusic-ui` | Title, artist, and album block |
+| `p.nmmusic-track-title` | `.nmmusic-track-info` | Track title |
+| `p.nmmusic-track-artist` | `.nmmusic-track-info` | Artist name |
+| `p.nmmusic-track-album` | `.nmmusic-track-info` | Album name |
+| `.nmmusic-progress-row` | `.nmmusic-ui` | Seek bar and time labels |
+| `span.nmmusic-time.nmmusic-current-time` | `.nmmusic-progress-row` | Elapsed time label |
+| `.nmmusic-seek-bar [role=slider]` | `.nmmusic-progress-row` | Interactive seek bar |
+| `.nmmusic-seek-buffer` | `.nmmusic-seek-bar` | Buffered range fill |
+| `.nmmusic-seek-fill` | `.nmmusic-seek-bar` | Played range fill |
+| `.nmmusic-seek-thumb` | `.nmmusic-seek-bar` | Drag handle |
+| `span.nmmusic-time.nmmusic-duration-time` | `.nmmusic-progress-row` | Total duration label |
+| `.nmmusic-controls-row` | `.nmmusic-ui` | Transport controls |
+| `.nmmusic-btn[data-action=shuffle]` | `.nmmusic-controls-row` | Shuffle toggle, priority 3 |
+| `.nmmusic-btn[data-action=previous]` | `.nmmusic-controls-row` | Previous track, priority 2 |
+| `.nmmusic-btn.nmmusic-play-btn` | `.nmmusic-controls-row` | Play/pause, priority 0 (always visible) |
+| `.nmmusic-btn[data-action=next]` | `.nmmusic-controls-row` | Next track, priority 2 |
+| `.nmmusic-btn[data-action=repeat]` | `.nmmusic-controls-row` | Repeat mode, priority 3 |
+| `.nmmusic-btn.nmmusic-speed-btn` | `.nmmusic-controls-row` | Speed button, hidden unless `showSpeed: true` |
+| `.nmmusic-volume-group` | `.nmmusic-controls-row` | Volume button and slider wrapper |
+| `.nmmusic-btn[data-action=mute]` | `.nmmusic-volume-group` | Mute toggle, priority 0 (always visible) |
+| `input.nmmusic-vol-slider` | `.nmmusic-volume-group` | Horizontal volume slider |
+| `.nmmusic-vol-slider-vertical` | `.nmmusic-volume-group` | Vertical mode popup |
+| `input.nmmusic-vol-slider-vertical-input` | `.nmmusic-vol-slider-vertical` | Vertical slider input |
+| `button.nmmusic-vol-popup-mute` | `.nmmusic-vol-slider-vertical` | Mute button inside vertical popup |
 
 Override the visual appearance by targeting these class names.
 The plugin injects minimal default styles, so you can override any property without specificity fights.
-
----
 
 ## Responsive priority
 
@@ -128,8 +116,6 @@ Lower number means higher priority, meaning that control stays visible longest.
 | `0` (none set) | Play, pause, mute | Always visible |
 | `2` | Previous, next | Hide at narrower widths |
 | `3` | Shuffle, repeat | Hide at narrowest widths |
-
----
 
 ## Registration
 
@@ -168,8 +154,6 @@ const player = nmMPlayer('main')
   })
   .setup({ playlist: myTracks });
 ```
-
----
 
 ## See also
 

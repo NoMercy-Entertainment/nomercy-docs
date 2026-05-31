@@ -1,6 +1,6 @@
 ---
 title: 'IScrobbler'
-description: 'Port for recording track listens — IScrobbler, ScrobbleContext, NoopScrobbler built-in, and Last.fm/ListenBrainz implementation pattern.'
+description: 'Port for recording track listens: IScrobbler, ScrobbleContext, NoopScrobbler built-in, and Last.fm/ListenBrainz implementation pattern.'
 draft: false
 ---
 
@@ -8,13 +8,12 @@ draft: false
 
 # IScrobbler
 
-Port for recording that a track was listened to (Last.fm-style scrobbling). The player calls `scrobble()` when a track has been played past the scrobble threshold (typically 50% of duration or 4 minutes, whichever comes first — Last.fm rules).
+Port for recording that a track was listened to (Last.fm-style scrobbling).
+The player calls `scrobble()` when a track has been played past the scrobble threshold (typically 50% of duration or 4 minutes, whichever comes first, per Last.fm rules).
 
 ```ts
 import type { IScrobbler, ScrobbleContext } from '@nomercy-entertainment/nomercy-music-player/adapters/scrobbler';
 ```
-
----
 
 ## Interface
 
@@ -41,8 +40,6 @@ Record that `item` was listened to. Called after the scrobble threshold is reach
 
 Signal that `item` started playing. Called at track start for services that display "now playing" status separately from the completed scrobble. Implementations that do not support now-playing may omit this method.
 
----
-
 ## Built-in adapter
 
 ### `NoopScrobbler`
@@ -53,9 +50,7 @@ import { NoopScrobbler } from '@nomercy-entertainment/nomercy-music-player/adapt
 
 No-op implementation. Default when no scrobbler is configured. Does nothing.
 
----
-
-## Custom implementation — Last.fm example
+## Custom implementation: Last.fm example
 
 ```ts
 import type { IScrobbler, ScrobbleContext } from '@nomercy-entertainment/nomercy-music-player/adapters/scrobbler';
@@ -97,9 +92,7 @@ class LastFmScrobbler implements IScrobbler<MusicPlaylistItem> {
 }
 ```
 
----
-
 ## See also
 
-- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — `artistTracks`, `name` fields read by the scrobbler
-- [Configuration](/nomercy-music-player/configuration) — where adapters are wired
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item): `artistTracks`, `name` fields read by the scrobbler
+- [Configuration](/nomercy-music-player/configuration): where adapters are wired

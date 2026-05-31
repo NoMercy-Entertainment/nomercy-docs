@@ -17,8 +17,6 @@ It manages the full CAF session lifecycle, mirrors `RemotePlayer` events back to
 
 `'cast-sender'`
 
----
-
 ## Import
 
 ```ts
@@ -29,8 +27,6 @@ import type {
 } from '@nomercy-entertainment/nomercy-video-player/plugins';
 ```
 
----
-
 ## Prerequisites
 
 The Google Cast SDK script must be loaded before the plugin's `use()` runs:
@@ -39,11 +35,9 @@ The Google Cast SDK script must be loaded before the plugin's `use()` runs:
 <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 ```
 
----
-
 ## What it does
 
-`CastSenderPlugin` is a thin video-specific override of the kit's shared `CastSenderPlugin`.
+`CastSenderPlugin` is a thin video-specific override of the player core's shared `CastSenderPlugin`.
 The shared base handles the SDK probe, session lifecycle, `RemotePlayer` event mirroring, and the resume-on-disconnect path.
 The video subclass adds:
 
@@ -57,8 +51,6 @@ In environments without the Cast SDK (Firefox, JSDOM, every non-Chromium browser
 `connect()` raises a `BrowserPolicyError` and all forwarders no-op gracefully.
 Listeners are still attached so consumer UI can wire `cast:*` events before the SDK loads.
 
----
-
 ## Options
 
 | Option | Type | Default | Description |
@@ -69,8 +61,6 @@ Listeners are still attached so consumer UI can wire `cast:*` events before the 
 | `resumeLocalOnDisconnect` | `boolean` | `true` | Resume local playback after Cast disconnects, restoring the receiver's last position. |
 | `defaultContentType` | `string` | `undefined` | Override the MIME type used when the playlist item has no `mime` field. When omitted, the subclass `defaultContentType()` hook supplies the value (`'video/mp4'` for the video player). |
 | `live` | `boolean` | `false` | Treat the stream as a live (unbounded) source. |
-
----
 
 ## Events
 
@@ -99,8 +89,6 @@ player.on('plugin:cast-sender:unsupported', ({ reason }) => {
 });
 ```
 
----
-
 ## Methods
 
 ```ts
@@ -120,8 +108,6 @@ castPlugin.disconnect();
 // True while a Cast session is active.
 const active = castPlugin.isConnected();
 ```
-
----
 
 ## Registration
 
@@ -143,8 +129,6 @@ const player = nmplayer('player')
   });
 ```
 
----
-
 ## Custom receiver
 
 If you have a custom Cast receiver app, pass its application ID:
@@ -157,8 +141,6 @@ player.addPlugin(CastSenderPlugin, {
 
 The receiver must support the same playlist item shape (`url`, `title`, `subtitles`, etc.) or a mapped equivalent.
 
----
-
 ## Metadata building
 
 The video `CastSenderPlugin` overrides `buildMetadata()` to pick the right metadata type:
@@ -166,19 +148,15 @@ The video `CastSenderPlugin` overrides `buildMetadata()` to pick the right metad
 - When `item.show` is a non-empty string, it uses `TvShowMediaMetadata` with `seriesTitle`, `season`, and `episode` populated.
 - Otherwise it uses `GenericMediaMetadata` with `title` and an optional `subtitle` from `item.show`.
 
-Poster artwork is resolved via `this.resolveUrl(item.poster, 'poster')`, so the kit's auth pipeline applies.
-
----
+Poster artwork is resolved via `this.resolveUrl(item.poster, 'poster')`, so the player core's auth pipeline applies.
 
 ## nomercy-cast-player
 
 The NoMercy cast receiver (`nomercy-cast-player`) is a Vue 3 app designed to pair with this plugin.
 It is slated for a full rewrite to v2 in a future release.
 
----
-
 ## See also
 
-- [Player Kit, CastSenderPlugin (base class)](/nomercy-player-kit/plugins)
+- [Player Core, CastSenderPlugin (base class)](/nomercy-player-core/plugins)
 - [VideoPlaylistItem, show/season/episode fields](/nomercy-video-player/playlist-item)
 - [MediaSession plugin](/nomercy-video-player/plugins/media-session)

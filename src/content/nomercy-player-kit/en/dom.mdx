@@ -8,15 +8,14 @@ draft: false
 
 ## Overview
 
-DOM construction helpers are re-exposed on the player so UI plugins can chain `player.createElement(...)` without importing a separate utility path. The standalone exports (`createElement`, `createButton`, etc.) are also importable directly from the kit.
-
----
+DOM construction helpers are re-exposed on the player so UI plugins can chain `player.createElement(...)` without importing a separate utility path.
+The standalone exports (`createElement`, `createButton`, etc.) are also importable directly from the core.
 
 ## `createElement(type, id, unique?)`
 
 Create a DOM element of `type`, assign it `id`, and return a fluent builder.
 
-When `unique` is `true`, an existing element with the same id is returned instead of creating a duplicate — useful for singleton overlays that plugins may construct in `mount()` and check on re-mount.
+When `unique` is `true`, an existing element with the same id is returned instead of creating a duplicate, useful for singleton overlays that plugins may construct in `mount()` and check on re-mount.
 
 | Parameter | Type                          | Description                                         |
 | --------- | ----------------------------- | --------------------------------------------------- |
@@ -24,7 +23,7 @@ When `unique` is `true`, an existing element with the same id is returned instea
 | `id`      | `string`                      | Element id                                          |
 | `unique`  | `boolean`                     | Return existing element if id already exists        |
 
-**Returns:** `CreateElement<T>` — fluent builder
+**Returns:** `CreateElement<T>`, a fluent builder
 
 ```ts
 interface CreateElement<T extends Element> {
@@ -43,17 +42,16 @@ const overlay = player
   .get();
 ```
 
----
-
 ## `createButton(id, label, onClick)`
 
-Create an accessible `<button>` pre-wired with `type="button"`, `aria-label`, `title`, and a click handler. Ready to insert — no additional attribute setup needed.
+Create an accessible `<button>` pre-wired with `type="button"`, `aria-label`, `title`, and a click handler.
+Ready to insert, no additional attribute setup needed.
 
 | Parameter | Type                 | Description                    |
 | --------- | -------------------- | ------------------------------ |
 | `id`      | `string`             | Button id                      |
 | `label`   | `string`             | `aria-label` and `title` value |
-| `onClick` | `(e: Event) => void` | Click handler                  |
+| `onClick` | `(event: Event) => void` | Click handler                  |
 
 **Returns:** `HTMLButtonElement`
 
@@ -62,15 +60,12 @@ const playBtn = player.createButton('play-btn', 'Play', () => player.play());
 controls.appendChild(playBtn);
 ```
 
----
-
 ## `createSVG(id, viewBox)`
 
-Create an `<svg>` element in the SVG namespace with `id`, `viewBox`, and `xmlns` set. Caller appends path/use children directly.
+Create an `<svg>` element in the SVG namespace with `id`, `viewBox`, and `xmlns` set.
+Caller appends path/use children directly.
 
 **Returns:** `SVGSVGElement`
-
----
 
 ## `addClasses(el, names)`
 
@@ -87,15 +82,12 @@ interface AddClasses<T extends Element> {
 }
 ```
 
----
-
 ## `removeClasses(el, names)`
 
-Remove CSS class names from `el` (skips empty strings) and return the element itself. No fluent builder — removal is terminal.
+Remove CSS class names from `el` (skips empty strings) and return the element itself.
+No fluent builder, removal is terminal.
 
 **Returns:** `T extends Element`
-
----
 
 ## Standalone exports
 
@@ -113,9 +105,7 @@ import {
 
 Use the standalone form in plugins that receive a player via constructor injection, where `this.player.createElement(...)` reads more naturally than a bare import.
 
----
-
 ## See also
 
-- [Plugin Registration](/nomercy-player-kit/plugin-registration) — mounting plugins that build DOM
-- [Overview](/nomercy-player-kit/overview) — five-layer model
+- [Plugin Registration](/nomercy-player-core/plugin-registration), mounting plugins that build DOM
+- [Overview](/nomercy-player-core/overview), five-layer model

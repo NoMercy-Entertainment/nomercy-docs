@@ -40,7 +40,7 @@ The listener and all event forwarders are cleaned up automatically on `dispose()
 | ------ | ---- | ------- | ----------- |
 | `allowedOrigins` | `string \| string[]` | `[]` (none) | Origin(s) allowed to send `nm:command` messages. Empty means all inbound commands are rejected. `'*'` accepts any origin (development only). |
 | `forwardEvents` | `ReadonlyArray<EmbedEventMessage['name']>` | `['ready','play','pause','ended','time','volume','mute']` | Player events to forward to the host page as `nm:event` messages. |
-| `applyIframeTweaks` | `boolean` | `undefined` | Declared in the options interface but not yet read by the implementation. Has no effect at runtime. |
+| `applyIframeTweaks` | `boolean` | `true` when `inIframe()` | When `true`, adds the `nm-embed` class to the player container and applies iframe-appropriate UI adjustments (smaller controls, suppressed popout button, etc.). Defaults to `true` automatically when the player detects it is running inside a nested browsing context. |
 
 ## EmbedCommand
 
@@ -63,19 +63,19 @@ Unknown commands are logged as warnings via `this.logger` and silently dropped.
 ## EmbedEventMessage
 
 Every forwarded message has the envelope `{ type: 'nm:event', name, data }`.
-The player's real event payload is the `data` value.
-Extra fields described below are properties of `data`, not top-level fields on the message.
+The player's real event payload is the `data` value, and the extra fields described below are properties of `data`, not top-level fields on the message.
+The `error` event is the one exception: its payload is serialized to a plain object first so it survives `postMessage`, which cannot clone the live error event.
 
 | Forwarded name | `data` shape | Description |
 | -------------- | ------------ | ----------- |
-| `'ready'` | `void` | Player has initialised |
-| `'play'` | `ActionOptions` (`{ source?, silent?, autoplay? }`) | Playback started |
-| `'pause'` | `ActionOptions` (`{ source?, silent?, autoplay? }`) | Playback paused |
-| `'ended'` | `void` | Track finished |
+| `'ready'` | `{}` | Player has initialised. |
+| `'play'` | `{ source?: string; silent?: boolean; autoplay?: boolean }` | Playback started. |
+| `'pause'` | `{ source?: string; silent?: boolean; autoplay?: boolean }` | Playback paused. |
+| `'ended'` | `{}` | Track finished. |
 | `'time'` | `{ time: number }` | Periodic time update. `data.time` is the current position in seconds. |
 | `'volume'` | `{ level: number }` | Volume changed. Read `data.level`. |
 | `'mute'` | `{ muted: boolean }` | Mute state toggled. Read `data.muted`. |
-| `'error'` | `PlayerErrorEvent` | Player error (not in the default `forwardEvents` list; add explicitly). `data.error.code` holds the error code; `data.error.message` holds the message. |
+| `'error'` | `{ code: string; message?: string; severity: 'fatal' \| 'error' \| 'warning' \| 'info'; scope: ErrorScope; suggestion?: string }` | Player error (not in the default `forwardEvents` list; add explicitly). The event is serialized to a plain, clone-safe object before posting: `data.code` is the error code, `data.message` the optional message, `data.severity` the level, and `data.suggestion` an optional hint. |
 
 ### Reading event data in the host page
 
@@ -102,14 +102,14 @@ window.addEventListener('message', (event) => {
       break;
 
     case 'error':
-      // msg.data = PlayerErrorEvent
-      console.error('player error', msg.data.error.code, msg.data.error.message);
+      // msg.data = { code, message?, severity, scope, suggestion? }
+      console.error('player error', msg.data.code, msg.data.message);
       break;
 
     case 'play':
     case 'pause':
-      // msg.data = ActionOptions = { source?, silent?, autoplay? }
-      console.log(msg.name, 'triggered by', msg.data.source);
+      // msg.data = Record<string, unknown>
+      console.log(msg.name, 'triggered');
       break;
   }
 });
@@ -210,6 +210,6 @@ window.addEventListener('message', (event) => {
 
 ## See also
 
-- [Player Kit, built-in plugins reference](/nomercy-player-kit/plugins-builtin)
+- [Player Core, built-in plugins reference](/nomercy-player-core/plugins-builtin)
 - [Tab Leader plugin](/nomercy-video-player/plugins/tab-leader)
 - [Message plugin](/nomercy-video-player/plugins/message)

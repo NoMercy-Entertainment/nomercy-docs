@@ -1,9 +1,9 @@
 ---
 title: 'Adapters'
-description: 'The kit adapter ports. Name, purpose, default implementation, and how to replace each one.'
+description: 'The core adapter ports. Name, purpose, default implementation, and how to replace each one.'
 ---
 
-# Kit Adapter Ports
+# Core Adapter Ports
 
 We provide the adapter pattern so you can change how the player behaves whenever you have a need that's a bit unique, something that shouldn't be the default for everyone. Every piece here, like where state gets saved, how the player talks to a server, or which clock it reads, already has a sensible default wired in. You only reach for an adapter when that default doesn't fit you.
 
@@ -11,11 +11,9 @@ Say you want the player to remember resume positions and volume on your own serv
 
 That's really all a port is: a clearly defined slot with a default sitting in it. Swapping what's in the slot is how you make the player yours without making it everyone's.
 
-This is also the line between an adapter and a plugin. If you're changing how something the player already does works on the inside, that's a port swap. If you're adding something new for the player to do, like an equalizer or a skip button, that's a [plugin](/nomercy-player-kit/plugins). [Plugins and adapters](/nomercy-player-kit/foundations/plugins-and-adapters) covers when to reach for each.
+This is also the line between an adapter and a plugin. If you're changing how something the player already does works on the inside, that's a port swap. If you're adding something new for the player to do, like an equalizer or a skip button, that's a [plugin](/nomercy-player-core/plugins). [Plugins and adapters](/nomercy-player-core/foundations/plugins-and-adapters) covers when to reach for each.
 
-The kit ships the ports below. Libraries built on the kit add ports of their own, documented with whichever library owns them.
-
----
+The core ships the ports below. Libraries built on the core add ports of their own, documented with whichever library owns them.
 
 ## How to wire a port
 
@@ -38,9 +36,7 @@ player.setup({
 });
 ```
 
----
-
-## Kit adapter catalog
+## Core adapter catalog
 
 ### Core infrastructure
 
@@ -112,11 +108,9 @@ platform: { ...browserPlatform, wakeLock: myNativeWakeLock }
 | Preload strategy | `preloadStrategy` | `IPreloadStrategy` | Default lead-seconds preload | Custom buffer management                                       |
 | URL resolver     | `urlResolver`     | `IUrlResolver`     | Base URL + category routing  | Custom CDN URL signing or rewriting                            |
 
----
-
 ## Storage backends
 
-Three implementations ship with the kit:
+Three implementations ship with the core:
 
 ```ts
 import {
@@ -125,13 +119,13 @@ import {
   IndexedDBBackend,
 } from '@nomercy-entertainment/nomercy-player-core';
 
-// Default — persists across sessions, shared across tabs:
+// Default: persists across sessions, shared across tabs:
 storage: new LocalStorageBackend();
 
-// Ephemeral — ideal for tests; no persistence, no cross-tab state:
+// Ephemeral: ideal for tests; no persistence, no cross-tab state:
 storage: new MemoryStorageBackend();
 
-// High-capacity — for large datasets (EQ preset libraries, subtitle cache):
+// High-capacity: for large datasets (EQ preset libraries, subtitle cache):
 storage: new IndexedDBBackend('my-player-db');
 ```
 
@@ -148,8 +142,6 @@ interface IStorage {
 ```
 
 Methods may return values or Promises so synchronous backends (`LocalStorageBackend`) and asynchronous ones (`IndexedDBBackend`, remote API) share one interface. Plugin code always uses `await` regardless.
-
----
 
 ## Writing a custom adapter
 
@@ -176,8 +168,6 @@ class RemoteStorageBackend implements IStorage {
 player.setup({ storage: new RemoteStorageBackend() });
 ```
 
----
-
 ## Library ports
 
-Libraries built on the kit add ports of their own. Those are documented with the library that owns them: see [video configuration](/nomercy-video-player/configuration) and [music configuration](/nomercy-music-player/configuration).
+Libraries built on the core add ports of their own. Those are documented with the library that owns them: see [video configuration](/nomercy-video-player/configuration) and [music configuration](/nomercy-music-player/configuration).

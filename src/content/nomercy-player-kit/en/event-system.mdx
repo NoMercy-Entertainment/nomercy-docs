@@ -5,9 +5,8 @@ description: 'Typed EventMap, on/once/off/emit on the player and inside plugins,
 
 # Event System
 
-The player's event bus is fully typed. Every event name maps to a concrete payload type through `BaseEventMap` (and its library-level extensions `VideoEventMap`, `MusicEventMap`).
-
----
+The player's event bus is fully typed.
+Every event name maps to a concrete payload type through `BaseEventMap` (and its library-level extensions `VideoEventMap`, `MusicEventMap`).
 
 ## Subscribing
 
@@ -34,11 +33,10 @@ interface Player {
 }
 ```
 
----
-
 ## Cancellable `before*` events
 
-Before-action events fire before the action executes. A listener can prevent the action, mutate the data, or async-gate execution.
+Before-action events fire before the action executes.
+A listener can prevent the action, mutate the data, or async-gate execution.
 
 ```ts
 player.on('beforePlay', (event) => {
@@ -51,7 +49,7 @@ player.on('beforeLoad', async (event) => {
   // Redirect to a different item
   event.data.item = await fetchLocalized(event.data.item.id);
 
-  // Gate on an async operation — player waits for this promise
+  // Gate on an async operation, player waits for this promise
   event.delay(
     new Promise((resolve) => {
       confirmDialog('Play this?', resolve);
@@ -79,32 +77,33 @@ player.on('playPrevented', ({ reason }) => {
 });
 ```
 
----
-
 ## Cross-plugin events
 
-Plugin events are namespaced as `plugin:<id>:<event>`. External consumer code listens via the string form on `player.on()`:
+Plugin events are namespaced as `plugin:<id>:<event>`.
+External consumer code listens via the string form on `player.on()`:
 
 ```ts
-// External consumer — string form (the only form available on player.on):
+// External consumer, string form (the only form available on player.on):
 player.on('plugin:equalizer:band:changed', ({ band }) => {
   // band payload shape matches EqualizerEvents['band:changed']
   console.log(`${band.frequency} Hz → ${band.gain} dB`);
 });
 ```
 
-Inside a plugin body, the class-form provides full type inference via the plugin's `E` generic. This form is `protected` — it is only available inside `Plugin` subclasses, not on an external `player.on()` call:
+Inside a plugin body, the class-form provides full type inference via the plugin's `E` generic.
+This form is `protected`, so it is only available inside `Plugin` subclasses, not on an external `player.on()` call:
 
 ```ts
-// Inside a plugin body only (this.on is protected — not player.on):
+// Inside a plugin body only (this.on is protected, not player.on):
 import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
 
 this.on(EqualizerPlugin, 'band:changed', ({ band }) => {
-  // Typed from EqualizerPlugin's E generic — band is EqBand
+  // Typed from EqualizerPlugin's E generic, band is EqBand
 });
 ```
 
-Plugin events auto-namespaced to `plugin:<id>:<event>`. The base class auto-fires these for every plugin:
+Plugin events auto-namespaced to `plugin:<id>:<event>`.
+The base class auto-fires these for every plugin:
 
 | Event                      | Payload                           | When                   |
 | -------------------------- | --------------------------------- | ---------------------- |
@@ -115,11 +114,10 @@ Plugin events auto-namespaced to `plugin:<id>:<event>`. The base class auto-fire
 | `plugin:<id>:disposed`     | `{ id: string }`                  | After `dispose()`      |
 | `plugin:<id>:failed`       | `{ id: string; error: unknown }`  | When `use()` rejects   |
 
----
-
 ## Inside plugins: `this.on`
 
-Inside a plugin, always use `this.on(...)` instead of `player.on(...)`. The `this.on` form auto-disposes all listeners when the plugin disposes:
+Inside a plugin, always use `this.on(...)` instead of `player.on(...)`.
+The `this.on` form auto-disposes all listeners when the plugin disposes:
 
 ```ts
 class MyPlugin extends Plugin<...> {
@@ -134,12 +132,10 @@ class MyPlugin extends Plugin<...> {
 
 `this.off`, `this.once`, and `this.hasListeners` have the same overloaded signatures as the player methods.
 
----
-
 ## Emitting from plugins
 
 ```ts
-// Standard emit — auto-namespaced to plugin:<id>:<name>
+// Standard emit, auto-namespaced to plugin:<id>:<name>
 this.emit('dataFetched', { count: 5 });
 
 // Cancellable dispatch with mutation
@@ -158,8 +154,6 @@ this.emit('fetched', { url: result.data.url });
 | `reason`    | `string`  | `'listener-prevented'` \| `'delay-rejected'` \| `'delay-timeout'` |
 | `cause`     | `unknown` | Underlying error when a delay rejected                            |
 
----
-
 ## Event naming conventions
 
 | Context              | Pattern                                             | Example                                            |
@@ -171,9 +165,8 @@ this.emit('fetched', { url: result.data.url });
 | Subsystem events     | `<subsystem>:<event>`                               | `backend:changed`, `auth:refreshed`                |
 | Setup stage events   | Bare camelCase                                      | `setupStart`, `pluginsRegistered`, `playlistReady` |
 
-Events fire **after** the state change they describe. Pre-action events use `before<X>` naming.
-
----
+Events fire **after** the state change they describe.
+Pre-action events use `before<X>` naming.
 
 ## BaseEventMap reference
 

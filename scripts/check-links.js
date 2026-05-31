@@ -39,16 +39,20 @@ function walk(dir) {
   return out;
 }
 
+// Collections whose served URL base differs from the folder/collection name.
+const URL_BASE = { 'nomercy-player-kit': 'nomercy-player-core' };
+
 // Turn a content file path into the URL Astro serves it at.
-// `<collection>/en/foo/bar.mdx` -> `/<collection>/foo/bar`; `index` -> root.
+// `<collection>/en/foo/bar.mdx` -> `/<urlBase>/foo/bar`; `index` -> root.
 function urlFor(collection, file) {
+  const base = URL_BASE[collection] ?? collection;
   let rel = path
     .relative(path.join(contentDir, collection), file)
     .replace(/\\/g, '/')
     .replace(/\.(mdx|md)$/, '');
   rel = rel.replace(/^[a-z]{2}\//, '').replace(/^[a-z]{2}$/, '');
-  if (rel === 'index' || rel === '') return `/${collection}`;
-  return `/${collection}/${rel.replace(/\/index$/, '')}`;
+  if (rel === 'index' || rel === '') return `/${base}`;
+  return `/${base}/${rel.replace(/\/index$/, '')}`;
 }
 
 function frontmatterDraft(raw) {

@@ -1,23 +1,39 @@
 ---
 title: 'Video Player'
-description: 'nomercy-video-player v2 — HLS video player with HDR-aware ABR, subtitle rendering, skip markers, Chromecast, and a built-in UI plugin.'
+description: 'nomercy-video-player v2, the headless HLS engine with HDR-aware ABR, subtitle rendering, skip markers, Chromecast, and a built-in UI plugin.'
 ---
 
-# nomercy-video-player — Documentation Home
+# nomercy-video-player
 
-Headless HLS video player built on `nomercy-player-core`. Ships HDR-aware adaptive bitrate, multi-track subtitles, ASS/SSA rendering, chapter markers, intro/credits skip, Chromecast handoff, and a full-featured built-in UI plugin.
+`nomercy-video-player` is the headless HLS engine that powers video on NoMercy TV.
+Video is the hard part of playback: the stream changes bitrate as the network shifts, HDR has to be matched to the display, subtitles come in several formats, and the picture has to keep playing through all of it.
+This package does that work and hands you plain events and methods to drive it, with no opinion about your UI.
+Add the built-in `DesktopUiPlugin` for a full set of controls for free, or wire up your own.
 
----
+It is built on `nomercy-player-core`, the same core that powers the music player.
+Everything that is not specific to video lives down there, the queue, auth, plugins, i18n, and storage, so this package stays small and focused on the hard video parts.
 
-## What this package provides
+## What you get
 
-- `NMVideoPlayer<T>` — the core class. Generic over your playlist item type.
-- `nmplayer(id)` — factory that creates or retrieves a named player instance.
-- Four video-specific adapter ports (backend, chapter source, thumbnail source, subtitle style store).
-- Fifteen built-in plugins (desktop UI, subtitle overlay, octopus ASS/SSA, skipper, cast sender, key handler, auto-advance, and more).
-- Full TypeScript types for all public methods, events, and configuration.
+- `NMVideoPlayer<T>`, the core class, generic over your own playlist item type.
+- `nmplayer(id)`, a factory that creates or returns a named player instance.
+- Four video adapter ports you can swap when the defaults do not fit: backend, chapter source, thumbnail source, and subtitle style store.
+- Fifteen built-in plugins, from the full desktop UI to subtitle overlays, skip markers, and Chromecast.
+- Full TypeScript types for every public method, event, and config option.
 
----
+## Install
+
+```
+npm install @nomercy-entertainment/nomercy-video-player@beta
+```
+
+`hls.js` ships with the player, so there is no separate install.
+The player loads it lazily the first time you point at an HLS (`.m3u8`) source.
+
+Prefer no build step? The CDN build exposes a `nmplayer` global from a single `<script>` tag, see [Quick Start: CDN embed](/nomercy-video-player/quickstart#cdn-embed-no-bundler).
+
+npm name: `@nomercy-entertainment/nomercy-video-player`
+GitHub: [NoMercy-Entertainment/nomercy-video-player](https://github.com/NoMercy-Entertainment/nomercy-video-player)
 
 ## Quick navigation
 
@@ -27,14 +43,15 @@ Headless HLS video player built on `nomercy-player-core`. Ships HDR-aware adapti
 | All config options          | [Configuration](/nomercy-video-player/configuration)       |
 | All public methods          | [API Methods](/nomercy-video-player/api-methods)           |
 | All events + payload shapes | [Events](/nomercy-video-player/events)                     |
-| Vue integration             | [Framework — Vue](/nomercy-video-player/framework-vue)     |
-| React integration           | [Framework — React](/nomercy-video-player/framework-react) |
+| Vue integration             | [Framework: Vue](/nomercy-video-player/framework-vue)      |
+| React integration           | [Framework: React](/nomercy-video-player/framework-react)  |
 | HLS, ABR, HDR               | [HLS](/nomercy-video-player/hls)                           |
 | Migrating from v1           | [Migration Guide](/nomercy-video-player/migration-v1-v2)   |
 
-### Plugins
+## Plugins
 
-These are built-in plugins shipped with `nomercy-video-player`. Add them with `player.addPlugin(PluginClass)`.
+These are the built-in plugins shipped with `nomercy-video-player`.
+Add the ones you want with `player.addPlugin(PluginClass)` and your bundler drops the rest.
 
 | Plugin                  | Import                         | Page                                                               |
 | ----------------------- | ------------------------------ | ------------------------------------------------------------------ |
@@ -47,51 +64,40 @@ These are built-in plugins shipped with `nomercy-video-player`. Add them with `p
 | `AutoAdvancePlugin`     | `nomercy-video-player/plugins` | [Auto Advance](/nomercy-video-player/plugins/auto-advance)         |
 | `KeyHandlerPlugin`      | `nomercy-video-player/plugins` | [Key Handler](/nomercy-video-player/plugins/key-handler)           |
 | `MediaSessionPlugin`    | `nomercy-video-player/plugins` | [Media Session](/nomercy-video-player/plugins/media-session)       |
+| `MessagePlugin`         | `nomercy-video-player/plugins` | [Message](/nomercy-video-player/plugins/message)                   |
 | `DrmPlugin`             | `nomercy-video-player/plugins` | [DRM](/nomercy-video-player/plugins/drm)                           |
 | `LiveTranscodingPlugin` | `nomercy-video-player/plugins` | [Live Transcoding](/nomercy-video-player/plugins/live-transcoding) |
 | `TabLeaderPlugin`       | `nomercy-video-player/plugins` | [Tab Leader](/nomercy-video-player/plugins/tab-leader)             |
 | `TvUiPlugin`            | `nomercy-video-player/plugins` | [TV UI](/nomercy-video-player/plugins/tv-ui)                       |
 | `TouchZonesPlugin`      | `nomercy-video-player/plugins` | [Touch Zones](/nomercy-video-player/plugins/touch-zones)           |
 
-Also see [Writing your own plugins](/nomercy-video-player/plugin-development).
-
----
-
-## Package coordinates
-
-```
-npm install @nomercy-entertainment/nomercy-video-player@beta
-```
-
-npm name: `@nomercy-entertainment/nomercy-video-player`
-GitHub: [NoMercy-Entertainment/nomercy-video-player](https://github.com/NoMercy-Entertainment/nomercy-video-player)
-
----
+The audio-graph plugins (equalizer, spectrum, and visualizers) are re-exported from the player core for video tracks with audio.
+They are opt-in and cost nothing until you register them, see [Audio Graph](/nomercy-video-player/plugins/audio-graph).
+For building your own, see [Writing your own plugins](/nomercy-video-player/plugin-development).
 
 ## Architecture in one diagram
 
-```
-Your playlist item type (T extends VideoPlaylistItem)
-       |
-NMVideoPlayer<T>        ← per-library layer (video concerns only)
-       |
-nomercy-player-core     ← kit (generic: queue, auth, plugins, i18n, storage)
-       |
-IVideoBackend           ← backend layer (Html5VideoBackend / custom)
-       |
-<video> + hls.js + MSE
-```
+<LayerStack layers={[
+  { n: 5, name: 'Your playlist item type', pkg: 'T extends VideoPlaylistItem', knows: 'Your own fields on top of the typed video item.' },
+  { n: 4, name: 'NMVideoPlayer<T>', pkg: 'nomercy-video-player', knows: 'The per-library layer, video concerns only.' },
+  { n: 3, name: 'nomercy-player-core', pkg: '@nomercy-entertainment/nomercy-player-core', knows: 'The generic engine: queue, auth, plugins, i18n, storage.' },
+  { n: 2, name: 'IVideoBackend', pkg: 'Html5VideoBackend or custom', knows: 'The backend that drives the media element.' },
+  { n: 1, name: 'Media element', pkg: 'Browser', knows: 'The video element with hls.js and MSE.' },
+]} />
 
-Everything below `NMVideoPlayer<T>` is generic — zero knowledge of your server API, your item shape beyond the typed fields, or any NoMercy infrastructure. App-specific glue lives in layer-5 consumer plugins.
-
----
+Everything below `NMVideoPlayer<T>` is generic.
+It has zero knowledge of your server API, your item shape beyond the typed fields, or any NoMercy infrastructure.
+App-specific glue lives in layer-5 consumer plugins.
 
 ## Container class system
 
-The `<video>` element and state CSS classes on `.nomercyplayer` are kit-level concerns — the player manages them directly via the container-class mixin. The UI overlay (controls, seek bar, menus) is the responsibility of the optional `DesktopUiPlugin`.
+The `<video>` element and the state CSS classes on `.nomercyplayer` are core-level concerns, so the player manages them directly through the container-class mixin.
+The UI overlay (controls, seek bar, menus) is the job of the optional `DesktopUiPlugin`.
 
-State classes like `nm-playing`, `nm-paused`, `nm-fullscreen` are applied to the `.nomercyplayer` container by the kit's container-class-emit mixin when state changes. `DesktopUiPlugin` reads those classes to show/hide UI elements.
+State classes like `playing`, `paused`, and `fullscreen` are applied to the `.nomercyplayer` container by the player core's container-class-emit mixin when state changes.
+`DesktopUiPlugin` reads those classes to show and hide UI elements.
 
-Do not add `nm-` or `nmplayer-` prefixed classes to elements from outside the plugin — those namespaces belong to the kit and the UI plugin respectively.
+The core applies bare state-class names to `.nomercyplayer`: `playing`, `paused`, `buffering`, `active` / `inactive`, `fullscreen`, `muted`, and `ended`, among others. Do not redefine those classes on the container from outside the plugin.
 
-See [Desktop UI](/nomercy-video-player/plugins/desktop-ui) for the full class table. The exact boundary between kit-owned vs plugin-owned classes is tracked in the architecture spec — Spine owns that boundary definition.
+See [Desktop UI](/nomercy-video-player/plugins/desktop-ui) for the full class table.
+The exact boundary between core-owned and plugin-owned classes is tracked in the architecture spec, and Spine owns that boundary definition.

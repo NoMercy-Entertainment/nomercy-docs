@@ -17,7 +17,7 @@ You also don't want every plugin to know about it.
 The logger port is how you do that from one place.
 Most of the time you don't even replace it: you add a sink to the built-in logger and let your console logs flow to a second destination too.
 When you'd rather route everything through a logging library you already use, you wrap that library in the `ILogger` shape and hand it to `setup({ logger })`.
-Either way, the kit and every plugin keep calling `this.logger` and never notice the difference.
+Either way, the core and every plugin keep calling `this.logger` and never notice the difference.
 
 Everything you import from this page lives in these two lines:
 
@@ -31,7 +31,7 @@ import type { ILogger, LogLevel, LogSink } from '@nomercy-entertainment/nomercy-
 ### `Logger`
 
 A console logger that supports multiple sinks.
-The kit creates one root instance per player, and every plugin shares it through a scoped `child`.
+The core creates one root instance per player, and every plugin shares it through a scoped `child`.
 
 You only construct one yourself when you want to pre-register a sink before handing it to `setup()`.
 
@@ -89,7 +89,7 @@ interface ILogger {
   // Pipe future lines to an extra sink. Returns an unsubscribe function.
   addSink(fn: LogSink): () => void;
 
-  // Derive a scoped sub-logger (the kit uses this to scope plugin loggers).
+  // Derive a scoped sub-logger (the core uses this to scope plugin loggers).
   child(suffix: string): ILogger;
 }
 
@@ -167,5 +167,5 @@ Just document it, like the comment above does.
 
 ## See also
 
-- [Metrics and Diagnostics](/nomercy-player-kit/metrics), what the player logs and measures
-- [Adapters](/nomercy-player-kit/adapters), the full port catalog
+- [Metrics and Diagnostics](/nomercy-player-core/metrics), what the player logs and measures
+- [Adapters](/nomercy-player-core/adapters), the full port catalog

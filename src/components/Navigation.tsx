@@ -428,9 +428,9 @@ export function Navigation({
 
   // Product list is rendered in the header now; sidebar only renders the
   // active product's groups so the two surfaces don't duplicate.
-  // Each section.href is the product landing page (e.g. `/nomercy-player-kit/overview`),
+  // Each section.href is the product landing page (e.g. `/nomercy-player-core/overview`),
   // not the product PREFIX. Match by the first path segment so any page under
-  // `/nomercy-player-kit/*` resolves to the kit section, not just `/overview`.
+  // `/nomercy-player-core/*` resolves to the kit section, not just `/overview`.
   const currentProductPrefix = `/${pathname.split('/').filter(Boolean)[0] ?? ''}`;
   const currentSection = navigation.find((section) => section.href.startsWith(currentProductPrefix + '/'));
   const currentGroups = currentSection?.groups || [];

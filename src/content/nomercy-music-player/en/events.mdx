@@ -1,16 +1,14 @@
 ---
 title: 'Events'
-description: 'Complete event reference for NMMusicPlayer — MusicEventMap and all inherited BaseEventMap events, with payload types and usage notes.'
+description: 'Complete event reference for NMMusicPlayer. Covers MusicEventMap and all inherited BaseEventMap events, with payload types and usage notes.'
 draft: false
 ---
 
 # Events
 
 All events emitted by `NMMusicPlayer<T>`. Subscribe with `player.on(event, handler)`.
-
-`MusicEventMap` extends `BaseEventMap` from the player kit. Music-specific events are listed first; inherited kit events follow.
-
----
+`MusicEventMap` extends `BaseEventMap` from the player core.
+Music-specific events are listed first; inherited core events follow.
 
 ## Music-specific events
 
@@ -20,7 +18,9 @@ All events emitted by `NMMusicPlayer<T>`. Subscribe with `player.on(event, handl
 'current': { item: MusicPlaylistItem | undefined; index: number }
 ```
 
-Fires when the current track changes. `item` is `undefined` when the queue is exhausted or cleared. `index` is `-1` in that case.
+Fires when the current track changes.
+`item` is `undefined` when the queue is exhausted or cleared.
+`index` is `-1` in that case.
 
 ```ts
 player.on('current', ({ item, index }) => {
@@ -37,7 +37,9 @@ player.on('current', ({ item, index }) => {
 'trackEndingSoon': { remaining: number; currentTrack: BasePlaylistItem }
 ```
 
-Fires when the current track has `trackEndingSoonThreshold` seconds remaining (default: 10). `remaining` is the actual seconds left at the time of emission. `AutoAdvancePlugin` listens to this event for preload and crossfade cues.
+Fires when the current track has `trackEndingSoonThreshold` seconds remaining (default: 10).
+`remaining` is the actual seconds left at the time of emission.
+`AutoAdvancePlugin` listens to this event for preload and crossfade cues.
 
 ### `crossfadeStart`
 
@@ -45,7 +47,9 @@ Fires when the current track has `trackEndingSoonThreshold` seconds remaining (d
 'crossfadeStart': { from: BasePlaylistItem | null; to: BasePlaylistItem; duration: number }
 ```
 
-Fires when a crossfade begins. `from` is `null` when there is no current track. `duration` is the total fade duration **in milliseconds** (converted from the `duration` seconds value in `CrossfadeOptions` before emission).
+Fires when a crossfade begins.
+`from` is `null` when there is no current track.
+`duration` is the total fade duration **in milliseconds** (converted from the `duration` seconds value in `CrossfadeOptions` before emission).
 
 ### `crossfadeComplete`
 
@@ -77,15 +81,15 @@ Fires when `shuffleState()` changes.
 'backend:changed': { kind: AudioBackendKind }
 ```
 
-Fires when `backend(kind)` completes a backend swap. `kind` is `'audio-element'` or `'webaudio'`. Declared in `MusicEventMap` — fully typed, no cast required.
+Fires when `backend(kind)` completes a backend swap.
+`kind` is `'audio-element'` or `'webaudio'`.
+Declared in `MusicEventMap`, fully typed, no cast required.
 
 ```ts
 player.on('backend:changed', ({ kind }) => {
   console.log('Switched to', kind);
 });
 ```
-
----
 
 ## Transport events (inherited)
 
@@ -99,8 +103,6 @@ player.on('backend:changed', ({ kind }) => {
 | `canplay` | `undefined` | Enough data to begin playback            |
 | `stalled` | `undefined` | Data unavailable for unexpected period   |
 
----
-
 ## Time events (inherited)
 
 | Event      | Payload                | When                          |
@@ -108,9 +110,8 @@ player.on('backend:changed', ({ kind }) => {
 | `time`     | `{ time: number }`     | Position updates (rAF-driven) |
 | `duration` | `{ duration: number }` | Duration becomes known        |
 
-Use `time` to drive a real-time seekbar. Duration fires once after `loadedmetadata`.
-
----
+Use `time` to drive a real-time seekbar.
+Duration fires once after `loadedmetadata`.
 
 ## Queue events (inherited)
 
@@ -125,8 +126,6 @@ Use `time` to drive a real-time seekbar. Duration fires once after `loadedmetada
 | `queue:exhausted` | `undefined`                     | Queue played through with no repeat active |
 | `backlog`         | `ReadonlyArray<T>`              | Backlog changes                            |
 
----
-
 ## Volume events (inherited from BaseEventMap)
 
 `mute` and `volume` are inherited from `BaseEventMap` and are not re-declared in `MusicEventMap`.
@@ -136,19 +135,16 @@ Use `time` to drive a real-time seekbar. Duration fires once after `loadedmetada
 | `volume` | `{ level: number }`  | Volume changes. `level` is on the 0–100 scale. |
 | `mute`   | `{ muted: boolean }` | Mute state changes                             |
 
----
-
 ## Phase events (inherited)
 
 ```ts
 'phase': { from: PlayerPhase; to: PlayerPhase }
 ```
 
-Fires on every player phase transition. Useful for orchestrating UI state (loading spinners, disabled controls).
+Fires on every player phase transition.
+Useful for orchestrating UI state (loading spinners, disabled controls).
 
 PlayerPhase values: `'idle' | 'setup' | 'ready' | 'loading' | 'starting' | 'playing' | 'paused' | 'buffering' | 'seeking' | 'ended' | 'stopped' | 'disposing' | 'disposed'`
-
----
 
 ## Setup and lifecycle events (inherited)
 
@@ -157,8 +153,6 @@ PlayerPhase values: `'idle' | 'setup' | 'ready' | 'loading' | 'starting' | 'play
 | `ready`      | `undefined` | Setup complete, all plugins resolved |
 | `firstFrame` | `undefined` | First audio frame decoded after load |
 | `dispose`    | `undefined` | Player teardown begins               |
-
----
 
 ## Error events (inherited)
 
@@ -178,16 +172,12 @@ interface PlayerErrorEvent {
 }
 ```
 
----
-
 ## Auth events (inherited)
 
 | Event            | Payload              | When                    |
 | ---------------- | -------------------- | ----------------------- |
 | `auth:refreshed` | `{ token: string }`  | Token refresh succeeded |
 | `auth:failed`    | `{ error: unknown }` | Token refresh failed    |
-
----
 
 ## Subscribing and unsubscribing
 
@@ -201,13 +191,12 @@ player.off('current', handler); // unsubscribe
 player.once('ready', () => {}); // one-shot
 ```
 
-From inside a plugin, always use `this.on(...)` rather than `player.on(...)` — the plugin base class auto-disposes all its listeners when the plugin is removed.
-
----
+From inside a plugin, always use `this.on(...)` rather than `player.on(...)`, as the plugin base class auto-disposes all its listeners when the plugin is removed.
 
 ## EQ events (EqualizerPlugin)
 
-`EqualizerPlugin` emits events namespaced as `plugin:equalizer:<event>`. Subscribe via the string form on `player.on()`:
+`EqualizerPlugin` emits events namespaced as `plugin:equalizer:<event>`.
+Subscribe via the string form on `player.on()`:
 
 ```ts
 player.on('plugin:equalizer:band:changed', ({ band }) => {
@@ -221,11 +210,10 @@ player.on('plugin:equalizer:change', ({ bands, selectedPreset }) => {
 
 These are `EqualizerPlugin` events, not `MusicEventMap` events.
 
----
-
 ## Plugin events
 
-Plugin events are namespaced under `plugin:<id>:<event>`. Examples:
+Plugin events are namespaced under `plugin:<id>:<event>`.
+Examples:
 
 | Event                     | Payload            |
 | ------------------------- | ------------------ |
@@ -240,11 +228,9 @@ player.on('plugin:lyrics:line', ({ text }) => {
 });
 ```
 
----
-
 ## See also
 
-- [MusicPlaylistItem](/nomercy-music-player/playlist-item) — item shape in `current` payload
-- [Crossfade](/nomercy-music-player/crossfade) — `crossfadeTo()`, crossfade event details
-- [AutoAdvancePlugin](/nomercy-music-player/plugins/auto-advance) — listens to `trackEndingSoon` and `ended`
-- [LyricsPlugin](/nomercy-music-player/plugins/lyrics) — `line`, `lineEnter`, `lineExit`, `loaded` events
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item), item shape in `current` payload
+- [Crossfade](/nomercy-music-player/crossfade), `crossfadeTo()` and crossfade event details
+- [AutoAdvancePlugin](/nomercy-music-player/plugins/auto-advance), listens to `trackEndingSoon` and `ended`
+- [LyricsPlugin](/nomercy-music-player/plugins/lyrics), `line`, `lineEnter`, `lineExit`, `loaded` events

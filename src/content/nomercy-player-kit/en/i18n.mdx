@@ -5,9 +5,8 @@ description: 'The translation adapter, the t() method, async language loading, a
 
 # i18n
 
-The player ships a lightweight i18n layer. All player-generated strings (error messages, phase labels, accessibility announcements) are routable through a pluggable `ITranslator` adapter.
-
----
+The player ships a lightweight i18n layer.
+All player-generated strings (error messages, phase labels, accessibility announcements) are routable through a pluggable `ITranslator` adapter.
 
 ## Configuration
 
@@ -39,7 +38,10 @@ Initial language code (BCP-47, e.g. `'en'`, `'nl'`, `'ja-JP'`). Default: `naviga
 translations?: Translations
 ```
 
-Inline translation map. Keys are the player's internal translation keys. Values are translated strings. Supports variable interpolation:
+Inline translation map.
+Keys are the player's internal translation keys.
+Values are translated strings.
+Supports variable interpolation:
 
 ```ts
 translations: {
@@ -47,7 +49,8 @@ translations: {
 }
 ```
 
-Merged with `loadTranslations` output. Inline translations take precedence.
+Merged with `loadTranslations` output.
+Inline translations take precedence.
 
 ### `loadTranslations`
 
@@ -56,8 +59,6 @@ loadTranslations?: (lang: string) => Promise<Translations>
 ```
 
 Async loader called during `setup()` (if `language` is set) or when `language(lang)` is called at runtime.
-
----
 
 ## Runtime language switching
 
@@ -75,8 +76,6 @@ player.on('language', ({ lang }) => {
 });
 ```
 
----
-
 ## Translate a key
 
 ```ts
@@ -84,9 +83,8 @@ player.t('player.queue.items-remaining', { count: 5 });
 // → '5 items remaining' (after variable substitution)
 ```
 
-Variable substitution uses `{{key}}` syntax. Unrecognized keys fall back to the key string itself so the player never silently hides text.
-
----
+Variable substitution uses `{{key}}` syntax.
+Unrecognized keys fall back to the key string itself so the player never silently hides text.
 
 ## Translation events
 
@@ -94,8 +92,6 @@ Variable substitution uses `{{key}}` syntax. Unrecognized keys fall back to the 
 | -------------- | ---------------------------------- | ------------------------------ |
 | `language`     | `{ lang: string }`                 | Language changes               |
 | `translations` | `{ lang: string; keys: string[] }` | New translation strings loaded |
-
----
 
 ## Custom translator adapter
 
@@ -109,10 +105,12 @@ class I18nextAdapter implements ITranslator {
   t(key: string, vars?: Record<string, string | number>): string {
     return i18n.t(key, vars);
   }
+
   language(): string;
   language(lang: string): Promise<void>;
   language(lang?: string): string | Promise<void> {
     if (lang === undefined) return i18n.language;
+
     return i18n.changeLanguage(lang);
   }
 }
@@ -122,11 +120,10 @@ player.setup({
 });
 ```
 
----
-
 ## Vite plugin
 
-The kit ships a Vite plugin for build-time translation bundling. It scans your locale files and generates typed translation keys:
+The player core ships a Vite plugin for build-time translation bundling.
+It scans your locale files and generates typed translation keys:
 
 ```ts
 // vite.config.ts
@@ -139,4 +136,5 @@ export default {
 };
 ```
 
-This is optional. The runtime adapter works with any locale file format.
+This is optional.
+The runtime adapter works with any locale file format.

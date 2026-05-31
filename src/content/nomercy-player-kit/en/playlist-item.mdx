@@ -1,6 +1,6 @@
 ---
 title: 'BasePlaylistItem'
-description: 'The BasePlaylistItem type — id, title?, image?, and all shared fields.'
+description: 'The BasePlaylistItem type, id, title?, image?, and all shared fields.'
 draft: false
 ---
 
@@ -18,15 +18,14 @@ interface BasePlaylistItem {
 
 `id` is the stable identity used by the queue, backlog, cursor, and `queueIndexOf`. It must be unique within a session but does not need to be globally unique.
 
-`title` and `image` are the canonical cross-library fields for display name and cover art. Consumer code targeting both the video and music players should populate these fields; domain-specific code may use the library's own field names in addition.
-
----
+`title` and `image` are the canonical cross-library fields for display name and cover art.
+Consumer code targeting both the video and music players should populate these fields; domain-specific code may use the library's own field names in addition.
 
 ## Library extensions
 
 Each library extends `BasePlaylistItem` with domain-specific fields.
 
-### Video player — `VideoPlaylistItem`
+### Video player, `VideoPlaylistItem`
 
 | Field        | Type             | Description                                   |
 | ------------ | ---------------- | --------------------------------------------- |
@@ -34,11 +33,11 @@ Each library extends `BasePlaylistItem` with domain-specific fields.
 | `image?`     | `string`         | Poster / thumbnail URL                        |
 | `poster?`    | `string`         | Alias for `image`                             |
 | `thumbnail?` | `string`         | Small thumbnail (for hover previews)          |
-| `url?`       | `string`         | Required by `load()` — the playable media URL |
+| `url?`       | `string`         | Required by `load()`, the playable media URL  |
 | `tracks?`    | `SidecarTrack[]` | Subtitle / chapter sidecar files              |
 | `chapters?`  | `Chapter[]`      | Inline chapter list (overrides sidecar)       |
 
-### Music player — `MusicPlaylistItem`
+### Music player, `MusicPlaylistItem`
 
 | Field     | Type               | Description                               |
 | --------- | ------------------ | ----------------------------------------- |
@@ -46,9 +45,7 @@ Each library extends `BasePlaylistItem` with domain-specific fields.
 | `cover?`  | `string`           | Cover art URL (aliases `image`)           |
 | `artist?` | `string \| Artist` | Artist name or object                     |
 | `album?`  | `string \| Album`  | Album name or object                      |
-| `url?`    | `string`           | Required by `load()` — the audio file URL |
-
----
+| `url?`    | `string`           | Required by `load()`, the audio file URL  |
 
 ## Sidecar tracks
 
@@ -75,12 +72,11 @@ Items with sidecar subtitle or chapter files carry them under `tracks`:
 }
 ```
 
-`kind` values the kit recognises: `'subtitles'`, `'captions'`, `'chapters'`. Other kinds are preserved but not acted on by the kit.
-
----
+`kind` values the core recognises: `'subtitles'`, `'captions'`, `'chapters'`.
+Other kinds are preserved but not acted on by the core.
 
 ## See also
 
-- [Loading](/nomercy-player-kit/loading) — `load(item)` uses `item.url`
-- [Media Tracks](/nomercy-player-kit/media-tracks) — `subtitles()`, `chapters()`
-- [Queue Methods](/nomercy-player-kit/queue) — queue mutation methods accept `BasePlaylistItem`
+- [Loading](/nomercy-player-core/loading), `load(item)` uses `item.url`
+- [Media Tracks](/nomercy-player-core/media-tracks), `subtitles()`, `chapters()`
+- [Queue Methods](/nomercy-player-core/queue), queue mutation methods accept `BasePlaylistItem`

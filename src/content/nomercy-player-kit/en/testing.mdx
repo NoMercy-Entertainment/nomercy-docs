@@ -5,13 +5,12 @@ description: 'Using the testing subpath stub player for plugin unit tests. descr
 
 # Testing
 
-The kit ships a `testing` subpath with utilities for writing unit tests against plugins without a real browser.
-
----
+The player core ships a `testing` subpath with utilities for writing unit tests against plugins without a real browser.
 
 ## Install
 
-The testing utilities are included with the kit package. No additional install is needed:
+The testing utilities are included with the core package.
+No additional install is needed:
 
 ```
 npm install @nomercy-entertainment/nomercy-player-core@beta
@@ -26,11 +25,10 @@ import {
 } from '@nomercy-entertainment/nomercy-player-core/testing';
 ```
 
----
-
 ## `describePlugin`
 
-Wraps a test suite with a fresh player and registered plugin per test. Auto-disposes in `afterEach`.
+Wraps a test suite with a fresh player and registered plugin per test.
+Auto-disposes in `afterEach`.
 
 ```ts
 import {
@@ -42,7 +40,7 @@ import { MyPlugin } from '../src/plugins/my-plugin';
 describePlugin(MyPlugin, ({ player, plugin }) => {
   test('emits dataFetched after time threshold', async () => {
     const events: unknown[] = [];
-    player.on('plugin:my-plugin:dataFetched', (e) => events.push(e));
+    player.on('plugin:my-plugin:dataFetched', (event) => events.push(event));
 
     // Simulate a player event the plugin listens to
     player.emit('time', { time: 30 });
@@ -66,11 +64,10 @@ describePlugin(
 ): void
 ```
 
----
-
 ## `assertNoListenerLeak`
 
-Verifies that a plugin's `dispose()` cleans up all event listeners. This is a required test for all plugins.
+Verifies that a plugin's `dispose()` cleans up all event listeners.
+This is a required test for all plugins.
 
 ```ts
 describePlugin(MyPlugin, ({ player }) => {
@@ -80,9 +77,8 @@ describePlugin(MyPlugin, ({ player }) => {
 });
 ```
 
-`assertNoListenerLeak` disposes the plugin and checks that all `this.on(...)` listeners registered during `use()` are removed. If any listeners remain, the test fails with a description of the leaked events.
-
----
+`assertNoListenerLeak` disposes the plugin and checks that all `this.on(...)` listeners registered during `use()` are removed.
+If any listeners remain, the test fails with a description of the leaked events.
 
 ## Stub player
 
@@ -105,8 +101,6 @@ await player.ready();
 player.emit('ended', undefined);
 ```
 
----
-
 ## Mock fetch
 
 The stub player uses an in-memory fetch mock. Override it per test:
@@ -121,11 +115,10 @@ const player = createStubPlayer({
 });
 ```
 
----
-
 ## Integration with Vitest
 
-The kit's test suite uses Vitest. If you are using a different runner (Jest), the testing utilities still work — the subpath has no Vitest imports.
+The core's test suite uses Vitest.
+If you are using a different runner (Jest), the testing utilities still work, as the subpath has no Vitest imports.
 
 ```ts
 // vitest.config.ts

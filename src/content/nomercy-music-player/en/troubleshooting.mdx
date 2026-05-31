@@ -1,12 +1,10 @@
 ---
 title: 'Troubleshooting'
-description: 'Common music player issues — no audio, crossfade not firing, lyrics out of sync, backend errors, and diagnostics.'
+description: 'Common music player issues: no audio, crossfade not firing, lyrics out of sync, backend errors, and diagnostics.'
 draft: false
 ---
 
 # Troubleshooting
-
----
 
 ## No audio plays
 
@@ -14,17 +12,20 @@ draft: false
 
 **Causes and fixes:**
 
-1. **Browser autoplay policy** — The browser blocks audio until the user has interacted with the page. Call `play()` only inside a user gesture (click, keydown).
+1. **Browser autoplay policy.** The browser blocks audio until the user has interacted with the page.
+Call `play()` only inside a user gesture (click, keydown).
 
-2. **Volume is 0** — Check `player.volume()`. Defaults to 100, but a stored preference may have overridden it.
+2. **Volume is 0.** Check `player.volume()`.
+Defaults to 100, but a stored preference may have overridden it.
 
-3. **Muted** — Check `player.volumeState()`. Call `player.unmute()` if needed.
+3. **Muted.** Check `player.volumeState()`.
+Call `player.unmute()` if needed.
 
-4. **Audio output routed to wrong device** — Call `player.audioOutputs()` and verify the target device is listed. Use `player.selectAudioOutput(deviceId)` to switch.
+4. **Audio output routed to wrong device.** Call `player.audioOutputs()` and verify the target device is listed.
+Use `player.selectAudioOutput(deviceId)` to switch.
 
-5. **Source URL unreachable** — Open the URL directly in the browser. If it 404s or 401s, the track `url` field is wrong or auth is missing.
-
----
+5. **Source URL unreachable.** Open the URL directly in the browser.
+If it 404s or 401s, the track `url` field is wrong or auth is missing.
 
 ## `crossfadeTo()` does nothing
 
@@ -32,15 +33,20 @@ draft: false
 
 **Causes and fixes:**
 
-1. **`AudioElementBackend` selected** — the default backend uses a `requestAnimationFrame` loop for crossfade (~50 fps). It is less accurate than `WebAudioBackend`. Crossfade is functional but may be imperceptible on short durations. Switch with `await player.backend('webaudio')` for sample-accurate fades.
+1. **`AudioElementBackend` selected.** The default backend uses a `requestAnimationFrame` loop for crossfade (~50 fps).
+It is less accurate than `WebAudioBackend`.
+Crossfade is functional but may be imperceptible on short durations.
+Switch with `await player.backend('webaudio')` for sample-accurate fades.
 
-2. **Duration too short** — The default `crossfadeDefaults.duration` is 5 seconds. If your track is shorter than the fade duration, the crossfade completes instantly. Reduce `duration` in `CrossfadeOptions`.
+2. **Duration too short.** The default `crossfadeDefaults.duration` is 5 seconds.
+If your track is shorter than the fade duration, the crossfade completes instantly.
+Reduce `duration` in `CrossfadeOptions`.
 
-3. **Already transitioning** — `isTransitioning()` returns `true`. Wait for the `crossfadeComplete` event before starting another.
+3. **Already transitioning.** `isTransitioning()` returns `true`.
+Wait for the `crossfadeComplete` event before starting another.
 
-4. **`AutoAdvancePlugin` fired first** — If track end and your manual `crossfadeTo()` call overlap, the plugin may have already advanced. Use `crossfade: true` and `crossfadeDuration` in `AutoAdvancePlugin` options instead of calling `crossfadeTo()` manually from `ended`.
-
----
+4. **`AutoAdvancePlugin` fired first.** If track end and your manual `crossfadeTo()` call overlap, the plugin may have already advanced.
+Use `crossfade: true` and `crossfadeDuration` in `AutoAdvancePlugin` options instead of calling `crossfadeTo()` manually from `ended`.
 
 ## Lyrics are not displayed
 
@@ -48,17 +54,22 @@ draft: false
 
 **Causes and fixes:**
 
-1. **No `lyricsUrl` on the track** — `LyricsPlugin` calls `ILyricSource.resolve(item)` which falls back to `item.lyricsUrl`. If neither is set, no fetch occurs. Check your `MusicPlaylistItem.lyricsUrl`.
+1. **No `lyricsUrl` on the track.** `LyricsPlugin` calls `ILyricSource.resolve(item)` which falls back to `item.lyricsUrl`.
+If neither is set, no fetch occurs.
+Check your `MusicPlaylistItem.lyricsUrl`.
 
-2. **`ILyricSource` not registered** — If you have not called `player.lyricSource(mySource)`, the plugin uses `item.lyricsUrl` directly. This still works if the URL is correct.
+2. **`ILyricSource` not registered.** If you have not called `player.lyricSource(mySource)`, the plugin uses `item.lyricsUrl` directly.
+This still works if the URL is correct.
 
-3. **Unsupported file extension** — Parser selection is by URL extension. `.lrc` and `.vtt` are built-in. Custom formats need `player.registerCueParser(myParser)`.
+3. **Unsupported file extension.** Parser selection is by URL extension.
+`.lrc` and `.vtt` are built-in.
+Custom formats need `player.registerCueParser(myParser)`.
 
-4. **CORS blocked** — The fetch must succeed from the browser. Add `Access-Control-Allow-Origin` headers on the lyric host or proxy through your own server.
+4. **CORS blocked.** The fetch must succeed from the browser.
+Add `Access-Control-Allow-Origin` headers on the lyric host or proxy through your own server.
 
-5. **`loaded` event not fired** — Listen to `player.on('plugin:lyrics:loaded', ...)`. If it never fires, check the network tab for a failed fetch on the lyrics URL.
-
----
+5. **`loaded` event not fired.** Listen to `player.on('plugin:lyrics:loaded', ...)`.
+If it never fires, check the network tab for a failed fetch on the lyrics URL.
 
 ## Lyrics are out of sync
 
@@ -66,13 +77,16 @@ draft: false
 
 **Causes and fixes:**
 
-1. **LRC timestamp format** — Verify your `.lrc` file uses `[MM:SS.xx]` format. Non-standard formats (e.g. seconds-only) will not parse correctly.
+1. **LRC timestamp format.** Verify your `.lrc` file uses `[MM:SS.xx]` format.
+Non-standard formats (e.g. seconds-only) will not parse correctly.
 
-2. **Seek position not updating lyrics** — If the user seeks, `LyricsPlugin` re-scans from the cue list. This is automatic. If it is not working, ensure you are listening to `lineEnter` not polling `current()`.
+2. **Seek position not updating lyrics.** If the user seeks, `LyricsPlugin` re-scans from the cue list.
+This is automatic.
+If it is not working, ensure you are listening to `lineEnter` not polling `current()`.
 
-3. **Clock drift with `WebAudioBackend`** — The `WebAudioBackend` uses `AudioContext.currentTime` which is sample-accurate but may diverge from `Date.now()` after long sessions. This is expected. Use `player.currentTime()` not `Date.now()` for any sync you build.
-
----
+3. **Clock drift with `WebAudioBackend`.** The `WebAudioBackend` uses `AudioContext.currentTime` which is sample-accurate but may diverge from `Date.now()` after long sessions.
+This is expected.
+Use `player.currentTime()` not `Date.now()` for any sync you build.
 
 ## `backend('webaudio')` throws
 
@@ -80,15 +94,13 @@ draft: false
 
 **Causes and fixes:**
 
-1. **Safari and iOS** — `AudioContext` requires a user gesture on iOS. Call `backend('webaudio')` only inside a click or touch handler.
+1. **Safari and iOS.** `AudioContext` requires a user gesture on iOS.
+Call `backend('webaudio')` only inside a click or touch handler.
 
-2. **Context suspended** — The `AudioContext` may be suspended after a page visibility change. Listen to `visibilitychange` and call `audioContext?.resume()` on page show.
+2. **Context suspended.** The `AudioContext` may be suspended after a page visibility change.
+Listen to `visibilitychange` and call `audioContext?.resume()` on page show.
 
-3. **Already using the requested backend** — Not an error, but verify with `player.backend().kind` before switching.
-
----
-
----
+3. **Already using the requested backend.** Not an error, but verify with `player.backend().kind` before switching.
 
 ## Phase stuck in `'loading'`
 
@@ -96,13 +108,14 @@ draft: false
 
 **Causes and fixes:**
 
-1. **Source URL returns a non-media content-type** — HLS streams must return `application/vnd.apple.mpegurl`. MP3/FLAC must return an audio content-type. A redirect to a login page returns `text/html`, which hangs the parser.
+1. **Source URL returns a non-media content-type.** HLS streams must return `application/vnd.apple.mpegurl`.
+MP3/FLAC must return an audio content-type.
+A redirect to a login page returns `text/html`, which hangs the parser.
 
-2. **Auth token expired and `refreshOnUnauthenticated` is not set** — A 401 with no refresh config produces a stale request. Provide `auth.refreshOnUnauthenticated` in your setup config.
+2. **Auth token expired and `refreshOnUnauthenticated` is not set.** A 401 with no refresh config produces a stale request.
+Provide `auth.refreshOnUnauthenticated` in your setup config.
 
-3. **HLS manifest parse error** — Enable debug logging to capture the raw error.
-
----
+3. **HLS manifest parse error.** Enable debug logging to capture the raw error.
 
 ## Debug logging
 
@@ -115,9 +128,8 @@ const player = nmMPlayer('main').setup({
 });
 ```
 
-With `logLevel: 'debug'`, the player logs every event, state transition, plugin lifecycle call, and network request to the browser console. Filter by `[nmMPlayer]` to isolate player logs.
-
----
+With `logLevel: 'debug'`, the player logs every event, state transition, plugin lifecycle call, and network request to the browser console.
+Filter by `[nmMPlayer]` to isolate player logs.
 
 ## Checking player state programmatically
 
@@ -136,11 +148,9 @@ console.log({
 
 Paste this into the browser console at any time to snapshot player state.
 
----
-
 ## See also
 
-- [FAQ](/nomercy-music-player/faq) — common questions
-- [Configuration](/nomercy-music-player/configuration) — all setup options
-- [Events](/nomercy-music-player/events) — event reference for logging
-- [Backends](/nomercy-music-player/backends/overview) — capability comparison
+- [FAQ](/nomercy-music-player/faq), common questions
+- [Configuration](/nomercy-music-player/configuration), all setup options
+- [Events](/nomercy-music-player/events), event reference for logging
+- [Backends](/nomercy-music-player/backends/overview), capability comparison

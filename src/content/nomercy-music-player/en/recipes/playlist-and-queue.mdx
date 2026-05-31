@@ -5,11 +5,9 @@ description: 'Queue operations (append, prepend, insert, remove, shuffle, sort),
 
 # Playlist and Queue
 
-Read this when you need queue manipulation beyond the basic `queue([...])` call in the quickstart — inserting tracks mid-stream, implementing a shuffle toggle, peek-ahead for preloading, or custom repeat behaviour.
-
-The queue API is identical on video and music players. Examples use the music player but every method applies to both.
-
----
+Read this when you need queue manipulation beyond the basic `queue([...])` call in the quickstart, inserting tracks mid-stream, implementing a shuffle toggle, peek-ahead for preloading, or custom repeat behaviour.
+The queue API is identical on video and music players.
+Examples use the music player but every method applies to both.
 
 ## Queue basics
 
@@ -28,8 +26,6 @@ const tracks = player.queue();
 console.log(tracks.length); // 3
 ```
 
----
-
 ## Append, prepend, and insert
 
 ```ts
@@ -43,8 +39,6 @@ player.queuePrepend(track5);
 player.queueInsert(track6, 2); // inserts before index 2
 ```
 
----
-
 ## Remove and move
 
 ```ts
@@ -54,8 +48,6 @@ player.queueRemove('track-id-3');
 // Move a track from one position to another:
 player.queueMove(0, 4); // move index 0 to index 4
 ```
-
----
 
 ## Jump to a track
 
@@ -70,11 +62,9 @@ player.seekToIndex(2);
 const nowPlaying = player.current();
 ```
 
----
-
 ## Peek next and previous
 
-Peek is read-only — it does not change playback:
+Peek is read-only, it does not change playback:
 
 ```ts
 const next = player.peekNext(); // next item in queue | undefined
@@ -86,8 +76,6 @@ player.on('trackEndingSoon', async ({ remaining }) => {
   if (upcoming) await prefetchArtwork(upcoming);
 });
 ```
-
----
 
 ## Shuffle
 
@@ -108,8 +96,6 @@ player.on('shuffle', ({ state }) => {
 
 When shuffle is on, `peekNext()` returns the next shuffled item.
 
----
-
 ## Repeat modes
 
 ```ts
@@ -127,13 +113,12 @@ player.on('repeat', ({ state }) => {
 });
 ```
 
-`AutoAdvancePlugin` respects repeat state — it calls `player.restart()` when `RepeatState.ONE` is set and a track ends.
-
----
+`AutoAdvancePlugin` respects repeat state, calling `player.restart()` when `RepeatState.ONE` is set and a track ends.
 
 ## AutoAdvancePlugin
 
-`AutoAdvancePlugin` drives automatic advancement when a track ends. Without it, the player stops at the end of each track.
+`AutoAdvancePlugin` drives automatic advancement when a track ends.
+Without it, the player stops at the end of each track.
 
 ```ts
 import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
@@ -153,11 +138,9 @@ player.addPlugin(AutoAdvancePlugin);
 // When the current video ends, player.next() is called automatically
 ```
 
----
-
 ## Sorting the queue
 
-The player does not ship a built-in sort method — sort the array before setting it:
+The player does not ship a built-in sort method, so sort the array before setting it:
 
 ```ts
 const sorted = [...player.queue()].sort((a, b) => a.name.localeCompare(b.name));
@@ -179,9 +162,7 @@ function shuffle<T>(array: T[]): T[] {
 player.queue(shuffle([...player.queue()]));
 ```
 
-This is a blunt replacement — the active track is preserved because the player matches by `id`.
-
----
+This is a blunt replacement, but the active track is preserved because the player matches by `id`.
 
 ## Queue events
 
@@ -197,10 +178,8 @@ player.on('queue', (items) => {
 });
 ```
 
----
-
 ## What to read next
 
-- [Recipes: Crossfade and Gapless](/nomercy-music-player/recipes/crossfade-and-gapless) — smooth transitions between queue items
-- [Recipes: Persistence](/nomercy-player-kit/recipes/persistence) — save and restore queue position across page loads
-- [Music — API Methods](/nomercy-music-player/api-methods) — full queue method reference
+- [Recipes: Crossfade and Gapless](/nomercy-music-player/recipes/crossfade-and-gapless) - smooth transitions between queue items
+- [Recipes: Persistence](/nomercy-player-core/recipes/persistence) - save and restore queue position across page loads
+- [Music, API Methods](/nomercy-music-player/api-methods) - full queue method reference

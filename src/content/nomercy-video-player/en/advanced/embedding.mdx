@@ -5,21 +5,21 @@ description: 'iframe embed mode, postMessage control protocol, parent-frame key 
 
 # Embedding
 
-Read this when you want to embed the player in an `<iframe>` on a third-party page, or when you are the host page controlling an embedded player. This covers the postMessage protocol for cross-frame communication and browser permission requirements.
-
----
+Read this when you want to embed the player in an `<iframe>` on a third-party page, or when you are the host page controlling an embedded player.
+This covers the postMessage protocol for cross-frame communication and browser permission requirements.
 
 ## Why iframes
 
-Embedding a player in an iframe isolates it from the host page's JavaScript, CSS, and security context. It is the standard model for embed codes (YouTube, Vimeo, Spotify).
+Embedding a player in an iframe isolates it from the host page's JavaScript, CSS, and security context.
+It is the standard model for embed codes (YouTube, Vimeo, Spotify).
 
-The player itself does not require iframe embedding — you can drop it directly in any page. The iframe model is for cases where you are distributing an embed to third-party sites that cannot or should not install the SDK.
-
----
+The player itself does not require iframe embedding, you can drop it directly in any page.
+The iframe model is for cases where you are distributing an embed to third-party sites that cannot or should not install the SDK.
 
 ## Setting up the embed page
 
-Use `EmbedPlugin` — it handles the full postMessage protocol (inbound commands, outbound events, origin validation) without boilerplate. The manual `window.addEventListener` approach in the example below is what `EmbedPlugin` replaces.
+Use `EmbedPlugin`, it handles the full postMessage protocol (inbound commands, outbound events, origin validation) without boilerplate.
+The manual `window.addEventListener` approach in the example below is what `EmbedPlugin` replaces.
 
 ### With EmbedPlugin (recommended)
 
@@ -59,10 +59,12 @@ Use `EmbedPlugin` — it handles the full postMessage protocol (inbound commands
         playlist: [],
       });
 
-      player.addPlugin(DesktopUiPlugin).addPlugin(EmbedPlugin, {
-        allowedOrigins: ['https://yoursite.com', 'https://partner.example.com'],
-        // forwardEvents defaults to: ['ready','play','pause','ended','time','volume','mute']
-      });
+      player
+        .addPlugin(DesktopUiPlugin)
+        .addPlugin(EmbedPlugin, {
+          allowedOrigins: ['https://yoursite.com', 'https://partner.example.com'],
+          // forwardEvents defaults to: ['ready','play','pause','ended','time','volume','mute']
+        });
 
       await player.ready();
     </script>
@@ -70,7 +72,8 @@ Use `EmbedPlugin` — it handles the full postMessage protocol (inbound commands
 </html>
 ```
 
-`EmbedPlugin` listens for `nm:command` messages from allowed origins and dispatches them to the player. It forwards player events as `nm:event` messages to the host page.
+`EmbedPlugin` listens for `nm:command` messages from allowed origins and dispatches them to the player.
+It forwards player events as `nm:event` messages to the host page.
 
 ### postMessage protocol
 
@@ -82,7 +85,7 @@ Use `EmbedPlugin` — it handles the full postMessage protocol (inbound commands
 | `'pause'`    | `player.pause()`                     |
 | `'stop'`     | `player.stop()`                      |
 | `'seek'`     | `player.currentTime(time)`           |
-| `'volume'`   | `player.volume(level)` — 0–100 scale |
+| `'volume'`   | `player.volume(level)`, 0–100 scale |
 | `'mute'`     | `player.mute()`                      |
 | `'unmute'`   | `player.unmute()`                    |
 | `'next'`     | `player.next()`                      |
@@ -104,8 +107,6 @@ window.addEventListener('message', (event) => {
   if (name === 'time') updateProgressBar(data.time);
 });
 ```
-
----
 
 ## Host page integration
 
@@ -133,12 +134,12 @@ All messages between host and iframe use the `nm:command` / `nm:event` protocol 
     );
   }
 
-  function play()    { sendCommand('play'); }
-  function pause()   { sendCommand('pause'); }
-  function next()    { sendCommand('next'); }
-  function previous(){ sendCommand('previous'); }
-  function seek(t)   { sendCommand('seek', { time: t }); }
-  function volume(v) { sendCommand('volume', { level: v }); }
+  function play()        { sendCommand('play'); }
+  function pause()       { sendCommand('pause'); }
+  function next()        { sendCommand('next'); }
+  function previous()    { sendCommand('previous'); }
+  function seek(time)    { sendCommand('seek', { time }); }
+  function volume(level) { sendCommand('volume', { level }); }
 
   // Listen to nm:event messages from the iframe:
   window.addEventListener('message', (event) => {
@@ -156,33 +157,32 @@ All messages between host and iframe use the `nm:command` / `nm:event` protocol 
 </script>
 ```
 
----
-
 ## Autoplay and the allow directive
 
-Browsers block autoplay with audio unless the user has interacted with the page. The `allow` attribute on the `<iframe>` grants the embedded player the same autoplay permission as the host:
+Browsers block autoplay with audio unless the user has interacted with the page.
+The `allow` attribute on the `<iframe>` grants the embedded player the same autoplay permission as the host:
 
 ```html
 <iframe allow="autoplay; fullscreen; picture-in-picture" ...></iframe>
 ```
 
-Without `allow="autoplay"`, the player can only autoplay muted. If your use case requires autoplay with sound, the user must interact with the host page first (not just the iframe).
-
----
+Without `allow="autoplay"`, the player can only autoplay muted.
+If your use case requires autoplay with sound, the user must interact with the host page first (not just the iframe).
 
 ## Fullscreen
 
-Fullscreen requires `allow="fullscreen"` on the iframe and `allowfullscreen` attribute. When fullscreen is triggered inside the iframe, the `<video>` element expands to fill the screen — not the iframe. This is browser-correct behavior.
+Fullscreen requires `allow="fullscreen"` on the iframe and `allowfullscreen` attribute.
+When fullscreen is triggered inside the iframe, the `<video>` element expands to fill the screen, not the iframe.
+This is browser-correct behavior.
 
 ```html
 <iframe allow="autoplay; fullscreen; picture-in-picture" allowfullscreen ...></iframe>
 ```
 
----
-
 ## Origin security
 
-Always validate `event.origin` in your `message` handler. Never use `'*'` as the target origin for sensitive commands (like loading authenticated content):
+Always validate `event.origin` in your `message` handler.
+Never use `'*'` as the target origin for sensitive commands (like loading authenticated content):
 
 ```ts
 const ALLOWED_ORIGINS = new Set(['https://yoursite.com', 'https://app.yoursite.com']);
@@ -193,10 +193,8 @@ window.addEventListener('message', (event) => {
 });
 ```
 
----
-
 ## What to read next
 
-- [Advanced: Multi-Instance](/nomercy-player-kit/advanced/multi-instance) — multiple players in one non-iframe page
-- [Advanced: Distributed Playback](/nomercy-video-player/advanced/distributed-playback) — syncing across frames and devices
-- [Recipes: Auth and Tokens](/nomercy-player-kit/auth-fetch) — securing embed streams with bearer tokens
+- [Advanced: Multi-Instance](/nomercy-player-core/advanced/multi-instance), multiple players in one non-iframe page
+- [Advanced: Distributed Playback](/nomercy-video-player/advanced/distributed-playback), syncing across frames and devices
+- [Recipes: Auth and Tokens](/nomercy-player-core/auth-fetch), securing embed streams with bearer tokens

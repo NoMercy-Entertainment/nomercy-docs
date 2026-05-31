@@ -13,7 +13,7 @@ You need a way to tell the listener what's happening without building a full not
 Call `show('text')` and it appears, stays for a moment, then disappears on its own.
 For blocking states like an autoplay-blocked "Tap to play" prompt, use `displayPersistent()` instead, and it stays until you explicitly remove it.
 
-This plugin is a direct re-export of the kit's `MessagePlugin`. There are no music-specific overrides.
+This plugin is a direct re-export of the player core's `MessagePlugin`. There are no music-specific overrides.
 
 ```ts
 import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
@@ -23,16 +23,12 @@ import type { MessageOptions } from '@nomercy-entertainment/nomercy-music-player
 
 Plugin id: `'message'`
 
----
-
 ## Options
 
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
-| `durationMs` | `number` | `3000` | Default display duration in milliseconds for transient messages. Applies in `displayMessage()` and `queue()` when no per-message duration is given. Does not override the `ms` parameter of `show()`. |
-| `mountSelector` | `string` | `undefined` | CSS selector for an existing element in which to mount the toast surface. When absent the plugin creates a `<div>` inside the player container. |
-
----
+| `durationMs` | `number` | `3000` | Default display duration in milliseconds for transient messages. Applies in `displayMessage()` and `queue()` when no per-message duration is given. Does not affect `show()` calls that omit `ms`. |
+| `mountSelector` | `string` | none | CSS selector for an existing element to use as the toast surface. When the selector finds no match, the plugin falls back to creating a `<div>` inside the player container. When absent, the plugin always creates a new `<div>` inside the player container. |
 
 ## Methods
 
@@ -47,8 +43,6 @@ The default duration is `3000` ms when `ms` is not provided.
 Any current toast is replaced immediately and its timer cancelled.
 The toast hides after `ms` milliseconds.
 
----
-
 ### `hide()`
 
 ```ts
@@ -57,8 +51,6 @@ hide(): void
 
 Hide the current transient toast and cancel any pending auto-hide timer.
 No-ops when the toast surface is not mounted.
-
----
 
 ### `displayMessage(data, ms?)`
 
@@ -71,8 +63,6 @@ Accepts a plain string or a `{ text, durationMs? }` object.
 The `ms` argument takes priority over `data.durationMs`, which takes priority over the plugin's `durationMs` option.
 Prefer `show()` for new call sites.
 
----
-
 ### `queue(messages)`
 
 ```ts
@@ -83,8 +73,6 @@ Play a sequence of messages back-to-back, each displayed for its own duration.
 When no per-message duration is given, the plugin's `durationMs` option (default `3000`) applies.
 Calling `queue()` again or `clear()` cancels any in-flight sequence.
 
----
-
 ### `clear()`
 
 ```ts
@@ -93,8 +81,6 @@ clear(): void
 
 Cancel any in-flight `queue()`, hide the current toast, and reset all pending timers.
 Persistent messages are unaffected.
-
----
 
 ### `displayPersistent(text, id)`
 
@@ -106,8 +92,6 @@ Display a persistent overlay message that stays until `removePersistent(id)` is 
 If a persistent message with the same `id` already exists, its text is updated in place without re-creating the element.
 The element carries `role="status"` and `aria-live="polite"` for screen readers.
 
----
-
 ### `removePersistent(id)`
 
 ```ts
@@ -117,14 +101,10 @@ removePersistent(id: string): void
 Remove a persistent message by its `id`.
 No-ops when no message with that id exists.
 
----
-
 ## Accessibility
 
 The toast surface carries `role="status"` and `aria-live="polite"` so screen readers announce updates without stealing focus.
 Persistent overlays get the same ARIA attributes.
-
----
 
 ## Registration
 
@@ -158,8 +138,6 @@ msg.displayPersistent('Tap to start playback', 'autoplay-blocked');
 player.on('play', () => msg.removePersistent('autoplay-blocked'));
 ```
 
----
-
 ## See also
 
-- [Plugin Kit - built-in plugins](/nomercy-player-kit/plugins-builtin)
+- [Player Core - built-in plugins](/nomercy-player-core/plugins-builtin)

@@ -6,15 +6,18 @@ draft: false
 
 # Crossfade Tuning
 
-Crossfade quality depends on three variables: backend choice, duration, and the lead time between the `trackEndingSoon` signal and when the fade starts. This page covers the trade-offs and how to tune each.
-
----
+Crossfade quality depends on three variables: backend choice, duration, and the lead time between the `trackEndingSoon` signal and when the fade starts.
+This page covers the trade-offs and how to tune each.
 
 ## Backend choice determines accuracy
 
-The `audio-element` backend uses a `requestAnimationFrame` loop (~50 fps). One frame is ~20 ms. Gain steps are applied every frame, so transitions are not sample-accurate — slight audible stepping may occur on short fades.
+The `audio-element` backend uses a `requestAnimationFrame` loop (~50 fps).
+One frame is ~20 ms.
+Gain steps are applied every frame, so transitions are not sample-accurate, and slight audible stepping may occur on short fades.
 
-The `webaudio` backend uses `linearRampToValueAtTime` on a `GainNode`. This schedules the ramp in the browser's audio render thread, independent of the animation frame rate. Gain transitions are sample-accurate.
+The `webaudio` backend uses `linearRampToValueAtTime` on a `GainNode`.
+This schedules the ramp in the browser's audio render thread, independent of the animation frame rate.
+Gain transitions are sample-accurate.
 
 **For production DJ-style crossfades:** use `webaudio`.
 
@@ -23,8 +26,6 @@ The `webaudio` backend uses `linearRampToValueAtTime` on a `GainNode`. This sche
 ```ts
 player.setup({ backend: 'webaudio' });
 ```
-
----
 
 ## Duration guide
 
@@ -55,9 +56,7 @@ await player.crossfadeTo(nextTrack, {
 });
 ```
 
----
-
-## Lead time — threshold vs duration
+## Lead time: threshold vs duration
 
 `trackEndingSoonThreshold` controls when `AutoAdvancePlugin` initiates the crossfade. It must be greater than or equal to `crossfadeDuration`:
 
@@ -73,9 +72,8 @@ player.addPlugin(AutoAdvancePlugin, {
 });
 ```
 
-If `threshold < duration`, the fade will start but will be cut off when the outgoing track reaches `ended`. The incoming track will become primary mid-fade.
-
----
+If `threshold < duration`, the fade will start but will be cut off when the outgoing track reaches `ended`.
+The incoming track will become primary mid-fade.
 
 ## Equal-power vs linear
 
@@ -87,8 +85,6 @@ linear gain sum at t=0.5 = 0.5 + 0.5 = 1.0, but dips to ~0.71 perceived
 ```
 
 Use `linear` only when you deliberately want a brief dip (unusual).
-
----
 
 ## Mid-crossfade gain inspection
 
@@ -107,10 +103,8 @@ player.on('crossfadeStart', () => {
 });
 ```
 
----
-
 ## See also
 
-- [Crossfade API](/nomercy-music-player/api/crossfade) — `crossfadeTo()`, `isTransitioning()`, `CrossfadeOptions`
-- [AutoAdvancePlugin](/nomercy-music-player/plugins/auto-advance) — `crossfade`, `crossfadeDuration` options
-- [Backends overview](/nomercy-music-player/backends/overview) — backend accuracy comparison
+- [Crossfade API: crossfadeTo(), isTransitioning(), CrossfadeOptions](/nomercy-music-player/api/crossfade)
+- [AutoAdvancePlugin: crossfade, crossfadeDuration options](/nomercy-music-player/plugins/auto-advance)
+- [Backends overview: backend accuracy comparison](/nomercy-music-player/backends/overview)

@@ -5,27 +5,25 @@ description: 'The IVideoBackend / IAudioBackend contracts and wiring a custom ba
 
 # Writing a Backend
 
-Read this when you need to replace a built-in backend — either the HLS/html5 video backend (for DASH or a custom MSE pipeline) or the audio backend (for a custom Web Audio pipeline).
+Read this when you need to replace a built-in backend, either the HLS/html5 video backend (for DASH or a custom MSE pipeline) or the audio backend (for a custom Web Audio pipeline).
 
-For the video-specific surface (`IVideoBackend`) see [Custom Video Backend](/nomercy-video-player/adapters/video-backend). For the music-specific surface (`IAudioBackend`) see [Custom Audio Backend](/nomercy-music-player/advanced/writing-an-audio-backend).
+For the video-specific surface (`IVideoBackend`) see [Custom Video Backend](/nomercy-video-player/adapters/video-backend).
+For the music-specific surface (`IAudioBackend`) see [Custom Audio Backend](/nomercy-music-player/advanced/writing-an-audio-backend).
 
-**Prerequisites:** [HLS](/nomercy-video-player/hls) covers the default video backend's capabilities. Read it first — many needs can be addressed without replacing the backend.
-
----
+**Prerequisites:** [HLS](/nomercy-video-player/hls) covers the default video backend's capabilities.
+Read it first, because many needs can be addressed without replacing the backend.
 
 ## When to replace the backend
 
 Before replacing the backend, check whether the need can be addressed with lower-effort options:
 
-1. **Custom stream factory** — register a `StreamFactory` via `registerStream()` to handle a new URL scheme or content type (e.g. DASH, smooth streaming). See [Adapter Ports — Streams](/nomercy-player-kit/streams).
+1. **Custom stream factory**: register a `StreamFactory` via `registerStream()` to handle a new URL scheme or content type (e.g. DASH, smooth streaming). See [Adapter Ports, Streams](/nomercy-player-core/streams).
 
-2. **hls.js config override** — if you need to tune HLS behavior (bitrate cap, fragment retry count, level cap), configure it through the `hlsConfig` setup option rather than replacing the entire backend.
+2. **hls.js config override**: if you need to tune HLS behavior (bitrate cap, fragment retry count, level cap), configure it through the `hlsConfig` setup option rather than replacing the entire backend.
 
-3. **Custom plugin** — if the need is behavioral (custom ABR, buffer management, fragment interception), write a plugin that wraps the backend rather than replacing it. See [Advanced: Custom Plugin](/nomercy-player-kit/advanced/custom-plugin).
+3. **Custom plugin**: if the need is behavioral (custom ABR, buffer management, fragment interception), write a plugin that wraps the backend rather than replacing it. See [Advanced: Custom Plugin](/nomercy-player-core/advanced/custom-plugin).
 
 Replace the backend only when none of the above covers the use case.
-
----
 
 ## Registering the backend
 
@@ -37,9 +35,8 @@ player.setup({
 });
 ```
 
-`backendFactory` receives the `kind` string and a `config` object that includes the player container element. Return an object that implements `IVideoBackend` or `IAudioBackend`.
-
----
+`backendFactory` receives the `kind` string and a `config` object that includes the player container element.
+Return an object that implements `IVideoBackend` or `IAudioBackend`.
 
 ## The IVideoBackend interface
 
@@ -80,16 +77,16 @@ import type { IVideoBackend } from '@nomercy-entertainment/nomercy-video-player'
 
 ### Volume
 
-| Method      | Signature             | Description              |
-| ----------- | --------------------- | ------------------------ |
-| `volume()`  | `() => number`        | Current volume (0–1)     |
-| `volume(v)` | `(v: number) => void` | Set volume               |
-| `mute()`    | `() => void`          | Mute audio               |
-| `unmute()`  | `() => void`          | Unmute audio             |
+| Method               | Signature                         | Description          |
+| -------------------- | --------------------------------- | -------------------- |
+| `volume()`           | `() => number`                    | Current volume (0–1) |
+| `volume(newVolume)`  | `(newVolume: number) => void`     | Set volume           |
+| `mute()`             | `() => void`                      | Mute audio           |
+| `unmute()`           | `() => void`                      | Unmute audio         |
 
 ### Events
 
-Backends emit through a typed `on` / `off` pair. The kit subscribes in `backend()`:
+Backends emit through a typed `on` / `off` pair. The core subscribes in `backend()`:
 
 ```ts
 backend.on('play', () => { /* ... */ });
@@ -97,9 +94,8 @@ backend.on('timeupdate', () => { /* ... */ });
 backend.on('ended', () => { /* ... */ });
 ```
 
-All event names and payload shapes are defined in `BackendEventPayload`. Your backend must call `on` / `off` with the same signature.
-
----
+All event names and payload shapes are defined in `BackendEventPayload`.
+Your backend must call `on` / `off` with the same signature.
 
 ## Minimal custom backend
 
@@ -198,10 +194,10 @@ export class MyNativeBackend implements IVideoBackend {
 
   // Volume
   volume(): number;
-  volume(v: number): void;
-  volume(v?: number): number | void {
-    if (v === undefined) return this.video.volume;
-    this.video.volume = v;
+  volume(newVolume: number): void;
+  volume(newVolume?: number): number | void {
+    if (newVolume === undefined) return this.video.volume;
+    this.video.volume = newVolume;
   }
 
   mute(): void { this.video.muted = true; }
@@ -274,11 +270,11 @@ player.setup({
 });
 ```
 
----
-
 ## Shaka Player backend example
 
-Shaka Player is a DASH/HLS player from Google. The Shaka SDK uses its own `getVariantTracks()` / `selectVariantTrack()` API — those are Shaka's methods, not the kit's. Your backend wraps them and exposes the kit's overloaded-function surface:
+Shaka Player is a DASH/HLS player from Google.
+The Shaka SDK uses its own `getVariantTracks()` / `selectVariantTrack()` API, those are Shaka's methods, not the core's.
+Your backend wraps them and exposes the core's overloaded-function surface:
 
 ```ts
 import shaka from 'shaka-player';
@@ -374,10 +370,10 @@ export class ShakaBackend implements IVideoBackend {
   }
 
   volume(): number;
-  volume(v: number): void;
-  volume(v?: number): number | void {
-    if (v === undefined) return this.video.volume;
-    this.video.volume = v;
+  volume(newVolume: number): void;
+  volume(newVolume?: number): number | void {
+    if (newVolume === undefined) return this.video.volume;
+    this.video.volume = newVolume;
   }
 
   mute(): void { this.video.muted = true; }
@@ -390,7 +386,7 @@ export class ShakaBackend implements IVideoBackend {
   subtitleTracks(): SubtitleTrack[] { return []; }
   setSubtitleTrack(_idx: number | null): void { /* no-op */ }
 
-  // Shaka's getVariantTracks() is Shaka's own SDK API — wrapped here:
+  // Shaka's getVariantTracks() is Shaka's own SDK API, wrapped here:
   qualityLevels(): QualityLevel[] {
     return this.shakaPlayer.getVariantTracks().map((track) => ({
       id: track.id,
@@ -457,10 +453,8 @@ export class ShakaBackend implements IVideoBackend {
 }
 ```
 
----
-
 ## What to read next
 
-- [HLS](/nomercy-video-player/hls) — before replacing the backend, check if custom hls.js config covers your need
-- [Kit — Adapters](/nomercy-player-kit/adapters) — the full `IVideoBackend` port entry
-- [Advanced: Custom Plugin](/nomercy-player-kit/advanced/custom-plugin) — if you need to add behavior on top of the backend without replacing it
+- [HLS](/nomercy-video-player/hls): before replacing the backend, check if custom hls.js config covers your need
+- [Core Adapters](/nomercy-player-core/adapters): the full `IVideoBackend` port entry
+- [Advanced: Custom Plugin](/nomercy-player-core/advanced/custom-plugin): if you need to add behavior on top of the backend without replacing it

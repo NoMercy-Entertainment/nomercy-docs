@@ -1,13 +1,12 @@
 ---
 title: 'Quick Start'
-description: 'Get started writing against the nomercy-player-core kit directly — for library authors and plugin authors who need kit-level access.'
+description: 'Get started writing against the nomercy-player-core directly, for library authors and plugin authors who need core-level access.'
 ---
 
-# Kit Quick Start
+# Player Core Quick Start
 
-This page is for library authors and plugin developers who need to work against `nomercy-player-core` directly. If you are building a video or music player, use the [Video Quick Start](/nomercy-video-player/quickstart) or [Music Quick Start](/nomercy-music-player/quickstart) instead — both library packages include everything from the kit.
-
----
+This page is for library authors and plugin developers who need to work against `nomercy-player-core` directly.
+If you are building a video or music player, use the [Video Quick Start](/nomercy-video-player/quickstart) or [Music Quick Start](/nomercy-music-player/quickstart) instead, as both library packages include everything from the core.
 
 ## Install
 
@@ -15,11 +14,10 @@ This page is for library authors and plugin developers who need to work against 
 npm install @nomercy-entertainment/nomercy-player-core@beta
 ```
 
----
+## Writing a core-level plugin
 
-## Writing a kit-level plugin
-
-A kit-level plugin works with any player built on the kit — video, music, or a custom library you write. Type the `P` generic broadly:
+A core-level plugin works with any player built on the player core, whether video, music, or a custom library you write.
+Type the `P` generic broadly:
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
@@ -73,31 +71,36 @@ Register it on any player:
 import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
 import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player';
 
-nmplayer('video').setup({ ... }).addPlugin(AnalyticsPlugin, { endpoint: '/api/v1/analytics' });
-nmMPlayer('music').setup({ ... }).addPlugin(AnalyticsPlugin, { endpoint: '/api/v1/analytics' });
-```
+nmplayer('video')
+  .addPlugin(AnalyticsPlugin, {
+    endpoint: '/api/v1/analytics',
+  })
+  .setup({ ... });
 
----
+nmMPlayer('music')
+  .addPlugin(AnalyticsPlugin, {
+    endpoint: '/api/v1/analytics',
+  })
+  .setup({ ... });
+```
 
 ## Accessing adapter ports
 
-Kit adapters are available from the kit's subpath exports:
+Core adapters are available from the player core's subpath exports:
 
 ```ts
 import {
   LocalStorageBackend,
   MemoryStorageBackend,
   DEFAULT_RETRY_POLICY,
+  browserPlatform,
 } from '@nomercy-entertainment/nomercy-player-core';
 import type { IRetryPolicy } from '@nomercy-entertainment/nomercy-player-core';
-import { browserPlatform } from '@nomercy-entertainment/nomercy-player-core';
 ```
 
-See [Kit — Adapters](/nomercy-player-kit/adapters) for the full catalog.
+See [Core: Adapters](/nomercy-player-core/adapters) for the full catalog.
 
----
-
-## Testing kit-level plugins
+## Testing core-level plugins
 
 ```ts
 import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
@@ -110,21 +113,18 @@ describePlugin(AnalyticsPlugin, ({ player, plugin }) => {
 });
 ```
 
-The testing stub provides a minimal IPlayer implementation that satisfies the kit contracts without any browser APIs.
-
----
+The testing stub provides a minimal IPlayer implementation that satisfies the player core contracts without any browser APIs.
 
 ## What success looks like
 
-A kit-level plugin registers without errors, `use()` is called during `setup()`, and `assertNoListenerLeak` passes after dispose. The plugin emits its typed events, and `player.on('plugin:analytics:session:reported', ...)` receives them.
-
----
+A core-level plugin registers without errors, `use()` is called during `setup()`, and `assertNoListenerLeak` passes after dispose.
+The plugin emits its typed events, and `player.on('plugin:analytics:session:reported', ...)` receives them.
 
 ## What to read next
 
-- [Kit — Adapters](/nomercy-player-kit/adapters) — the 28 infrastructure ports your plugin can swap
-- [Kit — Event System](/nomercy-player-kit/event-system) — typed events, cross-plugin listening
-- [Kit — Lifecycle](/nomercy-player-kit/lifecycle) — phase model and plugin ordering
-- [Kit — Testing](/nomercy-player-kit/testing) — full `describePlugin` and assertion API
-- [Plugin Authoring](/nomercy-player-kit/plugin-authoring) — complete plugin contract reference
-- [Advanced: Custom Plugin](/nomercy-player-kit/advanced/custom-plugin) — production-grade plugin patterns
+- [Core: Adapters](/nomercy-player-core/adapters): the 28 infrastructure ports your plugin can swap
+- [Core: Event System](/nomercy-player-core/event-system): typed events, cross-plugin listening
+- [Core: Lifecycle](/nomercy-player-core/lifecycle): phase model and plugin ordering
+- [Core: Testing](/nomercy-player-core/testing): full `describePlugin` and assertion API
+- [Plugin Authoring](/nomercy-player-core/plugin-authoring): complete plugin contract reference
+- [Advanced: Custom Plugin](/nomercy-player-core/advanced/custom-plugin): production-grade plugin patterns

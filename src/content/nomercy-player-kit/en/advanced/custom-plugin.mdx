@@ -1,17 +1,18 @@
 ---
 title: 'Custom Plugin'
-description: 'Production-grade plugin development — state management, event listening, multi-instance safety, dispose contract, advisories, and a watch-party-lite worked example.'
+description: 'Production-grade plugin development: state management, event listening, multi-instance safety, dispose contract, advisories, and a watch-party-lite worked example.'
 ---
 
 # Custom Plugin
 
-Read this when you are building a production plugin — something that will ship to users, run in multiple player instances, or coordinate across components. The [Plugin Authoring](/nomercy-player-kit/plugin-authoring) page covers the basics. This page covers the hard parts.
-
----
+Read this when you are building a production plugin, something that will ship to users, run in multiple player instances, or coordinate across components.
+The [Plugin Authoring](/nomercy-player-core/plugin-authoring) page covers the basics.
+This page covers the hard parts.
 
 ## The dispose contract
 
-Every resource you acquire in `use()` must be released in `dispose()` — or through a managed helper. The kit provides helpers that auto-dispose so you don't have to track them manually:
+Every resource you acquire in `use()` must be released in `dispose()`, or through a managed helper.
+The player core provides helpers that auto-dispose so you don't have to track them manually:
 
 | Resource           | Managed helper                    | Manual alternative                        |
 | ------------------ | --------------------------------- | ----------------------------------------- |
@@ -20,7 +21,7 @@ Every resource you acquire in `use()` must be released in `dispose()` — or thr
 | Intervals          | `this.interval(ms, fn)`           | `clearInterval(id)` in `dispose()`        |
 | Animation frames   | `this.frame(fn)`                  | `cancelAnimationFrame(id)` in `dispose()` |
 | DOM nodes          | `this.mount(className)`           | `el.remove()` in `dispose()`              |
-| External resources | None — you must clean up manually | WebSocket, Worker, etc.                   |
+| External resources | None, you must clean up manually  | WebSocket, Worker, etc.                   |
 
 If you create a `WebSocket` or `Worker` inside a plugin, close/terminate it in `dispose()`:
 
@@ -35,20 +36,18 @@ export class MyPlugin extends Plugin<NMVideoPlayer, MyOptions, {}> {
   async use(): Promise<void> {
     this.ws = new WebSocket(this.opts.wsUrl);
     this.ws.onmessage = (event) => this.handleMessage(event);
-    // Register player events with this.on — auto-disposes:
+    // Register player events with this.on, auto-disposes:
     this.on('current', ({ item }) => this.onTrackChange(item));
   }
 
   dispose(): void {
-    // Close the WebSocket manually — not tracked by the kit:
+    // Close the WebSocket manually, not tracked by the core:
     this.ws?.close();
     this.ws = null;
-    // this.on listeners are auto-disposed — no manual cleanup needed
+    // this.on listeners are auto-disposed, no manual cleanup needed
   }
 }
 ```
-
----
 
 ## State management
 
@@ -77,7 +76,7 @@ export class PlaybackRatePlugin extends Plugin<
 
   dispose(): void {}
 
-  // Public API — getter/setter pattern mirrors the kit:
+  // Public API, getter/setter pattern mirrors the player core:
   rate(): number;
   rate(value: number): this;
   rate(value?: number): number | this {
@@ -87,7 +86,7 @@ export class PlaybackRatePlugin extends Plugin<
   }
 
   private setRate(rate: number): void {
-    this.currentRate = Math.max(0.25, Math.min(4.0, rate)); // clamp to safe range
+    this.currentRate = Math.max(0.25, Math.min(4.0, rate));
     this.player.container
       .querySelector('video')
       ?.setAttribute('playbackRate', String(this.currentRate));
@@ -101,27 +100,26 @@ interface PlaybackRateEvents {
 }
 ```
 
----
-
 ## Multi-instance safety
 
-When multiple player instances exist on the same page, each plugin instance is isolated — `this.storage`, `this.on`, `this.emit`, and `this.player` are all scoped to their own player. There is no shared mutable state between instances unless you introduce it.
+When multiple player instances exist on the same page, each plugin instance is isolated: `this.storage`, `this.on`, `this.emit`, and `this.player` are all scoped to their own player.
+There is no shared mutable state between instances unless you introduce it.
 
 Be careful with singletons:
 
 ```ts
-// Bad — global mutable singleton shared across all instances:
+// Bad, global mutable singleton shared across all instances:
 const globalState = { activePlayer: null as NMVideoPlayer | null };
-// Good
+// Good:
 const globalState: { activePlayer: NMVideoPlayer | null } = { activePlayer: null };
 
-// Good — state is per-instance via this:
+// Good, state is per-instance via this:
 class MyPlugin extends Plugin<...> {
   private localState = { active: false };
 }
 ```
 
-If you need cross-instance coordination (e.g. pause all others when one starts), use the realtime channel adapter or a shared event bus:
+If you need cross-instance coordination (for example, pausing all others when one starts), use the realtime channel adapter or a shared event bus:
 
 ```ts
 // Simplified tab-broadcast example using BroadcastChannel:
@@ -155,11 +153,9 @@ class ExclusivePlayPlugin extends Plugin<NMVideoPlayer, {}, {}> {
 }
 ```
 
----
-
 ## Phase advisories
 
-Advisories let the kit warn in development when a method is called at the wrong lifecycle phase:
+Advisories let the player core warn in development when a method is called at the wrong lifecycle phase:
 
 ```ts
 static readonly advisories: PluginAdvisory[] = [
@@ -173,9 +169,8 @@ static readonly advisories: PluginAdvisory[] = [
 ];
 ```
 
-In `NODE_ENV=development`, the kit emits a console warning. In production, advisories are silent.
-
----
+In `NODE_ENV=development`, the player core emits a console warning.
+In production, advisories are silent.
 
 ## Static onError recovery
 
@@ -183,14 +178,12 @@ Declare what happens when specific error codes are emitted by the player or a de
 
 ```ts
 static readonly onError: Record<string, PluginRecoveryAction> = {
-  'core:auth/unauthenticated': 'disable',     // disable plugin if auth fails
-  'core:stream/segment-load-error': 'ignore', // don't propagate segment errors
+  'core:auth/unauthenticated': 'disable',
+  'core:stream/segment-load-error': 'ignore',
 };
 ```
 
 Options: `'retry-once'` | `'fallback'` | `'disable'` | `'ignore'`.
-
----
 
 ## Worked example: watch-party-lite plugin
 
@@ -201,7 +194,7 @@ import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
 
 interface WatchPartyOptions {
-  roomId: string; // unique room identifier — all tabs with the same roomId sync
+  roomId: string; // unique room identifier, all tabs with the same roomId sync
   role?: 'leader' | 'follower'; // 'leader' emits, 'follower' obeys. Default: 'leader'
 }
 
@@ -220,7 +213,7 @@ export class WatchPartyLitePlugin extends Plugin<
   static readonly description = 'Sync play/pause/seek across browser tabs';
 
   private channel: BroadcastChannel | null = null;
-  private ignoreNextEvent = false; // prevents echo loops
+  private ignoreNextEvent = false;
 
   use(): void {
     const role = this.opts.role ?? 'leader';
@@ -257,7 +250,6 @@ export class WatchPartyLitePlugin extends Plugin<
   }
 
   private applyRemoteEvent(data: { action: 'play' | 'pause' | 'seek'; time: number }): void {
-    // Set flag to prevent echo: applying a remote event will fire local events
     this.ignoreNextEvent = true;
 
     if (data.action === 'play') {
@@ -285,8 +277,6 @@ player.addPlugin(WatchPartyLitePlugin, { roomId: 'movie-night-42', role: 'leader
 player.addPlugin(WatchPartyLitePlugin, { roomId: 'movie-night-42', role: 'follower' });
 ```
 
----
-
 ## Testing a complex plugin
 
 ```ts
@@ -300,7 +290,7 @@ describePlugin(
   ({ player, plugin }) => {
     test('broadcasts play events', () => {
       const synced: unknown[] = [];
-      player.on('plugin:watch-party-lite:synced', (e) => synced.push(e));
+      player.on('plugin:watch-party-lite:synced', (event) => synced.push(event));
 
       player.emit('play');
 
@@ -315,11 +305,9 @@ describePlugin(
 );
 ```
 
----
-
 ## What to read next
 
-- [Plugin Authoring](/nomercy-player-kit/plugin-authoring) — the complete plugin contract reference
-- [Plugin Standard](/nomercy-player-kit/plugin-standard) — the locked conformance rules
-- [Advanced: Multi-Instance](/nomercy-player-kit/advanced/multi-instance) — coordinating multiple player instances at the page level
-- [Kit — Testing](/nomercy-player-kit/testing) — full test harness reference
+- [Plugin Authoring](/nomercy-player-core/plugin-authoring), the complete plugin contract reference
+- [Plugin Standard](/nomercy-player-core/plugin-standard), the locked conformance rules
+- [Advanced: Multi-Instance](/nomercy-player-core/advanced/multi-instance), coordinating multiple player instances at the page level
+- [Core Testing](/nomercy-player-core/testing), full test harness reference

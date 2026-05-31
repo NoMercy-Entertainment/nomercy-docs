@@ -13,7 +13,7 @@ The host sends `nm:command` messages; the plugin validates the origin, then call
 The plugin also listens to player events and forwards them back to the host as `nm:event` messages.
 Nothing else in the player knows about `postMessage`; this plugin owns the whole protocol.
 
-This plugin is a direct re-export of the kit's `EmbedPlugin`. No music-specific overrides.
+This plugin is a direct re-export of the player core's `EmbedPlugin`. No music-specific overrides.
 
 ```ts
 import { EmbedPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
@@ -28,7 +28,7 @@ Plugin id: `'embed'`
 | ------ | ---- | ------- | ----------- |
 | `allowedOrigins` | `string \| string[]` | `[]` | Origin(s) allowed to send inbound `nm:command` messages. `'*'` accepts any origin (development only). An empty list rejects all inbound commands. The plugin still forwards events outward even when the list is empty. |
 | `forwardEvents` | `ReadonlyArray<'ready' \| 'play' \| 'pause' \| 'ended' \| 'time' \| 'volume' \| 'mute' \| 'error'>` | `['ready','play','pause','ended','time','volume','mute']` | Player events to forward to the host as `nm:event` postMessages. `'error'` is in the type but not in the default list; add it explicitly if you need it. |
-| `applyIframeTweaks` | `boolean` | `true` when inside a nested browsing context | Declared in `EmbedOptions` but not read by `use()` at runtime. Has no effect in the current release. |
+| `applyIframeTweaks` | `boolean` | `true` when inside a nested browsing context | When `true`, adds the `nm-embed` CSS class to the player container. Defaults to `true` when `inIframe()` detects a nested browsing context. Pass `false` to suppress the class even when the player is iframed. |
 
 ## Inbound commands (host to embed)
 
@@ -65,7 +65,7 @@ The player event payload is always nested under `data`; there are no extra field
 | `'time'` | `{ time: number }` | Periodic time update (seconds) |
 | `'volume'` | `{ level: number }` | Volume changed |
 | `'mute'` | `{ muted: boolean }` | Mute state changed |
-| `'error'` | `PlayerErrorEvent` (`error.code` at `data.error.code`, `error.message` at `data.error.message`) | Player error (not forwarded by default) |
+| `'error'` | `{ code: string; message?: string; severity: 'fatal' \| 'error' \| 'warning' \| 'info'; scope: ErrorScope; suggestion?: string }` | Player error (not forwarded by default). Serialized to a plain, clone-safe object before posting. |
 
 ### Reading event data on the host
 
@@ -81,7 +81,7 @@ window.addEventListener('message', (event) => {
   }
 
   if (name === 'error') {
-    console.error('player error:', data.error.code, data.error.message);
+    console.error('player error:', data.code, data.message);
   }
 });
 ```
@@ -178,6 +178,6 @@ An empty `allowedOrigins` list (the default) rejects all inbound commands but st
 
 ## See also
 
-- [Plugin Kit, built-in plugins](/nomercy-player-kit/plugins-builtin)
+- [Player Core, built-in plugins](/nomercy-player-core/plugins-builtin)
 - [MediaSessionPlugin](/nomercy-music-player/plugins/media-session)
 - [TabLeaderPlugin](/nomercy-music-player/plugins/tab-leader)

@@ -1,0 +1,194 @@
+---
+title: 'Build a Player UI: Overview'
+description: 'Ten-step tutorial for building a complete video player UI as a plugin, covering layout, controls, seek bar, volume, fullscreen, menus, thumbnails, and touch zones.'
+---
+
+{/* Source: packages/nomercy-video-player-v2/wiki/guides/Building-a-Video-Player-UI.md */}
+
+# Build a Player UI: Overview
+
+This tutorial walks through building a fully usable video player UI from scratch as a plugin. By the end you will have play/pause, a progress bar with seeking and thumbnail previews, time display, volume control, fullscreen, playback speed, and quality, subtitle, and audio selectors, all wired to the real v2 event model.
+
+> **Note:** The examples use [Tailwind CSS](https://tailwindcss.com) utility classes, matching the production NoMercy player. Substitute plain CSS classes and `element.style` assignments if you are not using Tailwind.
+
+## How the tutorial is structured
+
+Each step adds one slice of functionality on top of the previous one. All steps share a single plugin class called `PlayerUiPlugin`. You register it once before `setup()` and every step only extends the `use()` and `dispose()` methods inside that class.
+
+By the time you reach step 10 the plugin is a complete, self-contained UI overlay ready for production use.
+
+## Prerequisites
+
+Install the player package if you have not already.
+
+```
+npm install @nomercy-entertainment/nomercy-video-player@beta
+```
+
+The imports below are used across all steps. Put them at the top of your plugin file and leave them there as you work through each step.
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type {
+  NMVideoPlayer,
+  VideoPlayerConfig,
+  VideoPlaylistItem,
+} from '@nomercy-entertainment/nomercy-video-player';
+```
+
+## Plugin shell conventions
+
+Every step in this tutorial uses the same plugin skeleton. The conventions below are fixed; use them verbatim so each step reads as a continuation of the last.
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+class PlayerUiPlugin extends Plugin<NMVideoPlayer<VideoPlaylistItem>> {
+  static readonly id = 'player-ui';
+  static readonly description = 'Custom player UI tutorial plugin';
+
+  use(): void {
+    // DOM construction and event wiring go here.
+    // Each step adds to this method.
+  }
+
+  dispose(): void {
+    // Release any third-party resources not tracked by lifecycle helpers.
+    // Standard listeners, timers, and observers are auto-cleaned.
+  }
+}
+
+const player = nmplayer('nomercy-player')
+  .addPlugin(PlayerUiPlugin)   // register BEFORE setup()
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playlist: [
+      {
+        id: 'sintel',
+        title: 'Sintel',
+        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+        image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+        duration: 888,
+        subtitles: [
+          {
+            id: 'sub-eng',
+            kind: 'subtitles',
+            language: 'eng',
+            label: 'English',
+            url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
+          },
+        ],
+      },
+    ],
+  } satisfies VideoPlayerConfig);
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+Important registration rule: `addPlugin(PlayerUiPlugin)` must come before `setup()`. The player calls `use()` on every registered plugin during setup, so a plugin added after `setup()` misses the initial lifecycle.
+
+## DOM helpers
+
+Inside `use()`, build DOM via the player's element helpers rather than raw `document.createElement`. The helpers keep elements scoped to the player container and give the plugin system a clean reference to tear them down.
+
+The three you will use most often:
+
+```ts
+// Claim a named <div> mounted directly on the player container.
+// Returns HTMLDivElement.
+const root = this.mount('overlay');
+
+// Create a named element and chain class/parent operations.
+// .get() unwraps to the raw HTMLElement.
+const wrap = this.player.createElement('div', 'center')
+  .addClasses(['center', 'absolute', 'inset-0'])
+  .appendTo(root)
+  .get();
+
+// Create a <button> with an accessible label and a click handler.
+const playBtn = this.player.createButton('play-btn', 'Play', () => {
+  this.player.togglePlayback();
+});
+this.player.addClasses(playBtn, ['btn', 'play-btn']);
+wrap.appendChild(playBtn);
+```
+
+## Reacting to state
+
+The player applies CSS classes to the `.nomercyplayer` container when state changes. Wire your UI to those classes and to typed events from `this.on(...)`.
+
+Key state classes applied to `.nomercyplayer`:
+
+| Class | When active |
+| --- | --- |
+| `playing` | Playback is running |
+| `paused` | Playback is paused |
+| `buffering` | Player is waiting for data |
+| `active` / `inactive` | Pointer is active / idle (show or hide controls) |
+| `fullscreen` | Fullscreen is active |
+| `muted` | Volume is muted |
+| `ended` | Current item has ended |
+
+Use `this.on(event, fn)` inside `use()` to subscribe to player events. Listeners registered this way are auto-cleaned when the plugin is disposed, so `dispose()` never needs to unsubscribe them manually.
+
+```ts
+use(): void {
+  // React to the playing/paused state class changes.
+  this.on('play', () => {
+    playBtn.setAttribute('aria-label', 'Pause');
+  });
+  this.on('pause', () => {
+    playBtn.setAttribute('aria-label', 'Play');
+  });
+  // React to time updates.
+  this.on('time', ({ time }) => {
+    timeEl.textContent = formatTime(time);
+  });
+}
+```
+
+## SVG icon convention
+
+The tutorial uses [Fluent UI](https://github.com/microsoft/fluentui-system-icons) SVG paths. Each icon is an object with a `normal` (outline) path and a `hover` (filled) path. The step introduces a local `svgFromIcon` helper (taken straight from the `DesktopUiPlugin` source) that builds the SVG markup and swaps the path on hover. `this.player.createSVG(id, viewBox)` is the lower-level primitive that returns a bare `<svg>` element — the icon rendering layer sits on top of it.
+
+Icons follow the `Icon` interface: `{ classes: string[], hover: string, normal: string, title: string }`.
+
+All icon definitions are introduced in [Step 1](/nomercy-video-player/guides/build-ui-1-shell-and-layout).
+
+## Three-zone layout
+
+The tutorial builds three visual zones inside the plugin overlay:
+
+| Zone | Content |
+| --- | --- |
+| Top bar | Title, back button |
+| Center | Large play/pause button, buffering spinner |
+| Bottom bar | Progress bar, transport controls, volume, time, feature buttons |
+
+This matches the DOM structure used by the built-in `DesktopUiPlugin`. If you want to study a production implementation while working through the steps, the source lives at `packages/nomercy-video-player-v2/src/plugins/desktop-ui/`.
+
+## Tutorial steps
+
+| Step | What you build |
+| --- | --- |
+| [1: Plugin Shell and Layout](/nomercy-video-player/guides/build-ui-1-shell-and-layout) | Base plugin class, container layout, CSS structure |
+| [2: Play, Pause, and Buffering](/nomercy-video-player/guides/build-ui-2-play-pause) | Center play button, buffering spinner, click-to-toggle |
+| [3: Progress Bar with Seeking](/nomercy-video-player/guides/build-ui-3-progress-bar) | Seekable slider, buffer bar, hover preview time |
+| [4: Time Display and Skip Buttons](/nomercy-video-player/guides/build-ui-4-time-and-skip) | Current time, duration, 10 s skip forward and back |
+| [5: Volume Control](/nomercy-video-player/guides/build-ui-5-volume) | Mute toggle, volume slider, icon state |
+| [6: Top Bar with Title](/nomercy-video-player/guides/build-ui-6-title-bar) | Episode or movie title overlay |
+| [7: Fullscreen and Playback Speed](/nomercy-video-player/guides/build-ui-7-fullscreen-and-speed) | Fullscreen toggle, speed selector menu |
+| [8: Quality, Subtitles, and Audio Selectors](/nomercy-video-player/guides/build-ui-8-selectors) | Quality levels, subtitle tracks, audio tracks |
+| [9: Seek Preview Thumbnails](/nomercy-video-player/guides/build-ui-9-seek-preview) | Sprite-based thumbnail tooltip on progress bar hover |
+| [10: Touch Zones](/nomercy-video-player/guides/build-ui-10-touch-zones) | Double-tap seek, playback toggle, fullscreen, volume zones |
+
+## What you will have built
+
+After completing all ten steps you will have a plugin that mounts a complete three-zone overlay, responds to every playback state transition, exposes seek and volume controls, renders a sprite-thumbnail tooltip on hover, and handles touch input with double-tap seek zones. The plugin is self-contained, tree-shakeable, and disposes cleanly with the player.
+
+Next: [Step 1: Plugin Shell and Layout](/nomercy-video-player/guides/build-ui-1-shell-and-layout)

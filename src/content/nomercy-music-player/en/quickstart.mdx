@@ -1,15 +1,14 @@
 ---
 title: Quick start
-description: nomercy-music-player v2 — Quick start. Copy-paste runs as-is.
+description: nomercy-music-player v2, Quick start. Copy-paste runs as-is.
 ---
 
 # Quick Start
 
-Read this if you are setting up the music player for the first time. The snippet below is verified — paste it into a fresh project and it runs.
+Read this if you are setting up the music player for the first time.
+The snippet below is verified, paste it into a fresh project and it runs.
 
 **Success looks like:** the `current` event fires with your first track, playback starts, and system media controls (lock screen, notification bar) appear for the track metadata.
-
----
 
 ## Install
 
@@ -17,9 +16,8 @@ Read this if you are setting up the music player for the first time. The snippet
 npm install @nomercy-entertainment/nomercy-music-player@beta
 ```
 
-Requires Node 18+ for tooling. Runs in any modern browser.
-
----
+Requires Node 18+ for tooling.
+Runs in any modern browser.
 
 ## Minimal working player
 
@@ -69,9 +67,10 @@ player.on('ready', () => {
 });
 ```
 
-That is a working music player. The inline `playlist:` array is auto-queued during setup. `AutoAdvancePlugin` advances the queue when a track ends. `MediaSessionPlugin` wires lock screen and notification controls.
-
----
+That is a working music player.
+The inline `playlist:` array is auto-queued during setup.
+`AutoAdvancePlugin` advances the queue when a track ends.
+`MediaSessionPlugin` wires lock screen and notification controls.
 
 ## Play, pause, and transport
 
@@ -86,9 +85,8 @@ await player.previous();
 await player.restart();
 ```
 
-All transport methods return `Promise<void>`. They are safe to call without awaiting if you don't need to sequence work after them.
-
----
+All transport methods return `Promise<void>`.
+They are safe to call without awaiting if you don't need to sequence work after them.
 
 ## Queue management
 
@@ -118,8 +116,6 @@ player.current(track2);
 const currentTrack = player.current(); // T | undefined
 ```
 
----
-
 ## Volume
 
 ```ts
@@ -131,8 +127,6 @@ player.toggleMute();
 player.volumeUp(5); // raise by 5 percentage points (default is 5)
 player.volumeDown(5); // lower by 5 percentage points
 ```
-
----
 
 ## Shuffle and repeat
 
@@ -147,8 +141,6 @@ player.repeatState(RepeatState.ONE);
 player.repeatState(RepeatState.ALL);
 ```
 
----
-
 ## Seeking
 
 ```ts
@@ -160,8 +152,6 @@ player.forward(10); // skip forward 10s
 player.rewind(10); // skip back 10s
 player.seekByPercentage(50); // jump to midpoint (0-100 scale)
 ```
-
----
 
 ## Listening to events
 
@@ -190,8 +180,6 @@ player.on('ready', () => {
 
 See [Events](/nomercy-music-player/events) for the full list and payload shapes.
 
----
-
 ## Authentication
 
 If your audio sources require an `Authorization` header:
@@ -215,16 +203,46 @@ player.on('ready', () => {
 });
 ```
 
-The player injects `Authorization: Bearer <token>` on every HLS manifest and segment request. On a 401, it calls `refreshOnUnauthenticated` once and retries. On a 403, the error propagates — do not retry.
+The player injects `Authorization: Bearer <token>` on every HLS manifest and segment request.
+On a 401, it calls `refreshOnUnauthenticated` once and retries.
+On a 403, the error propagates, do not retry.
 
----
+## CDN (no bundler)
+
+You can drop the music player onto any page without a build step.
+Point a `<script>` at the IIFE bundle and you get a `nmMPlayer` global.
+The bundle expects `hls.js` to be present as the `Hls` global, so load that first even if you only play plain audio files.
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@nomercy-entertainment/nomercy-music-player@beta/dist/nomercy-music-player.iife.js"></script>
+<script>
+  var player = window.nmMPlayer('main').setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+    playlist: [
+      {
+        id: 'bent-wyre-01',
+        name: 'Ants Of The Beat',
+        url: '/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.mp3',
+      },
+    ],
+  });
+
+  player.on('ready', function () {
+    player.current(0, { autoplay: true });
+  });
+</script>
+```
+
+The IIFE bundle carries the core player only.
+Built-in plugins (media session, lyrics, equalizer, and the rest) are not bundled into it, so install via npm and use ESM when you need them.
 
 ## What to read next
 
-- [Configuration](/nomercy-music-player/configuration) — all config options explained
-- [Crossfade](/nomercy-music-player/crossfade) — the signature music feature
-- [Plugin Development](/nomercy-music-player/plugin-development) — extend the player
-- [Events](/nomercy-music-player/events) — full event reference
-- [API Methods](/nomercy-music-player/api-methods) — full method reference
-- [Recipes: Crossfade & Gapless](/nomercy-music-player/recipes/crossfade-and-gapless) — tuning crossfade for production
-- [Recipes: Lyrics & Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer) — LRC sync + EQ band manipulation
+- [Configuration](/nomercy-music-player/configuration), all config options explained
+- [Crossfade](/nomercy-music-player/crossfade), the signature music feature
+- [Plugin Development](/nomercy-music-player/plugin-development), extend the player
+- [Events](/nomercy-music-player/events), full event reference
+- [API Methods](/nomercy-music-player/api-methods), full method reference
+- [Recipes: Crossfade & Gapless](/nomercy-music-player/recipes/crossfade-and-gapless), tuning crossfade for production
+- [Recipes: Lyrics & Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer), LRC sync + EQ band manipulation

@@ -8,7 +8,8 @@ draft: false
 
 ## What is a subtitle style store?
 
-`ISubtitleStyleStore` is the adapter the player uses to persist and restore the user's subtitle style preferences across page reloads. The default implementation (`StorageBackedSubtitleStyleStore`) uses the kit's `IStorage` adapter so the storage backend is swappable.
+`ISubtitleStyleStore` is the adapter the player uses to persist and restore the user's subtitle style preferences across page reloads.
+The default implementation (`StorageBackedSubtitleStyleStore`) uses the core's `IStorage` adapter so the storage backend is swappable.
 
 ## ISubtitleStyleStore interface
 
@@ -24,9 +25,9 @@ import type { ISubtitleStyleStore } from '@nomercy-entertainment/nomercy-video-p
 
 ## When is this called?
 
-- `load()` — once during `setup()`. The player applies the returned style as the initial `SubtitleStyle` state before any subtitle tracks are activated.
-- `save(style)` — after every `player.subtitleStyle(patch)` call, with the full merged style.
-- `clear()` — consumer-triggered, e.g. a "Reset subtitle preferences" button in a settings screen.
+- `load()`: once during `setup()`. The player applies the returned style as the initial `SubtitleStyle` state before any subtitle tracks are activated.
+- `save(style)`: after every `player.subtitleStyle(patch)` call, with the full merged style.
+- `clear()`: consumer-triggered, e.g. a "Reset subtitle preferences" button in a settings screen.
 
 ## SubtitleStyle
 
@@ -50,17 +51,18 @@ import type { ISubtitleStyleStore } from '@nomercy-entertainment/nomercy-video-p
 // Read current style
 const style = player.subtitleStyle();
 
-// Merge a partial update — triggers save() on the adapter
+// Merge a partial update, triggers save() on the adapter
 player.subtitleStyle({
   fontSize: 120,
   textColor: 'yellow',
 });
 ```
 
-The `'subtitleStyle'` event fires after each update, carrying the new full style. The SubtitleOverlayPlugin subscribes to this event to repaint active cue areas immediately.
+The `'subtitleStyle'` event fires after each update, carrying the new full style.
+The SubtitleOverlayPlugin subscribes to this event to repaint active cue areas immediately.
 
 ## See also
 
 - [SubtitleOverlay plugin](/nomercy-video-player/plugins/subtitle-overlay)
-- [Player Kit — adapters](/nomercy-player-kit/adapters)
+- [Player Core adapters](/nomercy-player-core/adapters)
 - [Types Reference](/nomercy-video-player/types)

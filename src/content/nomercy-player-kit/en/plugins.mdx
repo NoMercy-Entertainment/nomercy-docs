@@ -1,50 +1,44 @@
 ---
 title: 'Plugin System Overview'
-description: 'What plugins are, the five-layer model, how kit plugins differ from library plugins and consumer plugins, and where to find each.'
+description: 'What plugins are, the five-layer model, how core plugins differ from library plugins and consumer plugins, and where to find each.'
 ---
 
 # Plugin System Overview
 
 The player is split into plugins for everything that most players you find out there just come bundled with, whether you need them or not. The idea is that you can make your player as lean as you want, anywhere from just getting an audio tag to play so you can listen for events and control it, all the way up to the full setup of a streaming platform like NoMercy TV. Splitting it up this way also lets your bundler strip out all the unused code, so you ship the smallest build you can.
 
-It keeps a clean line between the generic stuff and your stuff too. The plugins that ship in the packages know how to do their job and nothing about your app, so they work for anyone. Your own plugins are where the app-specific things live, like your server URLs or auth, and they can reach for whatever they need. Keeping those two apart is most of what keeps things sane as the app grows, and it really comes down to one thing: what a plugin is allowed to import is what decides where it belongs. The [Architecture](/nomercy-player-kit/architecture) page has the full picture, and [Plugins and adapters](/nomercy-player-kit/foundations/plugins-and-adapters) covers how a plugin differs from an adapter.
-
----
+It keeps a clean line between the generic stuff and your stuff too. The plugins that ship in the packages know how to do their job and nothing about your app, so they work for anyone. Your own plugins are where the app-specific things live, like your server URLs or auth, and they can reach for whatever they need. Keeping those two apart is most of what keeps things sane as the app grows, and it really comes down to one thing: what a plugin is allowed to import is what decides where it belongs. The [Architecture](/nomercy-player-core/architecture) page has the full picture, and [Plugins and adapters](/nomercy-player-core/foundations/plugins-and-adapters) covers how a plugin differs from an adapter.
 
 ## What a plugin is
 
 A plugin is a class that extends `Plugin<P, O, E>`:
 
-- `P` — the player type it targets (`IPlayer<BaseEventMap>` for kit-level plugins, `NMVideoPlayer` or `NMMusicPlayer` for library-specific plugins)
-- `O` — the options the plugin accepts
-- `E` — the typed events the plugin emits
+- `P`: the player type it targets (`IPlayer<BaseEventMap>` for core-level plugins, `NMVideoPlayer` or `NMMusicPlayer` for library-specific plugins)
+- `O`: the options the plugin accepts
+- `E`: the typed events the plugin emits
 
-The base class provides managed resources: `this.on`, `this.timeout`, `this.interval`, `this.frame`, `this.mount`, `this.fetch`, `this.storage`. All of these auto-dispose when the plugin is disposed — no manual cleanup needed for resources acquired through these methods.
-
----
+The base class provides managed resources: `this.on`, `this.timeout`, `this.interval`, `this.frame`, `this.mount`, `this.fetch`, `this.storage`. All of these auto-dispose when the plugin is disposed, so no manual cleanup is needed for resources acquired through these methods.
 
 ## Layer placement
 
-The [five-layer model](/nomercy-player-kit/architecture) determines where a plugin belongs:
+The [five-layer model](/nomercy-player-core/architecture) determines where a plugin belongs:
 
 | Layer | Type | Rule |
 | --- | --- | --- |
-| 4 | Built-in plugin | Ships in a package. Generic behavior — no server URLs, no app tokens. Works for any consumer. |
+| 4 | Built-in plugin | Ships in a package. Generic behavior: no server URLs, no app tokens. Works for any consumer. |
 | 5 | Consumer plugin | Your app. Can import from anywhere. Contains NoMercy server endpoints, SignalR, auth tokens. |
 
 Both layers use the same `Plugin<P, O, E>` base class. The distinction is purely what they import and what goes in their options.
-
----
 
 ## Plugin scopes
 
 Plugins live at three different scopes:
 
-### Kit plugins
+### Core plugins
 
-Shipped inside `@nomercy-entertainment/nomercy-player-core`. These are generic audio, visualization, DOM, and coordination plugins that work with any player built on the kit. Most are in the main barrel export; a few use subpath exports.
+Shipped inside `@nomercy-entertainment/nomercy-player-core`. These are generic audio, visualization, DOM, and coordination plugins that work with any player built on the core. Most are in the main barrel export; a few use subpath exports.
 
-See [Built-in Kit Plugins](/nomercy-player-kit/plugins-builtin) for the full catalogue.
+See [Built-in Core Plugins](/nomercy-player-core/plugins-builtin) for the full catalogue.
 
 ### Library plugins
 
@@ -54,9 +48,7 @@ Shipped inside the video or music player packages. These are domain-specific to 
 
 Written by you. Named with a vendor prefix (`'nomercy:sync'`, `'myapp:scrobble'`). These live in your application codebase at layer 5.
 
-See [Plugin Authoring](/nomercy-player-kit/plugin-authoring) for how to write one.
-
----
+See [Plugin Authoring](/nomercy-player-core/plugin-authoring) for how to write one.
 
 ## Registration and lookup
 
@@ -66,7 +58,7 @@ import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
 // Register:
 player.addPlugin(EqualizerPlugin);
 
-// Look up by class (preferred — fully typed):
+// Look up by class (preferred, fully typed):
 const eq = player.getPlugin(EqualizerPlugin);
 eq?.band(0, 3.0);
 
@@ -74,17 +66,13 @@ eq?.band(0, 3.0);
 const eq = player.getPluginById('equalizer');
 ```
 
-For the full registration API see [Plugin Registration](/nomercy-player-kit/plugin-registration).
-
----
+For the full registration API see [Plugin Registration](/nomercy-player-core/plugin-registration).
 
 ## Plugin contract
 
-Every plugin must satisfy the conformance checklist in the [Plugin Standard](/nomercy-player-kit/plugin-standard). The standard is enforced by lint rules in the kit.
+Every plugin must satisfy the conformance checklist in the [Plugin Standard](/nomercy-player-core/plugin-standard). The standard is enforced by lint rules in the core.
 
----
-
-## Built-in kit plugin catalog
+## Built-in core plugin catalog
 
 These twelve plugins ship in `@nomercy-entertainment/nomercy-player-core`. None are registered automatically.
 
@@ -92,33 +80,29 @@ These twelve plugins ship in `@nomercy-entertainment/nomercy-player-core`. None 
 | --- | --- | --- |
 | `AudioGraphPlugin` | Creates and owns the `AudioContext` + signal chain. Required by all other audio plugins. | `@nomercy-entertainment/nomercy-player-core` |
 | `CanvasPlugin` | Mounts a shared `<canvas>` and runs the RAF render loop. Required by visualization plugins. | `@nomercy-entertainment/nomercy-player-core` |
-| `CastSenderPlugin` | Chromecast Web Sender SDK bridge — forwards player state to a Cast receiver and mirrors it back. | `@nomercy-entertainment/nomercy-player-core` |
+| `CastSenderPlugin` | Chromecast Web Sender SDK bridge. Forwards player state to a Cast receiver and mirrors it back. Base class, consumers import the video or music player's own subclass. | `@nomercy-entertainment/nomercy-player-core` |
 | `EqualizerPlugin` | 10-band parametric EQ with pre-gain, named presets, and persistence. Requires `AudioGraphPlugin`. | `@nomercy-entertainment/nomercy-player-core` |
 | `MixerPlugin` | Master gain (`GainNode`) + stereo pan (`StereoPannerNode`) with persistence. Requires `AudioGraphPlugin`. | `@nomercy-entertainment/nomercy-player-core` |
-| `SpectrumPlugin` | FFT analyser — emits `frame` events with frequency, waveform, and band-energy data. Requires `AudioGraphPlugin`. | `@nomercy-entertainment/nomercy-player-core` |
+| `SpectrumPlugin` | FFT analyser. Emits `frame` events with frequency, waveform, and band-energy data. Requires `AudioGraphPlugin`. | `@nomercy-entertainment/nomercy-player-core` |
 | `VisualizationPlugin` | Abstract base class for canvas visualizations. Subclass and override `render(ctx, frame)`. Requires `CanvasPlugin` + `SpectrumPlugin`. | `@nomercy-entertainment/nomercy-player-core` |
 | `EmbedPlugin` | `postMessage` bridge between a host page and a player running inside an `<iframe>`. | `@nomercy-entertainment/nomercy-player-core` |
 | `KeyHandlerPlugin` | Keyboard binding router. Default bindings: Space, Arrow keys, `m`. Configurable scope and cooldown. | `@nomercy-entertainment/nomercy-player-core/plugins/key-handler` |
-| `MediaSessionPlugin` | Wires `navigator.mediaSession` — OS lock-screen controls, hardware media keys, Now Playing artwork. | `@nomercy-entertainment/nomercy-player-core/plugins/media-session` |
+| `MediaSessionPlugin` | Wires `navigator.mediaSession` for OS lock-screen controls, hardware media keys, and Now Playing artwork. | `@nomercy-entertainment/nomercy-player-core/plugins/media-session` |
 | `MessagePlugin` | Toast notification overlay with transient, persistent, and queued modes. | `@nomercy-entertainment/nomercy-player-core/plugins/message` |
 | `TabLeaderPlugin` | Web Locks–based cross-tab election so only one tab plays at a time. | `@nomercy-entertainment/nomercy-player-core/plugins/tab-leader` |
 
----
-
 ## Plugin or adapter?
 
-Quick rule: adding something new the player does is a plugin; changing how it already does something is an adapter (a port swap). They pair up nicely too, like a plugin that reads from a storage port you swapped. [Plugins and adapters](/nomercy-player-kit/foundations/plugins-and-adapters) walks through the boundary and when to reach for each.
-
----
+Quick rule: adding something new the player does is a plugin; changing how it already does something is an adapter (a port swap). They pair up nicely too, like a plugin that reads from a storage port you swapped. [Plugins and adapters](/nomercy-player-core/foundations/plugins-and-adapters) walks through the boundary and when to reach for each.
 
 ## Where to go next
 
 | Goal | Page |
 | --- | --- |
-| Register, look up, or remove a plugin | [Plugin Registration](/nomercy-player-kit/plugin-registration) |
-| Browse all kit-shipped plugins | [Built-in Kit Plugins](/nomercy-player-kit/plugins-builtin) |
-| Write your own plugin | [Plugin Authoring](/nomercy-player-kit/plugin-authoring) |
-| Read the locked conformance standard | [Plugin Standard](/nomercy-player-kit/plugin-standard) |
-| Browse adapter ports | [Adapter Ports](/nomercy-player-kit/adapters) |
+| Register, look up, or remove a plugin | [Plugin Registration](/nomercy-player-core/plugin-registration) |
+| Browse all core-shipped plugins | [Built-in Core Plugins](/nomercy-player-core/plugins-builtin) |
+| Write your own plugin | [Plugin Authoring](/nomercy-player-core/plugin-authoring) |
+| Read the locked conformance standard | [Plugin Standard](/nomercy-player-core/plugin-standard) |
+| Browse adapter ports | [Adapter Ports](/nomercy-player-core/adapters) |
 | Browse video-player plugins | [Video Player section](/nomercy-video-player) |
 | Browse music-player plugins | [Music Player section](/nomercy-music-player) |

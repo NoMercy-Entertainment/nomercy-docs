@@ -1,0 +1,302 @@
+---
+title: 'Step 1: Plugin Shell and Layout'
+description: 'Create the PlayerUiPlugin class, build the three-zone overlay layout, and wire the auto-show CSS so controls appear on activity or pause.'
+---
+
+{/* Source: packages/nomercy-video-player-v2/wiki/guides/Step-1-Plugin-Shell-and-Layout.md */}
+
+# Step 1: Plugin Shell and Layout
+
+This is the first step of the "Build a Player UI" tutorial.
+By the end you will have a `PlayerUiPlugin` class that mounts a three-zone overlay (top bar, center area, bottom bar) onto the player container.
+The controls are invisible at rest and fade in when the player is active or paused.
+Every later step extends this same class.
+
+## Prerequisites
+
+- `@nomercy-entertainment/nomercy-video-player@beta` installed.
+- A working player setup. If you have not done that yet, follow the [Quick Start](/nomercy-video-player/quickstart) first.
+- Tailwind CSS configured in your project. The class names below are Tailwind utilities. If you are not using Tailwind, substitute equivalent plain CSS.
+
+## How the overlay system works
+
+`DesktopUiPlugin` (the built-in UI) uses `this.mount(name)` from the plugin base class to claim a `<div>` on the player container and then populates it with DOM using the player's element-builder helpers. Your custom UI plugin follows the exact same pattern.
+
+The player core manages a set of CSS state classes on the `.nomercyplayer` container element. Two of them are relevant here:
+
+| Class | When it is present |
+| ----- | ------------------ |
+| `active` | The user moved the mouse or touched the screen recently (inactivity timer running). |
+| `paused` | Playback is paused. |
+
+Your controls default to `opacity-0 pointer-events-none`. Tailwind's group-variant selector `group-[&.nomercyplayer.active]` and `group-[&.nomercyplayer.paused]` flip them to fully visible whenever either class is present on the container. This mirrors the approach used by `DesktopUiPlugin` and requires no JavaScript inside the plugin to manage show/hide.
+
+> **Note:** The `active` / `paused` class names are applied by the player core's container-class mixin. Do not add your own classes to the `.nomercyplayer` element directly — mutate state through the player API and let the mixin keep class names in sync.
+
+## The plugin shell
+
+A v2 plugin is a class that extends `Plugin`. The three things you must provide are:
+
+- `static readonly id` — a unique string identifier.
+- `use()` — called once when the plugin is registered and the player is ready. Build your DOM and wire listeners here.
+- `dispose()` — called when the plugin is removed or the player is disposed. Release anything the lifecycle helpers do not track automatically.
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+export class PlayerUiPlugin extends Plugin<NMVideoPlayer> {
+  static readonly id = 'player-ui';
+  static readonly description = 'Custom player UI overlay';
+
+  private topBar!: HTMLDivElement;
+  private centerOverlay!: HTMLDivElement;
+  private bottomBar!: HTMLDivElement;
+
+  use(): void {
+    const root = this.mount('overlay');
+    this.player.addClasses(root, ['overlay']);
+
+    this.topBar = this.buildTopBar(root);
+    this.centerOverlay = this.buildCenter(root);
+    this.bottomBar = this.buildBottomBar(root);
+  }
+
+  dispose(): void {
+    // Standard listeners, timers, and the mounted div are
+    // cleaned up automatically by the lifecycle registry.
+    // Add explicit teardown here only for third-party resources.
+  }
+}
+```
+
+`this.mount('overlay')` appends a `<div class="nmplayer-player-ui-overlay">` to the player container and registers automatic removal on dispose. The `addClasses` call adds the `overlay` CSS class used by your own styles.
+
+## Building the three zones
+
+Each zone is a `<div>` appended to the overlay root. The player exposes a fluent builder chain: `createElement(tag, id)` returns a builder with `.addClasses([...])` and `.appendTo(parent)` methods, and `.get()` unwraps the final element.
+
+```ts
+private buildTopBar(parent: HTMLElement): HTMLDivElement {
+  return this.player
+    .createElement('div', 'top-bar')
+    .addClasses([
+      'absolute',
+      'top-0',
+      'left-0',
+      'right-0',
+      'flex',
+      'items-center',
+      'gap-2',
+      'p-4',
+      'pb-12',
+      'bg-gradient-to-b',
+      'from-black/80',
+      'to-transparent',
+      // Hidden at rest; shown when the container has .active or .paused.
+      'opacity-0',
+      'transition-opacity',
+      'duration-300',
+      'pointer-events-none',
+      'group-[&.nomercyplayer.active]:opacity-100',
+      'group-[&.nomercyplayer.active]:pointer-events-auto',
+      'group-[&.nomercyplayer.paused]:opacity-100',
+      'group-[&.nomercyplayer.paused]:pointer-events-auto',
+    ])
+    .appendTo(parent)
+    .get();
+}
+
+private buildCenter(parent: HTMLElement): HTMLDivElement {
+  return this.player
+    .createElement('div', 'center-overlay')
+    .addClasses([
+      'absolute',
+      'inset-0',
+      'flex',
+      'items-center',
+      'justify-center',
+      'pointer-events-none',
+    ])
+    .appendTo(parent)
+    .get();
+}
+
+private buildBottomBar(parent: HTMLElement): HTMLDivElement {
+  return this.player
+    .createElement('div', 'bottom-bar')
+    .addClasses([
+      'absolute',
+      'bottom-0',
+      'left-0',
+      'right-0',
+      'flex',
+      'flex-col',
+      'gap-1',
+      'px-4',
+      'pt-12',
+      'pb-2',
+      'bg-gradient-to-t',
+      'from-black/80',
+      'to-transparent',
+      // Same auto-show logic as the top bar (.active or .paused on container).
+      'opacity-0',
+      'transition-opacity',
+      'duration-300',
+      'pointer-events-none',
+      'group-[&.nomercyplayer.active]:opacity-100',
+      'group-[&.nomercyplayer.active]:pointer-events-auto',
+      'group-[&.nomercyplayer.paused]:opacity-100',
+      'group-[&.nomercyplayer.paused]:pointer-events-auto',
+    ])
+    .appendTo(parent)
+    .get();
+}
+```
+
+The gradient on the top bar fades from `black/80` downward; the bottom bar fades upward. Both use `opacity-0` by default with a 300 ms transition, then snap to full opacity when either `active` or `paused` is present on `.nomercyplayer`.
+
+## Registering the plugin
+
+Call `addPlugin(PluginClass)` before `setup()`. The player instantiates the plugin, calls `initialize()` to wire in the player reference, then calls `use()` during the setup phase.
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { PlayerUiPlugin } from './PlayerUiPlugin';
+
+const player = nmplayer('nomercy-player')
+  .addPlugin(PlayerUiPlugin)
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playlist: [
+      {
+        id: 'sintel',
+        title: 'Sintel',
+        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+        image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+        duration: 888,
+      },
+    ],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+At this point you have two invisible gradient bars that fade in when the user moves the mouse (or the player pauses), and an empty center area ready to accept a spinner or big-play button in the next step.
+
+## Plain CSS alternative
+
+If you are not using Tailwind, the equivalent CSS for the auto-show behaviour is:
+
+```css
+.nmplayer-player-ui-overlay .top-bar,
+.nmplayer-player-ui-overlay .bottom-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 300ms;
+}
+
+.nomercyplayer.active .nmplayer-player-ui-overlay .top-bar,
+.nomercyplayer.paused .nmplayer-player-ui-overlay .top-bar,
+.nomercyplayer.active .nmplayer-player-ui-overlay .bottom-bar,
+.nomercyplayer.paused .nmplayer-player-ui-overlay .bottom-bar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.nmplayer-player-ui-overlay .top-bar {
+  top: 0;
+  padding: 1rem 1rem 3rem;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+}
+
+.nmplayer-player-ui-overlay .bottom-bar {
+  bottom: 0;
+  padding: 3rem 1rem 0.5rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+}
+```
+
+## Full file so far
+
+Combining the shell and the three builder methods:
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+export class PlayerUiPlugin extends Plugin<NMVideoPlayer> {
+  static readonly id = 'player-ui';
+  static readonly description = 'Custom player UI overlay';
+
+  private topBar!: HTMLDivElement;
+  private centerOverlay!: HTMLDivElement;
+  private bottomBar!: HTMLDivElement;
+
+  use(): void {
+    const root = this.mount('overlay');
+    this.player.addClasses(root, ['overlay']);
+
+    this.topBar = this.buildTopBar(root);
+    this.centerOverlay = this.buildCenter(root);
+    this.bottomBar = this.buildBottomBar(root);
+  }
+
+  dispose(): void {}
+
+  private buildTopBar(parent: HTMLElement): HTMLDivElement {
+    return this.player
+      .createElement('div', 'top-bar')
+      .addClasses([
+        'absolute', 'top-0', 'left-0', 'right-0',
+        'flex', 'items-center', 'gap-2',
+        'p-4', 'pb-12',
+        'bg-gradient-to-b', 'from-black/80', 'to-transparent',
+        'opacity-0', 'transition-opacity', 'duration-300', 'pointer-events-none',
+        'group-[&.nomercyplayer.active]:opacity-100',
+        'group-[&.nomercyplayer.active]:pointer-events-auto',
+        'group-[&.nomercyplayer.paused]:opacity-100',
+        'group-[&.nomercyplayer.paused]:pointer-events-auto',
+      ])
+      .appendTo(parent)
+      .get();
+  }
+
+  private buildCenter(parent: HTMLElement): HTMLDivElement {
+    return this.player
+      .createElement('div', 'center-overlay')
+      .addClasses([
+        'absolute', 'inset-0',
+        'flex', 'items-center', 'justify-center',
+        'pointer-events-none',
+      ])
+      .appendTo(parent)
+      .get();
+  }
+
+  private buildBottomBar(parent: HTMLElement): HTMLDivElement {
+    return this.player
+      .createElement('div', 'bottom-bar')
+      .addClasses([
+        'absolute', 'bottom-0', 'left-0', 'right-0',
+        'flex', 'flex-col', 'gap-1',
+        'px-4', 'pt-12', 'pb-2',
+        'bg-gradient-to-t', 'from-black/80', 'to-transparent',
+        'opacity-0', 'transition-opacity', 'duration-300', 'pointer-events-none',
+        'group-[&.nomercyplayer.active]:opacity-100',
+        'group-[&.nomercyplayer.active]:pointer-events-auto',
+        'group-[&.nomercyplayer.paused]:opacity-100',
+        'group-[&.nomercyplayer.paused]:pointer-events-auto',
+      ])
+      .appendTo(parent)
+      .get();
+  }
+}
+```
+
+Next: [Step 2: Play, Pause, and Buffering](/nomercy-video-player/guides/build-ui-2-play-pause)

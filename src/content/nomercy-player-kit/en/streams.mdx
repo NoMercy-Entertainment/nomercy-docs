@@ -8,11 +8,10 @@ draft: false
 
 ## Overview
 
-The stream registry maps format identifiers (e.g. `'hls'`, `'native'`) to factory functions that create backend playback instances. Factories are tried in reverse registration order — most-recently-registered first — so a custom factory takes priority over the kit's built-in `hls` and `native` factories.
+The stream registry maps format identifiers (e.g. `'hls'`, `'native'`) to factory functions that create backend playback instances.
+Factories are tried in reverse registration order, most-recently-registered first, so a custom factory takes priority over the core's built-in `hls` and `native` factories.
 
 Default factories (`hls`, `native`) are registered lazily at `streamsReady` during setup, or on first access to the registry.
-
----
 
 ## `registerStream(factory, prepend?)`
 
@@ -37,15 +36,11 @@ const dashFactory: StreamFactory = {
 player.registerStream(dashFactory);
 ```
 
----
-
 ## `unregisterStream(id)`
 
 Remove a registered factory by id. No-op when the id is not registered.
 
 **Returns:** `this`
-
----
 
 ## `streams()`
 
@@ -53,15 +48,11 @@ Snapshot of registered factory ids in resolution order (highest-priority first).
 
 **Returns:** `ReadonlyArray<string>`
 
----
-
 ## `getStreamFactory(id)`
 
 Look up a registered factory by id.
 
 **Returns:** `StreamFactory | undefined`
-
----
 
 ## StreamFactory interface
 
@@ -69,51 +60,71 @@ Look up a registered factory by id.
 interface StreamFactory {
   /** Stable identifier for this factory. Must be unique in the registry. */
   id: string;
+
   /**
    * Return true when this factory can handle the given URL.
    * Factories are tried in reverse-registration order; the first to return
    * true is used. Returning false passes control to the next factory.
    */
   canPlay(url: string): boolean;
+
   /** Create a backend instance for the given player. */
   create(player: IPlayer): StreamSource;
 }
 ```
 
----
-
 ## StreamSource interface
 
-The contract every backend must satisfy. Only the methods the player calls need to be implemented; opt-in surfaces (`seekable`, `bufferedRanges`, `audioTracks`, etc.) are called conditionally.
+The contract every backend must satisfy.
+Only the methods the player calls need to be implemented; opt-in surfaces (`seekable`, `bufferedRanges`, `audioTracks`, etc.) are called conditionally.
 
 ```ts
 interface StreamSource {
   id: string;
+
   load(url: string): Promise<void>;
+
   play(): Promise<void> | void;
+
   pause(): void;
+
   stop(): void;
-  currentTime(t: number): void;
+
+  currentTime(seconds: number): void;
+
   buffered(): number;
+
   bufferedRanges?(): TimeRanges;
+
   seekable?(): TimeRanges;
-  volume?(v: number): void;
+
+  volume?(level: number): void;
+
   mute?(): void;
+
   unmute?(): void;
+
   playbackRate?(rate: number): void;
+
   subtitleTracks?(): SubtitleTrack[];
+
   setSubtitleTrack?(idx: number | null): void;
+
   audioTracks?(): AudioTrack[];
+
   setAudioTrack?(idx: number): void;
+
   qualityLevels?(opts?: { includeUnsupported?: true }): QualityLevel[];
+
   setQuality?(idx: number | 'auto'): void;
+
   state?(): string;
+
   mediaElement?(): HTMLMediaElement;
+
   dispose(): void;
 }
 ```
-
----
 
 ## Built-in factories
 
@@ -122,12 +133,11 @@ interface StreamSource {
 | `'hls'`    | hls.js adaptive bitrate streaming             |
 | `'native'` | Browser-native `<video>` / `<audio>` playback |
 
-The `hls` factory is registered with higher priority — it is tried first. The `native` factory is the fallback for formats the browser handles natively (MP4, WebM, Ogg, MP3, etc.).
-
----
+The `hls` factory is registered with higher priority, so it is tried first.
+The `native` factory is the fallback for formats the browser handles natively (MP4, WebM, Ogg, MP3, etc.).
 
 ## See also
 
-- [setup()](/nomercy-player-kit/setup) — `streamsReady` pipeline stage
-- [Events Reference](/nomercy-player-kit/events-reference) — `stream:manifest-loaded`, `stream:level-switched`
-- [Platform Adapter](/nomercy-player-kit/platform) — `ICapabilitiesProbe` for codec probing
+- [setup()](/nomercy-player-core/setup), `streamsReady` pipeline stage
+- [Events Reference](/nomercy-player-core/events-reference), `stream:manifest-loaded`, `stream:level-switched`
+- [Platform Adapter](/nomercy-player-core/platform), `ICapabilitiesProbe` for codec probing

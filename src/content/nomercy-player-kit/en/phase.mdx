@@ -8,9 +8,8 @@ draft: false
 
 ## Overview
 
-The phase system is the complete ordered lifecycle of a player instance — a small closed set of stable states from `idle` to `disposed`. Phases do not enumerate event names; they capture coarse playback state.
-
----
+The phase system is the complete ordered lifecycle of a player instance, a small closed set of stable states from `idle` to `disposed`.
+Phases do not enumerate event names; they capture coarse playback state.
 
 ## `phase()`
 
@@ -18,35 +17,21 @@ Current fine-grained player phase.
 
 **Returns:** `PlayerPhase`
 
-```
-idle
-  │  constructor() → setup(config)
-  ▼
-setting-up    (config resolving, plugins registering, auth/streams/playlist mounting)
-  │  ready event fires
-  ▼
-ready         ← awaiting first command
-  │  load(item)
-  ▼
-loading       (backend pulling source)
-  │  loaded
-  ▼
-ready
-  │  play()
-  ▼
-starting      (backend kicking up)
-  │  firstFrame
-  ▼
-playing  ⇄  buffering  ⇄  seeking
-  │  pause()          ended (natural)       stop() (explicit)
-  ▼                     │                     │
-paused                ended               stopped
-  │ play()               │  load/play/next      │  load/play
-  ▼                     ▼                     ▼
-starting            starting             starting
-─────────────────────────────────────────────────────
-any phase ─ dispose() ─→  disposing  ─→  disposed
-```
+| Phase          | Entered via                              | Exits to                                          |
+| -------------- | ---------------------------------------- | ------------------------------------------------- |
+| `idle`         | constructor                              | `setting-up` via `setup(config)`                  |
+| `setting-up`   | `setup(config)` — config resolving, plugins registering, auth/streams/playlist mounting | `ready` when ready event fires |
+| `ready`        | ready event fires / `load()` completes   | `loading` via `load(item)`                        |
+| `loading`      | `load(item)` — backend pulling source    | `ready` when loaded                               |
+| `starting`     | `play()` / load-play-next / load-play    | `playing` on firstFrame                           |
+| `playing`      | firstFrame                               | `buffering`, `seeking`, `paused`, `ended`, `stopped` |
+| `buffering`    | network stall during playback            | `playing` when buffer refills                     |
+| `seeking`      | seek operation                           | `playing` when seek completes                     |
+| `paused`       | `pause()`                                | `starting` via `play()`                           |
+| `ended`        | natural end of media                     | `starting` via load / play / next                 |
+| `stopped`      | explicit `stop()`                        | `starting` via load / play                        |
+| `disposing`    | `dispose()` from any phase               | `disposed`                                        |
+| `disposed`     | disposing completes                      | terminal — no further transitions                 |
 
 **Emits:** `phase` with `{ from, to }` on every transition.
 
@@ -60,11 +45,9 @@ if (player.phase() === 'playing') {
 }
 ```
 
----
-
 ## `setupState()`
 
-Coarser than `phase()` — answers "is the player usable right now?".
+Coarser than `phase()`, answers "is the player usable right now?".
 
 | Phase(s)                | Return value            |
 | ----------------------- | ----------------------- |
@@ -75,11 +58,10 @@ Coarser than `phase()` — answers "is the player usable right now?".
 
 **Returns:** `SetupState` enum value
 
----
-
 ## `dispatching()`
 
-Names of all events currently being dispatched, innermost last. Empty when no event is dispatching.
+Names of all events currently being dispatched, innermost last.
+Empty when no event is dispatching.
 
 **Returns:** `ReadonlyArray<string>`
 
@@ -94,29 +76,26 @@ player.on('beforeMutation', (evt) => {
 });
 ```
 
----
-
 ## `pushDispatch(name)` / `popDispatch()`
 
-Internal helpers that maintain the dispatch stack. Called by `runDispatchBefore` around every `before*` event. Plugin authors building custom before-events call these to keep the stack accurate.
+Internal helpers that maintain the dispatch stack.
+Called by `runDispatchBefore` around every `before*` event.
+Plugin authors building custom before-events call these to keep the stack accurate.
 
 | Method                       | Returns               |
 | ---------------------------- | --------------------- |
 | `pushDispatch(name: string)` | `void`                |
 | `popDispatch()`              | `string \| undefined` |
 
----
-
 ## `platform()`
 
-The active platform bundle. Returns `browserPlatform` even before `setup()` so early reads don't need a null check.
+The active platform bundle.
+Returns `browserPlatform` even before `setup()` so early reads don't need a null check.
 
 **Returns:** `IPlatform`
 
----
-
 ## See also
 
-- [setup()](/nomercy-player-kit/setup) — pipeline stages and `ready()`
-- [Player State](/nomercy-player-kit/player-state) — `bufferState`, `networkState`, `visibilityState`
-- [Events Reference](/nomercy-player-kit/events-reference) — `phase` event
+- [setup()](/nomercy-player-core/setup), pipeline stages and `ready()`
+- [Player State](/nomercy-player-core/player-state), `bufferState`, `networkState`, `visibilityState`
+- [Events Reference](/nomercy-player-core/events-reference), `phase` event

@@ -5,9 +5,8 @@ description: 'All options passed to nmplayer(id).setup(opts). Defaults, types, a
 
 # Configuration Reference
 
-All options passed to `nmplayer(id).setup(opts)`. Fields marked with a default show the value used when the option is omitted.
-
----
+All options passed to `nmplayer(id).setup(opts)`.
+Fields marked with a default show the value used when the option is omitted.
 
 ## Container
 
@@ -17,30 +16,31 @@ All options passed to `nmplayer(id).setup(opts)`. Fields marked with a default s
 container?: HTMLElement
 ```
 
-The DOM element the player mounts into. Required for any plugin that renders UI (`DesktopUiPlugin`, `OctopusPlugin`, `SubtitleOverlayPlugin`). The player itself renders nothing — the container is only needed by plugins.
-
----
+The DOM element the player mounts into.
+Required for any plugin that renders UI (`DesktopUiPlugin`, `OctopusPlugin`, `SubtitleOverlayPlugin`).
+The player itself renders nothing, so the container is only needed by plugins.
 
 ## Playlist / queue
 
-### `queue` / `playlist`
+### `playlist`
 
 ```ts
-queue?: T[] | string
 playlist?: T[] | string
 ```
 
-Initial queue. Pass an array of `VideoPlaylistItem`-compatible objects, or a URL to fetch a JSON playlist. Both `queue` and `playlist` are accepted — they are aliases.
+Initial queue.
+Pass an array of `VideoPlaylistItem`-compatible objects, or a URL to fetch a JSON playlist.
 
 ```ts
 // Inline items
 player.setup({ playlist: [{ id: '1', url: '...', title: 'My Video' }] });
 
-// URL-based — fetched with auth during setup
-player.setup({ queue: 'https://api.example.com/playlist.json' });
+// URL-based, fetched with auth during setup
+player.setup({ playlist: 'https://api.example.com/playlist.json' });
 ```
 
-When a URL is provided, the player emits `playlistResolving` → `playlistReady` (or `playlistError`). The player always reaches `ready` — if the fetch fails, it starts with an empty queue.
+When a URL is provided, the player emits `playlistResolving` → `playlistReady` (or `playlistError`).
+The player always reaches `ready`, so if the fetch fails, it starts with an empty queue.
 
 ### `autoPlay`
 
@@ -66,8 +66,6 @@ preload?: 'auto' | 'metadata' | 'none'
 
 Passed to the `<video>` element's `preload` attribute. Default: `'auto'`.
 
----
-
 ## Display
 
 ### `controls`
@@ -76,7 +74,9 @@ Passed to the `<video>` element's `preload` attribute. Default: `'auto'`.
 controls?: boolean
 ```
 
-Show the browser's native video controls. Default `false`. Do not combine with `DesktopUiPlugin` — the built-in UI replaces native controls.
+Show the browser's native video controls.
+Default `false`.
+Do not combine with `DesktopUiPlugin`, the built-in UI replaces native controls.
 
 ### `stretching`
 
@@ -84,7 +84,8 @@ Show the browser's native video controls. Default `false`. Do not combine with `
 stretching?: 'uniform' | 'fill' | 'exactfit' | 'none'
 ```
 
-How the video fills its container. Default `'uniform'` (letterbox/pillarbox, preserving aspect ratio).
+How the video fills its container.
+Default `'uniform'` (letterbox/pillarbox, preserving aspect ratio).
 
 | Value        | Behavior                                     |
 | ------------ | -------------------------------------------- |
@@ -101,8 +102,6 @@ theaterDefault?: boolean
 
 Start in theater mode. Default `false`.
 
----
-
 ## Playback rates
 
 ### `playbackRates`
@@ -113,8 +112,6 @@ playbackRates?: number[]
 
 Available playback rate options. Default: `[0.5, 0.75, 1.0, 1.25, 1.5, 2.0]`.
 
----
-
 ## Language and defaults
 
 ### `defaultSubtitleLanguage`
@@ -123,7 +120,9 @@ Available playback rate options. Default: `[0.5, 0.75, 1.0, 1.25, 1.5, 2.0]`.
 defaultSubtitleLanguage?: string
 ```
 
-BCP-47 language tag. The player auto-selects the first subtitle track matching this language when a new item loads. Example: `'en'`, `'nl'`, `'ja'`.
+BCP-47 language tag.
+The player auto-selects the first subtitle track matching this language when a new item loads.
+Example: `'en'`, `'nl'`, `'ja'`.
 
 ### `defaultAudioLanguage`
 
@@ -131,7 +130,9 @@ BCP-47 language tag. The player auto-selects the first subtitle track matching t
 defaultAudioLanguage?: string
 ```
 
-BCP-47 language tag. Auto-selects the audio track matching this language. Falls back to the first available track.
+BCP-47 language tag.
+Auto-selects the audio track matching this language.
+Falls back to the first available track.
 
 ### `defaultQuality`
 
@@ -139,9 +140,10 @@ BCP-47 language tag. Auto-selects the audio track matching this language. Falls 
 defaultQuality?: 'auto' | number
 ```
 
-Initial quality level. `'auto'` enables hls.js ABR. A number sets a fixed level index. Default: `'auto'`.
-
----
+Initial quality level.
+`'auto'` enables hls.js ABR.
+A number sets a fixed level index.
+Default: `'auto'`.
 
 ## Image URLs
 
@@ -151,7 +153,8 @@ Initial quality level. `'auto'` enables hls.js ABR. A number sets a fixed level 
 imageBasePath?: string
 ```
 
-Base URL prepended to relative `image`, `poster`, and `thumbnail` paths on playlist items. Useful for TMDB-style paths:
+Base URL prepended to relative `image`, `poster`, and `thumbnail` paths on playlist items.
+Useful for TMDB-style paths:
 
 ```ts
 player.setup({
@@ -163,26 +166,28 @@ player.setup({
 
 Absolute URLs (any scheme) pass through unchanged.
 
----
-
 ## Auth
 
 ### `auth`
 
 ```ts
+type AuthHeaderValue = string | (() => string) | (() => Promise<string>);
+
 auth?: {
-  bearerToken?: string | (() => string | Promise<string>);
-  refreshOnUnauthenticated?: () => Promise<string>;
+  bearerToken?: AuthHeaderValue;
+  refreshOnUnauthenticated?: () => Promise<void>;
   signRequest?: (request: Request) => Request | Promise<Request>;
-  headers?: Record<string, string>;
+  headers?: Record<string, AuthHeaderValue>;
+  credentials?: 'omit' | 'same-origin' | 'include';
+  transformUrl?: (url: string) => string | Promise<string>;
 }
 ```
 
-Auth pipeline for HLS manifest and segment requests. On 401, `refreshOnUnauthenticated` fires once and the request is retried. 403 propagates immediately.
+Auth pipeline for HLS manifest and segment requests.
+On 401, `refreshOnUnauthenticated` fires once and the request is retried.
+403 propagates immediately.
 
-See [Kit — Auth & Fetch](/nomercy-player-kit/auth-fetch) for full details.
-
----
+See [Core: Auth & Fetch](/nomercy-player-core/auth-fetch) for full details.
 
 ## Backend
 
@@ -192,9 +197,9 @@ See [Kit — Auth & Fetch](/nomercy-player-kit/auth-fetch) for full details.
 backendFactory?: (kind: VideoBackendKind, config: VideoPlayerConfig) => IVideoBackend
 ```
 
-Custom video backend factory. Overrides the default `Html5VideoBackend`. Use to wire in a WebCodecs backend, a native-shell bridge, or a test stub.
-
----
+Custom video backend factory.
+Overrides the default `Html5VideoBackend`.
+Use to wire in a WebCodecs backend, a native-shell bridge, or a test stub.
 
 ## Storage
 
@@ -204,9 +209,9 @@ Custom video backend factory. Overrides the default `Html5VideoBackend`. Use to 
 storage?: IStorage
 ```
 
-Plugin state persistence backend. Defaults to `LocalStorageBackend`. See [Kit — Adapters](/nomercy-player-kit/storage) for alternatives.
-
----
+Plugin state persistence backend.
+Defaults to `LocalStorageBackend`.
+See [Core: Adapters](/nomercy-player-core/storage) for alternatives.
 
 ## Logging
 
@@ -216,7 +221,9 @@ Plugin state persistence backend. Defaults to `LocalStorageBackend`. See [Kit �
 logLevel?: 'silent' | 'error' | 'warn' | 'info' | 'debug'
 ```
 
-Log verbosity. Default: `'warn'`. Set to `'debug'` to see plugin-level events.
+Log verbosity.
+Default: `'warn'`.
+Set to `'debug'` to see plugin-level events.
 
 ### `logger`
 
@@ -224,7 +231,8 @@ Log verbosity. Default: `'warn'`. Set to `'debug'` to see plugin-level events.
 logger?: ILogger
 ```
 
-Custom logger. Defaults to the kit's console logger.
+Custom logger.
+Defaults to the player core's console logger.
 
 ### `debug`
 
@@ -232,9 +240,8 @@ Custom logger. Defaults to the kit's console logger.
 debug?: boolean
 ```
 
-Deprecated alias for `logLevel: 'debug'`. Use `logLevel` instead.
-
----
+Deprecated alias for `logLevel: 'debug'`.
+Use `logLevel` instead.
 
 ## Platform
 
@@ -244,7 +251,9 @@ Deprecated alias for `logLevel: 'debug'`. Use `logLevel` instead.
 platform?: IPlatform
 ```
 
-Platform abstraction bundle. Defaults to `browserPlatform`. Override individual sub-ports for Capacitor, Tauri, or Electron:
+Platform abstraction bundle.
+Defaults to `browserPlatform`.
+Override individual sub-ports for Capacitor, Tauri, or Electron:
 
 ```ts
 import { browserPlatform } from '@nomercy-entertainment/nomercy-player-core';
@@ -253,8 +262,6 @@ player.setup({
   platform: { ...browserPlatform, wakeLock: myNativeWakeLock },
 });
 ```
-
----
 
 ## i18n
 
@@ -269,20 +276,54 @@ Initial language (BCP-47). Default: `navigator.language`.
 ### `translations`
 
 ```ts
-translations?: Translations
+translations?: Record<string, Record<string, string>>
 ```
 
-Inline translation strings.
+Translation bundles keyed by BCP-47 language tag.
+The kit's English bundle is always merged underneath as the final fallback.
+
+Each inner record maps translation keys to translated strings for that language.
+Pass multiple language objects to support language switching without network requests:
+
+```ts
+import { defaultTranslations } from '@nomercy-entertainment/nomercy-player-core';
+
+player.setup({
+  language: 'nl',
+  translations: {
+    ...defaultTranslations,
+    nl: {
+      'core.policy.autoplayBlocked': 'Tik of klik ergens om te starten.',
+      'core.auth.forbidden': 'Je account heeft geen toegang tot deze inhoud.',
+    },
+  },
+});
+```
+
+`defaultTranslations` is the pre-shipped English bundle re-exported from the core package.
+Spreading it ensures English strings are always available as a fallback.
 
 ### `loadTranslations`
 
 ```ts
-loadTranslations?: (lang: string) => Promise<Translations>
+loadTranslations?: (lang: string) => Promise<Record<string, string> | undefined>
 ```
 
-Async translation loader.
+Async loader called by `player.setLanguage(lang)` when the bundle for that language is not already loaded.
+Return `undefined` to fall through to the static `translations` config.
 
----
+```ts
+player.setup({
+  language: 'nl',
+  loadTranslations: async (lang) => {
+    const module = await import(`./locales/${lang}.json`);
+    return module.default;
+  },
+});
+```
+
+Use `player.t('key')` anywhere to look up a translation.
+The resolution order is: loaded bundle for the active language -> English fallback -> `onMissingTranslation` handler -> key as-is.
 
 ## Metrics
 
@@ -292,9 +333,20 @@ Async translation loader.
 metricsIntervalMs?: number
 ```
 
-Interval for the `progress` and `playback:metrics` events (ms). Default: `10000`. Set to `0` to disable.
+Interval for the `playback:metrics` event (ms).
+Default: `10000`.
+Set to `0` to disable.
 
----
+### `progressIntervalMs`
+
+```ts
+progressIntervalMs?: number
+```
+
+Interval for the `progress` event (throttled time updates for server-side watch-position persistence, ms).
+Default: `5000`.
+Set to `0` to disable.
+Use `progress` instead of `time` to avoid per-frame callback noise when saving resume positions.
 
 ## Misc
 
@@ -304,7 +356,9 @@ Interval for the `progress` and `playback:metrics` events (ms). Default: `10000`
 expose?: boolean
 ```
 
-Expose the player on `window.__nmplayer_<id>` for debugging. Default `false`.
+Attach the player instance to `window.player` for browser-console debugging. Default `false`.
+When `true`, the `nmplayer` factory function is additionally attached to `window.nmplayer`.
+Both are cleaned up on `dispose()`.
 
 ### `baseUrl`
 
@@ -312,7 +366,8 @@ Expose the player on `window.__nmplayer_<id>` for debugging. Default `false`.
 baseUrl?: string
 ```
 
-Base URL prepended to relative media source URLs. Separate from `imageBasePath` — this covers audio/video sources, not artwork.
+Base URL prepended to relative media source URLs.
+Separate from `imageBasePath`, this covers audio/video sources, not artwork.
 
 ### `disableControls` / `disableMediaControls`
 
@@ -321,4 +376,182 @@ disableControls?: boolean
 disableMediaControls?: boolean
 ```
 
-Both disable browser native controls. Use `disableMediaControls` in new code — `disableControls` is a deprecated alias.
+Both disable browser native controls.
+Use `disableMediaControls` in new code, `disableControls` is a deprecated alias.
+
+## Playlist item fields
+
+### Track kinds
+
+Each playlist item accepts a `tracks` array for sidecar files.
+The `kind` field on each track tells the player what to do with the file:
+
+| Kind         | Purpose                                                                              |
+| ------------ | ------------------------------------------------------------------------------------ |
+| `subtitles`  | WebVTT or ASS/SSA subtitle file. Set `ext: 'ass'` for ASS files.                    |
+| `chapters`   | WebVTT chapter markers. Parsed into the `chapters()` list on the player.             |
+| `thumbnails` | WebVTT file mapping timestamps to sprite coordinates for seek-preview thumbnails.    |
+| `sprite`     | The image sprite file containing the actual thumbnail frames.                        |
+| `fonts`      | Font files required by ASS subtitles for the `OctopusPlugin` renderer.              |
+
+The typed alternatives to `tracks[]` are preferred for new integrations.
+Use the top-level item fields `subtitles`, `chapters`, `fonts`, and `previewSpriteUrl` directly when the shape is known at build time:
+
+```ts
+{
+  id: 'sintel',
+  title: 'Sintel',
+  description: 'A girl named Sintel searches for a baby dragon she calls Scales.',
+  url: 'https://protected.cdn.your-domain.com/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+  image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+  duration: 894,
+  subtitles: [
+    { id: 'eng', kind: 'subtitles', label: 'English', language: 'eng', url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt', default: true },
+    { id: 'dut', kind: 'subtitles', label: 'Dutch', language: 'dut', url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.dut.full.vtt' },
+  ],
+  chapters: [
+    { index: 0, start: 0, end: 120, title: 'Opening' },
+    { index: 1, start: 120, end: 480, title: 'The Search' },
+    { index: 2, start: 480, end: 894, title: 'Finale' },
+  ],
+  fonts: [
+    { file: '/Sintel.(2010)/fonts/fonts.json' },
+  ],
+  previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.webp',
+}
+```
+
+The legacy `tracks[]` array is still accepted and normalised automatically.
+Tracks with `kind: 'chapters'` are mapped into `item.chapters`; tracks with `kind: 'fonts'` are mapped into `item.fonts`.
+
+### Title placeholders
+
+Playlist item titles support `%S` and `%E` placeholders for localized season and episode abbreviations.
+The player substitutes them at runtime using the active locale, so your server can send language-neutral titles:
+
+```ts
+{
+  id: 'bbb-ep3',
+  title: '%S01%E03 The Big Escape',
+  show: 'Big Buck Bunny',
+  season: 1,
+  episode: 3,
+  url: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8',
+  image: '/w780/xtdybjRRZ15mCrPOvEld305myys.jpg',
+  duration: 596,
+}
+// English: "S01E03 The Big Escape"
+// Dutch:   "S01A03 The Big Escape"  (A = Aflevering)
+```
+
+The translations for `S` and `E` are included in all built-in locale bundles.
+
+### Resume playback
+
+Set `progress` on a playlist item to give plugins and UI components the information they need to render a watched-percentage bar in the queue panel.
+The player reads `progress.percentage` for display; consumers own persistence.
+
+```ts
+{
+  id: 'tears-of-steel',
+  title: 'Tears of Steel',
+  description: 'A group of warriors fight to reclaim humanity from a robotic army.',
+  url: '/Tears.of.Steel.(2012)/Tears.of.Steel.(2012).NoMercy.m3u8',
+  image: '/w780/bsy1GCxTNKqZ3vPn4U7sDG7SIAL.jpg',
+  duration: 734,
+  progress: {
+    timestamp: 1748734800000, // Unix epoch milliseconds
+    percentage: 62,           // 0–100, consumer-calculated
+  },
+}
+```
+
+`timestamp` is a Unix epoch millisecond value; the player exposes it raw.
+Format it for display in your UI plugin (e.g. `new Date(timestamp).toLocaleDateString()`).
+
+## Storage
+
+The player persists plugin state (volume, subtitle selection, quality preference) through a pluggable storage interface.
+
+### `IStorage`
+
+```ts
+interface IStorage {
+  get(key: string): string | null | Promise<string | null>;
+  set(key: string, value: string): void | Promise<void>;
+  remove(key: string): void | Promise<void>;
+  getJSON<T>(key: string): T | null | Promise<T | null>;
+  setJSON<T>(key: string, value: T): void | Promise<void>;
+}
+```
+
+Backends can be synchronous or async -- `await` is used throughout, so both work.
+
+### Built-in backends
+
+| Class                 | Behaviour                                                                              |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| `LocalStorageBackend` | Default. Synchronous. Silently falls back to in-memory when `localStorage` is blocked. |
+| `IndexedDBBackend`    | Async. Suitable for large values where the `localStorage` quota is too small.          |
+| `MemoryStorageBackend`| In-memory only. Use in SSR, tests, or any environment without persistent storage.      |
+
+### Example: IndexedDB backend
+
+```ts
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { IndexedDBBackend } from '@nomercy-entertainment/nomercy-player-core';
+
+player.setup({
+  storage: new IndexedDBBackend({ dbName: 'my-app', storeName: 'player-prefs' }),
+  playlist: [/* ... */],
+});
+```
+
+`IndexedDBBackend` accepts optional `dbName`, `storeName`, and `version` constructor options.
+The database opens lazily on first access, so construction has no overhead.
+
+### Example: Server-synced storage
+
+Replace `storage` with any object satisfying `IStorage` to persist preferences server-side:
+
+```ts
+const serverStorage = {
+  async get(key: string) {
+    const res = await fetch(`/api/player-prefs/${key}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok ? res.text() : null;
+  },
+  async set(key: string, value: string) {
+    await fetch(`/api/player-prefs/${key}`, {
+      method: 'PUT',
+      body: value,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'text/plain',
+      },
+    });
+  },
+  async remove(key: string) {
+    await fetch(`/api/player-prefs/${key}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  },
+  async getJSON<T>(key: string): Promise<T | null> {
+    const raw = await this.get(key);
+    if (raw === null) return null;
+    try { return JSON.parse(raw) as T; } catch { return null; }
+  },
+  async setJSON<T>(key: string, value: T) {
+    await this.set(key, JSON.stringify(value));
+  },
+};
+
+player.setup({
+  storage: serverStorage,
+  playlist: [/* ... */],
+});
+```
+
+> **Note:** Each plugin receives an auto-namespaced wrapper around the storage backend, so keys from different plugins never collide with each other or with player-level keys.

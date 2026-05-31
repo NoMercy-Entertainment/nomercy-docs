@@ -5,11 +5,11 @@ description: 'VTT chapter source, chapter UI overlay via DesktopUiPlugin, and pr
 
 # Chapters
 
-Read this when you want named chapters in your video — displayed on the seek bar and usable for programmatic navigation. Chapters are provided per-item and loaded by an `IChapterSource` adapter.
+Read this when you want named chapters in your video, displayed on the seek bar and usable for programmatic navigation.
+Chapters are provided per-item and loaded by an `IChapterSource` adapter.
 
-**Prerequisites:** [Video Quick Start](/nomercy-video-player/quickstart). For the full chapter API see [Chapters](/nomercy-video-player/adapters/chapter-source).
-
----
+**Prerequisites:** [Video Quick Start](/nomercy-video-player/quickstart).
+For the full chapter API see [Chapters](/nomercy-video-player/adapters/chapter-source).
 
 ## Inline chapter data
 
@@ -34,25 +34,60 @@ const player = nmplayer('main').setup({
 });
 ```
 
-`DesktopUiPlugin` reads chapter data automatically and renders chapter markers on the seek bar. No extra configuration is needed.
-
----
+`DesktopUiPlugin` reads chapter data automatically and renders chapter markers on the seek bar.
+No extra configuration is needed.
 
 ## VTT chapter file
 
-Reference a WebVTT chapter file via the `tracks` sidecar:
+Supply a custom `IChapterSource` that fetches and parses a WebVTT chapter file,
+then register it in `setup()`:
 
 ```ts
-{
-  id: 'sintel',
-  url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-  tracks: [
+import type {
+  IChapterSource,
+  Chapter,
+  VideoPlaylistItem,
+} from '@nomercy-entertainment/nomercy-video-player';
+
+class VttFileChapterSource implements IChapterSource {
+  constructor(private readonly vttUrl: string) {}
+
+  private _chapters: Chapter[] = [];
+
+  async load(_item: VideoPlaylistItem): Promise<Chapter[]> {
+    const text = await fetch(this.vttUrl).then((r) => r.text());
+    this._chapters = parseVttChapters(text);
+    return this._chapters;
+  }
+
+  current(timeSeconds: number): Chapter | null {
+    return this._chapters.find(
+      (ch) => timeSeconds >= ch.start && timeSeconds < ch.end,
+    ) ?? null;
+  }
+
+  all(): Chapter[] {
+    return this._chapters;
+  }
+
+  unload(): void {
+    this._chapters = [];
+  }
+}
+
+const player = nmplayer('main').setup({
+  container: document.getElementById('player')!,
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  chapterSource: new VttFileChapterSource(
+    'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films/Sintel.(2010)/chapters.vtt',
+  ),
+  playlist: [
     {
-      kind: 'chapters',
-      file: '/Sintel.(2010)/chapters.vtt',
+      id: 'sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
     },
   ],
-}
+});
 ```
 
 A valid WebVTT chapters file:
@@ -73,8 +108,6 @@ credits
 Credits
 ```
 
----
-
 ## Chapter events and API
 
 ```ts
@@ -91,8 +124,6 @@ const chapters = player.chapters();
 const current = player.currentChapter();
 // { index, start, end, title } | null
 ```
-
----
 
 ## Programmatic chapter seek
 
@@ -114,8 +145,6 @@ chapters.forEach((chapter) => {
 });
 ```
 
----
-
 ## Custom chapter source
 
 Load chapters from a database or API instead of a VTT file:
@@ -133,6 +162,7 @@ class ApiChapterSource implements IChapterSource {
     const response = await fetch(`/api/chapters/${item.id}`);
     const data: Array<{ id: number; start_ms: number; end_ms: number; name: string }> =
       await response.json();
+
     return data.map((ch, index) => ({
       index,
       start: ch.start_ms / 1000,
@@ -147,10 +177,8 @@ player.setup({
 });
 ```
 
----
-
 ## What to read next
 
-- [Chapters](/nomercy-video-player/adapters/chapter-source) — full IChapterSource interface and Chapter type reference
-- [Desktop UI](/nomercy-video-player/plugins/desktop-ui) — chapter markers on the seek bar are automatic with DesktopUiPlugin
-- [Recipes: Subtitles](/nomercy-video-player/recipes/subtitles) — combining chapter markers with subtitle tracks
+- [Chapters](/nomercy-video-player/adapters/chapter-source): full IChapterSource interface and Chapter type reference
+- [Desktop UI](/nomercy-video-player/plugins/desktop-ui): chapter markers on the seek bar are automatic with DesktopUiPlugin
+- [Recipes: Subtitles](/nomercy-video-player/recipes/subtitles): combining chapter markers with subtitle tracks

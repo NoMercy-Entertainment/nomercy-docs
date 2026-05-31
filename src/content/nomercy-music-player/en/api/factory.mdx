@@ -6,8 +6,6 @@ draft: false
 
 # Factory
 
----
-
 ## `nmMPlayer(id?)`
 
 ```ts
@@ -17,10 +15,11 @@ nmMPlayer(id?: string | number): NMMusicPlayer<MusicPlaylistItem>
 nmMPlayer<T extends MusicPlaylistItem>(id?: string | number): NMMusicPlayer<T>
 ```
 
-Creates or retrieves a named player instance. This is the only entry point — do not call `new NMMusicPlayer()` directly.
+Creates or retrieves a named player instance.
+This is the only entry point, do not call `new NMMusicPlayer()` directly.
 
-- `id` is optional. When omitted, the kit generates a unique id.
-- Two calls with the same `id` return the **same** instance — no re-initialization.
+- `id` is optional. When omitted, the core generates a unique id.
+- Two calls with the same `id` return the **same** instance, no re-initialization.
 - Instances persist until `dispose()` is called. After dispose, the same `id` creates a fresh instance.
 
 ```ts
@@ -40,15 +39,12 @@ const player = nmMPlayer<TrackItem>('main');
 // player.current() returns TrackItem | undefined
 ```
 
----
-
 ## `NMMusicPlayer<T>`
 
-The concrete player class. Extends `EventEmitter<MusicEventMap>` and implements `IPlayer<MusicEventMap>` and `IMusicPlayer<T>`.
+The concrete player class.
+Extends `EventEmitter<MusicEventMap>` and implements `IPlayer<MusicEventMap>` and `IMusicPlayer<T>`.
 
-Constructor is not part of the public API — always use `nmMPlayer()`.
-
----
+Constructor is not part of the public API, always use `nmMPlayer()`.
 
 ## `IMusicPlayer<T>`
 
@@ -56,7 +52,8 @@ Constructor is not part of the public API — always use `nmMPlayer()`.
 import type { IMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
 ```
 
-Recommended type for consumer-held player references. Use this when you accept a player parameter but only need music-specific methods.
+Recommended type for consumer-held player references.
+Use this when you accept a player parameter but only need music-specific methods.
 
 ```ts
 interface IMusicPlayer<
@@ -78,10 +75,8 @@ function buildNowPlayingUI(player: IMusicPlayer): void {
 }
 ```
 
----
-
 ## See also
 
-- [Configuration](/nomercy-music-player/configuration) — `setup()` options
-- [Quick Start](/nomercy-music-player/quickstart) — `nmMPlayer('id').addPlugin(...).setup(...)` pattern
-- [Types Reference](/nomercy-music-player/types) — all exported types
+- [Configuration](/nomercy-music-player/configuration), `setup()` options
+- [Quick Start](/nomercy-music-player/quickstart), `nmMPlayer('id').addPlugin(...).setup(...)` pattern
+- [Types Reference](/nomercy-music-player/types), all exported types

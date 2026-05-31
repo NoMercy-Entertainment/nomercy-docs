@@ -12,7 +12,9 @@ draft: false
 player.backend(): IVideoBackend
 ```
 
-Returns the active `IVideoBackend` instance, constructing it on first call. The backend wraps the `<video>` element and the hls.js instance. Most consumers do not need to call this directly — the player's transport and track methods cover the common cases.
+Returns the active `IVideoBackend` instance, constructing it on first call.
+The backend wraps the `<video>` element and the hls.js instance.
+Most consumers do not need to call this directly, as the player's transport and track methods cover the common cases.
 
 Low-level use cases that require direct backend access:
 
@@ -31,7 +33,9 @@ await backend.setSinkId(deviceId);
 player.videoElement: HTMLVideoElement | undefined
 ```
 
-The raw `<video>` element. `undefined` until the first `backend()` call. Prefer `player.backend().mediaElement()` for consistency; `videoElement` is a convenience shortcut on the player class.
+The raw `<video>` element.
+`undefined` until the first `backend()` call.
+Prefer `player.backend().mediaElement()` for consistency; `videoElement` is a convenience shortcut on the player class.
 
 ## IVideoBackend interface
 
@@ -39,7 +43,8 @@ The raw `<video>` element. `undefined` until the first `backend()` call. Prefer 
 import type { IVideoBackend } from '@nomercy-entertainment/nomercy-video-player';
 ```
 
-Every backend implements this contract. All methods follow the player's overloaded-function convention: read by calling with no arguments, write by calling with an argument.
+Every backend implements this contract.
+All methods follow the player's overloaded-function convention: read by calling with no arguments, write by calling with an argument.
 
 ### Lifecycle
 
@@ -47,7 +52,7 @@ Every backend implements this contract. All methods follow the player's overload
 | --------- | --------------------------------------- | --------------------------------------------------------------------- |
 | `load`    | `(url: string, opts?) => Promise<void>` | Load a media URL. Starts HLS attachment if the URL matches `.m3u8`    |
 | `unload`  | `() => void`                            | Clears the source. Fires `emptied` on the element                     |
-| `dispose` | `() => void`                            | Full teardown — destroys the hls.js instance and detaches the element |
+| `dispose` | `() => void`                            | Full teardown: destroys the hls.js instance and detaches the element |
 
 ### Transport
 
@@ -62,7 +67,7 @@ Every backend implements this contract. All methods follow the player's overload
 | Method               | Signature                | Description                                         |
 | -------------------- | ------------------------ | --------------------------------------------------- |
 | `currentTime()`      | `() => number`           | Current playback position in seconds                |
-| `currentTime(t)`     | `(t: number) => void`    | Seek to position `t` in seconds                     |
+| `currentTime(seconds)` | `(seconds: number) => void` | Seek to position `seconds` in seconds             |
 | `duration()`         | `() => number`           | Total duration in seconds                           |
 | `buffered()`         | `() => number`           | End of the largest buffered range in seconds        |
 | `bufferedRanges()`   | `() => TimeRanges`       | Full `TimeRanges` object from the `<video>` element |
@@ -75,7 +80,7 @@ Every backend implements this contract. All methods follow the player's overload
 | Method      | Signature             | Description                |
 | ----------- | --------------------- | -------------------------- |
 | `volume()`  | `() => number`        | Current volume level (0–1) |
-| `volume(v)` | `(v: number) => void` | Set volume level           |
+| `volume(level)` | `(level: number) => void` | Set volume level       |
 | `mute()`    | `() => void`          | Mute audio                 |
 | `unmute()`  | `() => void`          | Unmute audio               |
 
@@ -90,7 +95,7 @@ Every backend implements this contract. All methods follow the player's overload
 | `subtitleTracks()`                            | `() => SubtitleTrack[]`           | Available subtitle tracks                       |
 | `setSubtitleTrack(idx)`                       | `(idx: number \| null) => void`   | Activate or clear subtitle track                |
 | `qualityLevels()`                             | `() => QualityLevel[]`            | Available HLS quality levels                    |
-| `qualityLevels({ includeUnsupported: true })` | —                                 | All levels including unsupported codecs         |
+| `qualityLevels({ includeUnsupported: true })` | `() => QualityLevel[]`            | All levels including unsupported codecs         |
 | `setQuality(idx)`                             | `(idx: number \| 'auto') => void` | Pin quality or return to ABR                    |
 | `currentLevel()`                              | `() => number`                    | Level index currently rendering (-1 if unknown) |
 | `state()`                                     | `() => BackendState`              | Current lifecycle state                         |

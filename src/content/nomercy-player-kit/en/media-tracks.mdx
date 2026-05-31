@@ -8,17 +8,18 @@ draft: false
 
 ## Overview
 
-Media track methods read and select subtitle tracks, audio tracks, and quality levels. Read methods delegate to the active backend; setters emit the corresponding event so plugins and UI components react regardless of backend support.
+Media track methods read and select subtitle tracks, audio tracks, and quality levels.
+Read methods delegate to the active backend; setters emit the corresponding event so plugins and UI components react regardless of backend support.
 
-Subtitle track lists combine backend-managed tracks (from HLS manifests) with sidecar VTT tracks from the item's `tracks` field. The flat merged list is what consumers index into.
-
----
+Subtitle track lists combine backend-managed tracks (from HLS manifests) with sidecar VTT tracks from the item's `tracks` field.
+The flat merged list is what consumers index into.
 
 ## Subtitles
 
 ### `subtitles()`
 
-The full subtitle track list — backend-managed tracks first, sidecar VTT tracks appended after. Returns `[]` before a backend is mounted or when no item is active.
+The full subtitle track list, backend-managed tracks first, sidecar VTT tracks appended after.
+Returns `[]` before a backend is mounted or when no item is active.
 
 **Returns:** `ReadonlyArray<SubtitleTrack>`
 
@@ -70,8 +71,6 @@ Read or write the subtitle style. A partial patch is merged onto the active styl
 player.subtitleStyle({ fontSize: 120, textColor: 'yellow' });
 ```
 
----
-
 ## Audio tracks
 
 ### `audioTracks()`
@@ -98,8 +97,6 @@ Read or write the active audio track.
 **Write:** `currentAudioTrack(idx)` selects the track at `idx`. Sets `audioTrackState` to `MANUAL`.
 
 **Events emitted:** `audioTrack` with `{ id: idx }`; `audioTrackState` with `{ state: 'manual' }`
-
----
 
 ## Quality levels
 
@@ -139,13 +136,12 @@ player.currentQuality(2);
 player.currentQuality('auto');
 ```
 
----
-
 ## Chapters
 
 ### `chapters()`
 
-Chapters for the active playlist item. Returns `[]` until the async chapter fetch settles — subscribe to the `chapters` event for the ready signal.
+Chapters for the active playlist item.
+Returns `[]` until the async chapter fetch settles, so subscribe to the `chapters` event for the ready signal.
 
 **Returns:** `ReadonlyArray<Chapter>`
 
@@ -172,10 +168,8 @@ Jump to the next or previous chapter. `previousChapter` applies a 10-second heur
 
 **Write:** jump to the chapter at `idx` (same as `seekToChapter(idx)`).
 
----
-
 ## See also
 
-- [Loading](/nomercy-player-kit/loading) — `resolveItemTrackUrls`, sidecar track resolution
-- [Chapters](/nomercy-player-kit/chapters) — full chapter API reference
-- [Events Reference](/nomercy-player-kit/events-reference) — `subtitle`, `subtitleCue`, `audioTrack`, `chapters`
+- [Loading](/nomercy-player-core/loading): `resolveItemTrackUrls`, sidecar track resolution
+- [Chapters](/nomercy-player-core/chapters): full chapter API reference
+- [Events Reference](/nomercy-player-core/events-reference): `subtitle`, `subtitleCue`, `audioTrack`, `chapters`

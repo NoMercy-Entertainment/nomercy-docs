@@ -23,11 +23,10 @@ import type {
 } from '@nomercy-entertainment/nomercy-player-core';
 ```
 
----
-
 ## IPlayer
 
-Minimum surface both `NMMusicPlayer` and `NMVideoPlayer` satisfy. Plugins typed against `IPlayer<E>` work uniformly against either player.
+Minimum surface both `NMMusicPlayer` and `NMVideoPlayer` satisfy.
+Plugins typed against `IPlayer<E>` work uniformly against either player.
 
 ```ts
 interface IPlayer<E extends BaseEventMap = BaseEventMap> extends DispatchTarget {
@@ -95,7 +94,8 @@ interface IPlayer<E extends BaseEventMap = BaseEventMap> extends DispatchTarget 
 
 ### `playerId` vs `id`
 
-Both always return the same value. `id` is the shorthand; `playerId` is the stable explicit form used internally.
+Both always return the same value.
+`id` is the shorthand; `playerId` is the stable explicit form used internally.
 
 ### Phantom event map
 
@@ -103,13 +103,13 @@ Both always return the same value. `id` is the shorthand; `playerId` is the stab
 declare readonly __eventMap__: E;
 ```
 
-This phantom property exists purely for TypeScript inference. It is never set at runtime. `PlayerEventMap<P>` in the plugin base reads it to extract `E` from a concrete player type without hitting conditional-type widening.
-
----
+This phantom property exists purely for TypeScript inference.
+It is never set at runtime.
+`PlayerEventMap<P>` in the plugin base reads it to extract `E` from a concrete player type without hitting conditional-type widening.
 
 ## BasePlayerConfig
 
-Full configuration passed to `setup()`. All fields are optional — the player applies safe defaults.
+Full configuration passed to `setup()`. All fields are optional, and the player applies safe defaults.
 
 ```ts
 interface BasePlayerConfig {
@@ -182,24 +182,22 @@ interface BasePlayerConfig {
 
 | Field                  | Type                  | Default                     | Description                                                    |
 | ---------------------- | --------------------- | --------------------------- | -------------------------------------------------------------- |
-| `auth`                 | `AuthConfig`          | —                           | Bearer token, headers, transformUrl, signRequest, refresh hook |
+| `auth`                 | `AuthConfig`          | none                        | Bearer token, headers, transformUrl, signRequest, refresh hook |
 | `logLevel`             | `LogLevel`            | `'info'`                    | Verbosity threshold                                            |
-| `baseUrl`              | `string`              | —                           | Prefixed to all relative media URLs                            |
+| `baseUrl`              | `string`              | none                        | Prefixed to all relative media URLs                            |
 | `beforeEventTimeoutMs` | `number`              | `10000`                     | Max wait for `delay()` promises in before-events               |
 | `pluginInitTimeoutMs`  | `number`              | `5000`                      | Max wait for async `use()` per plugin                          |
 | `platform`             | `Partial<IPlatform>`  | `browserPlatform`           | Swap wake-lock, network, fullscreen, PiP adapters              |
-| `mutationGuards`       | `MutationGuardConfig` | —                           | Which mutations emit `beforeMutation`                          |
+| `mutationGuards`       | `MutationGuardConfig` | none                        | Which mutations emit `beforeMutation`                          |
 | `preloadStrategy`      | `PreloadStrategy`     | `DefaultPreloadStrategy`    | When and what to buffer ahead                                  |
 | `transitionStrategy`   | `TransitionStrategy`  | `GaplessTransitionStrategy` | How track boundaries feel                                      |
 
----
-
 ## AuthConfig
 
-Unified auth pipeline applied to every kit-internal fetch. Hard rules:
+Unified auth pipeline applied to every core-internal fetch. Hard rules:
 
-- **401 (unauthenticated)** — may invoke `refreshOnUnauthenticated`, then retry once.
-- **403 (unauthorized)** — propagates immediately. Never refreshed, never retried.
+- **401 (unauthenticated)** may invoke `refreshOnUnauthenticated`, then retry once.
+- **403 (unauthorized)** propagates immediately. Never refreshed, never retried.
 
 ```ts
 interface AuthConfig {
@@ -213,7 +211,7 @@ interface AuthConfig {
 }
 ```
 
-All `bearerToken` and `headers` values accept a static string, a sync getter, or an async getter — Vue refs, signals, and reactive stores all work:
+All `bearerToken` and `headers` values accept a static string, a sync getter, or an async getter, so Vue refs, signals, and reactive stores all work:
 
 ```ts
 auth: {
@@ -224,18 +222,14 @@ auth: {
 }
 ```
 
----
-
 ## CastConfig
 
 ```ts
 interface CastConfig {
-  autoLoad?: boolean; // default false — auto-inject Cast SDK on first transferTo
+  autoLoad?: boolean; // default false; auto-injects Cast SDK on first transferTo
   receiverApplicationId?: string; // default: standard Google media receiver
 }
 ```
-
----
 
 ## DrmConfig
 
@@ -250,13 +244,13 @@ interface DrmConfig {
 }
 ```
 
----
-
 ## BaseEventMap
 
-Complete event map emitted by every kit-based player. Library-specific maps (`MusicEventMap`, `VideoEventMap`) extend this.
+Complete event map emitted by every core-based player.
+Library-specific maps (`MusicEventMap`, `VideoEventMap`) extend this.
 
-The table below shows the top-level groups. For the full per-event payload reference see [Events Reference](/nomercy-player-kit/events-reference).
+The table below shows the top-level groups.
+For the full per-event payload reference see [Events Reference](/nomercy-player-core/events-reference).
 
 | Group                | Example keys                                                                                                 |
 | -------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -290,11 +284,9 @@ interface BeforeEvent<TData> {
 }
 ```
 
-- **`data`** is mutable — listeners modify it and the player reads the mutated value when running the default action.
+- **`data`** is mutable, so listeners modify it and the player reads the mutated value when running the default action.
 - **`preventDefault()`** skips the default action AND its post-event chain. Consumer sees a `<action>Prevented` event.
 - **`delay(promise)`** blocks the player. Multiple delays compose via `Promise.all`. Bounded by `beforeEventTimeoutMs` (default 10 000 ms).
-
----
 
 ## BasePlaylistItem
 
@@ -308,9 +300,9 @@ interface BasePlaylistItem {
 }
 ```
 
-Library-specific packages extend this. The video package adds fields like `sources`, `subtitles`, `audio`, `chapters`, and `tracks`. The music package adds `artists`, `album`, `lrc`, and `duration`.
-
----
+Library-specific packages extend this.
+The video package adds fields like `sources`, `subtitles`, `audio`, `chapters`, and `tracks`.
+The music package adds `artists`, `album`, `lrc`, and `duration`.
 
 ## ActionOptions
 
@@ -318,19 +310,19 @@ Common options accepted by every transport and queue action.
 
 ```ts
 interface ActionOptions {
-  source?: ActionSource; // 'user' | 'remote' | 'plugin' | string — default 'user'
+  source?: ActionSource; // 'user' | 'remote' | 'plugin' | string; default 'user'
   silent?: boolean; // skip lifecycle events and before* guards
   autoplay?: boolean; // call play() immediately after load resolves
 }
 ```
 
-`source` is stamped on emitted events. Remote-sync plugins filter out their own remote-applied actions by checking `event.source === 'remote'`.
-
----
+`source` is stamped on emitted events.
+Remote-sync plugins filter out their own remote-applied actions by checking `event.source === 'remote'`.
 
 ## LoadOptions
 
-Options for `player.load(item, opts?)`. Extends `ActionOptions`.
+Options for `player.load(item, opts?)`.
+Extends `ActionOptions`.
 
 ```ts
 interface LoadOptions extends ActionOptions {
@@ -340,14 +332,12 @@ interface LoadOptions extends ActionOptions {
 }
 ```
 
-`slot: 'next'` preloads without interrupting the currently-playing item — used by the preload pipeline.
-
----
+`slot: 'next'` preloads without interrupting the currently-playing item, used by the preload pipeline.
 
 ## See also
 
-- [Runtime Classes](/nomercy-player-kit/types/classes) — `Plugin`, `Logger`, `LifecycleRegistry`
-- [Enums](/nomercy-player-kit/types/enums) — `SetupState`, `BufferState`, `CastState`, and more
-- [Error Classes](/nomercy-player-kit/types/errors) — `PlayerError` and subclasses
-- [Events Reference](/nomercy-player-kit/events-reference) — full event payload table
-- [Setup](/nomercy-player-kit/setup) — `BasePlayerConfig` in context
+- [Runtime Classes](/nomercy-player-core/types/classes): `Plugin`, `Logger`, `LifecycleRegistry`
+- [Enums](/nomercy-player-core/types/enums): `SetupState`, `BufferState`, `CastState`, and more
+- [Error Classes](/nomercy-player-core/types/errors): `PlayerError` and subclasses
+- [Events Reference](/nomercy-player-core/events-reference): full event payload table
+- [Setup](/nomercy-player-core/setup): `BasePlayerConfig` in context

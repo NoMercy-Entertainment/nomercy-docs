@@ -1,15 +1,14 @@
 ---
-title: 'Framework — React'
+title: 'Framework: React'
 description: 'Integrating nomercy-video-player with React. useRef pattern, useEffect cleanup, and shared player instance.'
 ---
 
-# Video Player — React Integration
-
----
+# Video Player: React Integration
 
 ## useRef + useEffect pattern
 
-The player is a class instance — do not put it in `useState` (React would compare it by equality on every render, triggering unnecessary re-renders). Use `useRef` to hold the instance.
+The player is a class instance, so do not put it in `useState` (React would compare it by equality on every render, triggering unnecessary re-renders).
+Use `useRef` to hold the instance.
 
 ```tsx
 // components/VideoPlayer.tsx
@@ -37,7 +36,9 @@ export function VideoPlayer({ items }: VideoPlayerProps) {
       queue: items,
     });
 
-    player.addPlugin(DesktopUiPlugin).addPlugin(AutoAdvancePlugin);
+    player
+      .addPlugin(DesktopUiPlugin)
+      .addPlugin(AutoAdvancePlugin);
 
     playerRef.current = player;
 
@@ -58,8 +59,6 @@ export function VideoPlayer({ items }: VideoPlayerProps) {
 }
 ```
 
----
-
 ## Reactive state with useState
 
 Subscribe to player events in a separate `useEffect`:
@@ -79,7 +78,7 @@ function usePlayerState(player: NMVideoPlayer | null) {
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     const onTime = ({ time }: { time: number }) => setCurrentTime(time);
-    const onDuration = ({ duration: d }: { duration: number }) => setDuration(d);
+    const onDuration = ({ duration: currentDuration }: { duration: number }) => setDuration(currentDuration);
 
     player.on('play', onPlay);
     player.on('pause', onPause);
@@ -97,8 +96,6 @@ function usePlayerState(player: NMVideoPlayer | null) {
   return { isPlaying, currentTime, duration };
 }
 ```
-
----
 
 ## Shared player via module singleton
 
@@ -127,8 +124,6 @@ player.on('current', ({ item }) => {
 });
 ```
 
----
-
 ## Next.js / SSR
 
 The player requires browser APIs. Use dynamic import with `ssr: false`:
@@ -146,9 +141,7 @@ export default function Page() {
 }
 ```
 
-Or wrap initialization in `useEffect` — React only runs `useEffect` on the client.
-
----
+Or wrap initialization in `useEffect`, since React only runs `useEffect` on the client.
 
 ## Controls component
 

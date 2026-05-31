@@ -1,20 +1,20 @@
 ---
 title: 'AudioElementBackend'
-description: 'HTML5 audio element backend with lazy Web Audio graph and RAF-based crossfade — the default music player backend.'
+description: 'HTML5 audio element backend with lazy Web Audio graph and RAF-based crossfade, the default music player backend.'
 draft: false
 ---
 
 # AudioElementBackend
 
-The default audio backend. Uses a native `<audio>` element for transport and optionally creates a `MediaElementAudioSourceNode` when a plugin requests the Web Audio graph.
+The default audio backend.
+Uses a native `<audio>` element for transport and optionally creates a `MediaElementAudioSourceNode` when a plugin requests the Web Audio graph.
 
 **Kind:** `'audio-element'`
 
----
-
 ## Activation
 
-This backend is active by default. No configuration is required.
+This backend is active by default.
+No configuration is required.
 
 To explicitly select it:
 
@@ -28,8 +28,6 @@ Or switch to it at runtime:
 await player.backend('audio-element');
 ```
 
----
-
 ## HLS support
 
 When the audio URL ends with `.m3u8` and the browser does not support native HLS:
@@ -40,27 +38,23 @@ When the audio URL ends with `.m3u8` and the browser does not support native HLS
 
 On Safari and iOS, native HLS is used directly and `hls.js` is skipped.
 
----
-
 ## Web Audio graph (lazy)
 
-The backend creates `MediaElementAudioSourceNode` only when the first plugin calls `outputNode(ctx)` or `analyserSource(ctx)`. Until then, the `<audio>` element routes directly to the system output.
+The backend creates `MediaElementAudioSourceNode` only when the first plugin calls `outputNode(ctx)` or `analyserSource(ctx)`.
+Until then, the `<audio>` element routes directly to the system output.
 
-This means `AudioGraphPlugin` and `EqualizerPlugin` work with this backend — at a slight cost: once the `MediaElementAudioSourceNode` is created, it cannot be removed for the lifetime of the backend instance.
-
----
+This means `AudioGraphPlugin` and `EqualizerPlugin` work with this backend, at a slight cost: once the `MediaElementAudioSourceNode` is created, it cannot be removed for the lifetime of the backend instance.
 
 ## Crossfade implementation
 
-Crossfade is driven by a `requestAnimationFrame` loop at ~50 fps. A secondary `<audio>` element is allocated via `loadSecondary()`, pre-rolled via `primeSecondary()`, and then both elements are gain-ramped in opposite directions over `durationMs`.
+Crossfade is driven by a `requestAnimationFrame` loop at ~50 fps.
+A secondary `<audio>` element is allocated via `loadSecondary()`, pre-rolled via `primeSecondary()`, and then both elements are gain-ramped in opposite directions over `durationMs`.
 
 - Primary ramps from current volume to 0
 - Secondary ramps from 0 to current volume
 - At completion, the secondary becomes the primary element and the old primary is discarded
 
 **Accuracy:** ±20 ms (one RAF frame). Use `WebAudioBackend` for sub-millisecond accuracy.
-
----
 
 ## Secondary gain API
 
@@ -76,8 +70,6 @@ backend.secondaryGain(0.5);
 
 `secondaryGain()` returns `0` when no secondary element is allocated.
 
----
-
 ## Output routing
 
 ```ts
@@ -85,7 +77,7 @@ const backend = player.backend();
 
 // List available output devices:
 const devices = await navigator.mediaDevices.enumerateDevices();
-const outputs = devices.filter((d) => d.kind === 'audiooutput');
+const outputs = devices.filter((device) => device.kind === 'audiooutput');
 
 // Route to a specific device:
 await backend.setSinkId(outputs[0].deviceId);
@@ -94,12 +86,11 @@ await backend.setSinkId(outputs[0].deviceId);
 const sinkId = backend.getSinkId();
 ```
 
-`setSinkId` is available in Chrome and Chromium-based browsers. Safari does not support it.
-
----
+`setSinkId` is available in Chrome and Chromium-based browsers.
+Safari does not support it.
 
 ## See also
 
-- [Backends overview](/nomercy-music-player/backends/overview) — when to choose `audio-element` vs `webaudio`
-- [IAudioBackend](/nomercy-music-player/backends/backend-interface) — full interface reference
-- [WebAudioBackend](/nomercy-music-player/backends/web-audio) — sample-accurate alternative
+- [Backends overview](/nomercy-music-player/backends/overview), when to choose `audio-element` vs `webaudio`
+- [IAudioBackend](/nomercy-music-player/backends/backend-interface), full interface reference
+- [WebAudioBackend](/nomercy-music-player/backends/web-audio), sample-accurate alternative

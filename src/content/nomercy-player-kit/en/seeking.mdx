@@ -8,9 +8,9 @@ draft: false
 
 ## Overview
 
-Seeking methods let consumers position playback at a specific time. Every seek dispatches `beforeSeek` first — listeners may `preventDefault()` to cancel; `seekPrevented` fires instead of `seek`/`seeked`.
-
----
+Seeking methods let consumers position playback at a specific time.
+Every seek dispatches `beforeSeek` first, and listeners may `preventDefault()` to cancel.
+`seekPrevented` fires instead of `seek`/`seeked` when a seek is cancelled.
 
 ## `currentTime(t?, opts?)`
 
@@ -18,11 +18,12 @@ Get or seek to a playback position in seconds.
 
 **Read:** `currentTime()` returns the current position as a number.
 
-**Write:** `currentTime(t, opts?)` dispatches `beforeSeek`; if not prevented, runs a `seeking` phase round-trip, updates position, emits `seek` then `seeked`, and forwards to the backend. Negative values are clamped to 0.
+**Write:** `currentTime(t, opts?)` dispatches `beforeSeek`; if not prevented, runs a `seeking` phase round-trip, updates position, emits `seek` then `seeked`, and forwards to the backend.
+Negative values are clamped to 0.
 
 | Parameter     | Type           | Default  | Description                 |
 | ------------- | -------------- | -------- | --------------------------- |
-| `t`           | `number`       | —        | Target time in seconds (0+) |
+| `t`           | `number`       |          | Target time in seconds (0+) |
 | `opts.source` | `ActionSource` | `'user'` | Who triggered the seek      |
 
 **Returns:** `number` (read) or `Promise<void>` (write)
@@ -40,35 +41,34 @@ await player.currentTime(150);
 await player.currentTime(150, { source: 'remote' });
 ```
 
----
-
 ## `seekByPercentage(pct, opts?)`
 
 Seek to a position expressed as a percentage (0–100) of the total duration.
 
-`pct` is clamped to [0, 100]. No-op when `duration` is zero or non-finite (metadata not yet loaded). Delegates to `currentTime()` so `beforeSeek` fires and the full seek cycle applies.
+`pct` is clamped to [0, 100].
+No-op when `duration` is zero or non-finite (metadata not yet loaded).
+Delegates to `currentTime()` so `beforeSeek` fires and the full seek cycle applies.
 
 | Parameter | Type            | Default | Description        |
 | --------- | --------------- | ------- | ------------------ |
-| `pct`     | `number`        | —       | Percentage 0–100   |
-| `opts`    | `ActionOptions` | —       | Source attribution |
+| `pct`     | `number`        |         | Percentage 0–100   |
+| `opts`    | `ActionOptions` |         | Source attribution |
 
 ```ts
 // seek to the halfway point
 player.seekByPercentage(50);
 
 // build a progress bar scrubber
-seekBar.addEventListener('input', (e) => {
-  const pct = Number((e.target as HTMLInputElement).value);
+seekBar.addEventListener('input', (event) => {
+  const pct = Number((event.target as HTMLInputElement).value);
   player.seekByPercentage(pct);
 });
 ```
 
----
-
 ## `rewind(seconds?, opts?)`
 
-Seek backwards by `seconds` (default 5). Clamps the result to 0 — rewinding past the start lands at the start.
+Seek backwards by `seconds` (default 5).
+Clamps the result to 0, so rewinding past the start lands at the start.
 
 | Parameter | Type            | Default | Description        |
 | --------- | --------------- | ------- | ------------------ |
@@ -77,16 +77,12 @@ Seek backwards by `seconds` (default 5). Clamps the result to 0 — rewinding pa
 
 **Events emitted:** `beforeSeek` (with negative delta `time`) → `seek` → `seeked`
 
----
-
 ## `forward(seconds?, opts?)`
 
 Seek forwards by `seconds` (default 5). No upper clamp.
 
----
-
 ## See also
 
-- [Time](/nomercy-player-kit/time) — `duration`, `buffered`, `timeData`
-- [Transport](/nomercy-player-kit/transport) — `restart`, `rewind`, `forward`
-- [Events Reference](/nomercy-player-kit/events-reference) — `beforeSeek`, `seek`, `seeked`, `seekPrevented`
+- [Time](/nomercy-player-core/time), `duration`, `buffered`, `timeData`
+- [Transport](/nomercy-player-core/transport), `restart`, `rewind`, `forward`
+- [Events Reference](/nomercy-player-core/events-reference), `beforeSeek`, `seek`, `seeked`, `seekPrevented`

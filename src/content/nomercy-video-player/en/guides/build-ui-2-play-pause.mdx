@@ -1,0 +1,452 @@
+---
+title: 'Step 2: Play, Pause, and Buffering'
+description: 'Add a center play button, a buffering spinner, and a bottom-bar play/pause toggle to your custom UI plugin.'
+---
+
+{/* Source: packages/nomercy-video-player-v2/wiki/guides/Step-2-Play-Pause-and-Buffering.md */}
+
+# Step 2: Play, Pause, and Buffering
+
+In Step 1 you built a plugin shell with a top bar and a bottom bar. This step adds three interactive pieces inside that shell:
+
+- A large center play button that disappears once playback starts.
+- A buffering spinner that shows while the player is waiting for data.
+- A play/pause toggle button in the bottom bar that stays visible throughout playback.
+
+By the end of this step you will have a functional play/pause flow driven entirely by real player events.
+
+## New properties
+
+Add these fields to the `PlayerUiPlugin` class alongside the existing `topBar` and `bottomBar` references:
+
+```ts
+private centerButton!: HTMLButtonElement;
+private playbackButton!: HTMLButtonElement;
+private spinner!: HTMLDivElement;
+private bottomRow!: HTMLDivElement;
+```
+
+## Center play button
+
+The center button shows a single play icon and hides itself completely when playback begins. There is no icon swap here — the button simply vanishes on `'play'` so the center of the screen stays clean during normal playback.
+
+Add this method and call it from `use()` before `createBottomBar()`:
+
+```ts
+private createCenterButton(): void {
+  this.centerButton = this.player
+    .createElement('button', 'center-play')
+    .addClasses([
+      'absolute', 'top-1/2', 'left-1/2', '-translate-x-1/2', '-translate-y-1/2',
+      'flex', 'items-center', 'justify-center',
+      'w-16', 'h-16', 'rounded-full',
+      'bg-black/50', 'text-white',
+      'cursor-pointer',
+      'transition-opacity', 'duration-300',
+      'hover:bg-black/70', 'hover:scale-110',
+    ])
+    .appendTo(this.overlay)
+    .get();
+
+  this.centerButton.ariaLabel = 'Play';
+  this.centerButton.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32" aria-hidden="true">
+      <path d="M5 5.27c0-1.707 1.826-2.792 3.325-1.977l12.362 6.726c1.566.853 1.566 3.1 0 3.953L8.325 20.707C6.826 21.52 5 20.435 5 18.728V5.274Z"/>
+    </svg>
+  `;
+
+  this.listen(this.centerButton, 'click', (event) => {
+    event.stopPropagation();
+    void this.player.togglePlayback();
+  });
+
+  this.on('play', () => {
+    this.centerButton.style.display = 'none';
+  });
+}
+```
+
+The center button uses `this.on('play', ...)` which is the plugin's scoped listener — it auto-cleans up when the plugin is disposed. The play SVG path is the same Fluent UI icon the built-in `DesktopUiPlugin` uses.
+
+> **Note:** If you are not using Tailwind, replace the utility classes with equivalent CSS: `position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%)` and so on.
+
+## Buffering spinner
+
+The spinner sits in the same center zone. It relies on the player toggling the `buffering` class on `.nomercyplayer` when data is stalled, and removing it again when the player can play. Wire visibility directly to the `'waiting'` and `'canplay'` events.
+
+```ts
+private createSpinner(): void {
+  this.spinner = this.player
+    .createElement('div', 'spinner')
+    .addClasses([
+      'absolute', 'top-1/2', 'left-1/2', '-translate-x-1/2', '-translate-y-1/2',
+      'w-12', 'h-12',
+      'pointer-events-none',
+    ])
+    .appendTo(this.overlay)
+    .get();
+
+  this.spinner.style.display = 'none';
+  this.spinner.innerHTML = `
+    <svg class="animate-spin text-white" viewBox="0 0 100 101" fill="none" aria-hidden="true">
+      <path d="M100 50.59C100 78.2 77.6 100.59 50 100.59S0 78.2 0 50.59 22.39.59 50 .59s50 22.39 50 50z"
+            fill="currentColor" opacity="0.25"/>
+      <path d="M93.97 39.04c2.42-.64 3.89-3.13 3.04-5.49A50 50 0 0041.73 1.28c-2.47.41-3.92 2.92-3.28 5.34.66 2.43 3.14 3.85 5.62 3.48a40 40 0 0146.62 22.32c.9 2.24 3.36 3.7 5.79 3.06z"
+            fill="currentColor"/>
+    </svg>
+  `;
+
+  this.on('waiting', () => {
+    this.spinner.style.display = 'flex';
+  });
+  this.on('stalled', () => {
+    this.spinner.style.display = 'flex';
+  });
+  this.on('canplay', () => {
+    this.spinner.style.display = 'none';
+  });
+  this.on('playing', () => {
+    this.spinner.style.display = 'none';
+  });
+}
+```
+
+`'waiting'` fires when the browser has run out of buffered data and has to wait. `'canplay'` fires when enough data is available to continue. Both events are bridged from the backend to the player surface in `NMVideoPlayer`, so you get them on `this.on(...)` inside any plugin.
+
+If you are not using Tailwind's `animate-spin`, add a CSS keyframe:
+
+```css
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner svg {
+  animation: spin 1s linear infinite;
+}
+```
+
+## Bottom-row controls container
+
+Add a row inside the bottom bar to hold the transport buttons. Call `createBottomRow()` from `use()` after `createBottomBar()`:
+
+```ts
+private createBottomRow(): void {
+  this.bottomRow = this.player
+    .createElement('div', 'bottom-row')
+    .addClasses(['flex', 'items-center', 'gap-1', 'h-10'])
+    .appendTo(this.bottomBar)
+    .get();
+}
+```
+
+## Play/pause button in the bottom bar
+
+The bottom-bar playback button stays visible at all times and swaps between two icon states — a play icon when paused, a pause icon when playing.
+
+```ts
+private createPlaybackButton(): void {
+  this.playbackButton = this.player.createButton(
+    'playback',
+    'Play / Pause',
+    () => { void this.player.togglePlayback(); },
+  );
+  this.player.addClasses(this.playbackButton, [
+    'flex', 'items-center', 'justify-center',
+    'w-10', 'h-10', 'rounded',
+    'text-white', 'cursor-pointer',
+    'hover:bg-white/10',
+  ]);
+
+  const playIcon = `
+    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
+      <path d="M5 5.27c0-1.707 1.826-2.792 3.325-1.977l12.362 6.726c1.566.853 1.566 3.1 0 3.953L8.325 20.707C6.826 21.52 5 20.435 5 18.728V5.274Z"/>
+    </svg>
+  `;
+  const pauseIcon = `
+    <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
+      <path d="M6.25 3C5.007 3 4 4.007 4 5.25v13.5C4 19.993 5.007 21 6.25 21h2.5C10.007 21 11 19.993 11 18.75V5.25C11 4.007 9.993 3 8.75 3h-2.5Zm9 0C14.007 3 13 4.007 13 5.25v13.5c0 1.243 1.007 2.25 2.25 2.25h2.5C18.993 21 20 19.993 20 18.75V5.25C20 4.007 18.993 3 17.75 3h-2.5Z"/>
+    </svg>
+  `;
+
+  const iconHolder = document.createElement('span');
+  iconHolder.innerHTML = playIcon;
+  this.playbackButton.appendChild(iconHolder);
+  this.bottomRow.appendChild(this.playbackButton);
+
+  this.on('pause', () => {
+    iconHolder.innerHTML = playIcon;
+    this.playbackButton.ariaLabel = 'Play';
+  });
+  this.on('play', () => {
+    iconHolder.innerHTML = pauseIcon;
+    this.playbackButton.ariaLabel = 'Pause';
+  });
+}
+```
+
+`this.player.createButton(id, label, handler)` is the player's DOM helper for creating an accessible `<button>`. The click handler is wired at creation time; you can also replace it with a `this.listen(this.playbackButton, 'click', ...)` call if you prefer the lifecycle-managed form.
+
+## Updated `use()` and `dispose()`
+
+`use()` now handles initial state. If the video element is already playing when the plugin loads (unlikely in practice but correct to handle), the center button is hidden immediately. If paused, it stays visible.
+
+```ts
+use(): void {
+  this.overlay = this.mount('overlay');
+  this.player.addClasses(this.overlay, ['overlay']);
+
+  this.createTopBar();
+  this.createCenterButton();
+  this.createSpinner();
+  this.createBottomBar();
+  this.createBottomRow();
+  this.createPlaybackButton();
+
+  if (this.player.videoElement?.paused === false) {
+    this.centerButton.style.display = 'none';
+    this.playbackButton.ariaLabel = 'Pause';
+    const iconHolder = this.playbackButton.querySelector('span');
+    if (iconHolder) {
+      iconHolder.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
+          <path d="M6.25 3C5.007 3 4 4.007 4 5.25v13.5C4 19.993 5.007 21 6.25 21h2.5C10.007 21 11 19.993 11 18.75V5.25C11 4.007 9.993 3 8.75 3h-2.5Zm9 0C14.007 3 13 4.007 13 5.25v13.5c0 1.243 1.007 2.25 2.25 2.25h2.5C18.993 21 20 19.993 20 18.75V5.25C20 4.007 18.993 3 17.75 3h-2.5Z"/>
+        </svg>
+      `;
+    }
+  }
+}
+
+dispose(): void {
+  this.topBar?.remove();
+  this.bottomBar?.remove();
+  this.centerButton?.remove();
+  this.spinner?.remove();
+}
+```
+
+> **Note:** You do not need to call `this.on(...)` cleanup manually. All listeners registered via the plugin's `this.on(...)` are automatically removed when `dispose()` runs.
+
+## Full plugin at this stage
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+export class PlayerUiPlugin extends Plugin<NMVideoPlayer> {
+  static readonly id = 'player-ui';
+  static readonly description = 'Tutorial custom UI — Step 2';
+
+  private overlay!: HTMLDivElement;
+  private topBar!: HTMLDivElement;
+  private bottomBar!: HTMLDivElement;
+  private bottomRow!: HTMLDivElement;
+  private centerButton!: HTMLButtonElement;
+  private playbackButton!: HTMLButtonElement;
+  private spinner!: HTMLDivElement;
+
+  use(): void {
+    this.overlay = this.mount('overlay');
+    this.player.addClasses(this.overlay, ['overlay']);
+
+    this.createTopBar();
+    this.createCenterButton();
+    this.createSpinner();
+    this.createBottomBar();
+    this.createBottomRow();
+    this.createPlaybackButton();
+
+    if (this.player.videoElement?.paused === false) {
+      this.centerButton.style.display = 'none';
+    }
+  }
+
+  dispose(): void {
+    this.topBar?.remove();
+    this.bottomBar?.remove();
+    this.centerButton?.remove();
+    this.spinner?.remove();
+  }
+
+  private createTopBar(): void {
+    this.topBar = this.player
+      .createElement('div', 'top-bar')
+      .addClasses([
+        'absolute', 'top-0', 'left-0', 'right-0',
+        'flex', 'items-center', 'gap-2',
+        'p-4', 'pb-12',
+        'bg-gradient-to-b', 'from-black/80', 'to-transparent',
+        'opacity-0', 'transition-opacity', 'duration-300', 'pointer-events-none',
+        'group-[&.nomercyplayer.active]:opacity-100',
+        'group-[&.nomercyplayer.active]:pointer-events-auto',
+        'group-[&.nomercyplayer.paused]:opacity-100',
+        'group-[&.nomercyplayer.paused]:pointer-events-auto',
+      ])
+      .appendTo(this.overlay)
+      .get();
+  }
+
+  private createCenterButton(): void {
+    this.centerButton = this.player
+      .createElement('button', 'center-play')
+      .addClasses([
+        'absolute', 'top-1/2', 'left-1/2', '-translate-x-1/2', '-translate-y-1/2',
+        'flex', 'items-center', 'justify-center',
+        'w-16', 'h-16', 'rounded-full',
+        'bg-black/50', 'text-white', 'cursor-pointer',
+        'transition-opacity', 'duration-300',
+        'hover:bg-black/70', 'hover:scale-110',
+      ])
+      .appendTo(this.overlay)
+      .get();
+
+    this.centerButton.ariaLabel = 'Play';
+    this.centerButton.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32" aria-hidden="true">
+        <path d="M5 5.27c0-1.707 1.826-2.792 3.325-1.977l12.362 6.726c1.566.853 1.566 3.1 0 3.953L8.325 20.707C6.826 21.52 5 20.435 5 18.728V5.274Z"/>
+      </svg>
+    `;
+
+    this.listen(this.centerButton, 'click', (event) => {
+      event.stopPropagation();
+      void this.player.togglePlayback();
+    });
+
+    this.on('play', () => {
+      this.centerButton.style.display = 'none';
+    });
+  }
+
+  private createSpinner(): void {
+    this.spinner = this.player
+      .createElement('div', 'spinner')
+      .addClasses([
+        'absolute', 'top-1/2', 'left-1/2', '-translate-x-1/2', '-translate-y-1/2',
+        'w-12', 'h-12', 'pointer-events-none',
+      ])
+      .appendTo(this.overlay)
+      .get();
+
+    this.spinner.style.display = 'none';
+    this.spinner.innerHTML = `
+      <svg class="animate-spin text-white" viewBox="0 0 100 101" fill="none" aria-hidden="true">
+        <path d="M100 50.59C100 78.2 77.6 100.59 50 100.59S0 78.2 0 50.59 22.39.59 50 .59s50 22.39 50 50z"
+              fill="currentColor" opacity="0.25"/>
+        <path d="M93.97 39.04c2.42-.64 3.89-3.13 3.04-5.49A50 50 0 0041.73 1.28c-2.47.41-3.92 2.92-3.28 5.34.66 2.43 3.14 3.85 5.62 3.48a40 40 0 0146.62 22.32c.9 2.24 3.36 3.7 5.79 3.06z"
+              fill="currentColor"/>
+      </svg>
+    `;
+
+    this.on('waiting', () => { this.spinner.style.display = 'flex'; });
+    this.on('stalled', () => { this.spinner.style.display = 'flex'; });
+    this.on('canplay', () => { this.spinner.style.display = 'none'; });
+    this.on('playing', () => { this.spinner.style.display = 'none'; });
+  }
+
+  private createBottomBar(): void {
+    this.bottomBar = this.player
+      .createElement('div', 'bottom-bar')
+      .addClasses([
+        'absolute', 'bottom-0', 'left-0', 'right-0',
+        'flex', 'flex-col', 'gap-1',
+        'px-4', 'pt-12', 'pb-2',
+        'bg-gradient-to-t', 'from-black/80', 'to-transparent',
+        'opacity-0', 'transition-opacity', 'duration-300', 'pointer-events-none',
+        'group-[&.nomercyplayer.active]:opacity-100',
+        'group-[&.nomercyplayer.active]:pointer-events-auto',
+        'group-[&.nomercyplayer.paused]:opacity-100',
+        'group-[&.nomercyplayer.paused]:pointer-events-auto',
+      ])
+      .appendTo(this.overlay)
+      .get();
+  }
+
+  private createBottomRow(): void {
+    this.bottomRow = this.player
+      .createElement('div', 'bottom-row')
+      .addClasses(['flex', 'items-center', 'gap-1', 'h-10'])
+      .appendTo(this.bottomBar)
+      .get();
+  }
+
+  private createPlaybackButton(): void {
+    this.playbackButton = this.player.createButton(
+      'playback',
+      'Play',
+      () => { void this.player.togglePlayback(); },
+    );
+    this.player.addClasses(this.playbackButton, [
+      'flex', 'items-center', 'justify-center',
+      'w-10', 'h-10', 'rounded',
+      'text-white', 'cursor-pointer',
+      'hover:bg-white/10',
+    ]);
+
+    const iconHolder = document.createElement('span');
+    iconHolder.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
+        <path d="M5 5.27c0-1.707 1.826-2.792 3.325-1.977l12.362 6.726c1.566.853 1.566 3.1 0 3.953L8.325 20.707C6.826 21.52 5 20.435 5 18.728V5.274Z"/>
+      </svg>
+    `;
+    this.playbackButton.appendChild(iconHolder);
+    this.bottomRow.appendChild(this.playbackButton);
+
+    this.on('pause', () => {
+      iconHolder.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
+          <path d="M5 5.27c0-1.707 1.826-2.792 3.325-1.977l12.362 6.726c1.566.853 1.566 3.1 0 3.953L8.325 20.707C6.826 21.52 5 20.435 5 18.728V5.274Z"/>
+        </svg>
+      `;
+      this.playbackButton.ariaLabel = 'Play';
+    });
+    this.on('play', () => {
+      iconHolder.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
+          <path d="M6.25 3C5.007 3 4 4.007 4 5.25v13.5C4 19.993 5.007 21 6.25 21h2.5C10.007 21 11 19.993 11 18.75V5.25C11 4.007 9.993 3 8.75 3h-2.5Zm9 0C14.007 3 13 4.007 13 5.25v13.5c0 1.243 1.007 2.25 2.25 2.25h2.5C18.993 21 20 19.993 20 18.75V5.25C20 4.007 18.993 3 17.75 3h-2.5Z"/>
+        </svg>
+      `;
+      this.playbackButton.ariaLabel = 'Pause';
+    });
+  }
+}
+```
+
+Register it before calling `setup()`:
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('nomercy-player')
+  .addPlugin(PlayerUiPlugin)
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playlist: [
+      {
+        id: 'sintel',
+        title: 'Sintel',
+        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+        image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+        duration: 888,
+      },
+    ],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+## What you should see
+
+After this step the player loads Sintel and shows the large center play button over the poster image. Click it (or the bottom-bar button) and playback begins — the center button disappears, the bottom-bar icon flips to a pause icon. Stall the connection or throttle in DevTools and the buffering spinner appears in its place.
+
+## Events reference for this step
+
+| Event | When it fires | Used for |
+| ----- | ------------- | -------- |
+| `'play'` | Element starts or resumes playing | Hide center button, flip icon to pause |
+| `'pause'` | Element is paused | Flip icon back to play |
+| `'playing'` | First frame after buffering stall | Hide spinner |
+| `'waiting'` | Buffer exhausted, browser stalling | Show spinner |
+| `'stalled'` | Network stall with no progress | Show spinner |
+| `'canplay'` | Enough data buffered to play | Hide spinner |
+
+Next: [Step 3: Progress Bar with Seeking](/nomercy-video-player/guides/build-ui-3-progress-bar)

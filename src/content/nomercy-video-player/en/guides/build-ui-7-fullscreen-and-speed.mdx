@@ -1,0 +1,293 @@
+---
+title: 'Step 7: Fullscreen and Speed'
+description: 'Add a fullscreen toggle and a playback-speed selector menu to your custom player UI plugin.'
+---
+
+{/* Source: packages/nomercy-video-player-v2/wiki/guides/Step-7-Fullscreen-and-Playback-Speed.md */}
+
+# Step 7: Fullscreen and Speed
+
+This step adds two controls to the right side of the bottom row: a fullscreen toggle button and a playback-speed selector menu.
+After this step your control bar has a complete right-side action cluster, and you have a reusable menu-toggle system ready to extend in [Step 8](/nomercy-video-player/guides/build-ui-8-selectors).
+
+## Where you are
+
+`PlayerUiPlugin` already has a `bottomRow` element holding the transport and time controls from the previous steps.
+Everything below attaches to that same row.
+
+## Right-side spacer
+
+A flex spacer shoves the right-side buttons to the far end of the row:
+
+```ts
+private createRightSpacer(): void {
+  this.player
+    .createElement('div', 'spacer')
+    .addClasses(['flex-1'])
+    .appendTo(this.bottomRow);
+}
+```
+
+Call this once from `use()` after the time display is in place.
+
+## Fullscreen button
+
+The player exposes two complementary APIs:
+
+- `player.toggleFullscreen()` flips the current state.
+- `player.on('fullscreen', ({ active }) => ...)` fires whenever the state changes (user presses F, double-taps on touch, the browser API fires, or you call `toggleFullscreen()`).
+
+> **Note:** `player.fullscreenState()` returns the `FullscreenState` enum (`'on'` / `'off'`). The `fullscreen` event payload carries `{ active: boolean }` so you rarely need to call the getter inside the listener.
+
+```ts
+private createFullscreenButton(): void {
+  const btn = this.player.createButton('fullscreen', 'Fullscreen', () => {});
+  this.player.addClasses(btn, ['btn']);
+  this.bottomRow.appendChild(btn);
+
+  const enterIconHolder = document.createElement('span');
+  enterIconHolder.className = 'btn-icon btn-icon-enter';
+  // substitute your own SVG or icon class here
+  enterIconHolder.innerHTML = '<svg><!-- enter-fullscreen icon --></svg>';
+  btn.appendChild(enterIconHolder);
+
+  const exitIconHolder = document.createElement('span');
+  exitIconHolder.className = 'btn-icon btn-icon-exit';
+  exitIconHolder.style.display = 'none';
+  exitIconHolder.innerHTML = '<svg><!-- exit-fullscreen icon --></svg>';
+  btn.appendChild(exitIconHolder);
+
+  this.listen(btn, 'click', (e: Event) => {
+    e.stopPropagation();
+    this.player.toggleFullscreen();
+  });
+
+  this.on('fullscreen', ({ active }: { active: boolean }) => {
+    enterIconHolder.style.display = active ? 'none' : 'flex';
+    exitIconHolder.style.display = active ? 'flex' : 'none';
+    btn.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Fullscreen');
+  });
+}
+```
+
+`this.listen()` and `this.on()` are the plugin base-class helpers. Both are auto-cleaned when `dispose()` runs, so you do not have to remove them manually.
+
+## Speed selector
+
+The speed menu is a positioned popup that lists all available playback rates.
+The player provides two methods:
+
+- `player.playbackRates()` returns the configured rate list (falls back to `[0.5, 0.75, 1, 1.25, 1.5, 2]` when none is set in config).
+- `player.playbackRate()` reads the current rate; `player.playbackRate(rate)` sets it.
+- The `'backend:ratechange'` event fires after the rate is applied.
+
+```ts
+private speedMenu: HTMLDivElement | null = null;
+
+private createSpeedButton(): void {
+  const btn = this.player.createButton('speed', 'Playback speed', () => {});
+  this.player.addClasses(btn, ['btn']);
+  this.bottomRow.appendChild(btn);
+
+  const iconHolder = document.createElement('span');
+  iconHolder.className = 'btn-icon';
+  iconHolder.innerHTML = '<svg><!-- speed icon --></svg>';
+  btn.appendChild(iconHolder);
+
+  this.listen(btn, 'click', (e: Event) => {
+    e.stopPropagation();
+    this.toggleMenu('speed');
+  });
+
+  this.speedMenu = this.player
+    .createElement('div', 'speed-menu')
+    .addClasses([
+      'absolute', 'bottom-12', 'right-0',
+      'bg-black/90', 'rounded-lg', 'p-2',
+      'hidden', 'flex-col', 'gap-1', 'min-w-[120px]',
+      'pointer-events-auto',
+    ])
+    .appendTo(this.bottomRow)
+    .get();
+
+  this.buildSpeedOptions();
+
+  this.on('backend:ratechange', () => this.updateSpeedMenu());
+}
+
+private buildSpeedOptions(): void {
+  if (!this.speedMenu) return;
+  const rates = this.player.playbackRates();
+  for (const rate of rates) {
+    const option = this.player
+      .createElement('button', `speed-${rate}`)
+      .addClasses([
+        'text-white', 'text-sm', 'px-3', 'py-1.5',
+        'rounded', 'hover:bg-white/20', 'text-left',
+        'cursor-pointer',
+      ])
+      .appendTo(this.speedMenu)
+      .get();
+    option.textContent = rate === 1 ? 'Normal' : `${rate}x`;
+    this.listen(option, 'click', (e: Event) => {
+      e.stopPropagation();
+      this.player.playbackRate(rate);
+      this.toggleMenu(null);
+    });
+  }
+}
+
+private updateSpeedMenu(): void {
+  if (!this.speedMenu) return;
+  const current = this.player.playbackRate();
+  const rates = this.player.playbackRates();
+  const buttons = Array.from(this.speedMenu.querySelectorAll('button'));
+  buttons.forEach((btn, index) => {
+    btn.classList.toggle('bg-white/20', rates[index] === current);
+  });
+}
+```
+
+> **Note:** The examples use Tailwind utility classes. If you are not using Tailwind, replace the class strings with plain CSS or your own class names.
+
+## Menu toggle system
+
+Only one popup should be open at a time.
+The `toggleMenu` helper handles this: calling it with the name of the open menu (or `null`) closes everything; calling it with a different name closes the current one and opens the new one.
+
+At this step only the speed menu exists, so `getMenuByName` has a single case.
+In [Step 8](/nomercy-video-player/guides/build-ui-8-selectors) you will add quality, subtitle, and audio menus to the same switch.
+
+```ts
+private activeMenu: string | null = null;
+
+private toggleMenu(name: string | null): void {
+  // Close whatever is open.
+  this.speedMenu?.classList.add('hidden');
+  this.speedMenu?.classList.remove('flex');
+
+  if (name === this.activeMenu || name === null) {
+    this.activeMenu = null;
+    return;
+  }
+
+  this.activeMenu = name;
+  const menu = this.getMenuByName(name);
+  if (menu) {
+    menu.classList.remove('hidden');
+    menu.classList.add('flex');
+  }
+}
+
+private getMenuByName(name: string): HTMLDivElement | null {
+  switch (name) {
+    case 'speed': return this.speedMenu;
+    default: return null;
+  }
+}
+```
+
+## Closing on outside click
+
+Clicking anywhere outside a menu should close it.
+Store the handler as a property so the same reference is used in `removeEventListener` during `dispose()`.
+
+```ts
+private onDocumentClick = (): void => {
+  if (this.activeMenu) this.toggleMenu(null);
+};
+```
+
+Wire it in `use()`:
+
+```ts
+this.listen(document, 'click', this.onDocumentClick);
+```
+
+Because you used `this.listen()`, the cleanup happens automatically in `dispose()`. You do not need to call `document.removeEventListener` yourself.
+
+## Putting it together in `use()`
+
+```ts
+use(): void {
+  // ... previous steps: overlay, progress bar, transport, volume, time ...
+  this.createRightSpacer();
+  this.createSpeedButton();
+  this.createFullscreenButton();
+  this.listen(document, 'click', this.onDocumentClick);
+}
+```
+
+## What the complete plugin skeleton looks like at this point
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+export class PlayerUiPlugin extends Plugin<NMVideoPlayer> {
+  static readonly id = 'player-ui';
+
+  private bottomRow!: HTMLElement;
+  private speedMenu: HTMLDivElement | null = null;
+  private activeMenu: string | null = null;
+
+  private onDocumentClick = (): void => {
+    if (this.activeMenu) this.toggleMenu(null);
+  };
+
+  use(): void {
+    // Steps 1-6 set up the overlay, progress bar, transport, volume, time.
+    // Step 7 additions:
+    this.createRightSpacer();
+    this.createSpeedButton();
+    this.createFullscreenButton();
+    this.listen(document, 'click', this.onDocumentClick);
+  }
+
+  dispose(): void {
+    // this.listen() registrations are cleaned up automatically.
+  }
+
+  // ... step-7 methods above ...
+}
+```
+
+Register before `setup()`:
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('my-player')
+  .addPlugin(PlayerUiPlugin)
+  .setup({
+    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+    playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
+    playlist: [
+      {
+        id: 'sintel',
+        title: 'Sintel',
+        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+        image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+        duration: 888,
+      },
+    ],
+  });
+
+player.on('ready', () => {
+  player.current(0, { autoplay: true });
+});
+```
+
+## API summary for this step
+
+| Method / event | What it does |
+| --- | --- |
+| `player.toggleFullscreen()` | Enters or exits fullscreen, emits `'fullscreen'` |
+| `player.fullscreenState()` | Returns `FullscreenState.ON` or `FullscreenState.OFF` |
+| `player.on('fullscreen', ({ active }) => ...)` | Fires on every fullscreen state change |
+| `player.playbackRate()` | Returns current rate (number, default `1`) |
+| `player.playbackRate(rate)` | Sets the playback rate |
+| `player.playbackRates()` | Returns the available rate list |
+| `player.on('backend:ratechange', () => ...)` | Fires after the rate is applied |
+
+Next: [Step 8: Quality, Subtitles, and Audio selectors](/nomercy-video-player/guides/build-ui-8-selectors)

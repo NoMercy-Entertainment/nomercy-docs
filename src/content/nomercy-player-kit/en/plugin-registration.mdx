@@ -10,20 +10,20 @@ draft: false
 
 Plugin registration methods manage the full plugin lifecycle: queuing before setup, inline registration after setup, dependency / version checks, same-id swap via `static replaces`, cascade removal, and translation merging.
 
----
-
 ## `addPlugin(PluginClass, opts?)`
 
 Register a plugin with the player. Returns the player for chaining.
 
-**Pre-setup or mid-setup** (`idle` / `setup` phase): the plugin is queued and registered during the `pluginsRegistering` pipeline stage. Ordering within the queue follows registration order; dependency checks are evaluated at registration time across both registered and queued plugins so pre-setup ordering does not matter.
+**Pre-setup or mid-setup** (`idle` / `setup` phase): the plugin is queued and registered during the `pluginsRegistering` pipeline stage.
+Ordering within the queue follows registration order; dependency checks are evaluated at registration time across both registered and queued plugins so pre-setup ordering does not matter.
 
-**Post-setup**: registration runs inline (fire-and-forget). Listen for `plugin:installed` or `plugin:failed` to know when it settled.
+**Post-setup**: registration runs inline (fire-and-forget).
+Listen for `plugin:installed` or `plugin:failed` to know when it settled.
 
 | Parameter     | Type               | Description                                    |
 | ------------- | ------------------ | ---------------------------------------------- |
 | `PluginClass` | `PluginCtorWithId` | A class with `static readonly id: string`      |
-| `opts`        | `P['opts']`        | Typed options — inferred from the plugin class |
+| `opts`        | `P['opts']`        | Typed options, inferred from the plugin class |
 
 **Returns:** `this` (the player instance)
 
@@ -35,7 +35,7 @@ Register a plugin with the player. Returns the player for chaining.
 | `core:plugin/duplicate-id`                | A plugin with the same id is already registered or queued                    |
 | `core:plugin/missing-dep`                 | `static requires` lists a plugin that is not registered (and not `optional`) |
 | `core:plugin/version-mismatch`            | A required dependency's version is below `minVersion`                        |
-| `core:plugin/incompatible-core-version`   | `static minCoreVersion` exceeds the running kit version                      |
+| `core:plugin/incompatible-core-version`   | `static minCoreVersion` exceeds the running core version                     |
 
 ```ts
 import { EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
@@ -45,20 +45,18 @@ player
   .addPlugin(EqualizerPlugin, { preset: 'flat' });
 ```
 
----
-
 ## `getPlugin(PluginClass)`
 
-Look up a registered plugin instance by class. Returns the instance typed as the class's instance type, or `undefined` when not registered. Prefer this over `getPluginById` when the class is in scope.
+Look up a registered plugin instance by class.
+Returns the instance typed as the class's instance type, or `undefined` when not registered.
+Prefer this over `getPluginById` when the class is in scope.
 
 **Returns:** `P | undefined`
 
 ```ts
 const eq = player.getPlugin(EqualizerPlugin);
-eq?.band(250, 6); // set 250 Hz band to +6 dB — fully typed
+eq?.band(250, 6); // set 250 Hz band to +6 dB, fully typed
 ```
-
----
 
 ## `getPluginById(id)`
 
@@ -66,39 +64,35 @@ Look up a registered plugin instance by string id. Use when the class is not in 
 
 **Returns:** `P | undefined` (generic, defaults to `object`)
 
----
-
 ## `removePlugin(PluginClass, opts?)`
 
-Remove a plugin by class. Disposes its instance, drops its lifecycle resources, removes its translations, and emits `plugin:disposed`.
+Remove a plugin by class.
+Disposes its instance, drops its lifecycle resources, removes its translations, and emits `plugin:disposed`.
 
-**Cascade behaviour:** when other plugins depend on the one being removed, they are removed first (recursively). Pass `{ cascade: false }` to opt out — the call will throw `core:plugin/has-dependents` instead.
+**Cascade behaviour:** when other plugins depend on the one being removed, they are removed first (recursively).
+Pass `{ cascade: false }` to opt out, and the call will throw `core:plugin/has-dependents` instead.
 
 **Returns:** `void`
 
----
-
 ## `removePluginById(id, opts?)`
 
-String-id version of `removePlugin`. Also clears any pending queue entry so a queued-then-removed plugin won't register later.
-
----
+String-id version of `removePlugin`.
+Also clears any pending queue entry so a queued-then-removed plugin won't register later.
 
 ## `plugins()`
 
-All registered plugin instances in registration order (both enabled and disabled). Returns a fresh array — mutating it does not affect the player's internal list.
+All registered plugin instances in registration order (both enabled and disabled).
+Returns a fresh array, so mutating it does not affect the player's internal list.
 
 **Returns:** `ReadonlyArray<Plugin>`
-
----
 
 ## `enabledPlugins()`
 
-Registered plugins that are currently enabled, ordered by `static priority` descending. Ties break by registration order. Used internally for `before*` dispatch chains.
+Registered plugins that are currently enabled, ordered by `static priority` descending.
+Ties break by registration order.
+Used internally for `before*` dispatch chains.
 
 **Returns:** `ReadonlyArray<Plugin>`
-
----
 
 ## Plugin static contract
 
@@ -109,13 +103,11 @@ Registered plugins that are currently enabled, ordered by `static priority` desc
 | `priority`       | `number`           | Higher = earlier in dispatch order                                    |
 | `requires`       | `RequireSpec[]`    | Dependency declarations (class or `{ plugin, optional, minVersion }`) |
 | `replaces`       | `string`           | Id of the plugin this one replaces                                    |
-| `minCoreVersion` | `string`           | Minimum kit version required                                          |
+| `minCoreVersion` | `string`           | Minimum core version required                                         |
 | `advisories`     | `PluginAdvisory[]` | Mutation advisory declarations                                        |
 | `translations`   | `Translations`     | Translation bundle (eager or lazy via `translationsFromGlob`)         |
 
----
-
 ## See also
 
-- [Built-in Kit Plugins](/nomercy-player-kit/plugins-builtin) — shipped plugins
-- [Events Reference](/nomercy-player-kit/events-reference) — `plugin:installed`, `plugin:failed`, `plugin:disposed`
+- [Built-in Core Plugins](/nomercy-player-core/plugins-builtin): shipped plugins
+- [Events Reference](/nomercy-player-core/events-reference): `plugin:installed`, `plugin:failed`, `plugin:disposed`

@@ -8,9 +8,8 @@ draft: false
 
 ## Overview
 
-Mutation guards let plugins and consumer code observe (and cancel) state-mutating method calls before they land. They are an advisory system — not a security boundary — designed for plugins that need to enforce ordering constraints, logging, or rate-limiting.
-
----
+Mutation guards let plugins and consumer code observe (and cancel) state-mutating method calls before they land.
+They are an advisory system, not a security boundary, designed for plugins that need to enforce ordering constraints, logging, or rate-limiting.
 
 ## How it works
 
@@ -19,11 +18,11 @@ Before a mutating method (like `current()`, `queue()`, or `repeatState()`) write
 1. Checks the `mutationGuards` config to decide whether to guard this method.
 2. If guarding: dispatches `beforeMutation` synchronously with the method name, args, current phase, and dispatch stack.
 3. Walks every enabled plugin's `static advisories` entries and emits matching `info`, `warning`, or `error` events.
-4. If any `beforeMutation` listener called `event.preventDefault()`, emits `mutationPrevented` and returns `false` — the mutation is skipped.
+4. If any `beforeMutation` listener called `event.preventDefault()`, emits `mutationPrevented` and returns `false`, so the mutation is skipped.
 
-**Important:** `delay()` on the `beforeMutation` event object is a no-op. Mutations are synchronous. Only transport `before*` events support async delays.
-
----
+**Important:** `delay()` on the `beforeMutation` event object is a no-op.
+Mutations are synchronous.
+Only transport `before*` events support async delays.
 
 ## `beforeMutation` event
 
@@ -47,8 +46,6 @@ player.on('beforeMutation', (evt) => {
 });
 ```
 
----
-
 ## `mutationPrevented` event
 
 Fires when a `beforeMutation` listener called `preventDefault()`.
@@ -57,8 +54,6 @@ Fires when a `beforeMutation` listener called `preventDefault()`.
 { method: string; reason: PreventedReason; cause?: unknown }
 ```
 
----
-
 ## Config: `mutationGuards`
 
 Passed in `setup({ mutationGuards })`:
@@ -66,7 +61,7 @@ Passed in `setup({ mutationGuards })`:
 | Value                 | Effect                                                                                                   |
 | --------------------- | -------------------------------------------------------------------------------------------------------- |
 | `undefined` (default) | Guard normal mutations (`load`, `setCurrent`, `queue*`, `setSubtitle`, etc.); hot methods skip the guard |
-| `false`               | Disable entirely — fastest path                                                                          |
+| `false`               | Disable entirely, fastest path                                                                           |
 | `'all'`               | Guard every mutating method including hot ones (`currentTime`, `volume`, `playbackRate`)                 |
 | `string[]`            | Guard normal mutations + the named hot methods                                                           |
 
@@ -79,8 +74,6 @@ Passed in `setup({ mutationGuards })`:
 - `recordMetric`
 
 These fire on every frame and would make the guard a hot path.
-
----
 
 ## Plugin advisories
 
@@ -102,10 +95,8 @@ class MyPlugin extends Plugin {
 
 The guard walks advisories from all enabled plugins and emits the matched severity event (carries a `PluginError` with the code `plugin:<id>/<reason>`).
 
----
-
 ## See also
 
-- [Plugin Registration](/nomercy-player-kit/plugin-registration) — `addPlugin`, `static advisories`
-- [Events Reference](/nomercy-player-kit/events-reference) — `beforeMutation`, `mutationPrevented`
-- [Phase API](/nomercy-player-kit/phase) — `phase()`, `dispatching()`
+- [Plugin Registration](/nomercy-player-core/plugin-registration): `addPlugin`, `static advisories`
+- [Events Reference](/nomercy-player-core/events-reference): `beforeMutation`, `mutationPrevented`
+- [Phase API](/nomercy-player-core/phase): `phase()`, `dispatching()`

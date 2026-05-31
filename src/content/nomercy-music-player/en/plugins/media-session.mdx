@@ -14,7 +14,7 @@ Without this plugin, none of that happens.
 Register `MediaSessionPlugin` and the browser's Media Session API wires itself to your player automatically.
 
 The music-specific subclass reads `name`, `artistTracks`, `albumTracks`, and `cover` from each `MusicPlaylistItem`.
-The base kit plugin handles all transport state: play, pause, stop, seek, and position scrubbing.
+The base player core plugin handles all transport state: play, pause, stop, seek, and position scrubbing.
 
 ```ts
 import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
@@ -22,20 +22,11 @@ import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/
 
 Plugin id: `'media-session'`
 
----
+## Artwork resolution
 
-## Options
-
-| Option | Type | Default | Description |
-| ------ | ---- | ------- | ----------- |
-| `artworkBaseUrl` | `string` | `undefined` | Base URL prepended to `item.cover` inside the music subclass. See note below. |
-
-**Note on `artworkBaseUrl`:** The base class resolves artwork independently from the item's `image`, `poster`, `thumbnail`, or `cover` fields and passes the result through the player's `urlResolver`.
-The `artworkBaseUrl` prefix is applied only inside the music subclass's own metadata override, and the base class then replaces that artwork with its own resolved value.
-In practice `artworkBaseUrl` has no observable effect on the final artwork URL.
-Use the player's `baseUrl` config in `setup()` or supply a custom `urlResolver` to control how image URLs are resolved.
-
----
+Artwork is not configured on this plugin.
+The player core base class reads the first non-empty value from `item.image`, `item.poster`, `item.thumbnail`, or `item.cover`, then resolves it through the player's `urlResolver` pipeline.
+To control how image URLs are rewritten, pass `baseUrl` or a custom `urlResolver` to `setup()`.
 
 ## What it does
 
@@ -50,8 +41,6 @@ If the current item is already set when the plugin's `use()` runs, the OS metada
 
 In environments without `navigator.mediaSession` (Node, JSDOM, older WebViews) the plugin silently no-ops.
 
----
-
 ## Field mapping
 
 The music subclass maps `MusicPlaylistItem` fields to `MediaMetadata`:
@@ -62,8 +51,6 @@ The music subclass maps `MusicPlaylistItem` fields to `MediaMetadata`:
 | `artistTracks` | `artist` | Array of `{name}` joined with `, ` or a plain string |
 | `albumTracks` | `album` | Array of `{name}` joined with `, ` or a plain string |
 | `image` - first non-empty of `image`, `poster`, `thumbnail`, `cover` | `artwork[0].src` (512x512) | Resolved through `urlResolver`; MIME inferred from extension |
-
----
 
 ## Methods
 
@@ -84,8 +71,6 @@ session.metadata({
 // Clear the OS Now Playing / lock-screen display:
 session.clearMetadata();
 ```
-
----
 
 ## Registration
 
@@ -112,16 +97,12 @@ const player = nmMPlayer('main')
 
 On track change the OS lock screen and notification panel show the title, artist, album, and artwork resolved from `cover`.
 
----
-
 ## Browser support
 
 The Media Session API is supported in Chrome, Firefox, and Safari.
 In environments where it is unavailable the plugin silently no-ops without throwing.
 Safari requires the `autoplay` attribute on the `<iframe>` when the player is embedded.
 Without it OS-level controls do not appear.
-
----
 
 ## See also
 

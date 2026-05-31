@@ -28,14 +28,14 @@ The shared `AnalyserNode` returned by `analyserSource()` is tapped parallel to t
 
 Signal chain topology:
 
-```
-[media element / backend output]
-  └─ source node
-      ├─ (parallel tap) → shared AnalyserNode   (SpectrumPlugin reads here)
-      ├─ preEffects[0..n]                        (e.g. EQ BiquadFilters)
-      └─ postEffects[0..n]                       (e.g. MixerPlugin gain/pan)
-          └─ AudioContext.destination
-```
+| Node | Position in chain | Description |
+| ---- | ----------------- | ----------- |
+| Media element / backend output | Source | Raw audio from the active backend. |
+| Source node (`MediaElementAudioSourceNode`) | Entry | Wraps the media element; feeds all downstream branches. |
+| Shared `AnalyserNode` | Parallel tap | Read-only branch off the source; `SpectrumPlugin` and custom visualisers read here without affecting the signal path. |
+| `preEffects[0..n]` | Pre-effects | Ordered chain of pre-effects inserted via `pre()` or `insertEffect(node, 'pre')`, e.g. `EQ BiquadFilters`. |
+| `postEffects[0..n]` | Post-effects | Ordered chain of post-effects inserted via `post()` or `insertEffect(node, 'post')`, e.g. `MixerPlugin` gain/pan. |
+| `AudioContext.destination` | Output | Final output node; receives the tail of the post-effects chain. |
 
 Browsers start `AudioContext` in `'suspended'` state.
 This plugin resumes it on the first `play` event, which always fires inside or immediately after a user gesture, satisfying the browser's activation requirement.

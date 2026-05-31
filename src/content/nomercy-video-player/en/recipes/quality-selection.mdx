@@ -5,11 +5,10 @@ description: 'Manual ABR override, HDR-aware constraints, and building a quality
 
 # Quality Selection
 
-Read this when you need explicit quality control beyond ABR auto-selection — a manual quality menu, HDR-aware constraints, or locking a specific resolution. Built on the video player's HLS layer.
+Read this when you need explicit quality control beyond ABR auto-selection: a manual quality menu, HDR-aware constraints, or locking a specific resolution.
+Built on the video player's HLS layer.
 
 **Prerequisites:** [Video Quick Start](/nomercy-video-player/quickstart). For HLS internals see [HLS](/nomercy-video-player/hls).
-
----
 
 ## Reading available quality levels
 
@@ -17,7 +16,7 @@ Quality levels become available after the HLS manifest is parsed:
 
 ```ts
 player.on('levels', ({ levels }) => {
-  // levels is QualityLevel[] — ordered low to high by bitrate
+  // levels is QualityLevel[], ordered low to high by bitrate
   levels.forEach((level, index) => {
     console.log(`Level ${index}: ${level.width}x${level.height} @ ${level.bitrate} bps`);
   });
@@ -44,8 +43,6 @@ interface QualityLevel {
 }
 ```
 
----
-
 ## Manual quality lock
 
 ```ts
@@ -67,8 +64,6 @@ player.on('level-switched', ({ level }) => {
   updateQualityIndicator(level);
 });
 ```
-
----
 
 ## Building a quality menu
 
@@ -92,7 +87,7 @@ function renderQualityMenu(levels: QualityLevel[], currentIndex: number): void {
   const menu = document.getElementById('quality-menu')!;
   menu.innerHTML = '';
 
-  // "Auto" option — re-enables ABR
+  // "Auto" option, re-enables ABR
   const autoOption = document.createElement('button');
   autoOption.textContent = 'Auto';
   autoOption.classList.toggle('active', currentIndex === -1);
@@ -111,13 +106,14 @@ function renderQualityMenu(levels: QualityLevel[], currentIndex: number): void {
 }
 ```
 
----
-
 ## HDR-aware constraints
 
-HDR levels are automatically excluded from ABR selection on SDR displays. Detection uses `MediaCapabilities.decodingInfo()` and runs once at setup. On multi-monitor setups, the player re-evaluates when the window moves between displays.
+HDR levels are automatically excluded from ABR selection on SDR displays.
+Detection uses `MediaCapabilities.decodingInfo()` and runs once at setup.
+On multi-monitor setups, the player re-evaluates when the window moves between displays.
 
-You do not need to configure this — it is automatic. To surface HDR availability to your UI:
+You do not need to configure this; it is automatic.
+To surface HDR availability to your UI:
 
 ```ts
 player.on('levels', ({ levels }) => {
@@ -138,11 +134,10 @@ player.on('levels', ({ levels }) => {
 });
 ```
 
----
-
 ## Pairing quality with audio language
 
-When switching quality levels in a multi-audio-track stream, hls.js preserves the active audio rendition. No extra handling is needed.
+When switching quality levels in a multi-audio-track stream, hls.js preserves the active audio rendition.
+No extra handling is needed.
 
 To pair a quality change with a subtitle language switch in your UI:
 
@@ -150,16 +145,14 @@ To pair a quality change with a subtitle language switch in your UI:
 player.on('level-switched', ({ level }) => {
   const resolvedLevel = player.qualityLevels()[level];
   if (resolvedLevel?.hdr) {
-    // HDR content — disable subtitles that have poor readability on HDR
+    // HDR content, disable subtitles that have poor readability on HDR
     player.currentSubtitle(null);
   }
 });
 ```
 
----
-
 ## What to read next
 
-- [HLS](/nomercy-video-player/hls) — ABR internals, multi-monitor handling, custom backend
-- [Recipes: Subtitles](/nomercy-video-player/recipes/subtitles) — pairing quality with subtitle language
-- [Advanced: Custom Backend](/nomercy-video-player/adapters/video-backend) — replacing hls.js with Shaka Player or dash.js
+- [HLS](/nomercy-video-player/hls): ABR internals, multi-monitor handling, custom backend
+- [Recipes: Subtitles](/nomercy-video-player/recipes/subtitles): pairing quality with subtitle language
+- [Advanced: Custom Backend](/nomercy-video-player/adapters/video-backend): replacing hls.js with Shaka Player or dash.js

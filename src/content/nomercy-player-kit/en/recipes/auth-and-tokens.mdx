@@ -5,11 +5,10 @@ description: 'Wiring the authFetch wrapper, handling refresh-on-401, ensuring 40
 
 # Auth and Tokens
 
-Read this when your media sources require authorization — HLS streams behind a CDN auth wall, APIs that return 401 when tokens expire, or endpoints that enforce access control via 403.
+Read this when your media sources require authorization, HLS streams behind a CDN auth wall, APIs that return 401 when tokens expire, or endpoints that enforce access control via 403.
 
-**Prerequisites:** The auth config is the same on video and music players. For the full reference see [Kit — Auth & Fetch](/nomercy-player-kit/auth-fetch).
-
----
+**Prerequisites:** The auth config is the same on video and music players.
+For the full reference see [Core: Auth and Fetch](/nomercy-player-core/auth-fetch).
 
 ## Minimal auth setup
 
@@ -20,7 +19,7 @@ const player = nmplayer('main').setup({
   container: document.getElementById('player')!,
   playlist: [{ id: '1', url: 'https://protected.cdn.your-domain.com/stream.m3u8' }],
   auth: {
-    // Called on every authenticated request — use a factory so expired tokens are always fresh:
+    // Called on every authenticated request. Use a factory so expired tokens are always fresh:
     bearerToken: () => myAuth.getAccessToken(),
 
     // Called once when a request returns 401. Must return a new valid token.
@@ -35,64 +34,62 @@ const player = nmplayer('main').setup({
 
 The player injects `Authorization: Bearer <token>` on every HLS manifest and segment request.
 
----
-
-## 401 vs 403 — a hard rule
+## 401 vs 403: a hard rule
 
 | Status | What happens                                                                                                    |
 | ------ | --------------------------------------------------------------------------------------------------------------- |
 | 401    | `refreshOnUnauthenticated` called once → request retried with new token → if refresh fails, `auth:failed` fires |
 | 403    | Error propagates immediately. `refreshOnUnauthenticated` is **never** called.                                   |
 
-Do not lump 401 and 403 in the same catch block. A 403 is an entitlement decision — retrying with a refreshed token achieves nothing. The right response to a 403 is to check the user's subscription or permissions on your server.
+Do not lump 401 and 403 in the same catch block.
+A 403 is an entitlement decision, so retrying with a refreshed token achieves nothing.
+The right response to a 403 is to check the user's subscription or permissions on your server.
 
 ```ts
 // Listen for auth events:
 player.on('auth:refreshed', ({ token }) => {
-  // Token was refreshed successfully — update local state if needed
+  // Token was refreshed successfully. Update local state if needed
   myAuth.updateCachedToken(token);
 });
 
 player.on('auth:failed', ({ error }) => {
-  // Refresh failed — redirect to login
+  // Refresh failed, redirect to login
   router.push('/login');
 });
 ```
 
----
-
 ## Static vs factory token
 
 ```ts
-// Static string — use only when the token does not expire (rare):
+// Static string. Use only when the token does not expire (rare):
 auth: {
   bearerToken: 'eyJhbGciOi...',
 }
 
-// Factory (recommended) — called fresh on every request:
+// Factory (recommended). Called fresh on every request:
 auth: {
   bearerToken: () => myAuth.getAccessToken(),
 }
 
-// Async factory — if your token retrieval is async:
+// Async factory. Use when your token retrieval is async:
 auth: {
   bearerToken: async () => {
     const token = await myAuth.getAccessToken();
+
     return token;
   },
 }
 ```
 
-Use the factory form whenever the token can expire. A stale static string will cause 401s until the page is refreshed.
-
----
+Use the factory form whenever the token can expire.
+A stale static string will cause 401s until the page is refreshed.
 
 ## Updating auth at runtime
 
 After `setup()`, replace the auth config without recreating the player:
 
 ```ts
-// Merge-update — only the provided fields are updated:
+// Merge-update. Only the provided fields are updated:
 player.auth({
   bearerToken: newToken,
 });
@@ -109,8 +106,6 @@ player.auth({
 
 Useful when a user signs in during a session or when a long-lived token is refreshed by an external mechanism.
 
----
-
 ## Static extra headers
 
 Add headers to every authenticated request (e.g. app version, device ID):
@@ -124,8 +119,6 @@ auth: {
   },
 },
 ```
-
----
 
 ## Custom request signing (HMAC, signed URLs)
 
@@ -147,13 +140,13 @@ auth: {
 },
 ```
 
-`signRequest` is called after `bearerToken` is applied. Both can be used together.
-
----
+`signRequest` is called after `bearerToken` is applied.
+Both can be used together.
 
 ## Using authFetch inside plugins
 
-Inside a plugin, always use `this.fetch` instead of the global `fetch`. This applies the player's auth config, respects the retry policy, and integrates with error reporting:
+Inside a plugin, always use `this.fetch` instead of the global `fetch`.
+This applies the player's auth config, respects the retry policy, and integrates with error reporting:
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
@@ -183,13 +176,13 @@ class MetadataPlugin extends Plugin<NMVideoPlayer, { endpoint: string }, {}> {
 }
 ```
 
----
-
 ## Retry policy
 
-The default retry policy retries failed network requests 3 times with exponential backoff. Auth refresh retries are separate — `refreshOnUnauthenticated` is called exactly once, never retried.
+The default retry policy retries failed network requests 3 times with exponential backoff.
+Auth refresh retries are separate, and `refreshOnUnauthenticated` is called exactly once, never retried.
 
-To tune the general retry behavior, pass a partial `IRetryPolicy` map to `setup()`. It is merged over `DEFAULT_RETRY_POLICY`:
+To tune the general retry behavior, pass a partial `IRetryPolicy` map to `setup()`.
+It is merged over `DEFAULT_RETRY_POLICY`:
 
 ```ts
 import type { IRetryPolicy } from '@nomercy-entertainment/nomercy-player-core';
@@ -202,10 +195,8 @@ player.setup({
 });
 ```
 
----
-
 ## What to read next
 
-- [Kit — Auth & Fetch](/nomercy-player-kit/auth-fetch) — full `AuthConfig` interface reference
-- [Advanced: Custom Adapter](/nomercy-player-kit/advanced/custom-adapter) — writing a fully custom auth adapter for non-standard signing schemes
-- [Recipes: Persistence](/nomercy-player-kit/recipes/persistence) — auth tokens + watch position working together
+- [Core: Auth and Fetch](/nomercy-player-core/auth-fetch): full `AuthConfig` interface reference
+- [Advanced: Custom Adapter](/nomercy-player-core/advanced/custom-adapter): writing a fully custom auth adapter for non-standard signing schemes
+- [Recipes: Persistence](/nomercy-player-core/recipes/persistence): auth tokens + watch position working together

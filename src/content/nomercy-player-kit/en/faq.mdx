@@ -5,60 +5,57 @@ description: 'Frequently asked questions about the NoMercy Player SDK.'
 
 # FAQ
 
----
+## Do I need to install the core if I'm just using the video player?
 
-## Do I need to install the kit if I'm just using the video player?
-
-No. `nomercy-video-player` and `nomercy-music-player` both re-export everything from `nomercy-player-core`. Install only the package you need. The kit is a separate install only if you are writing plugins that work against the raw kit interface without a library package.
-
----
+No. `nomercy-video-player` and `nomercy-music-player` both re-export everything from `nomercy-player-core`.
+Install only the package you need.
+The core is a separate install only if you are writing plugins that work against the raw core interface without a library package.
 
 ## Can I use both the video player and music player on the same page?
 
-Yes. Each player instance is isolated by its id. The video player and music player share no global state beyond the internal instance registry.
+Yes. Each player instance is isolated by its id.
+The video player and music player share no global state beyond the internal instance registry.
 
 ```ts
 const videoPlayer = nmplayer('video').setup({ ... });
 const musicPlayer = nmMPlayer('music').setup({ ... });
 ```
 
-They do not interfere. You can have both playing at the same time (subject to browser audio policy). If you need one to pause when the other plays, wire that coordination yourself in a consumer plugin or in your app code.
-
----
+They do not interfere.
+You can have both playing at the same time (subject to browser audio policy).
+If you need one to pause when the other plays, wire that coordination yourself in a consumer plugin or in your app code.
 
 ## How do I write my own subtitle renderer?
 
-Replace the built-in `SubtitleOverlayPlugin` (VTT text rendering) with your own plugin that implements the same interface. Register your plugin with `static readonly replaces = 'subtitle-overlay'`.
+Replace the built-in `SubtitleOverlayPlugin` (VTT text rendering) with your own plugin that implements the same interface.
+Register your plugin with `static readonly replaces = 'subtitle-overlay'`.
 
-For ASS/SSA subtitles with full typesetting, add `OctopusPlugin` — it loads `@nomercy-entertainment/nomercy-subtitle-octopus` dynamically and handles its own rendering. Do not combine `OctopusPlugin` and a custom renderer for the same subtitle track.
+For ASS/SSA subtitles with full typesetting, add `OctopusPlugin`, which loads `@nomercy-entertainment/nomercy-subtitle-octopus` dynamically and handles its own rendering.
+Do not combine `OctopusPlugin` and a custom renderer for the same subtitle track.
 
-See [Video — Subtitle Overlay](/nomercy-video-player/plugins/subtitle-overlay) for the full API.
-
----
+See [Video, Subtitle Overlay](/nomercy-video-player/plugins/subtitle-overlay) for the full API.
 
 ## Does the player handle 401 / 403 differently?
 
 Yes. The auth pipeline treats them differently by design:
 
-- **401** — token expired. `refreshOnUnauthenticated` is called once, the new token is applied, and the request is retried. If refresh fails, an `auth:failed` event fires and the request errors.
-- **403** — access denied. The error propagates immediately. `refreshOnUnauthenticated` is never called for 403s. The server has denied access even with valid credentials.
+- **401**, token expired. `refreshOnUnauthenticated` is called once, the new token is applied, and the request is retried. If refresh fails, an `auth:failed` event fires and the request errors.
+- **403**, access denied. The error propagates immediately. `refreshOnUnauthenticated` is never called for 403s. The server has denied access even with valid credentials.
 
-Never lump 401 and 403 in the same catch block. A 403 may signal an entitlement problem that no amount of token refreshing will fix.
-
----
+Never lump 401 and 403 in the same catch block.
+A 403 may signal an entitlement problem that no amount of token refreshing will fix.
 
 ## How do I add auto-advance (play next track when the current one ends)?
 
-Add `AutoAdvancePlugin` — it is shipped with both library packages:
+Add `AutoAdvancePlugin`, which is shipped with both library packages:
 
 ```ts
 import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player';
 player.addPlugin(AutoAdvancePlugin);
 ```
 
-The plugin listens to the `ended` event and calls `player.next()`. When crossfade is enabled on the music player, it triggers `crossfadeTo()` instead.
-
----
+The plugin listens to the `ended` event and calls `player.next()`.
+When crossfade is enabled on the music player, it triggers `crossfadeTo()` instead.
 
 ## How do I pause all players at once?
 
@@ -72,19 +69,18 @@ main.pause();
 pip.pause();
 ```
 
-If you need coordinated playback across multiple players (group listening), use `GroupListeningPlugin` — planned for v2.1.
-
----
+If you need coordinated playback across multiple players (group listening), use `GroupListeningPlugin`, planned for v2.1.
 
 ## Can I use the player with TypeScript strict mode?
 
-Yes. The packages ship full TypeScript types. All public methods are typed. The generic parameter `T extends VideoPlaylistItem` or `T extends MusicPlaylistItem` threads your playlist item type through `current()`, `queue()`, `beforeLoad`, and `current` events — no casts required.
-
----
+Yes. The packages ship full TypeScript types.
+All public methods are typed.
+The generic parameter `T extends VideoPlaylistItem` or `T extends MusicPlaylistItem` threads your playlist item type through `current()`, `queue()`, `beforeLoad`, and `current` events, no casts required.
 
 ## How do I render the player without the built-in UI?
 
-Do not add `DesktopUiPlugin`. The player itself renders nothing — all chrome is opt-in through plugins. Build your own controls using the event API:
+Do not add `DesktopUiPlugin`. The player itself renders nothing, all chrome is opt-in through plugins.
+Build your own controls using the event API:
 
 ```ts
 player.on('play', () => updatePlayButton('pause'));
@@ -92,11 +88,11 @@ player.on('pause', () => updatePlayButton('play'));
 player.on('time', ({ time }) => updateSeekBar(time, player.duration()));
 ```
 
----
-
 ## How do I restrict HLS quality to avoid high bitrate on slow networks?
 
-`OctopusPlugin` is not related to quality. Quality selection lives in the video player's HLS adapter. Set a maximum level via the config:
+`OctopusPlugin` is not related to quality.
+Quality selection lives in the video player's HLS adapter.
+Set a maximum level via the config:
 
 ```ts
 player.setup({
@@ -111,9 +107,9 @@ player.currentQuality(2); // lock to level index 2
 player.currentQuality(-1); // back to auto
 ```
 
-HDR-aware ABR is automatic — on SDR displays, the player filters out HDR levels from the ABR selection pool. No configuration needed. See [Video — HLS](/nomercy-video-player/hls) for the full quality API.
-
----
+HDR-aware ABR is automatic, so on SDR displays, the player filters out HDR levels from the ABR selection pool.
+No configuration needed.
+See [Video, HLS](/nomercy-video-player/hls) for the full quality API.
 
 ## How do I listen to events from a plugin I did not write?
 
@@ -125,13 +121,13 @@ player.on('plugin:equalizer:band:changed', ({ band }) => {
 });
 ```
 
-Plugin events are always namespaced as `plugin:<id>:<event>`. The class-form `this.on(PluginClass, 'event', fn)` is only available inside a `Plugin` subclass body — it is a `protected` method and does not exist on the external `player.on()` surface.
-
----
+Plugin events are always namespaced as `plugin:<id>:<event>`.
+The class-form `this.on(PluginClass, 'event', fn)` is only available inside a `Plugin` subclass body, it is a `protected` method and does not exist on the external `player.on()` surface.
 
 ## Is the player compatible with Capacitor, Tauri, or Electron?
 
-Yes, via the platform adapter system. Override individual sub-ports without rebuilding the entire bundle:
+Yes, via the platform adapter system.
+Override individual sub-ports without rebuilding the entire bundle:
 
 ```ts
 import { browserPlatform } from '@nomercy-entertainment/nomercy-player-core';
@@ -145,12 +141,10 @@ player.setup({
 });
 ```
 
-The player's core logic only calls the interfaces — it does not import Capacitor or Tauri directly.
-
----
+The player's core logic only calls the interfaces, it does not import Capacitor or Tauri directly.
 
 ## Where do I report bugs?
 
 - **nomercy-video-player:** [github.com/NoMercy-Entertainment/nomercy-video-player/issues](https://github.com/NoMercy-Entertainment/nomercy-video-player/issues)
 - **nomercy-music-player:** [github.com/NoMercy-Entertainment/nomercy-music-player/issues](https://github.com/NoMercy-Entertainment/nomercy-music-player/issues)
-- **nomercy-player-core:** [github.com/NoMercy-Entertainment/nomercy-player-kit/issues](https://github.com/NoMercy-Entertainment/nomercy-player-kit/issues)
+- **nomercy-player-core:** [github.com/NoMercy-Entertainment/nomercy-player-core/issues](https://github.com/NoMercy-Entertainment/nomercy-player-core/issues)

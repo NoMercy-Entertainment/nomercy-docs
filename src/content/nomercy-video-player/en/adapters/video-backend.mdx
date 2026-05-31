@@ -8,7 +8,9 @@ draft: false
 
 ## What is a video backend?
 
-The video backend is the layer between `NMVideoPlayer` and the browser's media APIs. The default implementation (`Html5VideoBackend`) wraps a `<video>` element and integrates hls.js for HLS streams. A custom backend could target WebCodecs, a native shell bridge, or an experimental pipeline.
+The video backend is the layer between `NMVideoPlayer` and the browser's media APIs.
+The default implementation (`Html5VideoBackend`) wraps a `<video>` element and integrates hls.js for HLS streams.
+A custom backend could target WebCodecs, a native shell bridge, or an experimental pipeline.
 
 ## Default backend: Html5VideoBackend
 
@@ -28,7 +30,8 @@ The video backend is the layer between `NMVideoPlayer` and the browser's media A
 import type { IVideoBackend } from '@nomercy-entertainment/nomercy-video-player';
 ```
 
-Every backend must implement all methods in `IVideoBackend`. See [API — Backend Access](/nomercy-video-player/api/backend) for the full method table.
+Every backend must implement all methods in `IVideoBackend`.
+See [API: Backend Access](/nomercy-video-player/api/backend) for the full method table.
 
 ### BackendState
 
@@ -48,7 +51,8 @@ Passed to the `VideoBackendFactory` so factories can branch on the resolved kind
 
 ## Swapping the backend
 
-Pass `backendFactory` in `VideoPlayerConfig`. The factory receives the resolved `kind` and the full player config:
+Pass `backendFactory` in `VideoPlayerConfig`.
+The factory receives the resolved `kind` and the full player config:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -69,6 +73,7 @@ class MyBackend implements IVideoBackend {
   unload(): void {
     /* ... */
   }
+
   dispose(): void {
     /* ... */
   }
@@ -76,9 +81,11 @@ class MyBackend implements IVideoBackend {
   play(): Promise<void> {
     return Promise.resolve();
   }
+
   pause(): void {
     /* ... */
   }
+
   stop(): void {
     /* ... */
   }
@@ -86,9 +93,11 @@ class MyBackend implements IVideoBackend {
   currentTime(): number {
     return 0;
   }
-  currentTime(t: number): void {
+
+  currentTime(seconds: number): void {
     /* ... */
   }
+
   duration(): number {
     return 0;
   }
@@ -113,7 +122,8 @@ const player = nmplayer('player').setup({
 
 ## Backend events
 
-Backends emit through the `BackendEventPayload` map. The player's event bus subscribes to these and re-emits them as video player events where applicable:
+Backends emit through the `BackendEventPayload` map.
+The player's event bus subscribes to these and re-emits them as video player events where applicable:
 
 | Backend event       | Description                                         |
 | ------------------- | --------------------------------------------------- |
@@ -133,6 +143,6 @@ Backends emit through the `BackendEventPayload` map. The player's event bus subs
 
 ## See also
 
-- [API — Backend Access](/nomercy-video-player/api/backend)
-- [Player Kit — writing-a-backend](/nomercy-player-kit/advanced/writing-a-backend)
+- [API: Backend Access](/nomercy-video-player/api/backend)
+- [Player Core: writing-a-backend](/nomercy-player-core/advanced/writing-a-backend)
 - [Types Reference](/nomercy-video-player/types)

@@ -12,13 +12,9 @@ draft: false
 Register it as the primary UI plugin for web desktop and mobile PWA deployments.
 It mounts a complete DOM control set, including a top bar, progress bar with chapter markers and sprite thumbnail preview, control buttons, and menu panes.
 
----
-
 ## Plugin id
 
 `'desktop-ui'`
-
----
 
 ## Import
 
@@ -42,8 +38,6 @@ import type {
 } from '@nomercy-entertainment/nomercy-video-player/plugins/desktop-ui';
 ```
 
----
-
 ## What it does
 
 `DesktopUiPlugin` renders the complete video player controls overlay as a DOM tree mounted inside `.nomercyplayer`.
@@ -60,14 +54,12 @@ It is a v2-native rewrite of the v1 desktop UI and provides:
 The back button in the top bar only renders when at least one `'back'` event listener is registered.
 The close button only renders when at least one `'close'` event listener is registered.
 
-Hover thumbnails on the progress bar are read from a `thumbnails` sidecar track on the active playlist item automatically.
+Hover thumbnails on the progress bar are read from `previewSpriteUrl` on the active playlist item automatically.
 No extra configuration is needed.
-
----
 
 ## CSS state classes
 
-State CSS classes are applied to `.nomercyplayer` (the player container element) by the kit's container-class-emit mixin:
+State CSS classes are applied to `.nomercyplayer` (the player container element) by the player core's container-class-emit mixin:
 
 | State | CSS class on `.nomercyplayer` |
 | --- | --- |
@@ -85,19 +77,15 @@ State CSS classes are applied to `.nomercyplayer` (the player container element)
 | Controls hidden (idle) | `inactive` |
 
 The playback-state classes (`playing`, `paused`, `stopped`, `ended`, `loading`, `buffering`) are mutually exclusive.
-The kit removes all others before adding the new one.
+The player core removes all others before adding the new one.
 
 The container also receives `data-orientation` (`portrait` or `landscape`) and `data-breakpoint` (the active responsive tier name) as attributes.
-
----
 
 ## Inactivity hiding
 
 Controls auto-hide after 4 seconds of inactivity (configurable via `inactivityMs`).
 Mouse movement, keyboard input, or touch interaction resets the timer.
 Controls stay visible while paused, while a menu is open, or while the pointer is hovering over the bottom bar or menu frame.
-
----
 
 ## Options
 
@@ -170,8 +158,6 @@ The default breakpoint tiers are:
 
 Portrait mode additionally hides `chapterPrev`, `chapterNext`, `previous`, `next`, `subtitles`, `audio`, `quality`, and `playlist` regardless of container width.
 
----
-
 ## Events
 
 | Event | Payload | Description |
@@ -192,8 +178,6 @@ player.on('plugin:desktop-ui:layout:breakpoint', ({ from, to, visibleButtons, hi
 // Trigger the shortcut sheet from outside the plugin:
 player.emit('plugin:desktop-ui:shortcuts-toggle', undefined);
 ```
-
----
 
 ## Registration
 
@@ -226,9 +210,7 @@ const player = nmplayer('player')
         title: 'Sintel',
         url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
         image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
-        tracks: [
-          { kind: 'thumbnails', file: '/Sintel.(2010)/thumbs_256x109.vtt' },
-        ],
+        previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.vtt',
         chapters: [
           { index: 0, title: 'Intro', start: 0, end: 90 },
           { index: 1, title: 'Act 1', start: 90, end: 600 },
@@ -243,37 +225,20 @@ player.on('back', () => {
 });
 ```
 
----
-
 ## DOM tree
 
 The plugin builds its tree inside `.nomercyplayer`:
 
-```
-overlay
-  +- top-bar
-  |   +- back button + close button + title column
-  +- center
-  |   +- spinner
-  |   +- center play/pause button
-  +- bottom-bar
-  |   +- bottom-bar-shadow
-  |   +- top-row (slider-bar)
-  |   |   +- slider-buffer
-  |   |   +- slider-hover
-  |   |   +- slider-progress
-  |   |   +- chapter-progress x N
-  |   |   +- slider-nipple
-  |   |   +- slider-pop (sprite thumbnail preview)
-  |   +- bottom-row
-  |       +- left controls (play, prev, rewind, forward, chapterPrev, chapterNext, next)
-  |       +- volume-container (mute button + horizontal or vertical slider)
-  |       +- current-time + remaining-time
-  |       +- right controls (aspectRatio, theater, pip, speed, subtitles, audio, quality, playlist, settings, fullscreen)
-  +- menu-frame-dialog
-```
-
----
+| Element | Parent | Contents / Children |
+| --- | --- | --- |
+| `overlay` | `.nomercyplayer` | Root overlay container |
+| `top-bar` | `overlay` | Back button, close button, title column |
+| `center` | `overlay` | Spinner, center play/pause button |
+| `bottom-bar` | `overlay` | Shadow, slider row, control row |
+| `bottom-bar-shadow` | `bottom-bar` | Visual shadow gradient |
+| `top-row` (slider-bar) | `bottom-bar` | `slider-buffer`, `slider-hover`, `slider-progress`, `chapter-progress` x N, `slider-nipple`, `slider-pop` (sprite thumbnail preview) |
+| `bottom-row` | `bottom-bar` | Left controls (play, prev, rewind, forward, chapterPrev, chapterNext, next), `volume-container` (mute + slider), current-time, remaining-time, right controls (aspectRatio, theater, pip, speed, subtitles, audio, quality, playlist, settings, fullscreen) |
+| `menu-frame-dialog` | `overlay` | Menu panes (speed, quality, subtitles, audio, playlist, subtitle style, aspect ratio) |
 
 ## Default keyboard shortcuts
 
@@ -306,8 +271,6 @@ The shortcuts sheet (press `?`) shows all bindings once both plugins are registe
 | `T` | Toggle remaining/total time display |
 | `?` | Toggle shortcut sheet |
 
----
-
 ## Customizing the UI
 
 The UI uses standard DOM elements styled by the player's CSS.
@@ -331,8 +294,6 @@ class MyDesktopUi extends DesktopUiPlugin {
 player.addPlugin(MyDesktopUi);
 ```
 
----
-
 ## TV UI
 
 For 10-foot TV remote navigation, use `TvUiPlugin` instead.
@@ -344,15 +305,11 @@ import { TvUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins'
 player.addPlugin(TvUiPlugin);
 ```
 
----
-
 ## UX rules
 
 - Click on multi-state buttons (quality, subtitles, audio, speed, aspect ratio) opens a menu pane. The cycle actions (`cycleAspectRatio`, `cycleSubtitles`) are for keyboard and remote-control contexts where the user cannot pick from a list.
 - Theater, PiP, and Fullscreen are binary toggles: direct action on click.
 - Menus close when clicking outside the menu frame, or when another menu opens.
-
----
 
 ## See also
 

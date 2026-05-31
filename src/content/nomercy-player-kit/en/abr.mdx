@@ -1,6 +1,6 @@
 ---
 title: 'ABR and Bandwidth'
-description: 'bandwidth(), bandwidthEstimator(), canPlay(), and CanPlayResult — throughput estimation and device capability probing.'
+description: 'bandwidth(), bandwidthEstimator(), canPlay(), and CanPlayResult: throughput estimation and device capability probing.'
 draft: false
 ---
 
@@ -8,15 +8,14 @@ draft: false
 
 Three methods that expose throughput estimation and decode-capability probing.
 
----
-
 ## bandwidth()
 
 ```ts
 bandwidth(): number
 ```
 
-Last-known throughput estimate in bits per second. Returns `0` until an active stream source reports a measurement (the kit itself does not drive estimation — the value comes from the active backend or a consumer-supplied estimator).
+Last-known throughput estimate in bits per second.
+Returns `0` until an active stream source reports a measurement (the player core itself does not drive estimation, the value comes from the active backend or a consumer-supplied estimator).
 
 ```ts
 const bps = player.bandwidth();
@@ -24,9 +23,8 @@ const kbps = Math.round(bps / 1000);
 console.log(`Estimated bandwidth: ${kbps} kbps`);
 ```
 
-The value is updated by the active stream source whenever it completes a segment download. On networks where the backend does not report throughput (native `<audio>` or `<video>` without HLS), `bandwidth()` remains `0`.
-
----
+The value is updated by the active stream source whenever it completes a segment download.
+On networks where the backend does not report throughput (native `<audio>` or `<video>` without HLS), `bandwidth()` remains `0`.
 
 ## bandwidthEstimator()
 
@@ -39,7 +37,9 @@ Read or replace the bandwidth estimator function.
 
 **Reading** returns the currently wired estimator (or `undefined` if none is set).
 
-**Writing** installs a custom estimator. The active stream source calls the function on every ABR level decision. Install your own estimator when you have out-of-band signal (SignalR quality report, server-sent bitrate hint) that is more accurate than the default download-speed measurement.
+**Writing** installs a custom estimator.
+The active stream source calls the function on every ABR level decision.
+Install your own estimator when you have out-of-band signal (SignalR quality report, server-sent bitrate hint) that is more accurate than the default download-speed measurement.
 
 ```ts
 player.bandwidthEstimator(() => {
@@ -50,9 +50,7 @@ const estimator = player.bandwidthEstimator();
 console.log(typeof estimator); // 'function'
 ```
 
-The estimator is called synchronously on the ABR decision path — keep it fast.
-
----
+The estimator is called synchronously on the ABR decision path, so keep it fast.
 
 ## canPlay()
 
@@ -66,7 +64,8 @@ canPlay(profile: {
 }): Promise<CanPlayResult>
 ```
 
-Probes whether the browser can decode a specific media profile smoothly. Delegates to the platform adapter's `capabilities.canDecode` bridge, which wraps the standard `MediaCapabilities.decodingInfo()` API.
+Probes whether the browser can decode a specific media profile smoothly.
+Delegates to the platform adapter's `capabilities.canDecode` bridge, which wraps the standard `MediaCapabilities.decodingInfo()` API.
 
 ```ts
 const result = await player.canPlay({
@@ -82,8 +81,6 @@ if (result.supported && result.smooth) {
 }
 ```
 
----
-
 ## CanPlayResult
 
 ```ts
@@ -94,13 +91,12 @@ interface CanPlayResult {
 }
 ```
 
-`supported: false` means the codec is not supported — do not select this quality level.
+`supported: false` means the codec is not supported, so do not select this quality level.
 
-`supported: true, smooth: false` means the level is playable but the browser may drop frames under load — use as a last resort only.
+`supported: true, smooth: false` means the level is playable but the browser may drop frames under load, so use it as a last resort only.
 
-`powerEfficient: false` is typically seen on mobile devices with high-bitrate streams that the CPU decodes in software rather than through the hardware decoder pipeline. It is informational — `smooth: true` takes precedence for quality selection.
-
----
+`powerEfficient: false` is typically seen on mobile devices with high-bitrate streams that the CPU decodes in software rather than through the hardware decoder pipeline.
+It is informational, and `smooth: true` takes precedence for quality selection.
 
 ## Using canPlay for quality filtering
 
@@ -125,13 +121,12 @@ const supportedLevels = levels.filter((_, index) => {
 });
 ```
 
-For HLS streams, the video player's HDR-aware ABR logic does this filtering automatically — it uses `canPlay` internally to exclude HDR levels on SDR displays. Calling `canPlay` manually is only needed when building a custom quality UI that must pre-filter the level list.
-
----
+For HLS streams, the video player's HDR-aware ABR logic does this filtering automatically, using `canPlay` internally to exclude HDR levels on SDR displays.
+Calling `canPlay` manually is only needed when building a custom quality UI that must pre-filter the level list.
 
 ## See also
 
-- [Media Tracks](/nomercy-player-kit/media-tracks) — `qualityLevels()` and `currentQuality()`
-- [Player State](/nomercy-player-kit/player-state) — `qualityState()` for the ABR/MANUAL mode flag
-- [Metrics](/nomercy-player-kit/metrics) — `avgBitrate` in `PlaybackMetrics`
-- [Platform](/nomercy-player-kit/platform) — the `capabilities.canDecode` platform port
+- [Media Tracks](/nomercy-player-core/media-tracks): `qualityLevels()` and `currentQuality()`
+- [Player State](/nomercy-player-core/player-state): `qualityState()` for the ABR/MANUAL mode flag
+- [Metrics](/nomercy-player-core/metrics): `avgBitrate` in `PlaybackMetrics`
+- [Platform](/nomercy-player-core/platform): the `capabilities.canDecode` platform port

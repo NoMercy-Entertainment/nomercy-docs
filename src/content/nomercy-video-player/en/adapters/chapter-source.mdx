@@ -8,7 +8,9 @@ draft: false
 
 ## What is a chapter source?
 
-`IChapterSource` is the adapter the player calls to load and query chapter data for each playlist item. The default implementation (`VttChapterSource`) reads chapters from the `chapters` typed field on `VideoPlaylistItem`. A custom implementation could fetch chapters from an API endpoint or parse a different file format.
+`IChapterSource` is the adapter the player calls to load and query chapter data for each playlist item.
+The default implementation (`VttChapterSource`) reads chapters from the `chapters` typed field on `VideoPlaylistItem`.
+A custom implementation could fetch chapters from an API endpoint or parse a different file format.
 
 ## IChapterSource interface
 
@@ -25,7 +27,8 @@ import type { IChapterSource } from '@nomercy-entertainment/nomercy-video-player
 
 ## Default implementation: VttChapterSource
 
-`VttChapterSource` is used automatically when no custom chapter source is configured. It reads chapters from the `chapters` typed array on `VideoPlaylistItem`:
+`VttChapterSource` is used automatically when no custom chapter source is configured.
+It reads chapters from the `chapters` typed array on `VideoPlaylistItem`:
 
 ```ts
 import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
@@ -34,33 +37,40 @@ import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-pla
 const item: VideoPlaylistItem = {
   url: '/Tears.of.Steel.(2012)/Tears.of.Steel.(2012).NoMercy.m3u8',
   chapters: [
-    { title: 'Opening', start: 0, end: 90 },
-    { title: 'Act 1', start: 90, end: 720 },
-    { title: 'Credits', start: 720, end: 730 },
+    { index: 0, title: 'Opening', start: 0, end: 90 },
+    { index: 1, title: 'Act 1', start: 90, end: 720 },
+    { index: 2, title: 'Credits', start: 720, end: 730 },
   ],
 };
 ```
 
 When `chapters` is present and non-empty, `VttChapterSource.load()` resolves immediately with the pre-supplied list without making any network request.
 
-Or reference a VTT chapter file via the `tracks` sidecar:
+The default `VttChapterSource` is wired automatically, so you do not construct it yourself. It reads the resolved chapter list from the item's `chapters` field, so the simplest way to show chapters is to pre-populate that field on the playlist item:
 
 ```ts
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
 // baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films'
 const item: VideoPlaylistItem = {
   url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-  tracks: [
-    {
-      kind: 'chapters',
-      file: '/Sintel.(2010)/chapters.vtt',
-    },
+  chapters: [
+    { index: 0, start: 0, end: 270, title: 'Opening' },
+    { index: 1, start: 270, end: 540, title: 'The Hunt' },
+    { index: 2, start: 540, end: 888, title: 'Finale' },
   ],
 };
+
+player.setup({ playlist: [item] });
 ```
+
+To fetch chapters from a VTT file or an API instead of pre-populating them, implement a custom `IChapterSource`, shown next.
 
 ## Custom chapter source
 
-Implement `IChapterSource` to load chapters from a different format or source. When calling your API from inside a plugin, use `this.fetch()` instead of the global `fetch`. The plugin's `this.fetch()` applies the player's bearer token, handles 401 refresh-and-retry, and respects the retry policy — raw `fetch()` skips all of that.
+Implement `IChapterSource` to load chapters from a different format or source.
+When calling your API from inside a plugin, use `this.fetch()` instead of the global `fetch`.
+The plugin's `this.fetch()` applies the player's bearer token, handles 401 refresh-and-retry, and respects the retry policy, so raw `fetch()` skips all of that.
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
@@ -75,7 +85,9 @@ class ApiChapterSource extends Plugin implements IChapterSource {
     const data = await this.fetch<ApiChapter[]>(`/api/chapters/${item.id}`, {
       responseType: 'json',
     });
-    return data.map((ch) => ({
+
+    return data.map((ch, index) => ({
+      index,
       title: ch.name,
       start: ch.start_ms / 1000,
       end: ch.end_ms / 1000,
@@ -88,7 +100,7 @@ player.setup({
 });
 ```
 
-The built-in `VttChapterSource` uses `this.fetch()` the same way — auth-aware, no manual token threading required.
+The built-in `VttChapterSource` uses `this.fetch()` the same way, auth-aware, no manual token threading required.
 
 ## Chapter type
 
@@ -96,9 +108,10 @@ The built-in `VttChapterSource` uses `this.fetch()` the same way — auth-aware,
 
 ```ts
 interface Chapter {
-  title: string;
+  index: number;
   start: number; // seconds
-  end: number; // seconds
+  end: number;   // seconds
+  title: string;
 }
 ```
 
@@ -128,6 +141,6 @@ player.on('chapter', ({ index, title }) => {
 
 ## See also
 
-- [VideoPlaylistItem — chapters field](/nomercy-video-player/playlist-item)
-- [Player Kit — Kit Methods reference](/nomercy-video-player/api/kit-methods)
+- [VideoPlaylistItem, chapters field](/nomercy-video-player/playlist-item)
+- [Player Core, Core Methods reference](/nomercy-video-player/api/kit-methods)
 - [Thumbnail Source adapter](/nomercy-video-player/adapters/thumbnail-source)

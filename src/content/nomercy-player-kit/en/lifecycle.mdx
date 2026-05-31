@@ -5,73 +5,44 @@ description: 'The 13-phase player state machine. Phase transitions, setup stages
 
 # Lifecycle
 
-The player's phase machine tracks what the player is doing at any point. `player.phase()` returns one of 13 stable string values.
-
----
+The player's phase machine tracks what the player is doing at any point.
+`player.phase()` returns one of 13 stable string values.
 
 ## Phase diagram
 
-```
-idle
- │
- └── setup() called
-      │
-      ▼
-     setup ──── (plugin use() runs) ──────► ready
-                                              │
-                                              ▼
-                                           loading
-                                              │
-                                         (media loads)
-                                              │
-                                              ▼
-                                           starting
-                                              │
-                                         (first frame)
-                                              │
-                                         ┌───▼────┐
-                                         │ playing │◄──── buffering (recovers)
-                                         └────┬────┘◄──── seeking (recovers)
-                                              │
-                              ┌───────────────┼───────────────┐
-                              │               │               │
-                           paused          ended           stopped
-                              │               │               │
-                              └───────────────┴───────────────┘
-                                              │
-                                         (next play)
-                                              │
-                                            starting
-                                              │
-                                              ▼
-                                         dispose() called
-                                              │
-                                           disposing
-                                              │
-                                           disposed
-```
-
----
+| Phase      | Transition                                               |
+| ---------- | -------------------------------------------------------- |
+| `idle`     | `setup()` called                                         |
+| `setup`    | Plugin `use()` runs, then transitions to `ready`         |
+| `ready`    | `load()` or `current()` called, transitions to `loading` |
+| `loading`  | Media loads, transitions to `starting`                   |
+| `starting` | First frame decoded, transitions to `playing`            |
+| `playing`  | Can recover from `buffering` or `seeking`                |
+| `playing`  | Branches to `paused`, `ended`, or `stopped`              |
+| `paused`   | Next `play()` call transitions back to `starting`        |
+| `ended`    | Next `play()` call transitions back to `starting`        |
+| `stopped`  | Next `play()` call transitions back to `starting`        |
+| `starting` | `dispose()` called, transitions to `disposing`           |
+| `disposing`| Teardown completes, transitions to `disposed`            |
+| `disposed` | Terminal state, instance can be garbage collected        |
 
 ## All 13 phases
 
 | Phase       | When                                                           |
 | ----------- | -------------------------------------------------------------- |
 | `idle`      | Before `setup()` is called                                     |
-| `setup`     | `setup()` is running — plugins are initializing                |
-| `ready`     | All plugins resolved — player can accept transport commands    |
+| `setup`     | `setup()` is running, plugins are initializing                |
+| `ready`     | All plugins resolved, player can accept transport commands    |
 | `loading`   | `load()` or `current()` is in progress                         |
-| `starting`  | Media is loaded, `play()` dispatched — waiting for first frame |
+| `starting`  | Media is loaded, `play()` dispatched, waiting for first frame |
 | `playing`   | Playback is active                                             |
 | `paused`    | Playback is paused                                             |
-| `buffering` | Buffer underrun — player is stalled, waiting for data          |
+| `buffering` | Buffer underrun, player is stalled, waiting for data          |
 | `seeking`   | A seek operation is in progress                                |
 | `ended`     | Current item played to the end                                 |
-| `stopped`   | `stop()` was called — position reset to 0                      |
-| `disposing` | `dispose()` is in progress — teardown running                  |
-| `disposed`  | Player is fully torn down — instance can be garbage collected  |
-
----
+| `stopped`   | `stop()` was called, position reset to 0                      |
+| `disposing` | `dispose()` is in progress, teardown running                  |
+| `disposed`  | Player is fully torn down, instance can be garbage collected  |
 
 ## Listening to phase changes
 
@@ -87,15 +58,14 @@ Current phase at any point:
 player.phase(); // 'playing' | 'paused' | etc.
 ```
 
----
-
 ## Setup stages
 
-The setup pipeline fires events at each stage. Each stage can fail independently:
+The setup pipeline fires events at each stage.
+Each stage can fail independently:
 
 | Event                | Payload                      | Fires when                                    |
 | -------------------- | ---------------------------- | --------------------------------------------- |
-| `beforeSetup`        | `void`                       | Immediately before setup begins — cancellable |
+| `beforeSetup`        | `void`                       | Immediately before setup begins, cancellable |
 | `setupStart`         | `{ container: HTMLElement }` | Setup begins                                  |
 | `configResolved`     | `{ config }`                 | Config normalized                             |
 | `pluginsRegistering` | `void`                       | Plugin `use()` running                        |
@@ -105,7 +75,7 @@ The setup pipeline fires events at each stage. Each stage can fail independently
 | `playlistResolving`  | `{ url: string }`            | Fetching a URL-based playlist                 |
 | `playlistReady`      | `{ length: number }`         | Playlist loaded (or URL load complete)        |
 | `mediaReady`         | `void`                       | Media backend ready                           |
-| `ready`              | `void`                       | Full setup complete — all plugins resolved    |
+| `ready`              | `void`                       | Full setup complete, all plugins resolved    |
 
 Each stage has a paired `*Error` event for observability:
 
@@ -115,33 +85,31 @@ player.on('pluginsRegisteredError', (err) => {
 });
 ```
 
----
-
 ## URL-based playlist loading
 
-If `setup({ queue: 'https://...' })` receives a URL string instead of an array, the setup pipeline fetches and parses it as a JSON array of playlist items. The fetch uses the player's auth pipeline. Events:
+If `setup({ queue: 'https://...' })` receives a URL string instead of an array, the setup pipeline fetches and parses it as a JSON array of playlist items.
+The fetch uses the player's auth pipeline.
+Events:
 
-- `playlistResolving` — fetch started, `{ url }`
-- `playlistReady` — fetch succeeded, `{ length }`
-- `playlistError` — fetch or parse failed, `{ url, error, code }` — player still reaches `ready` with an empty queue
+- `playlistResolving`: fetch started, `{ url }`
+- `playlistReady`: fetch succeeded, `{ length }`
+- `playlistError`: fetch or parse failed, `{ url, error, code }`, player still reaches `ready` with an empty queue
 
-The fetch never throws — all errors are emitted and the player completes setup regardless.
-
----
+The fetch never throws, all errors are emitted and the player completes setup regardless.
 
 ## play/pause lifecycle events
 
 Each transport action emits a sequence of before + post events:
 
-```
-beforePlay → playRequested → playing (→ firstFrame on first play)
-beforePause → pause
-beforeStop → stop
-beforeNext → next → current
-beforePrevious → previous → current
-beforeLoad → current → [loading → starting → playing]
-beforeSeek → seeked
-```
+| Action     | Event sequence                                             |
+| ---------- | ---------------------------------------------------------- |
+| play       | `beforePlay` → `playRequested` → `playing` (+ `firstFrame` on first play) |
+| pause      | `beforePause` → `pause`                                    |
+| stop       | `beforeStop` → `stop`                                      |
+| next       | `beforeNext` → `next` → `current`                         |
+| previous   | `beforePrevious` → `previous` → `current`                 |
+| load       | `beforeLoad` → `current` → `loading` → `starting` → `playing` |
+| seek       | `beforeSeek` → `seeked`                                    |
 
 A prevented action emits `*Prevented` instead of the post-action event:
 
@@ -150,8 +118,6 @@ player.on('playPrevented', ({ reason }) => {
   // reason: 'listener-prevented' | 'delay-rejected' | 'delay-timeout'
 });
 ```
-
----
 
 ## Dispatch context
 

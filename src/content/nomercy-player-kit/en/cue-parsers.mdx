@@ -8,11 +8,10 @@ draft: false
 
 ## Overview
 
-The cue parser system parses timed text files (VTT, LRC, sprite-VTT) into `CueList` objects that the `CueTracker` consumes to emit time-aligned events. Custom parsers can be registered via `player.registerCueParser()` or at `setup({ cueParsers })`.
+The cue parser system parses timed text files (VTT, LRC, sprite-VTT) into `CueList` objects that the `CueTracker` consumes to emit time-aligned events.
+Custom parsers can be registered via `player.registerCueParser()` or at `setup({ cueParsers })`.
 
-Most-recently-registered wins, so consumer parsers can override the kit's built-ins for the same URL pattern.
-
----
+Most-recently-registered wins, so consumer parsers can override the player core's built-ins for the same URL pattern.
 
 ## `registerCueParser(parser, prepend?)`
 
@@ -39,13 +38,9 @@ interface CueParser {
 }
 ```
 
----
-
 ## `unregisterCueParser(id)`
 
 Unregister a cue parser by id.
-
----
 
 ## `resolveCueParser(url)`
 
@@ -53,11 +48,9 @@ Resolve the registered parser for the given URL. Returns `undefined` when no par
 
 **Returns:** `CueParser | undefined`
 
----
-
 ## Built-in parsers
 
-All three are exported from the kit root.
+All three are exported from the player core root.
 
 ### `parseVtt(text)`
 
@@ -85,11 +78,10 @@ import { parseLrc } from '@nomercy-entertainment/nomercy-player-core';
 const { cues } = parseLrc(lrcText);
 ```
 
----
-
 ## CueTracker
 
-`CueTracker` drives the timed-cue event pipeline. Given a `CueList`, it attaches to a player and emits `cue:enter` / `cue:exit` as the playback position crosses cue boundaries.
+`CueTracker` drives the timed-cue event pipeline.
+Given a `CueList`, it attaches to a player and emits `cue:enter` / `cue:exit` as the playback position crosses cue boundaries.
 
 ```ts
 import { CueTracker } from '@nomercy-entertainment/nomercy-player-core';
@@ -104,14 +96,13 @@ tracker.attach(player); // starts listening to player.on('time', ...)
 
 | Field       | Type     | Default | Description                               |
 | ----------- | -------- | ------- | ----------------------------------------- |
-| `trackerId` | `string` | —       | Stable identifier (for debugging)         |
+| `trackerId` | `string` | none    | Stable identifier (for debugging)         |
 | `tolerance` | `number` | `0`     | Seconds of tolerance for early/late entry |
 
 ### Cleanup
 
-Call `tracker.dispose()` to detach from the player and release listeners. The media-tracks mixin calls this automatically when switching subtitle tracks.
-
----
+Call `tracker.dispose()` to detach from the player and release listeners.
+The media-tracks mixin calls this automatically when switching subtitle tracks.
 
 ## Custom parser example (TTML)
 
@@ -120,16 +111,13 @@ player.registerCueParser({
   id: 'ttml',
   canParse: (url) => url.endsWith('.ttml') || url.endsWith('.xml'),
   async parse(url) {
-    const response = await fetch(url);
-    const text = await response.text();
-    return parseTTML(text);
+    const response = await this.fetch(url, { responseType: 'text' });
+    return parseTTML(response);
   },
 });
 ```
 
----
-
 ## See also
 
-- [Media Tracks](/nomercy-player-kit/media-tracks) — `currentSubtitle`, sidecar VTT handling
-- [Events Reference](/nomercy-player-kit/events-reference) — `cue:enter`, `cue:exit`, `subtitleCue`
+- [Media Tracks](/nomercy-player-core/media-tracks): `currentSubtitle`, sidecar VTT handling
+- [Events Reference](/nomercy-player-core/events-reference): `cue:enter`, `cue:exit`, `subtitleCue`
