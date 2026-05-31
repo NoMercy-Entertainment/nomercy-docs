@@ -33,9 +33,11 @@ Each library extends `BasePlaylistItem` with domain-specific fields.
 | `image?`     | `string`         | Poster / thumbnail URL                        |
 | `poster?`    | `string`         | Alias for `image`                             |
 | `thumbnail?` | `string`         | Small thumbnail (for hover previews)          |
-| `url?`       | `string`         | Required by `load()`, the playable media URL  |
-| `tracks?`    | `SidecarTrack[]` | Subtitle / chapter sidecar files              |
-| `chapters?`  | `Chapter[]`      | Inline chapter list (overrides sidecar)       |
+| `url?`              | `string`             | Required by `load()`, the playable media URL           |
+| `subtitles?`        | `SubtitleTrackRef[]` | Subtitle sidecar files                                 |
+| `chapters?`         | `ChapterRef[]`       | Resolved chapter list (`{ index, start, end, title }`) |
+| `previewSpriteUrl?` | `string`             | VTT sprite sheet for seek-preview thumbnails           |
+| `fonts?`            | `FontTrackRef[]`     | Font manifests for ASS/SSA subtitles                   |
 
 ### Music player, `MusicPlaylistItem`
 
@@ -47,9 +49,10 @@ Each library extends `BasePlaylistItem` with domain-specific fields.
 | `album?`  | `string \| Album`  | Album name or object                      |
 | `url?`    | `string`           | Required by `load()`, the audio file URL  |
 
-## Sidecar tracks
+## Subtitle and chapter sidecars
 
-Items with sidecar subtitle or chapter files carry them under `tracks`:
+Domain sidecars live in typed fields on the library item, not a generic `tracks` array.
+On `VideoPlaylistItem`, subtitle files go in `subtitles` and resolved chapters in `chapters`:
 
 ```ts
 // baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films'
@@ -57,23 +60,24 @@ Items with sidecar subtitle or chapter files carry them under `tracks`:
   id: 'sintel',
   title: 'Sintel',
   url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-  tracks: [
+  subtitles: [
     {
+      id: 'eng-full',
       kind: 'subtitles',
-      language: 'en',
+      language: 'eng',
       label: 'English',
-      file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
+      url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
     },
-    {
-      kind: 'chapters',
-      file: '/Sintel.(2010)/chapters.vtt',
-    },
+  ],
+  chapters: [
+    { index: 0, start: 0, end: 270, title: 'Opening' },
   ],
 }
 ```
 
-`kind` values the core recognises: `'subtitles'`, `'captions'`, `'chapters'`.
-Other kinds are preserved but not acted on by the core.
+`SubtitleTrack.kind` is `'subtitles'`, `'captions'`, or `'descriptions'`.
+Chapters take resolved `{ index, start, end, title }` objects.
+To load chapters from a VTT file instead, the core also accepts a loose sidecar array, `tracks: [{ kind: 'chapters', file: '...vtt' }]`, which it fetches and parses when the item ships no inline `chapters` (see [Chapters](/nomercy-player-core/chapters)).
 
 ## See also
 

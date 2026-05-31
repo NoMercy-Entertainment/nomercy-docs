@@ -84,7 +84,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Migration", pages: ['migration-v1-v2'] },
   ],
   'nomercy-music-player': [
-    { group: "Getting Started", pages: ['overview', 'installation', 'quickstart', 'configuration'] },
+    { group: "Getting Started", pages: ['overview', 'installation', 'quickstart', 'configuration', 'architecture'] },
     { group: "Framework Integration", pages: ['framework-vue', 'framework-react'] },
     { group: "Plugins", pages: ['plugins/auto-advance', 'plugins/lyrics', 'plugins/cast-sender', 'plugins/media-session', 'plugins/key-handler', 'plugins/music-ui', 'plugins/tab-leader', 'plugins/group-listening', 'plugins/drm', 'plugins/live-transcoding', 'plugins/embed', 'plugins/message', 'plugins/audio-graph', 'lyrics', 'equalizer', 'plugin-development'] },
     { group: "API Reference", pages: ['api-methods', 'api/factory', 'api/backend', 'api/crossfade', 'api/kit-methods', 'crossfade', 'events', 'types', 'playlist-item'] },

@@ -1,160 +1,37 @@
 ---
 title: 'What is the Music Player'
-description: 'The NoMercy Music Player: headless, plugin-driven, event-driven. Architecture overview and relation to the player core.'
+description: 'The headless audio engine with sample-accurate crossfade, what it does and where it sits.'
 draft: false
 ---
 
 # What is the NoMercy Music Player
 
-`@nomercy-entertainment/nomercy-music-player` is a headless, TypeScript-first audio engine for browsers.
-It does the audio work, playback, queue, sample-accurate crossfade, lyric sync, and EQ, and ships no UI of its own.
-That is deliberate: NoMercy plays the same library on a web dashboard, a phone, and a cast receiver, and a single opinionated UI component would fight all three.
-So every visual element is a plugin or something you build, and you wire it to plain events and methods.
-You get the full engine; the look and feel is yours.
+`nomercy-music-player` is the headless audio engine that powers music on NoMercy TV.
+The tricky part of a music player is the hand-off between two tracks, and this engine is built around getting it right: sample-accurate crossfade on the Web Audio backend, or a gapless transition when you want one track to run straight into the next.
+Lyric sync and a full EQ chain are here too.
+No UI is bundled; you wire your own to plain events and methods.
 
-## Architecture
+## What you get
 
-The player sits on top of the **NoMercy Player Core** (`@nomercy-entertainment/nomercy-player-core`).
-The core owns:
+- `NMMusicPlayer<T>`, a typed player class generic over your own track type
+- `nmMPlayer(id)`, a factory that creates or returns a named instance
+- Sample-accurate crossfade and gapless playback, with a swappable audio backend
+- Lyric sync, a ten-band equalizer, and spectrum data for visualisers
+- A plugin for every optional capability, plus full TypeScript types
 
-- Transport lifecycle (play, pause, stop, seek)
-- Queue and backlog management
-- Plugin system and event bus
-- Auth pipeline (Bearer tokens, request signing, 401 refresh)
-- HLS stream registration
-- Cue parser registry (LRC, WebVTT, custom)
-- i18n
-- Storage adapter interface
+## Where it sits
 
-The music player adds on top of the core:
+The generic parts (queue, auth, plugins, i18n, storage) live in `nomercy-player-core` underneath, so this package stays focused on what makes audio hard.
 
-- **Audio backends:** `AudioElementBackend` (default) and `WebAudioBackend`
-- **Crossfade:** dual-buffer crossfade with `equal-power` / `linear` curves
-- **Music-typed events:** `current` narrowed to `MusicPlaylistItem`, `trackEndingSoon`, `crossfadeStart`, `crossfadeComplete`, `repeat`, `shuffle`, `backend:changed`
-- **Music plugins:** `LyricsPlugin`, `AutoAdvancePlugin`, `MediaSessionPlugin`, `CastSenderPlugin`, `KeyHandlerPlugin`, `MusicUiPlugin`, `TabLeaderPlugin`
-- **Music adapters:** `IAudioBackend`, `ILyricSource`, `IScrobbler`, `INowPlayingArt`, `IPlaylistGenerator`, `ISimilarityEngine`
+<LayerStack layers={[
+  { n: 3, name: 'Your application', pkg: 'Your app code', knows: 'Your UI and app logic, built on the player.' },
+  { n: 2, name: 'nomercy-music-player', pkg: 'You are here', knows: 'Music-specific methods and events (IMusicPlayer<T>).' },
+  { n: 1, name: 'nomercy-player-core', pkg: 'Peer dependency', knows: 'Queue, auth, plugins, event bus, i18n, storage.' },
+]} />
 
-## Layer diagram
+## Next steps
 
-Your consumer app holds a `NMMusicPlayer<T>` instance, which is composed of:
-
-| Part | What it provides |
-| ---- | ---------------- |
-| Audio backends | `AudioElementBackend` or `WebAudioBackend` |
-| Music plugins | `LyricsPlugin`, `AutoAdvancePlugin`, and others |
-| Core methods | transport, queue, auth, storage, and others |
-| Core plugins | `AudioGraphPlugin`, `EqualizerPlugin`, and others |
-
-## Key design decisions
-
-**No UI in core.** `NMMusicPlayer` renders nothing.
-The `MusicUiPlugin` is optional and produces a configurable DOM overlay.
-Consumers who want full control render their own UI from player events.
-
-**Generic playlist item.** `NMMusicPlayer<T>`, where `T` defaults to `MusicPlaylistItem` but consumers extend it with their own fields without wrapping or adapting.
-
-**Plugin-everything.** Lyrics, media session, cast, EQ, key handling are all plugins.
-Register only what you need.
-Plugins are removed from the bundle via tree-shaking when not imported.
-
-**Backend swappable at runtime.** Switch between `audio-element` and `webaudio` with `await player.backend('webaudio')`.
-Custom backends inject via `backendFactory`.
-
-## What it is not
-
-- Not a UI framework component (no Vue/React component, see [Framework Integration](/nomercy-music-player/framework-vue))
-- Not a video player (no subtitle tracks, no quality levels, see [nomercy-video-player](/nomercy-video-player/))
-- Not server-side, runs in the browser only
-
-## Under the hood
-
-### Core component responsibilities
-
-Three concerns share the work of playing audio:
-
-**Transport and queue** -- owned by the Player Core mixin. It drives the lifecycle state machine (idle, loading, playing, paused, ended), manages the ordered playlist and backlog, handles shuffle (smart fair-distribution algorithm) and repeat modes, and serialises every operation through the event bus so plugins see consistent state.
-
-**Audio backends** -- `AudioElementBackend` (default) wraps a single `<audio>` element and bridges its DOM events onto the player event bus. `WebAudioBackend` does the same but additionally opens an `AudioContext`, attaches a `MediaElementAudioSourceNode`, and exposes graph mount points (`outputNode`, `analyserSource`) for plugins. Both backends implement the same `IAudioBackend` contract so higher-level code never branches on which one is active.
-
-**Web Audio signal chain** -- assembled on demand by `AudioGraphPlugin` (a core plugin re-exported from the music package). Nothing allocates an `AudioContext` until that plugin is registered, so playback without visualisation or EQ has zero Web Audio overhead.
-
-### Web Audio signal chain
-
-The baseline chain when only `WebAudioBackend` is active (no `AudioGraphPlugin`):
-
-```
-<audio> element
-  └─ MediaElementAudioSourceNode
-       └─ GainNode  (volume, crossfade ramps)
-            └─ AnalyserNode  (fftSize 2048 — tap point for visualisers)
-                 └─ AudioContext.destination
-```
-
-When `AudioGraphPlugin` is registered, it takes ownership of the chain from the backend's output node outward and manages insertion of effect nodes:
-
-```
-backend outputNode (GainNode)
-  ├─ (parallel tap) → shared AnalyserNode  (read by SpectrumPlugin)
-  ├─ preEffects[0..n]  (e.g. custom pre-processing nodes)
-  └─ postEffects[0..n]  (e.g. EQ pre-gain GainNode → 10 BiquadFilterNodes, MixerPlugin gain/pan)
-       └─ AudioContext.destination
-```
-
-The `AnalyserNode` is wired in parallel to the source, not in series, so it reads the signal without interrupting the path to the speakers.
-
-> **Note:** `AudioContext` starts in `'suspended'` state per the browser autoplay policy. `AudioGraphPlugin` resumes it automatically on the first `play` event, which always fires inside a user-gesture callback.
-
-### Equalizer
-
-`EqualizerPlugin` depends on `AudioGraphPlugin` and inserts a pre-gain `GainNode` followed by ten peaking `BiquadFilterNode`s as `'post'` effects. The band centre frequencies are:
-
-| Band | Frequency |
-| ---- | --------- |
-| 1 | 70 Hz |
-| 2 | 180 Hz |
-| 3 | 320 Hz |
-| 4 | 600 Hz |
-| 5 | 1,000 Hz |
-| 6 | 3,000 Hz |
-| 7 | 6,000 Hz |
-| 8 | 12,000 Hz |
-| 9 | 14,000 Hz |
-| 10 | 16,000 Hz |
-
-Band gains are in the range -12 dB to +12 dB. Index 0 is always the pre-gain pseudo-band (`frequency: 'Pre'`), which maps to a `GainNode` at unity when set to 0.
-
-Registration order matters: `AudioGraphPlugin` must be added before `EqualizerPlugin`.
-
-```ts
-import {
-  nmMusicPlayer,
-  AudioGraphPlugin,
-  EqualizerPlugin,
-  SpectrumPlugin,
-} from '@nomercy-entertainment/nomercy-music-player';
-
-const player = nmMusicPlayer('my-player')
-  .setup({
-    baseUrl: 'https://protected.cdn.your-domain.com',
-    auth: { bearerToken: () => getToken() },
-  })
-  .addPlugin(AudioGraphPlugin)
-  .addPlugin(EqualizerPlugin, { persistKey: 'nm-eq' })
-  .addPlugin(SpectrumPlugin, { fftSize: 2048 });
-
-const eq = player.getPlugin(EqualizerPlugin);
-eq.preset('Rock');
-eq.band({ frequency: 70, gain: 4 });
-```
-
-### Spectrum analyser
-
-`SpectrumPlugin` depends on `AudioGraphPlugin` and reads from the shared `AnalyserNode` on every `requestAnimationFrame` tick. Each tick it calls `getByteFrequencyData` and `getByteTimeDomainData`, computes coarse band energies (bass 20-250 Hz, mid 250-4000 Hz, treble 4000-16000 Hz), and emits a `frame` event carrying the full `VisualizationFrame` buffer.
-
-Visualisation plugins (`VisualizationPlugin` subclasses) consume the `frame` event. For custom energy meters, `bandEnergy(loHz, hiHz)` returns a 0-1 normalised value for any arbitrary frequency range without subscribing to the full frame stream.
-
-## See also
-
-- [Installation](/nomercy-music-player/installation): install and import paths
-- [Quick Start](/nomercy-music-player/quickstart): minimal working player
-- [Player Core](/nomercy-player-core/): shared infrastructure documentation
+- [Quick Start](/nomercy-music-player/quickstart): a working player in a few lines
+- [Configuration](/nomercy-music-player/configuration): every option and default
+- [Crossfade](/nomercy-music-player/crossfade): the signature feature
+- [Architecture](/nomercy-music-player/architecture): the Web Audio signal chain, the equalizer, and the design decisions

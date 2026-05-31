@@ -1,6 +1,6 @@
 ---
 title: 'What is the Video Player'
-description: 'The NoMercy Video Player and its relation to the player core.'
+description: 'The headless HLS video engine, what it does and where it sits.'
 draft: false
 ---
 
@@ -8,86 +8,33 @@ draft: false
 
 # What is the NoMercy Video Player
 
-`@nomercy-entertainment/nomercy-video-player` is the headless HLS engine that powers video on NoMercy TV.
-It does the things that make video genuinely hard, switching bitrate as the network changes, matching HDR to the display, rendering subtitles in several formats, and keeping the picture moving through all of it, then exposes the result as plain events and methods.
-The generic parts, the queue, auth, plugin runtime, i18n, and storage, live in `@nomercy-entertainment/nomercy-player-core` underneath, so this package stays focused on adaptive bitrate, HDR-aware quality, multi-track subtitles, chapters, skip markers, and Chromecast handoff.
-You bring your own UI, or you add the built-in `DesktopUiPlugin` and get a full one for free.
+`nomercy-video-player` is the headless HLS engine that powers video on NoMercy TV.
+It does the parts of video that are genuinely hard, switching bitrate as the network changes, matching HDR to the display, rendering subtitles in several formats, and keeping the picture moving through all of it, then hands you the result as plain events and methods.
+No UI is bundled: add the built-in `DesktopUiPlugin` for a full set of controls, or build your own.
 
-## Architecture
+## What you get
 
-The video player is a three-layer stack:
+- `NMVideoPlayer<T>`, a typed player class generic over your own item type
+- `nmplayer(id)`, a factory that creates or returns a named instance
+- Adaptive bitrate, HDR-aware quality, multi-track subtitles, chapters, skip markers, and Chromecast
+- A plugin for every optional capability, from the full desktop UI to subtitle overlays
+- Full TypeScript types for every method, event, and option
+
+## Where it sits
+
+The generic parts (queue, auth, plugins, i18n, storage) live in `nomercy-player-core` underneath, so this package stays focused on the hard video parts.
 
 <LayerStack layers={[
   { n: 3, name: 'Your application', pkg: 'Your app code', knows: 'Your UI and app logic, built on the player.' },
-  { n: 2, name: 'NMVideoPlayer', pkg: 'nomercy-video-player', knows: 'Video-specific methods and event map (IVideoPlayer<T>).' },
-  { n: 1, name: 'nomercy-player-core', pkg: '@nomercy-entertainment/nomercy-player-core', knows: 'Lifecycle, plugin system, event bus, auth, fetch, adapters.' },
+  { n: 2, name: 'nomercy-video-player', pkg: 'You are here', knows: 'Video-specific methods and events (IVideoPlayer<T>).' },
+  { n: 1, name: 'nomercy-player-core', pkg: 'Peer dependency', knows: 'Queue, auth, plugins, event bus, i18n, storage.' },
 ]} />
 
-`NMVideoPlayer` extends the core's base player with video-specific surfaces: `fullscreenState()`, `aspectRatio()`, `cycleSubtitles()`, `backend()`, and the `IVideoPlayer<T>` interface.
-Plugin authors should type against `IVideoPlayer<T>` rather than the concrete class.
+Plugin authors type against `IVideoPlayer<T>` rather than the concrete class.
 
-All lifecycle management, the plugin registry, cross-cutting concerns (auth tokens, URL resolution, metrics, i18n), and adapter contracts live in the player core and are documented at [/nomercy-player-core/lifecycle](/nomercy-player-core/lifecycle).
+## Next steps
 
-## Quick start
-
-See [Installation](/nomercy-video-player/installation) for install instructions, then [Quick Start](/nomercy-video-player/quickstart) for a minimal working example.
-
-## Setup pattern
-
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import {
-  DesktopUiPlugin,
-  SubtitleOverlayPlugin,
-} from '@nomercy-entertainment/nomercy-video-player/plugins';
-
-const player = nmplayer('player')
-  .addPlugin(DesktopUiPlugin)
-  .addPlugin(SubtitleOverlayPlugin)
-  .setup({
-    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
-    playlist: [
-      {
-        title: 'Sintel',
-        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-        image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
-      },
-    ],
-  });
-
-player.on('ready', () => {
-  player.current(0, { autoplay: true });
-});
-```
-
-Register all plugins before calling `setup()`. Plugin registration occurs during the `pluginsRegistering` lifecycle phase.
-
-## Plugin registry overview
-
-All optional capabilities are plugins. Available plugins:
-
-| Plugin                                                            | What it does                                           |
-| ----------------------------------------------------------------- | ------------------------------------------------------ |
-| [AutoAdvance](/nomercy-video-player/plugins/auto-advance)         | Calls `next()` when a queue item finishes              |
-| [CastSender](/nomercy-video-player/plugins/cast-sender)           | Chromecast sender, media bridge for video              |
-| [DesktopUi](/nomercy-video-player/plugins/desktop-ui)             | Full controls overlay for desktop browsers             |
-| [DRM](/nomercy-video-player/plugins/drm)                          | EME DRM coordination: Widevine / FairPlay / PlayReady  |
-| [Embed](/nomercy-video-player/plugins/embed)                      | iframe embed and postMessage control API               |
-| [KeyHandler](/nomercy-video-player/plugins/key-handler)           | Keyboard shortcut bindings                             |
-| [LiveTranscoding](/nomercy-video-player/plugins/live-transcoding) | Server-coordinated live video transcoding              |
-| [MediaSession](/nomercy-video-player/plugins/media-session)       | OS media session (lock screen, notifications)          |
-| [Message](/nomercy-video-player/plugins/message)                  | Toast and overlay-message surface                      |
-| [Octopus](/nomercy-video-player/plugins/octopus)                  | libass ASS/SSA subtitle renderer                       |
-| [Skipper](/nomercy-video-player/plugins/skipper)                  | Skip-intro / skip-recap / skip-credits                 |
-| [SubtitleOverlay](/nomercy-video-player/plugins/subtitle-overlay) | DOM-based VTT subtitle overlay                         |
-| [TabLeader](/nomercy-video-player/plugins/tab-leader)             | Single-tab-active coordination                         |
-| [TouchZones](/nomercy-video-player/plugins/touch-zones)           | Mobile tap-to-seek and double-tap controls             |
-| [TvUi](/nomercy-video-player/plugins/tv-ui)                       | TV remote control bindings                             |
-| [AudioGraph](/nomercy-video-player/plugins/audio-graph)           | Web Audio API signal chain (EQ, visualizer)            |
-
-## See also
-
-- [Player Core: Lifecycle](/nomercy-player-core/lifecycle)
-- [Player Core: Plugin Model](/nomercy-player-core/plugins)
-- [VideoPlaylistItem](/nomercy-video-player/playlist-item)
-- [IVideoPlayer interface](/nomercy-video-player/types)
+- [Quick Start](/nomercy-video-player/quickstart): a working player in a few lines
+- [Configuration](/nomercy-video-player/configuration): every option and default
+- [Build a Player UI](/nomercy-video-player/guides/build-ui-overview): the step-by-step tutorial for your own controls
+- [Player Core](/nomercy-player-core/): the shared engine and its adapter ports

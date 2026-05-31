@@ -1,82 +1,41 @@
 ---
 title: 'What is the Player Core'
-description: 'The 5-layer architecture and the adapter port summary.'
+description: 'The shared, headless engine the video and music players are built on.'
 draft: false
 ---
 
-{/* src: packages/nomercy-player-kit/src/index.ts */}
+{/* Source: packages/nomercy-player-kit/src/index.ts */}
 
 # What is the NoMercy Player Core
 
-Underneath, the video player and the music player are mostly the same machine.
+The video player and the music player are mostly the same machine underneath.
 A queue is a queue, auth is auth, and a plugin system does not care whether it is driving a film or an album.
-`nomercy-player-core` is that shared machine pulled into its own package, so the two players do not each carry their own copy of it.
-It is headless and you never run it directly, the library packages bring it along as a peer dependency.
-What lives here is everything generic: the queue, the auth pipeline, the plugin system, the typed event bus, i18n, storage, and the adapter ports you swap when a default does not fit your platform.
-Keeping it in one place means a fix lands in both players at once, and it keeps each player small enough to focus on the genuinely hard parts of its own domain.
+`nomercy-player-core` is that shared machine pulled into one package, so the two players do not each carry their own copy.
+It is headless and you never run it on its own; the library packages bring it along as a peer dependency.
 
-The core owns:
+## What's in it
 
-- The mixin-composed prototype that every player instance is built from
-- The adapter port contracts (storage, platform, streams, cue parsers, preload/transition strategies, translator, realtime)
-- The plugin runtime (registration, lifecycle, dependency checks, translation merging)
-- The event bus and the complete `BaseEventMap`
-- The error hierarchy and retry policy
-- DOM construction helpers
+- Transport and a queue engine (play, pause, seek, next, shuffle, backlog)
+- The auth pipeline (bearer tokens, 401 refresh, 403 propagation)
+- The plugin system and a typed event bus
+- i18n and storage
+- An adapter port for every cross-cutting concern, swappable without subclassing the player
 
-## Five-layer model
+A fix in any of these lands in both players at once.
+
+## Where it sits
 
 <LayerStack layers={[
-  { n: 5, name: 'Consumer plugins', pkg: 'Your app code', knows: 'Your own plugins, for example nomercy:sync or fillz:winamp. The only layer that knows your server, auth, and business rules.' },
-  { n: 4, name: 'Built-in core plugins', pkg: 'nomercy-player-core', knows: 'AudioGraphPlugin, CanvasPlugin, CastSenderPlugin, EqualizerPlugin, MixerPlugin, SpectrumPlugin, VisualizationPlugin, EmbedPlugin.' },
-  { n: 3, name: 'Per-library code', pkg: 'nomercy-video-player / nomercy-music-player', knows: 'Video: HLS backend and subtitle overlay. Music: Web Audio backend and lyrics.' },
-  { n: 2, name: 'Player Core', pkg: 'nomercy-player-core', knows: 'Mixins, adapter ports, the plugin runtime, and the event bus.' },
-  { n: 1, name: 'Backend (stream factory)', pkg: 'Html5VideoBackend / WebAudioBackend', knows: 'hls.js, the native HTMLMediaElement, or a custom backend.' },
+  { n: 3, name: 'nomercy-video-player / nomercy-music-player', pkg: 'The library you install', knows: 'Video: HLS and subtitles. Music: Web Audio and crossfade.' },
+  { n: 2, name: 'nomercy-player-core', pkg: 'You are here', knows: 'Queue, auth, plugins, event bus, i18n, storage, and adapter ports.' },
+  { n: 1, name: 'Backend', pkg: 'Html5VideoBackend / WebAudioBackend', knows: 'hls.js, the native media element, or a custom backend.' },
 ]} />
 
-Anything NoMercy-specific (server auth, SignalR sync, watch-history writes) lives in layer 5.
-The core and per-library packages stay generic, they know nothing about the NoMercy server API.
+The core knows nothing about NoMercy server APIs or your app; that lives in the layers above it.
 
-## Adapter ports
+## Next steps
 
-The core exposes adapter contracts that consumers swap without subclassing the player.
-See the Adapter Ports section in the navigation for the full list.
-The most commonly swapped ports are:
-
-| Port                 | Default                                                                     | Why swap                                                      |
-| -------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| `platform`           | `browserPlatform`                                                           | Capacitor, Tauri, Electron native APIs                        |
-| `storage`            | `LocalStorageBackend`                                                       | IndexedDB for larger values; remote API for cross-device sync |
-| `streams`            | `hls` + `native`                                                            | Custom stream protocol, DASH, low-latency HLS                 |
-| `cueParsers`         | VTT + LRC + sprite-VTT                                                      | TTML, SRT, ASS, proprietary formats                           |
-| `preloadStrategy`    | `DefaultPreloadStrategy`                                                    | Different timing heuristics                                   |
-| `transitionStrategy` | `GaplessTransitionStrategy` (video) / `CrossfadeTransitionStrategy` (music) | Custom fades or creative transitions                          |
-| `translator`         | `DefaultTranslator`                                                         | i18next, FormatJS, any ICU-capable engine                     |
-| `websocketFactory`   | `nativeWebSocketAdapter`                                                    | SignalR, Socket.IO                                            |
-
-## Mixin composition
-
-The player prototype is assembled at class definition time from 15+ mixins via `composeMixins`.
-Each mixin owns one surface:
-
-```ts
-composeMixins(PlayerClass, [
-  lifecycleMethods, // setup, dispose, ready, phase
-  transportMethods, // play, pause, stop, next, previous, rewind, forward, restart
-  timeMethods, // currentTime, duration, buffered, timeData, playbackRate
-  volumeMethods, // volume, mute, unmute, toggleMute, volumeUp, volumeDown
-  queueMethods, // queue, queueAppend, current, backlog, ...
-  loadingMethods, // load, loadQueue
-  mediaTracksMethods, // subtitles, audioTracks, qualityLevels, chapters
-  // ...and more
-]);
-```
-
-This means a fix in `volumeMethods` lands once and applies identically to both the music and video player.
-
-## See also
-
-- [Lifecycle: setup](/nomercy-player-core/setup)
-- [Plugin Registration](/nomercy-player-core/plugin-registration)
-- [Events Reference](/nomercy-player-core/events-reference)
-- [Adapter Ports](/nomercy-player-core/adapters)
+- [Quick Start](/nomercy-player-core/quickstart): the smallest working setup
+- [Architecture](/nomercy-player-core/architecture): the full five-layer model and how the player is composed
+- [Adapter Ports](/nomercy-player-core/adapters): every port and its default
+- [Plugins](/nomercy-player-core/plugins): the built-in plugins shipped with the core
