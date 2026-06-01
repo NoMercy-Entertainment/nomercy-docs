@@ -89,12 +89,13 @@ export async function getNavigation(): Promise<NavigationResult> {
   };
 }
 
-function stripLocalePrefix(slug: string): string {
-  // Astro flattens `en/index.mdx` to bare `en` (drops the trailing /index),
-  // and `en/<page>.mdx` to `en/<page>`. Strip both shapes so the slug matches
-  // the manifest keys, which are stored without the locale prefix.
-  if (/^[a-z]{2}$/.test(slug)) return '';
-  return slug.replace(/^[a-z]{2}\//, '');
+function stripLocalePrefix(id: string): string {
+  // Content Layer glob ids are like `en/overview.mdx` or `signalr/cast-hub.mdx`.
+  // Strip the `en/` locale prefix and the file extension so the result matches
+  // the manifest keys, which are stored without locale prefix or extension.
+  const withoutExt = id.replace(/\.(md|mdx)$/, '');
+  if (/^[a-z]{2}$/.test(withoutExt)) return '';
+  return withoutExt.replace(/^[a-z]{2}\//, '');
 }
 
 // Build the sidebar groups for one collection from the manifest in nav-structure.ts.
@@ -104,12 +105,12 @@ function stripLocalePrefix(slug: string): string {
 // vanishes silently; `npm run check:nav` turns that case into a build failure.
 function buildGroups(
   collection: string,
-  docs: Array<{ slug: string; data: { title: string } }>,
+  docs: Array<{ id: string; data: { title: string } }>,
   urlBase: string
 ): NavGroup[] {
   const bySlug = new Map<string, { title: string }>();
   for (const doc of docs) {
-    const slug = stripLocalePrefix(doc.slug);
+    const slug = stripLocalePrefix(doc.id);
     if (slug === '' || slug === 'index' || slug.endsWith('/index')) continue;
     bySlug.set(slug, doc.data);
   }
@@ -149,8 +150,8 @@ export async function getNavigationForProduct(product: Product): Promise<NavGrou
   if (!meta) return [];
 
   try {
-    const entries = await getCollection(meta.collection as any, ({ data }: any) => data.draft !== true);
-    return buildGroups(meta.collection, entries);
+    const entries = await getCollection(meta.collection as any, ({ data }: any) => data.draft !== true) as Array<{ id: string; data: { title: string } }>;
+    return buildGroups(meta.collection, entries, meta.urlBase ?? meta.collection);
   } catch {
     return [];
   }

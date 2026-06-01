@@ -1,14 +1,14 @@
 ---
-import { getEntry } from 'astro:content';
+import { getEntry, render } from 'astro:content';
 import MarkdownLayout from '../../layouts/MarkdownLayout.astro';
 import * as mdxComponents from '../../components/protocol';
 
-const indexDoc = await getEntry('nomercy-app-web', 'en/index');
+const indexDoc = await getEntry('nomercy-app-web', 'en/index.mdx');
 if (!indexDoc) {
   return Astro.redirect('/nomercy-app-web/overview');
 }
 
-const { Content, headings } = await indexDoc.render();
+const { Content, headings } = await render(indexDoc);
 const sections = indexDoc.data.sections || headings
   .filter((h: any) => h.depth === 2)
   .map((h: any) => ({ id: h.slug, title: h.text }));

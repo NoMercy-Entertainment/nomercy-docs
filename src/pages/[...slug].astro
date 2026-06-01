@@ -1,5 +1,5 @@
 ---
-import { getCollection } from 'astro:content';
+import { getCollection, render } from 'astro:content';
 import MarkdownLayout from '../layouts/MarkdownLayout.astro';
 
 import * as mdxComponents from '../components/protocol';
@@ -10,9 +10,9 @@ export async function getStaticPaths() {
   });
 
   return docs
-    .filter(doc => doc.slug.replace(/^[a-z]{2}\//, '') !== 'index')
+    .filter(doc => doc.id.replace(/^[a-z]{2}\//, '').replace(/\.(md|mdx)$/, '') !== 'index')
     .map(doc => ({
-      params: { slug: doc.slug.replace(/^[a-z]{2}\//, '') },
+      params: { slug: doc.id.replace(/^[a-z]{2}\//, '').replace(/\.(md|mdx)$/, '') },
       props: { doc },
     }));
 }
@@ -22,7 +22,7 @@ interface Props {
 }
 
 const { doc } = Astro.props;
-const { Content, headings } = await doc.render();
+const { Content, headings } = await render(doc);
 
 const isMdx = doc.id.endsWith('.mdx');
 

@@ -1,14 +1,14 @@
 ---
-import { getEntry } from 'astro:content';
+import { getEntry, render } from 'astro:content';
 import MarkdownLayout from '../../layouts/MarkdownLayout.astro';
 import * as mdxComponents from '../../components/protocol';
 
-const indexDoc = await getEntry('nomercy-api', 'en/index');
+const indexDoc = await getEntry('nomercy-api', 'en/index.mdx');
 if (!indexDoc) {
   return Astro.redirect('/nomercy-api/overview');
 }
 
-const { Content, headings } = await indexDoc.render();
+const { Content, headings } = await render(indexDoc);
 const data = indexDoc.data as any;
 let sections = data.sections;
 
