@@ -13,6 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://astro.build/config
 export default defineConfig({
+  site: "https://docs.nomercy.tv",
   redirects: {
     // Legacy /nomercy-player-kit/ URLs, kept working after the rename to core.
     "/nomercy-player-kit": "/nomercy-player-core/overview",
