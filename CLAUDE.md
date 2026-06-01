@@ -4,7 +4,7 @@ Guidance for Claude Code when working in the **NoMercy Documentation Site**.
 
 ## What this is
 
-A static documentation site built with **Astro 5**, **React 18** (islands), **Tailwind CSS v4** (CSS-based config, no `tailwind.config.ts`), and a **custom MDX dialect**. Content is authored as `.mdx`, navigation is generated from frontmatter, and search is a build-time static index. The site is its own git repository (nested inside the monorepo) — run git from `docs/nomercy-docs/`.
+A static documentation site built with **Astro 6**, **React 18** (islands), **Tailwind CSS v4** (CSS-based config, no `tailwind.config.ts`), and a **custom MDX dialect**. Content is authored as `.mdx`, navigation is generated from frontmatter, and search is a build-time static index. The site is its own git repository (nested inside the monorepo) — run git from `docs/nomercy-docs/`.
 
 ## Commands
 
@@ -22,7 +22,7 @@ npm run preview      # build + preview
 
 ### Content collections
 
-All pages live under `src/content/<product>/<locale>/…` as `.mdx`. The locale is currently always `en/`. The seven collections (registered in `src/content/config.ts`):
+All pages live under `src/content/<product>/<locale>/…` as `.mdx`. The locale is currently always `en/`. The seven collections (registered in `src/content.config.ts`):
 
 ```
 src/content/
@@ -35,7 +35,7 @@ src/content/
 └── nomercy-api/en|signalr/    # REST + SignalR reference
 ```
 
-`config.ts` validates frontmatter with Zod (`pageSchema`). `title` is required; `description`, `category`, `order`, `draft`, `tags`, `helpKey`, `sections` are optional. The schema is `catchall(z.any())` so unknown keys are tolerated.
+`content.config.ts` validates frontmatter with Zod (`pageSchema`); each collection uses a Content Layer `glob()` loader. `title` is required; `description`, `category`, `order`, `draft`, `tags`, `helpKey`, `sections` are optional. The schema is `catchall(z.any())` so unknown keys are tolerated.
 
 ### Routing
 
