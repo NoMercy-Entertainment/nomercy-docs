@@ -35,7 +35,7 @@ A few design details worth knowing:
 - `once()` stores a wrapper in a `WeakMap` keyed on the original handler reference, so `off(event, originalFn)` can find and remove the wrapper even though the caller never touched it.
 - `emit()` snapshots the listener set before iterating, so a handler calling `off()` mid-dispatch does not mutate the live iteration.
 - Each listener is wrapped in a try/catch so one bad handler cannot abort the rest of the dispatch chain.
-- `emit()` fires a microtask-delayed `listeners-changed` event when a previously empty event gains its first listener, useful for lazy-load logic.
+- `on()` (and `off()`) fire a microtask-delayed `listeners-changed` event when an event gains its first listener or loses its last, useful for lazy-load logic.
 
 The `__eventMap__` phantom field on `EventEmitter` is a compile-time brand used by the generic type inference machinery.
 It is never assigned at runtime.

@@ -33,7 +33,7 @@ import { DesktopUiPlugin, KeyHandlerPlugin } from '@nomercy-entertainment/nomerc
 // KeyHandlerPlugin<T> is generic over the playlist item type, not the player type.
 class MyKeyHandler extends KeyHandlerPlugin {
   // Different id so both this and the built-in can coexist,
-  // or keep 'key-handler' to replace the default.
+  // or use 'video-key-handler' (the built-in id) to replace the default.
   static override readonly id = 'my-key-handler';
 
   protected override addPlaybackKeys(): void {
@@ -90,7 +90,7 @@ Key names follow the `KeyboardEvent.key` standard. Common values:
 
 ## Conflict resolution
 
-`KeyHandlerPlugin` captures keyboard events on the player container.
+`KeyHandlerPlugin` captures keyboard events on `document` by default (set `scope: 'container'` to scope them to the player element).
 If you have page-level key handlers (e.g. a search input), the player should not steal those events.
 
 Use the `when` option to suppress all key handling when a condition is true — for example, while a modal is open or when focus is inside a specific element:
