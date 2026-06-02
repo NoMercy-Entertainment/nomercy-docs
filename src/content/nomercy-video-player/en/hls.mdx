@@ -11,7 +11,7 @@ HDR-aware ABR is automatic.
 
 ## How hls.js is wired in
 
-`hls.js` installs automatically with the player (a transitive dependency via `@nomercy-entertainment/nomercy-player-core`) — nothing extra to install for the npm / bundler path. See [Installation](/nomercy-video-player/installation) for the CDN exception.
+`hls.js` installs automatically with the player (a direct dependency of the player package) — nothing extra to install for the npm / bundler path. See [Installation](/nomercy-video-player/installation) for the CDN exception.
 
 The build output marks `hls.js` as external so it is not inlined into the player's own dist bundle.
 At runtime the player loads it via a dynamic import on first HLS source, so it stays out of your initial bundle until you actually play `.m3u8`.
@@ -58,12 +58,12 @@ player.on('levels', ({ levels }) => {
 On SDR displays, the player filters HDR levels out of the ABR selection pool.
 hls.js will not automatically promote to an HDR level when the display cannot render it.
 
-Detection is done once at setup via `MediaCapabilities.decodingInfo()`.
+Display-HDR detection uses `matchMedia('(dynamic-range: high)')`.
 No configuration is required.
 On HDR-capable displays, all levels are eligible.
 
 Multi-monitor handling: when a player window moves across displays (e.g. from an HDR monitor to an SDR one), the player re-evaluates display capabilities and constrains the ABR pool accordingly.
-The check runs on the `screen-change` platform event.
+The re-evaluation runs on the `matchMedia('(dynamic-range: high)')` change event.
 
 ## Quality level shape
 
@@ -101,8 +101,9 @@ Register additional stream types:
 ```ts
 import { myDashStreamFactory } from './dash-adapter';
 
-player.registerStream(myDashStreamFactory, true); // true = prepend (higher priority)
+player.registerStream(myDashStreamFactory); // registered at highest priority
 player.streams(); // ['dash', 'hls', 'native']
+// (pass `true` to register at LOWEST priority instead, behind the built-ins)
 ```
 
 ## Custom backend

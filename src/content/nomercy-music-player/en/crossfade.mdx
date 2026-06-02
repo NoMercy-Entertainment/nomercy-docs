@@ -49,8 +49,9 @@ async function playWithFade(track: MusicPlaylistItem): Promise<void> {
 
   await player.crossfadeTo(track, {
     duration: 5, // seconds
-    curve: 'equal-power',
   });
+  // A manual crossfadeTo() always uses a linear gain ramp. The fade curve
+  // (default 'equal-power') applies only to the automatic AutoAdvance transition.
 }
 ```
 
@@ -121,8 +122,7 @@ if (backend.kind === 'webaudio') {
 
 ## EQ through crossfade
 
-If `EqualizerPlugin` and `AudioGraphPlugin` are registered, the EQ graph applies to both audio paths during a crossfade.
-No extra configuration needed.
+During a crossfade only the outgoing track is routed through the EQ graph; the incoming track plays un-equalized until it becomes the primary at the end of the fade, after which EQ applies to it as normal.
 
 ## See also
 

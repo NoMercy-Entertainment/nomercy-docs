@@ -10,15 +10,7 @@ Fields marked with a default show the value used when the option is omitted.
 
 ## Container
 
-### `container`
-
-```ts
-container?: HTMLElement
-```
-
-The DOM element the player mounts into.
-Required for any plugin that renders UI (`DesktopUiPlugin`, `OctopusPlugin`, `SubtitleOverlayPlugin`).
-The player itself renders nothing, so the container is only needed by plugins.
+The container is not a `setup()` option — it is the element you pass to the `nmplayer(id)` factory, looked up by its `id`. The player mounts into that element. UI plugins (`DesktopUiPlugin`, `OctopusPlugin`, `SubtitleOverlayPlugin`) render into it; the bare player adds only the `<video>` element.
 
 ## Playlist / queue
 
@@ -227,11 +219,11 @@ See [Core: Adapters](/nomercy-player-core/storage) for alternatives.
 ### `logLevel`
 
 ```ts
-logLevel?: 'silent' | 'error' | 'warn' | 'info' | 'debug'
+logLevel?: 'silent' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
 ```
 
 Log verbosity.
-Default: `'warn'`.
+Default: `'info'`.
 Set to `'debug'` to see plugin-level events.
 
 ### `logger`
@@ -320,7 +312,7 @@ Spreading it ensures English strings are always available as a fallback.
 loadTranslations?: (lang: string) => Promise<Record<string, string> | undefined>
 ```
 
-Async loader called by `player.setLanguage(lang)` when the bundle for that language is not already loaded.
+Async loader called by `player.language(lang)` when the bundle for that language is not already loaded.
 Return `undefined` to fall through to the static `translations` config.
 
 ```ts
@@ -387,8 +379,7 @@ disableControls?: boolean
 disableMediaControls?: boolean
 ```
 
-Both disable browser native controls.
-Use `disableMediaControls` in new code, `disableControls` is a deprecated alias.
+`disableControls` disables **all** keyboard shortcuts; `disableMediaControls` disables only the media-key bindings. Neither affects the native `<video controls>` attribute — use the `controls` option for that.
 
 ## Playlist item fields
 
@@ -430,7 +421,7 @@ Use the top-level item fields `subtitles`, `chapters`, `fonts`, and `previewSpri
 }
 ```
 
-A v1-style `tracks[]` array is not accepted on `VideoPlaylistItem` directly. To migrate v1 items, run them through `normalizeVideoItem()` from `@nomercy-entertainment/nomercy-video-player/compat`, which maps `tracks[]` entries (`kind: 'chapters'` into `item.chapters`, `kind: 'fonts'` into `item.fonts`, and so on) onto the typed fields above.
+A v1-style `tracks[]` array is not accepted on `VideoPlaylistItem` directly. To migrate v1 items, run them through `normalizeVideoItem()` from `@nomercy-entertainment/nomercy-video-player/compat`, which maps `tracks[]` entries onto the typed fields: `kind: 'subtitles'` (or `'text'`, or no kind) into `subtitles`, `kind: 'fonts'` into `fonts`, and a `kind: 'chapters'` track's file is promoted to `previewSpriteUrl`.
 
 ### Title placeholders
 

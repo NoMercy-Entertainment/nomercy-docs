@@ -30,7 +30,7 @@ An in-memory, cursor-aware list that extends `EventEmitter`.
 
 Cursor semantics:
 
-- `index()` is `0` when items exist and `-1` when the list is empty.
+- `currentIndex()` is `0` when items exist and `-1` when the list is empty.
 - Every mutation that shifts item positions also shifts the cursor to keep it pointing at the same item. Removing the item before the current decrements the cursor by one. Removing the current item clamps the cursor to the new last index.
 - `setCurrent()` accepts the item itself, its `id`, a zero-based index, or a predicate function, first match wins.
 
@@ -49,7 +49,7 @@ interface IMediaList<T extends BasePlaylistItem> {
 
   // Cursor
   current(): T | undefined;
-  index(): number;
+  currentIndex(): number;
   replaceItem(item: T): void;
   setCurrent(target: T | string | number | ((item: T) => boolean)): void;
   peekNext(): T | undefined;
@@ -141,7 +141,7 @@ class RemoteMediaList<T extends BasePlaylistItem> implements IMediaList<T> {
     return this.cursor >= 0 ? this.cache[this.cursor] : undefined;
   }
 
-  index(): number {
+  currentIndex(): number {
     return this.cursor;
   }
 

@@ -10,7 +10,7 @@ This page covers how `LyricsPlugin` works internally, covering the cue parser re
 
 ## How LyricsPlugin works
 
-1. On every `current` event, `LyricsPlugin.use()` fires
+1. `LyricsPlugin.use()` runs once at registration and installs a `current` listener; that listener fires on every `current` event
 2. The plugin calls `resolveLyricsUrl(item)`, which returns `item.lyricsUrl` or the custom `getLyricsUrl(item)` result
 3. The URL is passed to `resolveParser(url)`, which calls `player.resolveCueParser(url)`
 4. The core walks the registered `ICueParser[]` in registration order. The first parser whose `canParse(url)` returns `true` wins.
@@ -133,9 +133,9 @@ When the player emits a `time` event, the tracker scans the cue list and fires `
 
 ```ts
 // Listen to player errors with a lyrics-specific code:
-player.on('error', (event) => {
-  if (event.code === 'plugin:lyrics/fetch-failed' || event.code === 'plugin:lyrics/no-parser') {
-    console.warn('Lyrics failed:', event.message);
+player.on('warning', (event) => {
+  if (event.error.code === 'plugin:lyrics/fetch-failed' || event.error.code === 'plugin:lyrics/no-parser') {
+    console.warn('Lyrics failed:', event.error.message);
     showNoLyricsMessage();
   }
 });

@@ -71,7 +71,7 @@ Use `time` for real-time UI updates.
 | `pip`               | `{ active: boolean }`                              | PiP state changes                                                              |
 | `theater`           | `{ active: boolean }`                              | Theater mode changes                                                           |
 | `aspectRatio`       | `{ value: Stretching }`                            | Aspect ratio / stretching changes                                              |
-| `chapter`           | `{ index: number; title: string }`                 | Active chapter changes                                                         |
+| `chapter`           | `{ index: number; title: string }`                 | Emitted by `seekToChapter` / `nextChapter` / `previousChapter` (not on natural boundary crossing) |
 | `back`              | `void`                                             | UI back button pressed (only emitted when at least one listener is registered) |
 | `close`             | `void`                                             | UI close button pressed (only emitted when at least one listener is registered) |
 
@@ -180,7 +180,7 @@ Namespaced (per-plugin) channel — same payloads, scoped to one plugin:
 Listen to a plugin's own events using the namespaced string form:
 
 ```ts
-player.on('plugin:skipper:skipActivated', ({ kind }) => {
+player.on('plugin:skipper:skipper:skipped', ({ kind }) => {
   console.log(`Skipping ${kind}`);
 });
 ```

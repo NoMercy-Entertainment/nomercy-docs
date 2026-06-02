@@ -61,7 +61,7 @@ Custom backends inject via `backendFactory`.
 
 Three concerns share the work of playing audio:
 
-**Transport and queue** -- owned by the Player Core mixin. It drives the lifecycle state machine (idle, loading, playing, paused, ended), manages the ordered playlist and backlog, handles shuffle (smart fair-distribution algorithm) and repeat modes, and serialises every operation through the event bus so plugins see consistent state.
+**Transport and queue** -- owned by the Player Core mixin. It drives the lifecycle state machine (idle, loading, playing, paused, ended), manages the ordered playlist and backlog, handles shuffle (Fisher-Yates) and repeat modes, and serialises every operation through the event bus so plugins see consistent state.
 
 **Audio backends** -- `AudioElementBackend` (default) wraps a single `<audio>` element and bridges its DOM events onto the player event bus. `WebAudioBackend` does the same but additionally opens an `AudioContext`, attaches a `MediaElementAudioSourceNode`, and exposes graph mount points (`outputNode`, `analyserSource`) for plugins. Both backends implement the same `IAudioBackend` contract so higher-level code never branches on which one is active.
 

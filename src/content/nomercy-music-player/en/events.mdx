@@ -34,7 +34,7 @@ player.on('current', ({ item, index }) => {
 ### `trackEndingSoon`
 
 ```ts
-'trackEndingSoon': { remaining: number; currentTrack: BasePlaylistItem }
+'trackEndingSoon': { remaining: number; currentTrack: MusicPlaylistItem }
 ```
 
 Fires when the current track has `trackEndingSoonThreshold` seconds remaining (default: 10).
@@ -44,7 +44,7 @@ Fires when the current track has `trackEndingSoonThreshold` seconds remaining (d
 ### `crossfadeStart`
 
 ```ts
-'crossfadeStart': { from: BasePlaylistItem | null; to: BasePlaylistItem; duration: number }
+'crossfadeStart': { from: MusicPlaylistItem | null; to: MusicPlaylistItem; duration: number }
 ```
 
 Fires when a crossfade begins.
@@ -54,7 +54,7 @@ Fires when a crossfade begins.
 ### `crossfadeComplete`
 
 ```ts
-'crossfadeComplete': { track: BasePlaylistItem }
+'crossfadeComplete': { track: MusicPlaylistItem }
 ```
 
 Fires when the crossfade completes and the incoming track is now the primary.
@@ -161,12 +161,13 @@ PlayerPhase values: `'idle' | 'setup' | 'ready' | 'loading' | 'starting' | 'play
 
 ```ts
 interface PlayerErrorEvent {
-  code: string; // e.g. 'plugin:lyrics/fetch-failed'
-  message: string;
-  severity: 'error' | 'fatal' | 'warning';
-  cause?: unknown;
-  context?: Record<string, unknown>;
+  error: PlayerError; // .code (e.g. 'plugin:lyrics/fetch-failed'), .message, .severity, .suggestion?, .context?
+  severity: 'fatal' | 'error' | 'warning' | 'info';
+  scope: ErrorScope;
+  timestamp: number;
+  // plus cancellable-event controls: markHandled() / preventDefault() / stopImmediatePropagation() / ...
 }
+// Access the code/message via event.error.code / event.error.message
 ```
 
 ## Auth events (inherited)

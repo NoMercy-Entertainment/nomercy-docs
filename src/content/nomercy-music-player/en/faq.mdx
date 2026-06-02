@@ -36,9 +36,8 @@ A multi-room app might have one per room.
 
 ## Does the player work server-side (SSR/Node)?
 
-No. The player requires browser APIs: `HTMLAudioElement`, `AudioContext`, `requestAnimationFrame`, `navigator.mediaSession`.
-It will throw on import in a Node environment.
-In SSR frameworks (Next.js, Nuxt), import and initialize only in browser-side code.
+Not for playback. The player needs browser APIs (`HTMLAudioElement`, `AudioContext`, `requestAnimationFrame`, `navigator.mediaSession`) to actually play. Construction is SSR-safe — it no-ops the container lookup when `document` is absent and does not throw on import — but transport won't work in Node.
+In SSR frameworks (Next.js, Nuxt), create and drive the player only in browser-side code.
 
 ## Why does autoplay block in the browser?
 
@@ -70,7 +69,7 @@ Two ways:
 
 1. **Automatic:** Use `AutoAdvancePlugin` with `crossfade: true` and `crossfadeDuration: 5`. The plugin starts the crossfade automatically before each track ends.
 
-2. **Manual:** Call `player.crossfadeTo(track, { duration: 3, curve: 'equal-power' })` from your own code.
+2. **Manual:** Call `player.crossfadeTo(track, { duration: 3 })` from your own code. A manual crossfade always ramps linearly; the `curve` option shapes only the automatic AutoAdvance transition.
 
 The default backend (`audio-element`) uses a `requestAnimationFrame` loop (~50 fps).
 For sample-accurate fades, switch to `WebAudioBackend` first:
@@ -113,7 +112,7 @@ const player = nmMPlayer('main').setup({
 
 A custom `storage` must implement the full `IStorage` interface (`get`, `set`, `remove`, `getJSON`, `setJSON`) — extend `LocalStorageBackend` or wrap your own backend.
 
-The core automatically reads and writes `volume`, `shuffleState`, `repeatState`, and `playbackRate` through the storage adapter.
+The core itself does **not** persist `volume`, `shuffleState`, `repeatState`, or `playbackRate` — these are held in memory only (the `storage` config is read by plugins via `Plugin.storage`, not by the core). Persist them yourself by listening for the relevant events and writing to your `storage`, or let a plugin do it (e.g. `EqualizerPlugin`'s `persistKey`).
 
 ## How do I add lyrics?
 
@@ -148,7 +147,7 @@ The built-in LRC and VTT parsers are registered by default.
 
 ## How do I show a spectrum analyzer or equalizer?
 
-Both require `AudioGraphPlugin` (which routes audio through a Web Audio graph) and `WebAudioBackend`.
+Both require `AudioGraphPlugin` (which routes audio through a Web Audio graph). It works on either backend: on the default `audio-element` backend it lazily creates a `MediaElementAudioSourceNode`; `WebAudioBackend` gives a full native graph.
 
 ```ts
 const player = nmMPlayer('main')

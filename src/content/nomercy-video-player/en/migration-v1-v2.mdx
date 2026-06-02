@@ -110,7 +110,6 @@ Update every `player.on(...)` call.
 | `fullscreen`                           | `boolean`                    | `{ active: boolean }`                                        |
 | `pip`                                  | `boolean`                    | `{ active: boolean }`                                        |
 | `theater`                              | `boolean`                    | `{ active: boolean }`                                        |
-| `float`                                | `boolean`                    | `{ active: boolean }`                                        |
 | `waiting`                              | `HTMLVideoElement`           | `void`                                                       |
 | `canplay`                              | `HTMLVideoElement`           | `void`                                                       |
 
@@ -270,12 +269,11 @@ item?.internalId; // typed, no cast needed
 ## Subtitle and quality index convention
 
 v1's `subtitle(idx)` and `quality(idx)` setters accepted index values where `-1` meant "disable subtitles" or "auto quality".
-v2 follows the same convention: `-1` / `null` means disabled/auto.
+In v2 these getters return a selection object, not a raw index:
 
-`quality()` still returns the HLS.js `currentLevel` index where `-1` means auto-select.
-The getter is unchanged.
+`quality()` returns `{ index, track }` for the selected level, or the string `'auto'` when ABR is active.
 
-`subtitle()` returns `number | null` where `null` means off.
+`subtitle()` returns `{ index, track }` for the active track, or `null` when off.
 
 ## `ready` event timing
 
@@ -323,7 +321,7 @@ Key differences:
 - `getPlugin(Cls)` returns the typed plugin instance; no string key, no cast
 - Plugin options are passed at registration, not at construction
 - Plugins that depend on other plugins declare `static requires = [OtherPluginClass]`; the player enforces registration order
-- Cross-plugin event listening is typed via `player.on(PluginClass, eventName, fn)`, no untyped string keys
+- Cross-plugin event listening: a plugin uses the protected `this.on(PluginClass, eventName, fn)` (typed); a consumer listens via the namespaced string form `player.on('plugin:<id>:<event>', fn)`
 
 **Built-in plugins that moved from always-on to opt-in:**
 
@@ -339,7 +337,7 @@ Key differences:
 
 ## Adapter ports
 
-v2 introduces 32 named adapter ports (28 from the core + 4 video-specific).
+v2 introduces a set of named adapter ports (the core ports plus a few video-specific ones).
 All ports have sensible defaults.
 You only need to wire an adapter through `setup()` when you want to replace the default behavior.
 
@@ -417,7 +415,6 @@ import { Html5VideoBackend, VttChapterSource, VttSpriteThumbnailSource, StorageB
 | `defaultAudioLanguage`    | Language code for initial audio track selection               |
 | `defaultQuality`          | `'auto'` or a quality level index                             |
 | `preloadLeadSeconds`      | Seconds ahead to preload                                      |
-| `drm`                     | DRM config for `DrmPlugin`                                    |
 | `cast`                    | Cast config for `CastSenderPlugin`                            |
 | `platform`                | Full platform abstraction bundle                              |
 

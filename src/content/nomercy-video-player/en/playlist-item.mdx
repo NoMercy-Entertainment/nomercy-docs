@@ -21,7 +21,8 @@ import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-pla
 
 | Field      | Type     | Required | Description                                                           |
 | ---------- | -------- | -------- | --------------------------------------------------------------------- |
-| `url`      | `string` | Yes      | HLS manifest URL (`.m3u8`) or progressive MP4 URL                     |
+| `id`       | `string \| number` | Yes      | Unique item id — the only structurally required field                 |
+| `url`      | `string` | For playback | HLS manifest URL (`.m3u8`) or progressive MP4 URL                 |
 | `title`    | `string` | No       | Display title shown in the UI and MediaSession metadata               |
 | `duration` | `number` | No       | Duration in seconds. Used by the UI before the backend loads metadata |
 
@@ -189,7 +190,7 @@ const v2Item = normalizeVideoItem(legacyItemWithTracks);
 ```
 
 `normalizeVideoItem` maps `tracks` entries to their typed v2 counterparts by `kind`:
-`'subtitles'` → `subtitles[]`, `'fonts'` → `fonts[]`. Unrecognised kinds are silently dropped.
+`'subtitles'` (or `'text'`, or a kindless entry with a language/label) → `subtitles[]`, `'fonts'` → `fonts[]`, and a `'chapters'` track's file is promoted to `previewSpriteUrl`.
 Use the typed fields (`subtitles`, `chapters`, `previewSpriteUrl`, `fonts`) in new code.
 
 ## Full example

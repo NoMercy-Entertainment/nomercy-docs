@@ -92,7 +92,7 @@ Without this plugin no canvas is created and no animation frames are requested, 
 | `mount` | `string \| HTMLElement` | player container | Where to mount the canvas. Accepts a CSS selector or an element reference. |
 | `width` | `number` | container `clientWidth` | Fixed logical width in CSS pixels. Setting both `width` and `height` disables `ResizeObserver` tracking. |
 | `height` | `number` | container `clientHeight` | Fixed logical height in CSS pixels. See `width`. |
-| `fps` | `number` | `60` | Target frames per second. Actual FPS is limited by the display refresh rate. |
+| `fps` | `number` | `60` | Declared but not currently read — the render loop runs at the display refresh rate and does not cap to this value. |
 | `pixelRatio` | `number` | `devicePixelRatio` | Bitmap resolution multiplier. Pass `2` for Retina output. |
 | `compositeMode` | `'clear' \| 'composite'` | `'clear'` | `'clear'` clears the canvas at the start of each frame. `'composite'` lets renderers accumulate on top of each other. |
 
@@ -159,8 +159,6 @@ The video and music player packages each ship a thin subclass that overrides `de
 
 | Event | Payload | When |
 | --- | --- | --- |
-| `cast:available` | `{ devices: number }` | Cast devices discovered |
-| `cast:connecting` | `{ deviceName: string }` | Session request initiated |
 | `cast:connected` | `{ deviceName: string }` | Session established |
 | `cast:disconnected` | `void` | Session ended (by user or receiver) |
 | `cast:error` | `{ error: Error }` | SDK error during connect or media load |
@@ -469,7 +467,7 @@ Subscribes to player events and forwards them outward as `nm:event` messages.
 
 **Inbound commands (`EmbedCommand`):** `play`, `pause`, `stop`, `seek` (with `time`), `volume` (with `level`), `mute`, `unmute`, `next`, `previous`.
 
-**Outbound events (`EmbedEventMessage`):** `ready`, `play`, `pause`, `ended`, `time` (with `time`+`duration`), `volume` (with `level`), `mute` (with `muted`), `error` (with `code`+`severity`).
+**Outbound events (`EmbedEventMessage`):** `ready`, `play`, `pause`, `ended`, `time` (with `time`), `volume` (with `level`), `mute` (with `muted`), `error` (with `code`+`severity`).
 
 **Registration example:**
 
@@ -638,7 +636,7 @@ msg?.queue(['Loading…', { text: 'Almost there!', durationMs: 1500 }, 'Done.'])
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `show(text, ms?)` | `(text: string, ms?: number) => void` | Display a transient toast. Replaces any current toast. `ms` defaults to `opts.durationMs` (3000). |
+| `show(text, ms?)` | `(text: string, ms?: number) => void` | Display a transient toast. Replaces any current toast. `ms` defaults to `3000` (the `durationMs` option is honored by `queue()` / `displayMessage()`, not by `show()`). |
 | `hide()` | `() => void` | Hide the current toast and cancel its timer. |
 | `displayMessage(data, ms?)` | `(data: string \| { text: string; durationMs?: number }, ms?: number) => void` | Compatibility method. Prefer `show()` for new code. |
 | `queue(messages)` | `(messages: ReadonlyArray<string \| { text: string; durationMs?: number }>) => void` | Play a sequence of messages back-to-back. Calling again cancels the previous run. |
@@ -670,9 +668,7 @@ In environments without `navigator.locks` the plugin emits `unsupported` and bec
 | Event | Payload | When |
 | --- | --- | --- |
 | `leader-acquired` | `void` | This tab acquired the leader lock |
-| `leader-released` | `void` | This tab voluntarily released the lock |
-| `leader-lost` | `{ reason: 'visibility' \| 'request' \| 'browser' }` | Leadership lost involuntarily |
-| `leader-requested` | `void` | A lock-acquire attempt has begun |
+| `leader-released` | `void` | This tab released the lock (voluntarily, or when another tab takes over) |
 | `unsupported` | `void` | Web Locks API not available |
 
 **Registration example:**
@@ -688,7 +684,7 @@ player.addPlugin(TabLeaderPlugin, {
 const leader = player.getPlugin(TabLeaderPlugin);
 leader?.isLeader(); // boolean
 
-player.on('plugin:tab-leader:leader-lost', () => player.pause());
+player.on('plugin:tab-leader:leader-released', () => player.pause());
 ```
 
 **Public methods:**
