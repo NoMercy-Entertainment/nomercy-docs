@@ -391,8 +391,7 @@ Sidecar files attach through the typed top-level fields on a playlist item (`sub
 | ------------ | ------------------------------------------------------------------------------------ |
 | `subtitles`  | WebVTT or ASS/SSA subtitle file. Set `ext: 'ass'` for ASS files.                    |
 | `chapters`   | WebVTT chapter markers. Parsed into the `chapters()` list on the player.             |
-| `thumbnails` | WebVTT file mapping timestamps to sprite coordinates for seek-preview thumbnails.    |
-| `sprite`     | The image sprite file containing the actual thumbnail frames.                        |
+| `thumbnails` | WebVTT sprite manifest for seek-preview thumbnails. Its cues point at the sprite image; this file maps to `previewSpriteUrl`. |
 | `fonts`      | Font files required by ASS subtitles for the `OctopusPlugin` renderer.              |
 
 Use the top-level item fields `subtitles`, `chapters`, `fonts`, and `previewSpriteUrl` directly:
@@ -417,11 +416,11 @@ Use the top-level item fields `subtitles`, `chapters`, `fonts`, and `previewSpri
   fonts: [
     { file: '/Sintel.(2010)/fonts/fonts.json' },
   ],
-  previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.webp',
+  previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.vtt',
 }
 ```
 
-A v1-style `tracks[]` array is not accepted on `VideoPlaylistItem` directly. To migrate v1 items, run them through `normalizeVideoItem()` from `@nomercy-entertainment/nomercy-video-player/compat`, which maps `tracks[]` entries onto the typed fields: `kind: 'subtitles'` (or `'text'`, or no kind) into `subtitles`, `kind: 'fonts'` into `fonts`, and a `kind: 'chapters'` track's file is promoted to `previewSpriteUrl`.
+A v1-style `tracks[]` array is not accepted on `VideoPlaylistItem` directly. To migrate v1 items, run them through `normalizeVideoItem()` from `@nomercy-entertainment/nomercy-video-player/compat`, which maps `tracks[]` entries onto the typed fields: `kind: 'subtitles'` (or `'text'`, or no kind) into `subtitles`, `kind: 'thumbnails'` into `previewSpriteUrl`, and `kind: 'fonts'` into `fonts`. A legacy `kind: 'chapters'` file is also promoted to `previewSpriteUrl` when no thumbnails entry is present.
 
 ### Series episode labels
 
