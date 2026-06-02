@@ -19,7 +19,7 @@ Both are stateless, a single instance is reused across items, and swappable per 
 ### Interface
 
 ```ts
-interface PreloadStrategy {
+interface IPreloadStrategy {
   shouldPreload(context: PreloadContext): boolean;
   assetsToPreload(item: BasePlaylistItem): PreloadAsset[];
   cancel(): void;
@@ -71,10 +71,10 @@ player.setup({
 ### Interface
 
 ```ts
-interface TransitionStrategy {
+interface ITransitionStrategy {
   shouldTransition(context: PreloadContext): boolean;
-  start(outgoing: BasePlaylistItem, incoming: BasePlaylistItem, backend: TransitionBackend | null): void;
-  tick(context: TransitionContext, backend: TransitionBackend | null): void;
+  start(outgoing: BasePlaylistItem, incoming: BasePlaylistItem, backend: ITransitionBackend | null): void;
+  tick(context: TransitionContext, backend: ITransitionBackend | null): void;
   complete(from: BasePlaylistItem, to: BasePlaylistItem): void;
   cancel(reason: string): void;
 }
@@ -147,8 +147,8 @@ import {
 | `crossfadeLeadSeconds` | `number`             | `3`                              | Seconds before end to begin crossfade     |
 | `crossfadeTailSeconds` | `number`             | `3`                              | Seconds of audio overlap during crossfade |
 | `crossfadeEnabled`     | `boolean`            | `true` (music) / `false` (video) | Enable crossfade transition               |
-| `preloadStrategy`      | `PreloadStrategy`    | `DefaultPreloadStrategy`         | Custom preload strategy                   |
-| `transitionStrategy`   | `TransitionStrategy` | Per-library default              | Custom transition strategy                |
+| `preloadStrategy`      | `IPreloadStrategy`   | `DefaultPreloadStrategy`         | Custom preload strategy                   |
+| `transitionStrategy`   | `ITransitionStrategy`| Per-library default              | Custom transition strategy                |
 
 ## Preload events
 
