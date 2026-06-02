@@ -8,8 +8,8 @@ draft: false
 
 ## What is a thumbnail source?
 
-`IThumbnailSource` is the adapter the player calls to supply hover thumbnail frames for the progress bar.
-The default implementation (`VttSpriteThumbnailSource`) fetches a WebVTT sprite manifest and parses the sprite coordinates from each cue.
+`IThumbnailSource` is the contract for supplying hover thumbnail frames to a progress bar.
+`VttSpriteThumbnailSource` is a ready-made implementation of it, exported for consumers building a custom progress bar; it fetches a WebVTT sprite manifest and parses the sprite coordinates from each cue. It is not wired into the player by default: the built-in `DesktopUiPlugin` reads `previewSpriteUrl` through its own internal sprite loader.
 A custom implementation could use a different manifest format or a server-side lookup.
 
 ## IThumbnailSource interface
@@ -40,9 +40,9 @@ interface ThumbnailFrame {
 }
 ```
 
-## Default implementation: VttSpriteThumbnailSource
+## Ready-made implementation: VttSpriteThumbnailSource
 
-`VttSpriteThumbnailSource` is used automatically.
+`VttSpriteThumbnailSource` is not wired in automatically; construct it yourself when building a custom progress bar.
 It reads the `previewSpriteUrl` field on `VideoPlaylistItem`:
 
 ```ts

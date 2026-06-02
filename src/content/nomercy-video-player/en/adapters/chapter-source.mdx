@@ -8,8 +8,8 @@ draft: false
 
 ## What is a chapter source?
 
-`IChapterSource` is the adapter the player calls to load and query chapter data for each playlist item.
-The default implementation (`VttChapterSource`) reads chapters from the `chapters` typed field on `VideoPlaylistItem`.
+`IChapterSource` is the contract for loading and querying chapter data for a playlist item.
+`VttChapterSource` is a ready-made implementation of it, exported for consumers building a custom chapter source. It is not wired into the player by default: `player.chapters()` is resolved by the player core's media-tracks layer, which reads the inline `chapters` field or fetches a sidecar `kind: 'chapters'` VTT.
 A custom implementation could fetch chapters from an API endpoint or parse a different file format.
 
 ## IChapterSource interface
@@ -25,10 +25,9 @@ import type { IChapterSource } from '@nomercy-entertainment/nomercy-video-player
 | `all()`                | `() => Chapter[]`                                | Return all chapters for the current item. Synchronous                |
 | `unload()`             | `() => void`                                     | Release cached chapter data. Called on unload and dispose            |
 
-## Default implementation: VttChapterSource
+## How chapters are resolved
 
-`VttChapterSource` is used automatically when no custom chapter source is configured.
-It reads chapters from the `chapters` typed array on `VideoPlaylistItem`:
+The player core's media-tracks layer resolves chapters for `player.chapters()`. It reads the `chapters` typed array on `VideoPlaylistItem` when present:
 
 ```ts
 import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
@@ -44,9 +43,9 @@ const item: VideoPlaylistItem = {
 };
 ```
 
-When `chapters` is present and non-empty, `VttChapterSource.load()` resolves immediately with the pre-supplied list without making any network request.
+When `chapters` is present and non-empty, the list is used directly without any network request.
 
-The default `VttChapterSource` is wired automatically, so you do not construct it yourself. It reads the resolved chapter list from the item's `chapters` field, so the simplest way to show chapters is to pre-populate that field on the playlist item:
+You do not construct a chapter source yourself; the media-tracks layer handles resolution. The simplest way to show chapters is to pre-populate the item's `chapters` field:
 
 ```ts
 import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
@@ -105,7 +104,7 @@ class ApiChapterSourcePlugin extends Plugin<NMVideoPlayer<VideoPlaylistItem>> {
 player.addPlugin(ApiChapterSourcePlugin);
 ```
 
-The built-in `VttChapterSource` uses `this.fetch()` the same way, auth-aware, no manual token threading required.
+Loading chapters inside a plugin and emitting the `chapters` event is the supported pattern for custom sources; for inline and sidecar-VTT chapters the player core does the work itself.
 
 ## Chapter type
 
