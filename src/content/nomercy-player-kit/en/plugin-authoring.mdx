@@ -157,6 +157,74 @@ async use(): Promise<void> {
 `dispose()` is called on `player.dispose()` or `player.removePlugin()`.
 All timers, intervals, animation frames, and DOM mounts registered through the plugin's helper methods (`this.timeout`, `this.interval`, `this.frame`, `this.mount`) auto-dispose, so you only need to explicitly clean up external resources.
 
+## Lifecycle helpers
+
+Allocate every resource through one of these protected helpers instead of the raw browser API. Each one registers its own teardown with the plugin's lifecycle registry, so it is released automatically on `dispose()` and you never write the cleanup yourself. `dispose()` is reserved for the things the kit cannot see — third-party library instances, custom observers, a `WebGLRenderingContext`.
+
+| Helper | Returns | Replaces | Released on dispose |
+| ------ | ------- | -------- | ------------------- |
+| `this.listen(target, event, handler, options?)` | `void` | `target.addEventListener` | listener removed |
+| `this.timeout(fn, ms)` | `number` (handle) | `setTimeout` | timer cleared |
+| `this.interval(fn, ms)` | `number` (handle) | `setInterval` | timer cleared |
+| `this.frame(fn)` | `() => void` (cancel) | a `requestAnimationFrame` loop | loop cancelled |
+| `this.abortable()` | `AbortController` | `new AbortController()` | `abort()` called |
+| `this.websocket(url, opts?)` | `IRealtimeChannel` | `new WebSocket(url)` | channel closed |
+| `this.mount(name)` | `HTMLDivElement` | `container.appendChild(...)` | node removed |
+| `this.appendStyles(href, id)` | `void` | a `<link>` in `<head>` | stays (once per id) |
+
+### Listeners and timers
+
+```ts
+use(): void {
+  this.listen(document, 'keydown', this.onKey);   // not document.addEventListener
+  this.timeout(() => this.hideToast(), 3000);      // not setTimeout
+  this.interval(() => this.poll(), 10_000);        // not setInterval
+}
+```
+
+`this.listen` is the one to reach for over a raw `addEventListener` — an untracked listener is the most common source of ghost handlers firing after the player is gone. `timeout` and `interval` return their numeric handle if you want to clear one early; most callers discard it.
+
+### Animation frames, and cancelling one yourself
+
+`this.frame(fn)` drives a `requestAnimationFrame` loop and hands your callback the frame delta and the timestamp. The loop is cancelled automatically on `dispose()` — but it also **returns a disposer** so you can stop one loop early, by hand, without tearing down the whole plugin:
+
+```ts
+use(): void {
+  const stopRender = this.frame((deltaMs, time) => {
+    this.render(time);
+  });
+
+  // Later — stop this one loop while the plugin (and its other loops) keep running:
+  this.on('ended', () => stopRender());
+}
+```
+
+That is the answer to "how do I dispose a `frame()` loop programmatically": keep the returned function and call it. For a single deferred write rather than a continuous loop, use `this.timeout(fn, 0)` instead.
+
+### Abort controllers, sockets, mounts, and styles
+
+```ts
+use(): void {
+  // AbortController that aborts on dispose — hand its signal to any Web API:
+  const controller = this.abortable();
+  void fetch(this.opts.url, { signal: controller.signal });
+
+  // Auto-reconnecting realtime channel, closed on dispose:
+  const channel = this.websocket('wss://example.com/sync');
+  channel.on('message', e => this.handle(e));
+
+  // A namespaced <div> on the player container (class `nmplayer-<id>-<name>`),
+  // removed on dispose:
+  const panel = this.mount('panel');
+  panel.textContent = 'ready';
+
+  // A stylesheet added to <head> once per id (kept in place, shared):
+  this.appendStyles(new URL('./styles.css', import.meta.url).href, 'myplugin-styles');
+}
+```
+
+`this.fetch(...)` (auth-aware HTTP) and `this.resolveUrl(...)` (auth-aware URL resolution) are covered under [Auth and Fetch](/nomercy-player-core/auth-fetch); `this.t(...)` under [Internationalisation](/nomercy-player-core/i18n).
+
 ## Event listening
 
 Always use `this.on(...)` inside a plugin, never `player.on(...)`.
