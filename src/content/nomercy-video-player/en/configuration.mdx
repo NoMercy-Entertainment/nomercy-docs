@@ -423,15 +423,15 @@ Use the top-level item fields `subtitles`, `chapters`, `fonts`, and `previewSpri
 
 A v1-style `tracks[]` array is not accepted on `VideoPlaylistItem` directly. To migrate v1 items, run them through `normalizeVideoItem()` from `@nomercy-entertainment/nomercy-video-player/compat`, which maps `tracks[]` entries onto the typed fields: `kind: 'subtitles'` (or `'text'`, or no kind) into `subtitles`, `kind: 'fonts'` into `fonts`, and a `kind: 'chapters'` track's file is promoted to `previewSpriteUrl`.
 
-### Title placeholders
+### Series episode labels
 
-Playlist item titles support `%S` and `%E` placeholders for localized season and episode abbreviations.
-The player substitutes them at runtime using the active locale, so your server can send language-neutral titles:
+For TV content, the desktop-ui top bar derives a season/episode label from the numeric `season` and `episode` fields, so you don't format it into the title yourself.
+The primary line shows `show` (or `title` for a standalone movie); the secondary line shows the episode label followed by the episode title (`title`, when it differs from `show`):
 
 ```ts
 {
   id: 'bbb-ep3',
-  title: '%S01%E03 The Big Escape',
+  title: 'The Big Escape',
   show: 'Big Buck Bunny',
   season: 1,
   episode: 3,
@@ -439,11 +439,12 @@ The player substitutes them at runtime using the active locale, so your server c
   image: '/w780/xtdybjRRZ15mCrPOvEld305myys.jpg',
   duration: 596,
 }
-// English: "S01E03 The Big Escape"
-// Dutch:   "S01A03 The Big Escape"  (A = Aflevering)
+// Top bar primary:   "Big Buck Bunny"
+// Top bar secondary: "S1E3 • The Big Escape"
 ```
 
-The translations for `S` and `E` are included in all built-in locale bundles.
+The label format follows the season number: `S{season}E{episode}` for a normal season, `Extras E{episode}` when `season` is `0`, and `A{episode}` when no season is set.
+These labels are built in code from the numeric fields and are not localized.
 
 ### Resume playback
 
