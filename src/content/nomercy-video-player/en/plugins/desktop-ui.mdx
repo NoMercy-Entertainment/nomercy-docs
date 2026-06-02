@@ -139,22 +139,23 @@ The chapter navigation buttons are the unique control-bar value in the default l
 
 ### Responsive button removal
 
-When the container narrows, buttons are hidden in reverse priority order.
-The default priority list removes the most optional buttons first:
+Button visibility is decided by fit math, not by fixed breakpoint tiers.
+The plugin walks the priority list most-important-first, adds up each shown button's width, and hides any button that no longer fits the available width (the container width minus space reserved for the time labels and divider).
+So as the container narrows, buttons drop off in reverse priority order, the most optional first:
 
 `play -> mute -> volume -> fullscreen -> settings -> next -> previous -> chapterPrev -> chapterNext -> seekBack -> seekForward -> theater -> pip -> speed -> quality -> subtitles -> audio -> aspectRatio -> playlist`
 
 Override with `buttonPriority` if you need a different order.
 
-The default breakpoint tiers are:
+The plugin also reports a breakpoint name on the `layout:breakpoint` event and as a `data-breakpoint` attribute on the container, derived from these thresholds. These help consumers react to width tiers; they do not themselves gate which buttons render (the fit math does):
 
-| Tier | Max container width | Behaviour |
-| --- | --- | --- |
-| `xs` | 320 px | Only the first 2 priority buttons |
-| `sm` | 480 px | First 5 priority buttons |
-| `md` | 720 px | First 9 priority buttons |
-| `lg` | 1024 px | First 14 priority buttons |
-| `xl` | no limit | All enabled buttons |
+| Breakpoint | Max container width |
+| --- | --- |
+| `xs` | 320 px |
+| `sm` | 480 px |
+| `md` | 720 px |
+| `lg` | 1024 px |
+| `xl` | no limit |
 
 Portrait mode additionally hides `chapterPrev`, `chapterNext`, `previous`, `next`, `subtitles`, `audio`, `quality`, and `playlist` regardless of container width.
 
