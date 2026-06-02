@@ -223,7 +223,7 @@ class Plugin<
   protected listen(target, event, handler, options?): void;
   protected timeout(fn, ms): number;
   protected interval(fn, ms): number;
-  protected frame(fn: (deltaMs: number, time: number) => void): void;
+  protected frame(fn: (deltaMs: number, time: number) => void): () => void; // returns a cancel disposer
   protected abortable(): AbortController;
 
   // Class-level utilities
@@ -279,10 +279,10 @@ class MyPlugin extends Plugin<IPlayer, MyOptions, MyEvents> {
   }
 }
 
-// Register at setup time
-player.setup({
-  plugins: [[MyPlugin, { apiUrl: 'https://api.example.com' }]],
-});
+// Register the plugin before setup, then set up:
+player
+  .addPlugin(MyPlugin, { apiUrl: 'https://api.example.com' })
+  .setup({});
 ```
 
 ### Plugin event forms
@@ -320,7 +320,7 @@ Consumer-supplied opts at registration time win (shallow merge):
 
 ```ts
 const LoudPlugin = MyPlugin.derive({ volume: 1.0 }, 'loud-myplugin');
-player.setup({ plugins: [[LoudPlugin]] });
+player.addPlugin(LoudPlugin).setup({});
 ```
 
 `clone()` captures the current instance's options via `export()` and calls `derive()`.

@@ -54,7 +54,7 @@ player.setup({
 | ------------ | ------------- | -------------- | ------------------------------ | ---------------------------------------------------------- |
 | Auth config  | `auth`        | `AuthConfig`   | None (unauthenticated)         | Your media sources require authorization                   |
 | Fetch        | (internal)    | `IFetch`       | `globalThis.fetch`             | Injecting a mock fetch in tests or a custom fetch polyfill |
-| Retry policy | (internal)    | `IRetryPolicy` | 3 retries, exponential backoff | Retry is applied per request inside `authFetch`            |
+| Retry policy | (internal)    | `IRetryPolicy` | Per-code policy map; default is no retry (`{ attempts: 0 }`) | Retry is applied per request inside `authFetch`            |
 
 ### Platform abstraction
 
@@ -85,7 +85,7 @@ platform: { ...browserPlatform, wakeLock: myNativeWakeLock }
 | ------------------ | ----------------------------------- | -------------------- | ------------------------------- | ----------------------------------------------- |
 | Translator         | `translations` / `loadTranslations` | `ITranslator`        | Built-in BCP-47 string resolver | Custom translation backend (i18next, Fluent)    |
 | Language matcher   | (internal)                          | `ILanguageMatcher`   | BCP-47 matching                 | Stricter locale matching                        |
-| Translation loader | `loadTranslations`                  | `ITranslationLoader` | JSON file loader                | Lazy load from CDN, merge from multiple sources |
+| Translation loader | `loadTranslations`                  | `TranslationLoader`  | JSON file loader                | Lazy load from CDN, merge from multiple sources |
 
 ### Subtitles and cues
 

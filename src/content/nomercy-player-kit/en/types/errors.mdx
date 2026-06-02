@@ -48,8 +48,12 @@ class PlayerError extends Error {
 ```ts
 type ErrorScope =
   | { kind: 'core' }
-  | { kind: 'plugin'; id: string }
-  | { kind: 'backend'; id?: string };
+  | { kind: 'backend'; id: 'audio-element' | 'webaudio' | 'video' | 'html5' | 'mse' | 'webcodecs' }
+  | { kind: 'stream'; id: 'native' | 'hls' | 'dash' }
+  | { kind: 'cue'; id: 'lrc' | 'vtt' | 'sprite-vtt' | 'ttml' }
+  | { kind: 'network' }
+  | { kind: 'auth' }
+  | { kind: 'plugin'; id: string };
 ```
 
 ## StateError
@@ -73,7 +77,7 @@ Carries `context.url`.
 
 Thrown when a media item cannot be loaded due to missing or malformed data.
 
-Common codes: `core:media/missing-url`, `core:media/unsupported-format`
+Common codes: `core:media/missing-url`, `core:media/codec-unsupported`, `core:media/load-failed`
 
 ## StreamError
 
@@ -140,7 +144,7 @@ The shape carried on `fatal`, `error`, `warning`, and `info` events:
 
 ```ts
 interface PlayerErrorEvent {
-  error: Error;
+  error: PlayerError;
   severity: Severity;
   scope: ErrorScope;
   timestamp: number;
@@ -148,19 +152,25 @@ interface PlayerErrorEvent {
   isHandled(): boolean;
   stopImmediatePropagation(): void;
   isPropagationStopped(): boolean;
+  preventDefault(): void;
+  isDefaultPrevented(): boolean;
 }
 ```
 
 ## Retry policy
 
-```ts
-import { DEFAULT_RETRY_POLICY } from '@nomercy-entertainment/nomercy-player-core';
+Per-call retry behaviour is a `RetryConfig`; a full policy is a map of error-code matcher to `RetryConfig`:
 
-interface RetryPolicy {
-  maxAttempts: number;
-  backoffMs: number;
-  backoffMultiplier: number;
+```ts
+interface RetryConfig {
+  attempts: number;                  // 0 = never retry
+  backoff?: 'linear' | 'exponential';
+  baseMs?: number;
+  maxMs?: number;
+  refreshFirst?: boolean;            // run the auth refresh before the first retry (used for 401s)
 }
+
+type IRetryPolicy = Record<string, RetryConfig>;
 ```
 
 ## See also

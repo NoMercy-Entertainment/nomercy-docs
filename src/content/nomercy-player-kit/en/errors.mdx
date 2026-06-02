@@ -42,47 +42,57 @@ Core codes always start with `core:`. Plugin codes are namespaced with the plugi
 
 ### Network errors (`NetworkError`)
 
-| Code                       | When                                                          |
-| -------------------------- | ------------------------------------------------------------- |
-| `core:network/timeout`     | Request exceeded `timeoutMs`.                                 |
-| `core:network/fetch-error` | DNS failure, CORS block, TCP reset, or other transport error. |
-| `core:network/offline`     | `navigator.onLine` is false when a request is made.           |
+| Code                               | When                                                |
+| ---------------------------------- | --------------------------------------------------- |
+| `core:network/timeout`             | Request exceeded `timeoutMs`.                       |
+| `core:network/request-timeout`     | Server returned 408.                                |
+| `core:network/aborted`             | Request was aborted (e.g. on plugin dispose).       |
+| `core:network/offline`             | `navigator.onLine` is false when a request is made. |
+| `core:network/not-found`           | 404.                                                |
+| `core:network/gone`                | 410.                                                |
+| `core:network/rate-limited`        | 429.                                                |
+| `core:network/client-error`        | Other 4xx.                                          |
+| `core:network/server-error`        | 500.                                                |
+| `core:network/bad-gateway`         | 502.                                                |
+| `core:network/service-unavailable` | 503.                                                |
+| `core:network/gateway-timeout`     | 504.                                                |
+| `core:network/server-error-other`  | Other 5xx.                                          |
+| `core:network/parse-failed`        | Response body could not be parsed.                  |
 
 ### Stream errors (`StreamError`)
 
-| Code                               | When                                            |
-| ---------------------------------- | ----------------------------------------------- |
-| `core:stream/hls-error`            | hls.js emitted a media or network error.        |
-| `core:stream/manifest-load-failed` | M3U8 manifest could not be fetched.             |
-| `core:stream/segment-load-failed`  | A fragment/segment download failed.             |
-| `core:stream/buffer-stalled`       | MSE `appendBuffer` stalled (no data to append). |
-| `core:stream/key-load-failed`      | AES-128 key fetch failed (for encrypted HLS).   |
+| Code                            | When                                              |
+| ------------------------------- | ------------------------------------------------- |
+| `core:stream/fragment-failed`   | An HLS fragment/segment failed to load or parse.  |
+| `core:stream/hls-attach-failed` | hls.js could not attach to the media element.     |
+| `core:stream/no-factory-match`  | No registered stream factory matched the source.  |
 
 ### Media format errors (`MediaFormatError`)
 
 | Code                           | When                                            |
 | ------------------------------ | ----------------------------------------------- |
-| `core:media/codec-unsupported` | Browser rejects codec string via `canPlayType`. |
-| `core:media/missing-url`       | Playlist item has no `url` or `file` field.     |
-| `core:media/container-error`   | Corrupt or malformed container.                 |
-| `core:media/decode-error`      | Decoder error during playback.                  |
+| `core:media/codec-unsupported` | Browser rejects the codec string via `canPlayType`. |
+| `core:media/hls-unsupported`   | HLS source but no native or hls.js support.         |
+| `core:media/load-failed`       | The media element failed to load the source.        |
+| `core:media/missing-url`       | Playlist item has no resolvable `url`.              |
 
 ### Resource errors (`ResourceError`)
 
 | Code                               | When                                                         |
 | ---------------------------------- | ------------------------------------------------------------ |
-| `core:resource/worker-init-failed` | Web Worker could not be started (e.g. OctopusPlugin worker). |
-| `core:resource/wasm-load-failed`   | WASM binary failed to fetch or compile.                      |
-| `core:resource/chunk-load-failed`  | A dynamically-imported plugin chunk failed to load.          |
+| `core:resource/worker-init-failed` | A Web Worker could not be started (e.g. the OctopusPlugin worker). |
 
 ### Browser policy errors (`BrowserPolicyError`)
 
 | Code                                | When                                                  |
 | ----------------------------------- | ----------------------------------------------------- |
 | `core:policy/autoplay-blocked`      | Browser blocked `play()` due to autoplay policy.      |
-| `core:policy/fullscreenUnsupported` | Fullscreen requested but no controller is configured. |
-| `core:policy/pipUnsupported`        | PiP requested but no controller is configured.        |
-| `core:policy/permissions-denied`    | `navigator.permissions` denied a required capability. |
+| `core:policy/fullscreenUnsupported` | Fullscreen requested but not available.               |
+| `core:policy/pipUnsupported`        | Picture-in-picture requested but not available.       |
+| `core:policy/emeUnsupported`        | EME/DRM requested but not available.                  |
+| `core:policy/castUnavailable`       | Cast requested but the Cast SDK is unavailable.       |
+
+There is a `core:policy/<capability>Unsupported` (or `Unavailable`) code for each gated browser capability — AirPlay, Web Audio, canvas 2D, capture-stream, IndexedDB, remote playback, wake lock, `setSinkId`, and the audio-output picker among them.
 
 ### Playlist errors (`PlayerError`)
 
@@ -119,28 +129,34 @@ Core codes always start with `core:`. Plugin codes are namespaced with the plugi
 ## Listening to errors
 
 ```ts
-player.on('error', (err) => {
-  console.error(`Error ${err.code}: ${err.message}`);
+player.on('error', (event) => {
+  console.error(`Error ${event.error.code}: ${event.error.message}`);
 });
 
-player.on('fatal', (err) => {
+player.on('fatal', () => {
   showUserMessage('Playback failed. Please reload.');
 });
 
-player.on('warning', (err) => {
-  console.warn(`Warning ${err.code}: ${err.message}`);
+player.on('warning', (event) => {
+  console.warn(`Warning ${event.error.code}: ${event.error.message}`);
 });
 ```
 
-`PlayerErrorEvent` shape:
+The handler receives a `PlayerErrorEvent`. The structured error lives on `.error` (so it is `event.error.code`, not `event.code`); the rest of the payload is the severity, scope, timestamp, and the cancellable-event controls:
 
 ```ts
 interface PlayerErrorEvent {
-  code: string;
-  message: string;
-  severity: 'error' | 'fatal' | 'warning' | 'info';
-  cause?: unknown;
-  context?: Record<string, unknown>;
+  error: PlayerError;        // .code, .message, .cause?, .context?, .suggestion?
+  severity: 'fatal' | 'error' | 'warning' | 'info';
+  scope: ErrorScope;
+  timestamp: number;
+
+  markHandled(): void;
+  isHandled(): boolean;
+  stopImmediatePropagation(): void;
+  isPropagationStopped(): boolean;
+  preventDefault(): void;       // suppress the kit's default action (e.g. auto-retry)
+  isDefaultPrevented(): boolean;
 }
 ```
 
@@ -188,11 +204,11 @@ class MyPlugin extends Plugin {
 | Action         | Behavior                                                                       |
 | -------------- | ------------------------------------------------------------------------------ |
 | `'retry-once'` | Retry the failing operation once                                               |
-| `'fallback'`   | Activate the plugin's fallback behavior (plugin must implement `onFallback()`) |
+| `'fallback'`   | Activate the plugin's fallback behavior (plugin must implement `activateFallback()`) |
 | `'disable'`    | Disable the plugin gracefully                                                  |
 | `'ignore'`     | Log and continue, no action taken                                              |
 
-Consumer code can override the policy per-plugin at setup time via `setup({ errorPolicy })`.
+Recovery actions are declared per plugin through `static onError`; `'retry-once'` calls the plugin's `retryLastOperation()` and `'fallback'` calls its `activateFallback()`. There is no setup-level override.
 
 ## Inside plugins: `this.throw` and `this.report`
 

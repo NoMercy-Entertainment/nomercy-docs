@@ -22,7 +22,7 @@ Defaults to 100, but a stored preference may have overridden it.
 Call `player.unmute()` if needed.
 
 4. **Audio output routed to wrong device.** Call `player.audioOutputs()` and verify the target device is listed.
-Use `player.selectAudioOutput(deviceId)` to switch.
+Use `player.audioOutput(deviceId)` to route to a specific device, or `player.selectAudioOutput()` to open the system picker.
 
 5. **Source URL unreachable.** Open the URL directly in the browser.
 If it 404s or 401s, the track `url` field is wrong or auth is missing.
@@ -54,11 +54,11 @@ Use `crossfade: true` and `crossfadeDuration` in `AutoAdvancePlugin` options ins
 
 **Causes and fixes:**
 
-1. **No `lyricsUrl` on the track.** `LyricsPlugin` calls `ILyricSource.resolve(item)` which falls back to `item.lyricsUrl`.
+1. **No `lyricsUrl` on the track.** `LyricsPlugin` reads `getLyricsUrl(item)` if you set that option, otherwise `item.lyricsUrl`.
 If neither is set, no fetch occurs.
 Check your `MusicPlaylistItem.lyricsUrl`.
 
-2. **`ILyricSource` not registered.** If you have not called `player.lyricSource(mySource)`, the plugin uses `item.lyricsUrl` directly.
+2. **No custom resolver.** Without a `getLyricsUrl` option on `LyricsPlugin`, it uses `item.lyricsUrl` directly.
 This still works if the URL is correct.
 
 3. **Unsupported file extension.** Parser selection is by URL extension.

@@ -72,9 +72,9 @@ interface IPlayer<E extends BaseEventMap = BaseEventMap> extends DispatchTarget 
   removeTranslations(prefix: string, lang?: string): void;
 
   // Cue parsers
-  registerICueParser(parser: ICueParser, prepend?: boolean): void;
-  unregisterICueParser(id: string): void;
-  resolveICueParser(url: string): ICueParser | undefined;
+  registerCueParser(parser: ICueParser, prepend?: boolean): void;
+  unregisterCueParser(id: string): void;
+  resolveCueParser(url: string): ICueParser | undefined;
 
   // Auth
   auth(): Readonly<AuthConfig> | undefined;
@@ -119,12 +119,12 @@ It is never set at runtime.
 ## WithCurrentItem
 
 Capability interface for plugins that need to read the active playlist item.
-`IPlayer<E>` is intentionally item-type-agnostic; `current()` is not on it.
+`IPlayer<E>` is intentionally item-type-agnostic; `item()` is not on it.
 Plugins that need the active item add `& WithCurrentItem<YourItemType>` to their `P` generic.
 
 ```ts
 interface WithCurrentItem<T extends BasePlaylistItem = BasePlaylistItem> {
-  current(): T | undefined;
+  item(): T | undefined;
 }
 ```
 
@@ -169,7 +169,7 @@ interface BasePlayerConfig {
   storage?: IStorage;
 
   // Platform adapter
-  platform?: Partial<IPlatform>;
+  platform?: IPlatform;
 
   // Realtime / WebSocket factory
   websocketFactory?: RealtimeFactory;
@@ -225,7 +225,7 @@ interface BasePlayerConfig {
 | `baseUrl`              | `string`              | none                        | Prefixed to all relative media URLs                            |
 | `beforeEventTimeoutMs` | `number`              | `10000`                     | Max wait for `delay()` promises in before-events               |
 | `pluginInitTimeoutMs`  | `number`              | `30000`                     | Max wait for async `use()` per plugin                          |
-| `platform`             | `Partial<IPlatform>`  | `browserPlatform`           | Swap wake-lock, network, fullscreen, PiP adapters              |
+| `platform`             | `IPlatform`           | `browserPlatform`           | Swap wake-lock, network, fullscreen, PiP adapters (spread `browserPlatform` to override one) |
 | `mutationGuards`       | `MutationGuardConfig` | none                        | Which mutations emit `beforeMutation`                          |
 | `preloadStrategy`      | `PreloadStrategy`     | `DefaultPreloadStrategy`    | When and what to buffer ahead                                  |
 | `transitionStrategy`   | `TransitionStrategy`  | `GaplessTransitionStrategy` | How track boundaries feel                                      |

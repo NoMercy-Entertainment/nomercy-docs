@@ -103,15 +103,15 @@ Resume with `player.play()`.
 Implement a `StorageAdapter` and pass it in setup:
 
 ```ts
+import { LocalStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
+
 const player = nmMPlayer('main').setup({
   playlist: [],
-  storage: {
-    get: (key) => localStorage.getItem(key),
-    set: (key, value) => localStorage.setItem(key, value),
-    remove: (key) => localStorage.removeItem(key),
-  },
+  storage: new LocalStorageBackend(), // the default; pass your own IStorage to persist elsewhere
 });
 ```
+
+A custom `storage` must implement the full `IStorage` interface (`get`, `set`, `remove`, `getJSON`, `setJSON`) — extend `LocalStorageBackend` or wrap your own backend.
 
 The core automatically reads and writes `volume`, `shuffleState`, `repeatState`, and `playbackRate` through the storage adapter.
 

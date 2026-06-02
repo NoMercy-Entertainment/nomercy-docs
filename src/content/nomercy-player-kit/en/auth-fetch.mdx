@@ -121,23 +121,15 @@ player.on('auth:failed', ({ error }) => {
 
 ## Retry policy
 
-The default retry policy retries failed network requests with exponential backoff.
-Configure it by passing a partial `IRetryPolicy` map to `setup()`, it is merged over `DEFAULT_RETRY_POLICY`, so only the codes you want to override need to appear:
+`authFetch` retries failed requests using a built-in per-code policy, `DEFAULT_RETRY_POLICY` — an `IRetryPolicy` (a map of error-code matcher to `RetryConfig`). The default is conservative: most codes do not retry, transient ones (timeouts, 5xx, fragment loads) retry a few times with backoff, and 403 never retries.
+
+There is no setup-level retry option. To override retry behaviour for a specific request, pass a `RetryConfig` as the `retry` option on `this.fetch()` inside a plugin:
 
 ```ts
-import type { IRetryPolicy } from '@nomercy-entertainment/nomercy-player-core';
-
-const retryPolicy: IRetryPolicy = {
-  '*': {
-    attempts: 5,
-    backoff: 'exponential',
-    baseMs: 200,
-    maxMs: 10_000,
-  },
-  'core:auth/forbidden': { attempts: 0 }, // never retry 403
-};
-
-player.setup({ retryPolicy });
+// inside a plugin's use()
+await this.fetch(url, {
+  retry: { attempts: 5, backoff: 'exponential', baseMs: 200, maxMs: 10_000 },
+});
 ```
 
 Auth refresh retries are separate from the general retry policy, so `refreshOnUnauthenticated` is called exactly once, not retried.

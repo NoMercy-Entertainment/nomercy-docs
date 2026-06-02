@@ -118,7 +118,7 @@ Start in theater mode. Default `false`.
 playbackRates?: number[]
 ```
 
-Available playback rate options. Default: `[0.5, 0.75, 1.0, 1.25, 1.5, 2.0]`.
+The intended list of selectable playback rates. **Note:** the player currently uses a fixed list (`[0.5, 0.75, 1, 1.25, 1.5, 2]`) and does not yet read this option, so setting it has no effect today.
 
 ## Language and defaults
 
@@ -394,8 +394,7 @@ Use `disableMediaControls` in new code, `disableControls` is a deprecated alias.
 
 ### Track kinds
 
-Each playlist item accepts a `tracks` array for sidecar files.
-The `kind` field on each track tells the player what to do with the file:
+Sidecar files attach through the typed top-level fields on a playlist item (`subtitles`, `chapters`, `fonts`, `previewSpriteUrl`). A v1-style unified `tracks` array is *not* a field on `VideoPlaylistItem`. The `kind` on each entry tells the player what the file is:
 
 | Kind         | Purpose                                                                              |
 | ------------ | ------------------------------------------------------------------------------------ |
@@ -405,8 +404,7 @@ The `kind` field on each track tells the player what to do with the file:
 | `sprite`     | The image sprite file containing the actual thumbnail frames.                        |
 | `fonts`      | Font files required by ASS subtitles for the `OctopusPlugin` renderer.              |
 
-The typed alternatives to `tracks[]` are preferred for new integrations.
-Use the top-level item fields `subtitles`, `chapters`, `fonts`, and `previewSpriteUrl` directly when the shape is known at build time:
+Use the top-level item fields `subtitles`, `chapters`, `fonts`, and `previewSpriteUrl` directly:
 
 ```ts
 {
@@ -432,8 +430,7 @@ Use the top-level item fields `subtitles`, `chapters`, `fonts`, and `previewSpri
 }
 ```
 
-The legacy `tracks[]` array is still accepted and normalised automatically.
-Tracks with `kind: 'chapters'` are mapped into `item.chapters`; tracks with `kind: 'fonts'` are mapped into `item.fonts`.
+A v1-style `tracks[]` array is not accepted on `VideoPlaylistItem` directly. To migrate v1 items, run them through `normalizeVideoItem()` from `@nomercy-entertainment/nomercy-video-player/compat`, which maps `tracks[]` entries (`kind: 'chapters'` into `item.chapters`, `kind: 'fonts'` into `item.fonts`, and so on) onto the typed fields above.
 
 ### Title placeholders
 
