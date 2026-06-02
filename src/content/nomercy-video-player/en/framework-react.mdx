@@ -12,7 +12,7 @@ Use `useRef` to hold the instance.
 
 ```tsx
 // components/VideoPlayer.tsx
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useId } from 'react';
 import {
   nmplayer,
   DesktopUiPlugin,
@@ -25,24 +25,23 @@ interface VideoPlayerProps {
 }
 
 export function VideoPlayer({ items }: VideoPlayerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerId = useId();
   const playerRef = useRef<NMVideoPlayer | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
-
-    const player = nmplayer('main').setup({
-      container: containerRef.current,
-      queue: items,
-    });
-
-    player
+    // The player mounts by finding the div with the matching id.
+    const player = nmplayer(containerId)
       .addPlugin(DesktopUiPlugin)
-      .addPlugin(AutoAdvancePlugin);
+      .addPlugin(AutoAdvancePlugin)
+      .setup({
+        playlist: items,
+      });
 
     playerRef.current = player;
 
-    player.ready().then(() => player.play());
+    player.on('ready', () => {
+      player.item(0, { autoplay: true });
+    });
 
     return () => {
       player.dispose();
@@ -55,7 +54,7 @@ export function VideoPlayer({ items }: VideoPlayerProps) {
     playerRef.current?.queue(items);
   }, [items]);
 
-  return <div ref={containerRef} style={{ width: '100%', aspectRatio: '16/9' }} />;
+  return <div id={containerId} style={{ width: '100%', aspectRatio: '16/9' }} />;
 }
 ```
 
@@ -103,13 +102,15 @@ Create the player once outside the component tree:
 
 ```ts
 // lib/player.ts
-import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 export const player = nmplayer('global');
 
-export async function initPlayer(container: HTMLElement) {
-  player.setup({ container, playlist: [] });
-  player.addPlugin(DesktopUiPlugin);
+export async function initPlayer() {
+  player
+    .addPlugin(DesktopUiPlugin)
+    .setup({ playlist: [] });
   await player.ready();
 }
 ```
@@ -161,7 +162,7 @@ function Controls({ player }: { player: NMVideoPlayer | null }) {
         min={0}
         max={100}
         value={percentage}
-        onChange={(e) => player?.seekByPercentage(Number(e.target.value) / 100)}
+        onChange={(e) => player?.seekByPercentage(Number(e.target.value))}
       />
     </div>
   );

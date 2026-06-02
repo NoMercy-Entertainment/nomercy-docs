@@ -96,7 +96,7 @@ private createProgressBar(): void {
     this.isMouseDown = false;
     const percent = getPercentFromEvent(e as MouseEvent);
     const duration = this.player.duration();
-    void this.player.currentTime(duration * (percent / 100));
+    void this.player.time(duration * (percent / 100));
     sliderNipple.style.left = `${percent}%`;
   });
 
@@ -141,7 +141,7 @@ A few things to note here:
 
 - `this.listen(element, event, handler)` is the plugin's auto-cleaned DOM listener helper. Never use raw `addEventListener` inside a plugin, because raw listeners are not removed on `dispose()`.
 - `this.on('time', fn)` subscribes to a player event through the plugin's lifecycle. The `time` event fires on every `timeupdate` tick from the backend and carries `{ time: number }` (seconds). There is no `percentage` field on this event, so the percentage is computed from `time / duration`.
-- `this.player.currentTime(seconds)` is the two-form overload: called with an argument it seeks; called without an argument it reads. The seek returns a `Promise<void>`, which is why the `void` keyword precedes it.
+- `this.player.time(seconds)` is the two-form overload: called with an argument it seeks; called without an argument it reads. The seek returns a `Promise<void>`, which is why the `void` keyword precedes it.
 - The Tailwind classes here assume you have Tailwind in your project. If you are using plain CSS, replace the utility classes with your own stylesheet rules.
 
 ## Update `use()` and `dispose()`
@@ -160,9 +160,7 @@ use(): void {
   this.createBottomRow();
   this.createPlaybackButton();
 
-  if (this.player.videoElement?.paused) {
-    this.player.container.classList.add('paused');
-  } else {
+  if (this.player.videoElement?.paused === false) {
     this.centerButton.style.display = 'none';
   }
 }
@@ -210,9 +208,7 @@ export class PlayerUiPlugin extends Plugin<NMVideoPlayer> {
     this.createBottomRow();
     this.createPlaybackButton();
 
-    if (this.player.videoElement?.paused) {
-      this.player.container.classList.add('paused');
-    } else {
+    if (this.player.videoElement?.paused === false) {
       this.centerButton.style.display = 'none';
     }
   }
@@ -286,7 +282,7 @@ export class PlayerUiPlugin extends Plugin<NMVideoPlayer> {
       this.isMouseDown = false;
       const percent = getPercentFromEvent(e as MouseEvent);
       const duration = this.player.duration();
-      void this.player.currentTime(duration * (percent / 100));
+      void this.player.time(duration * (percent / 100));
       sliderNipple.style.left = `${percent}%`;
     });
 
@@ -342,7 +338,7 @@ const player = nmplayer('nomercy-player')
   });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 

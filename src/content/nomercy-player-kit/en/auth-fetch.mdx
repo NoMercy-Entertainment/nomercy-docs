@@ -27,8 +27,7 @@ player.setup({
   auth: {
     bearerToken: () => myAuth.getAccessToken(), // called on every request
     refreshOnUnauthenticated: async () => {
-      await myAuth.refresh();
-      return myAuth.getAccessToken();
+      await myAuth.refresh(); // resolves when refresh is complete; bearerToken() is re-read automatically
     },
   },
 });
@@ -46,8 +45,7 @@ player.setup({
   auth: {
     bearerToken: () => myAuth.getAccessToken(),
     refreshOnUnauthenticated: async () => {
-      await myAuth.refresh();
-      return myAuth.getAccessToken();
+      await myAuth.refresh(); // bearerToken() is re-read automatically after this resolves
     },
     signRequest: (request) => myHmac.sign(request), // optional, custom signing
     headers: { 'X-App-Version': '2.0.0' }, // optional, static headers
@@ -74,12 +72,11 @@ The token is injected as `Authorization: Bearer <token>`.
 ### `refreshOnUnauthenticated`
 
 ```ts
-refreshOnUnauthenticated?: () => Promise<string>
+refreshOnUnauthenticated?: () => Promise<void>
 ```
 
 Called once when a request returns 401.
-Must return a new valid token.
-The failed request is retried exactly once with the new token.
+Invoke your auth SDK's refresh logic here. After this resolves, the player re-reads `bearerToken` from the config and retries the failed request exactly once with the new value.
 If refresh fails, `auth:failed` fires and the error propagates to the caller.
 
 ### `signRequest`
@@ -94,10 +91,10 @@ Use for HMAC, API key rotation, or any custom signing scheme.
 ### `headers`
 
 ```ts
-headers?: Record<string, string>
+headers?: Record<string, string | (() => string) | (() => Promise<string>)>
 ```
 
-Static headers appended to every authenticated request.
+Headers appended to every authenticated request. Each value can be a static string, a sync getter, or an async getter — same forms as `bearerToken`.
 
 ## 401 vs 403 handling
 
@@ -113,8 +110,8 @@ Check the server's entitlement configuration instead.
 Auth events:
 
 ```ts
-player.on('auth:refreshed', ({ token }) => {
-  console.log('Token refreshed');
+player.on('auth:refreshed', ({ tokenAcquiredAt }) => {
+  console.log('Token refreshed at', tokenAcquiredAt);
 });
 
 player.on('auth:failed', ({ error }) => {

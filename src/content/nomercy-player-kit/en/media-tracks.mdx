@@ -1,6 +1,6 @@
 ---
 title: 'Media Tracks'
-description: 'subtitles, currentSubtitle, audioTracks, currentAudioTrack, qualityLevels, currentQuality.'
+description: 'subtitles, subtitle, audioTracks, audioTrack, qualityLevels, quality.'
 draft: false
 ---
 
@@ -27,21 +27,21 @@ Returns `[]` before a backend is mounted or when no item is active.
 interface SubtitleTrack {
   id: string;
   language?: string;
-  label?: string;
-  kind?: string;
+  label: string;
+  kind?: 'subtitles' | 'captions' | 'descriptions';
   type?: string;
-  url?: string;
+  url: string;
   default?: boolean;
 }
 ```
 
-### `currentSubtitle(idx?)`
+### `subtitle(idx?)`
 
 Read or write the active subtitle track.
 
-**Read:** `currentSubtitle()` returns `{ index, track }` for the selected track, or `null` when subtitles are off.
+**Read:** `subtitle()` returns `{ index, track }` for the selected track, or `null` when subtitles are off.
 
-**Write:** `currentSubtitle(idx)` selects the track at `idx`. Pass `null` or a negative number to disable subtitles. For backend-managed tracks the backend is notified directly; for sidecar tracks a `CueTracker` is started and feeds `subtitleCue` events.
+**Write:** `subtitle(idx)` selects the track at `idx`. Pass `null` or a negative number to disable subtitles. For backend-managed tracks the backend is notified directly; for sidecar tracks a `CueTracker` is started and feeds `subtitleCue` events.
 
 | Parameter | Type             | Description                                          |
 | --------- | ---------------- | ---------------------------------------------------- |
@@ -52,6 +52,9 @@ Read or write the active subtitle track.
 ### `subtitleStyle(patch?)`
 
 Read or write the subtitle style. A partial patch is merged onto the active style.
+
+`subtitleStyle` is part of the media-tracks mixin but is not declared on the generic `IPlayer` interface.
+Type the player as `NMVideoPlayer` (or `NMMusicPlayer`) to access it — the concrete classes expose it.
 
 | Field               | Type     | Default                   |
 | ------------------- | -------- | ------------------------- |
@@ -68,6 +71,9 @@ Read or write the subtitle style. A partial patch is merged onto the active styl
 **Events emitted:** `subtitleStyle` with the merged style
 
 ```ts
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+declare const player: NMVideoPlayer;
 player.subtitleStyle({ fontSize: 120, textColor: 'yellow' });
 ```
 
@@ -81,20 +87,21 @@ The active backend's audio tracks. Returns `[]` for single-track sources or when
 
 ```ts
 interface AudioTrack {
-  id: number;
+  id: string;
   language?: string;
-  name?: string;
+  label: string;
+  channels?: number;
   default?: boolean;
 }
 ```
 
-### `currentAudioTrack(idx?)`
+### `audioTrack(idx?)`
 
 Read or write the active audio track.
 
-**Read:** `currentAudioTrack()` returns `{ index, track }` or `null` when no explicit selection has been made.
+**Read:** `audioTrack()` returns `{ index, track }` or `null` when no explicit selection has been made.
 
-**Write:** `currentAudioTrack(idx)` selects the track at `idx`. Sets `audioTrackState` to `MANUAL`.
+**Write:** `audioTrack(idx)` selects the track at `idx`. Sets `audioTrackMode` to `MANUAL`.
 
 **Events emitted:** `audioTrack` with `{ id: idx }`; `audioTrackState` with `{ state: 'manual' }`
 
@@ -110,30 +117,32 @@ The active backend's quality levels. Returns `[]` for single-rendition sources.
 
 ```ts
 interface QualityLevel {
-  id: number;
+  bitrate: number;
   height?: number;
-  bitrate?: number;
-  label?: string;
+  width?: number;
+  label: string;
+  index: number;
   supported?: boolean;
+  dynamicRange?: 'sdr' | 'hdr';
 }
 ```
 
-### `currentQuality(idx?)`
+### `quality(idx?)`
 
 Read or write the active quality level.
 
-**Read:** `currentQuality()` returns `{ index, track }` or `'auto'` when adaptive bitrate selection is active.
+**Read:** `quality()` returns `{ index, track }` or `'auto'` when adaptive bitrate selection is active.
 
-**Write:** `currentQuality(idx)` locks to a level; `currentQuality('auto')` restores ABR. Sets `qualityState` accordingly.
+**Write:** `quality(idx)` locks to a level; `quality('auto')` restores ABR. Sets `qualityMode` accordingly.
 
 **Events emitted:** `qualityState` with `{ state: 'auto' | 'manual' }`
 
 ```ts
 // lock to 1080p (index varies per manifest)
-player.currentQuality(2);
+player.quality(2);
 
 // restore ABR
-player.currentQuality('auto');
+player.quality('auto');
 ```
 
 ## Chapters
@@ -162,9 +171,9 @@ Seek to the start of the chapter at `idx`. Out-of-range indexes no-op. Emits `ch
 
 Jump to the next or previous chapter. `previousChapter` applies a 10-second heuristic: if more than 10 s into the current chapter, jumps to that chapter's start instead of the previous one.
 
-### `currentChapter(idx?)`
+### `chapter(idx?)`
 
-**Read:** returns the `Chapter` whose range contains `currentTime`, or `null`.
+**Read:** returns the `Chapter` whose range contains `time`, or `null`.
 
 **Write:** jump to the chapter at `idx` (same as `seekToChapter(idx)`).
 

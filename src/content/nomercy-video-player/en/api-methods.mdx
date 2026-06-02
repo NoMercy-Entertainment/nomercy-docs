@@ -76,7 +76,7 @@ togglePlayback(opts?: ActionOptions): Promise<void>
 `restart()` seeks to 0 and plays.
 `togglePlayback()` switches between play and pause.
 
-`ActionOptions` carries `source: 'user' | 'auto' | 'remote'`, pass `{ source: 'user' }` when triggered by user input.
+`ActionOptions` carries `source: 'user' | 'remote' | 'plugin'`, pass `{ source: 'user' }` when triggered by user input.
 
 ## Queue navigation
 
@@ -104,27 +104,27 @@ peekPrevious(): T | undefined
 
 ## Current item
 
-### `current()`
+### `item()`
 
 ```ts
-current(): T | undefined
+item(): T | undefined
 ```
 
 Return the currently loaded item.
 
-### `current(item, opts?)`
+### `item(item, opts?)`
 
 ```ts
-current(item: T, opts?: ActionOptions): void
+item(item: T, opts?: ActionOptions): void
 ```
 
 Set the current item.
 The item must be in the queue.
 
-### `currentIndex()`
+### `index()`
 
 ```ts
-currentIndex(): number
+index(): number
 ```
 
 Index of the current item.
@@ -140,11 +140,11 @@ Load a single item without requiring it to be in the queue.
 
 ## Time
 
-### `currentTime()` / `currentTime(t, opts?)`
+### `time()` / `time(t, opts?)`
 
 ```ts
-currentTime(): number
-currentTime(t: number, opts?: ActionOptions): Promise<void>
+time(): number
+time(t: number, opts?: ActionOptions): Promise<void>
 ```
 
 Get or set the playback position in seconds.
@@ -176,7 +176,7 @@ rewind(s?: number, opts?: ActionOptions): Promise<void>
 ```
 
 Skip forward/backward by `s` seconds.
-Default: 10.
+Default: 5.
 
 ### `seekByPercentage(pct, opts?)`
 
@@ -252,17 +252,19 @@ qualityLevels(): QualityLevel[]
 
 All available quality levels (from HLS.js after manifest parse).
 
-### `currentQuality()` / `currentQuality(idx)`
+### `quality()` / `quality(idx)`
 
 ```ts
-currentQuality(): number     // -1 = auto
-currentQuality(idx: number): void  // -1 to re-enable auto
+quality(): CurrentQualitySelection | 'auto'  // 'auto' = adaptive (ABR) active
+quality(idx: number | 'auto'): void          // pass 'auto' to re-enable adaptive
 ```
 
-### `qualityState()`
+The getter returns `{ index, track }` (the level metadata at that index), or the string `'auto'` when adaptive bitrate selection is active.
+
+### `qualityMode()`
 
 ```ts
-qualityState(): QualityState
+qualityMode(): QualityState
 ```
 
 ## Audio tracks
@@ -275,14 +277,14 @@ audioTracks(): AudioTrack[]
 
 Available audio tracks exposed by the HLS manifest.
 
-### `currentAudioTrack()` / `currentAudioTrack(index)`
+### `audioTrack()` / `audioTrack(index)`
 
 ```ts
-currentAudioTrack(): number | null
-currentAudioTrack(index: number): void
+audioTrack(): CurrentAudioTrackSelection | null
+audioTrack(index: number): void
 ```
 
-Get the active audio track index, or set it by index.
+Get the active audio track as `{ index, track }` (`null` when none is explicitly selected), or set it by index.
 
 ### `cycleAudioTracks()`
 
@@ -303,14 +305,14 @@ subtitles(): SubtitleTrack[]
 
 All subtitle tracks for the current item.
 
-### `currentSubtitle()` / `currentSubtitle(index)`
+### `subtitle()` / `subtitle(index)`
 
 ```ts
-currentSubtitle(): number | null
-currentSubtitle(index: number | null): void
+subtitle(): CurrentSubtitleSelection | null
+subtitle(index: number | null): void
 ```
 
-Get the active subtitle track index (`null` = off), or set by index.
+Get the active subtitle as `{ index, track }` (`null` when off), or set by index.
 Pass `null` to disable subtitles.
 
 ### `subtitleState()`
@@ -352,14 +354,14 @@ chapters(): Chapter[]
 All chapters for the current item.
 Returns an empty array when no chapters are loaded.
 
-### `currentChapter()` / `currentChapter(idx)`
+### `chapter()` / `chapter(idx)`
 
 ```ts
-currentChapter(): Chapter | null
-currentChapter(idx: number): void
+chapter(): Chapter | null
+chapter(idx: number): void
 ```
 
-Get the active chapter at `currentTime()` (returns `null` when not in any chapter range), or seek to a chapter by index.
+Get the active chapter at `time()` (returns `null` when not in any chapter range), or seek to a chapter by index.
 
 ### `seekToChapter(idx, opts?)`
 
@@ -368,7 +370,7 @@ seekToChapter(idx: number, opts?: ActionOptions): void
 ```
 
 Seek to the start of a chapter by index.
-Equivalent to `currentTime(chapters()[idx].start)`.
+Equivalent to `time(chapters()[idx].start)`.
 
 ### `nextChapter(opts?)`
 
@@ -388,11 +390,11 @@ Return to the start of the previous chapter (or the start of the current chapter
 
 ## Fullscreen / PiP / Theater
 
-### `fullscreenState()` / `fullscreenState(state)`
+### `fullscreen()` / `fullscreen(state)`
 
 ```ts
-fullscreenState(): FullscreenState
-fullscreenState(state: FullscreenState | boolean): void
+fullscreen(): FullscreenState
+fullscreen(state: FullscreenState | boolean): void
 ```
 
 `FullscreenState` is `'on' | 'off'`.
@@ -401,9 +403,9 @@ Requires a `fullscreen` controller in the `platform` option (wired automatically
 Throws `BrowserPolicyError` (`core:policy/fullscreenUnsupported`) if no controller is configured.
 
 ```ts
-player.fullscreenState(true); // enter
-player.fullscreenState(false); // exit
-player.fullscreenState(); // FullscreenState.ON | FullscreenState.OFF
+player.fullscreen(true); // enter
+player.fullscreen(false); // exit
+player.fullscreen(); // FullscreenState.ON | FullscreenState.OFF
 ```
 
 ### `toggleFullscreen()`
@@ -413,13 +415,13 @@ toggleFullscreen(): void
 ```
 
 Toggle fullscreen on/off.
-Shorthand for `fullscreenState(!isActive)`.
+Shorthand for `fullscreen(!isActive)`.
 
-### `pipState()` / `pipState(state)`
+### `pip()` / `pip(state)`
 
 ```ts
-pipState(): PipState
-pipState(state: PipState | boolean): void
+pip(): PipState
+pip(state: PipState | boolean): void
 ```
 
 `PipState` is `'on' | 'off'`.
@@ -432,11 +434,11 @@ Throws `BrowserPolicyError` (`core:policy/pipUnsupported`) if unavailable.
 togglePip(): void
 ```
 
-### `theaterState()` / `theaterState(state)`
+### `theater()` / `theater(state)`
 
 ```ts
-theaterState(): TheaterState
-theaterState(state: TheaterState | boolean): void
+theater(): TheaterState
+theater(state: TheaterState | boolean): void
 ```
 
 `TheaterState` is `'on' | 'off'`.
@@ -718,7 +720,7 @@ canPlay(profile: {
 
 Query `MediaCapabilities.decodingInfo()` for a given format profile.
 Used internally for HDR-aware ABR.
-`CanPlayResult` extends `MediaCapabilitiesDecodingInfo`.
+Returns `CanPlayResult` with fields `{ supported: boolean; smooth: boolean; powerEfficient: boolean }`.
 
 ## Bandwidth estimation
 
@@ -762,11 +764,11 @@ selectAudioOutput(): Promise<MediaDeviceInfo | null>
 Show the browser's audio output device picker.
 Returns the selected device, or `null` if the user cancelled.
 
-### `currentAudioOutput()` / `currentAudioOutput(deviceId)`
+### `audioOutput()` / `audioOutput(deviceId)`
 
 ```ts
-currentAudioOutput(): Promise<string | null>
-currentAudioOutput(deviceId: string): Promise<void>
+audioOutput(): Promise<string | null>
+audioOutput(deviceId: string): Promise<void>
 ```
 
 Get or set the active audio output device id.
@@ -882,11 +884,13 @@ castState(): CastState
 ### `transferTo(target)`
 
 ```ts
-transferTo(target: 'cast' | 'airplay' | 'remote-playback'): Promise<void>
+transferTo(target: CastTarget): Promise<void>
+// type CastTarget = 'cast' | 'airplay' | 'remote-playback' | 'local'
 ```
 
-Hand off playback to a cast target.
+Hand off playback to a cast target, or pass `'local'` to pull playback back.
 The `CastSenderPlugin` must be registered for `'cast'`.
+`CastTarget` is exported from `@nomercy-entertainment/nomercy-player-core`. See [Cast and Remote Playback](/nomercy-player-core/cast).
 
 ## Preload and transition strategies
 

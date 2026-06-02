@@ -90,8 +90,8 @@ player.setup({
       url: '/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.mp3',
       cover: '/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.jpg',
       lyricsUrl: '/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.lrc',
-      artistTracks: [{ id: 1, name: 'Derek Clegg' }],
-      albumTracks: [{ id: 1, name: 'KJC' }],
+      artist: 'Derek Clegg',
+      album: 'KJC',
     },
     {
       id: 'kjc-02',
@@ -99,8 +99,8 @@ player.setup({
       url: '/D/Derek%20Clegg/%5B2010%5D%20KJC/02%20Hope.mp3',
       cover: '/D/Derek%20Clegg/%5B2010%5D%20KJC/02%20Hope.jpg',
       lyricsUrl: '/D/Derek%20Clegg/%5B2010%5D%20KJC/02%20Hope.lrc',
-      artistTracks: [{ id: 1, name: 'Derek Clegg' }],
-      albumTracks: [{ id: 1, name: 'KJC' }],
+      artist: 'Derek Clegg',
+      album: 'KJC',
     },
   ],
 });
@@ -128,16 +128,16 @@ player.setup({
 ```ts
 auth?: {
   bearerToken?: string | (() => string | Promise<string>);
-  refreshOnUnauthenticated?: () => Promise<string>;
+  refreshOnUnauthenticated?: () => Promise<void>;
   signRequest?: (request: Request) => Request | Promise<Request>;
-  headers?: Record<string, string>;
+  headers?: Record<string, string | (() => string) | (() => Promise<string>)>;
 }
 ```
 
 Auth pipeline for authenticated audio fetches (media URL + any HLS manifests and segments the backend issues).
 
 - `bearerToken`, static token string or a function (sync or async) that returns one. Injected as `Authorization: Bearer <token>`.
-- `refreshOnUnauthenticated`, called once on a 401. Must return a new token string. The player retries the original request once. On a 403, the error propagates and `refreshOnUnauthenticated` is never called.
+- `refreshOnUnauthenticated`, called once on a 401. Returns `Promise<void>`. After it resolves, the player re-reads `bearerToken` and retries the original request once. On a 403, the error propagates and `refreshOnUnauthenticated` is never called.
 - `signRequest`, HMAC or custom signing. Called after `bearerToken` is applied.
 - `headers`, static headers appended to every request.
 
@@ -147,7 +147,6 @@ player.setup({
     bearerToken: () => myAuth.getAccessToken(),
     refreshOnUnauthenticated: async () => {
       await myAuth.refresh();
-      return myAuth.getAccessToken();
     },
   },
 });
@@ -166,7 +165,7 @@ Base URL prepended to relative audio source URLs. Default: none (URLs used as-is
 ### `logLevel`
 
 ```ts
-logLevel?: 'silent' | 'error' | 'warn' | 'info' | 'debug'
+logLevel?: 'silent' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
 ```
 
 Log verbosity. Default: `'warn'`.
@@ -190,10 +189,7 @@ storage?: IStorage
 Where plugin state is persisted (volume, EQ presets, shuffle state, etc.). Defaults to `LocalStorageBackend`.
 
 ```ts
-import {
-  LocalStorageBackend,
-  MemoryStorageBackend,
-} from '@nomercy-entertainment/nomercy-player-core';
+import { LocalStorageBackend, MemoryStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
 
 // Default:
 player.setup({ storage: new LocalStorageBackend() });

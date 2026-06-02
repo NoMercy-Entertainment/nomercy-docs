@@ -100,18 +100,18 @@ Changes are applied immediately to all active cue areas without re-rendering.
 
 ```ts
 player.subtitles();          // SubtitleTrack[]
-player.currentSubtitle();    // number | null (null = off)
-player.currentSubtitle(0);   // activate by index
-player.currentSubtitle(null); // disable subtitles
+player.subtitle();    // CurrentSubtitleSelection | null  ({ index, track }; null = off)
+player.subtitle(0);   // activate by index
+player.subtitle(null); // disable subtitles
 player.subtitleState();      // 'on' | 'off'
 ```
 
 The `subtitle` event fires when the active track changes:
 
 ```ts
-player.on('subtitle', ({ index }) => {
-  // index is null when subtitles are off
-  updateSubtitleMenu(index);
+player.on('subtitle', ({ track }) => {
+  // track is the subtitle index, null when subtitles are off
+  updateSubtitleMenu(track);
 });
 ```
 
@@ -120,7 +120,7 @@ player.on('subtitle', ({ index }) => {
 The player emits `subtitleCue` events as active cues change. This is the low-level cue stream useful for custom renderers:
 
 ```ts
-player.on('subtitleCue', ({ trackIndex, cues }) => {
+player.on('subtitleCue', ({ cues, language }) => {
   renderMyCues(cues);
 });
 ```

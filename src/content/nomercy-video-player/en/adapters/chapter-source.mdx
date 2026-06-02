@@ -74,30 +74,35 @@ The plugin's `this.fetch()` applies the player's bearer token, handles 401 refre
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
-import type { IChapterSource } from '@nomercy-entertainment/nomercy-video-player';
-import type { Chapter, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+import type { Chapter } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
-class ApiChapterSource extends Plugin implements IChapterSource {
-  static readonly id = 'my-chapter-source';
-  static readonly description = 'Chapter source from /api/chapters/:id';
+// IChapterSource is an interface, not a config field.
+// The pattern is to build a Plugin that loads chapters on 'current'
+// and emits 'chapters' so the player and UI receive the list.
+class ApiChapterSourcePlugin extends Plugin<NMVideoPlayer<VideoPlaylistItem>> {
+  static readonly id = 'api-chapter-source';
+  static readonly version = '1.0.0';
 
-  async load(item: VideoPlaylistItem): Promise<Chapter[]> {
-    const data = await this.fetch<ApiChapter[]>(`/api/chapters/${item.id}`, {
-      responseType: 'json',
+  override use(): void {
+    this.on('current', async ({ item }) => {
+      if (!item) return;
+      const data = await this.fetch<Array<{ name: string; start_ms: number; end_ms: number }>>(
+        `/api/chapters/${item.id}`,
+        { responseType: 'json' },
+      );
+      const chapters: Chapter[] = data.map((ch, index) => ({
+        index,
+        title: ch.name,
+        start: ch.start_ms / 1000,
+        end: ch.end_ms / 1000,
+      }));
+      this.player.emit('chapters', { chapters });
     });
-
-    return data.map((ch, index) => ({
-      index,
-      title: ch.name,
-      start: ch.start_ms / 1000,
-      end: ch.end_ms / 1000,
-    }));
   }
 }
 
-player.setup({
-  chapterSource: new ApiChapterSource(),
-});
+player.addPlugin(ApiChapterSourcePlugin);
 ```
 
 The built-in `VttChapterSource` uses `this.fetch()` the same way, auth-aware, no manual token threading required.
@@ -124,7 +129,7 @@ The player exposes chapter queries through its top-level API:
 const chapters = player.chapters();
 
 // Chapter active at the current playback position
-const currentChapter = player.currentChapter();
+const currentChapter = player.chapter();
 
 // Navigate chapters
 player.nextChapter();

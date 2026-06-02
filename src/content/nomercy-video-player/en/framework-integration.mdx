@@ -12,7 +12,7 @@ description: 'How nomercy-video-player mounts, initialises, and disposes across 
 The lifecycle has three steps:
 
 1. Render a container element with a stable ID.
-2. Call `nmplayer(id).setup(config)` after that element is in the DOM. Add plugins before or after `setup`, in either order.
+2. Add plugins with `addPlugin(PluginClass)`, then call `.setup(config)`. Plugin registration before `setup` is the conventional order that ensures plugins run in the initial lifecycle phase.
 3. Call `player.dispose()` when the component unmounts or the page navigates away.
 
 ## Install
@@ -116,7 +116,7 @@ const player = nmplayer('main')
   });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 
 // Step 3: clean up when done.

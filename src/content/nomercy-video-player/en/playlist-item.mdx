@@ -9,7 +9,7 @@ draft: false
 ## VideoPlaylistItem
 
 `VideoPlaylistItem` is the shape of each item in the player's playlist.
-Pass it in `VideoPlayerConfig.playlist` or supply it to `player.current(item)`.
+Pass it in `VideoPlayerConfig.playlist` or supply it to `player.item(item)`.
 
 ```ts
 import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
@@ -176,16 +176,21 @@ progress: {
 },
 ```
 
-### Deprecated: tracks
+### Deprecated: tracks (v1 compat only)
+
+The `tracks` field was removed from `VideoPlaylistItem` in v2.
+It exists only on `VideoPlaylistItemV1Compat` exported from `@nomercy-entertainment/nomercy-video-player/compat`.
 
 ```ts
-/** @deprecated Use typed fields instead. */
-tracks?: Array<{ id?: number | string; kind?: string; file?: string; label?: string; language?: string }>;
+import { normalizeVideoItem } from '@nomercy-entertainment/nomercy-video-player/compat';
+
+// Pass legacy items through the normalizer before handing them to the v2 player.
+const v2Item = normalizeVideoItem(legacyItemWithTracks);
 ```
 
-Generic escape hatch for track kinds without a typed field.
-All built-in cases now have typed fields (`subtitles`, `chapters`, `previewSpriteUrl`, `fonts`).
-The `tracks` field will be removed in a future major release.
+`normalizeVideoItem` maps `tracks` entries to their typed v2 counterparts by `kind`:
+`'subtitles'` → `subtitles[]`, `'fonts'` → `fonts[]`. Unrecognised kinds are silently dropped.
+Use the typed fields (`subtitles`, `chapters`, `previewSpriteUrl`, `fonts`) in new code.
 
 ## Full example
 

@@ -80,10 +80,10 @@ The seek preview is an addition on top of the controls you have already built. I
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import type { NMVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
-import { loadSpriteSet, lookupCue } from '@nomercy-entertainment/nomercy-video-player/src/plugins/desktop-ui/sprite';
-import type { SpriteSet } from '@nomercy-entertainment/nomercy-video-player/src/plugins/desktop-ui/sprite';
-import { buildSliderBar, fmt } from '@nomercy-entertainment/nomercy-video-player/src/plugins/desktop-ui/progressBar';
-import type { SliderBarRefs } from '@nomercy-entertainment/nomercy-video-player/src/plugins/desktop-ui/progressBar';
+// loadSpriteSet, lookupCue, buildSliderBar, fmt, SpriteSet, and SliderBarRefs are
+// internal helpers in the desktop-ui source folder. They are not exported from the
+// public package entry point. Copy the relevant logic into your own plugin file
+// rather than importing from a /src/ path, which is not stable across versions.
 ```
 
 > **Note:** `loadSpriteSet`, `lookupCue`, `buildSliderBar`, and `fmt` are internal helpers exported from the `desktop-ui` sub-folder. They are not part of the public package entry point. If you are building a polished consumer plugin you can copy the sprite parser logic directly into your own file rather than importing from an internal path.
@@ -114,9 +114,11 @@ use(): void {
   this.sliderRefs = buildSliderBar(this.player);
   // ... append sliderRefs.sliderBar to your bottom-bar top-row
 
-  // Load sprites for the first item, then reload on every item change
+  // Load sprites for the first item, then reload on every item change.
+  // this.player.item() is available because NMVideoPlayer satisfies
+  // WithCurrentItem<VideoPlaylistItem> structurally.
   this.on('ready', () => {
-    void this.loadSpritesForItem(this.player.current());
+    void this.loadSpritesForItem(this.player.item());
   });
 
   this.on('current', ({ item }) => {

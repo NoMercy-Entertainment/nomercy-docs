@@ -56,10 +56,11 @@ describePlugin(MyPlugin, ({ player, plugin }) => {
 ```ts
 describePlugin(
   PluginClass: PluginConstructor,
-  fn: (ctx: { player: IPlayer; plugin: Plugin }) => void,
+  fn: (ctx: { player: StubPlayer; plugin: Plugin }) => void,
   opts?: {
-    pluginOpts?: object;       // options passed to addPlugin
-    playerOpts?: object;       // options passed to player.setup
+    opts?: object;             // options passed to plugin.initialize()
+    skipLeakAssertion?: boolean;
+    createPlayer?: () => StubPlayer;
   }
 ): void
 ```
@@ -70,22 +71,42 @@ Verifies that a plugin's `dispose()` cleans up all event listeners.
 This is a required test for all plugins.
 
 ```ts
-describePlugin(MyPlugin, ({ player }) => {
-  test('no listener leak on dispose', () => {
-    assertNoListenerLeak(player, MyPlugin);
+import {
+  assertNoListenerLeak,
+  createStubPlayer,
+} from '@nomercy-entertainment/nomercy-player-core/testing';
+import { LifecycleRegistry } from '@nomercy-entertainment/nomercy-player-core';
+
+test('MyPlugin releases all listeners on dispose', async () => {
+  const player = createStubPlayer();
+  const plugin = new MyPlugin();
+  const lifecycle = new LifecycleRegistry();
+
+  await assertNoListenerLeak({
+    subjectId: 'my-plugin',
+    player,
+    setup: async () => {
+      plugin.initialize(player, {}, lifecycle);
+      await plugin.use();
+    },
+    teardown: () => {
+      plugin.dispose();
+      lifecycle.dispose();
+    },
   });
 });
 ```
 
-`assertNoListenerLeak` disposes the plugin and checks that all `this.on(...)` listeners registered during `use()` are removed.
-If any listeners remain, the test fails with a description of the leaked events.
+`assertNoListenerLeak` snapshots the listener count before and after a setup/teardown cycle. If the count after teardown exceeds the count before setup, the test fails with details of the leak.
+
+`describePlugin` already runs a leak assertion automatically after each test. Use `assertNoListenerLeak` directly only when you need to test a non-plugin subject or run cycles across multiple setup/teardown pairs via `assertNoListenerLeakOverCycles`.
 
 ## Stub player
 
 The stub player is a minimal `IPlayer` implementation with no browser dependencies. It:
 
 - Supports the full event bus (`on`, `off`, `once`, `emit`)
-- Supports `phase()`, `playState()`, `metrics()`, `queue()`, `current()`, and all transport stubs
+- Supports `phase()`, `metrics()`, `queue()`, `time()`, `volume()`, and all transport stubs
 - Does not start actual media playback
 - Works in Node.js without a DOM (Vitest, Jest)
 
@@ -103,15 +124,21 @@ player.emit('ended', undefined);
 
 ## Mock fetch
 
-The stub player uses an in-memory fetch mock. Override it per test:
+`mockFetch()` returns a self-contained fetch stub. Assign `mock.fetch` to the plugin's `fetch` property to intercept outgoing requests:
 
 ```ts
-import { createStubPlayer, mockFetch } from '@nomercy-entertainment/nomercy-player-core/testing';
+import { createStubPlayer, mockFetch, describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
 
-const player = createStubPlayer({
-  fetch: mockFetch({
-    'http://test.local/api': { status: 200, body: { count: 5 } },
-  }),
+describePlugin(MyPlugin, ({ plugin }) => {
+  test('fetches the manifest', async () => {
+    const mock = mockFetch();
+    plugin['fetch'] = mock.fetch;
+
+    mock.respondWith({ count: 5 });
+    await plugin.loadManifest('http://test.local/api');
+
+    expect(mock.calls[0].url).toBe('http://test.local/api');
+  });
 });
 ```
 

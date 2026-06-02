@@ -1,6 +1,6 @@
 ---
 title: 'MusicPlaylistItem'
-description: 'All fields of MusicPlaylistItem: id, name, url, cover, artistTracks, albumTracks, lyricsUrl, duration, with typing notes and real examples.'
+description: 'All fields of MusicPlaylistItem: id, name, url, cover, artist, album, lyricsUrl, duration, with typing notes and real examples.'
 draft: false
 ---
 
@@ -23,20 +23,10 @@ interface MusicPlaylistItem extends BasePlaylistItem {
   // Optional
   url?: string;
   cover?: string;
-  artistTracks?: ArtistRef[];
-  albumTracks?: AlbumRef[];
+  artist?: string;
+  album?: string;
   lyricsUrl?: string;
   duration?: number;
-}
-
-interface ArtistRef {
-  id: string | number;
-  name: string;
-}
-
-interface AlbumRef {
-  id: string | number;
-  name: string;
 }
 ```
 
@@ -84,27 +74,25 @@ cover?: string
 Album art URL.
 Consumed by `MediaSessionPlugin` (pushes to OS lock screen), `CastSenderPlugin` (included in `MusicTrackMediaMetadata`), and `MusicUiPlugin` (renders in the UI overlay).
 
-### `artistTracks`
+### `artist`
 
 ```ts
-artistTracks?: ArtistRef[]
+artist?: string
 ```
 
-Contributing artists.
-Each entry has `id` and `name`.
-Multiple entries for compilations or features.
+Plain artist name string. Consumers with linked-entity data join or pick the primary before passing to the player.
 
-`MediaSessionPlugin` joins all names with `, ` to produce the `artist` field for OS media controls.
+`MediaSessionPlugin` uses this field to populate the `artist` field in OS media controls.
 
-### `albumTracks`
+### `album`
 
 ```ts
-albumTracks?: AlbumRef[]
+album?: string
 ```
 
-Album associations.
-Each entry has `id` and `name`.
-The first entry (`albumTracks[0].name`) is used as the album name in `MediaSessionPlugin` metadata.
+Plain album name string. Consumers with linked-entity data join or pick the primary before passing to the player.
+
+`MediaSessionPlugin` uses this field to populate the `album` field in OS media controls.
 
 ### `lyricsUrl`
 
@@ -155,11 +143,11 @@ interface TrackItem extends MusicPlaylistItem {
 }
 
 const player = nmMPlayer<TrackItem>('main');
-// player.current() returns TrackItem | undefined
+// player.item() returns TrackItem | undefined
 // player.queue() returns ReadonlyArray<TrackItem>
 ```
 
-Custom fields are accessible in all event payloads (`current`, `crossfadeStart`, `trackEndingSoon`) and inside plugins via `this.player.current()`.
+Custom fields are accessible in all event payloads (`current`, `crossfadeStart`, `trackEndingSoon`) and inside plugins via `this.player.item()` when the plugin's player generic includes `& WithCurrentItem<YourItemType>`.
 
 ## Full example
 
@@ -171,8 +159,8 @@ const playlist: MusicPlaylistItem[] = [
     url: '/01%20Thaw%20You%20Out.mp3',
     cover: '/01%20Thaw%20You%20Out.jpg',
     lyricsUrl: '/01%20Thaw%20You%20Out.lrc',
-    artistTracks: [{ id: 1, name: 'Derek Clegg' }],
-    albumTracks: [{ id: 1, name: 'KJC' }],
+    artist: 'Derek Clegg',
+    album: 'KJC',
     duration: 204,
   },
   {
@@ -181,8 +169,8 @@ const playlist: MusicPlaylistItem[] = [
     url: '/02%20Hope.mp3',
     cover: '/02%20Hope.jpg',
     lyricsUrl: '/02%20Hope.lrc',
-    artistTracks: [{ id: 1, name: 'Derek Clegg' }],
-    albumTracks: [{ id: 1, name: 'KJC' }],
+    artist: 'Derek Clegg',
+    album: 'KJC',
     duration: 198,
   },
 ];
@@ -193,4 +181,4 @@ const playlist: MusicPlaylistItem[] = [
 - [Configuration](/nomercy-music-player/configuration), `playlist` option that accepts these items
 - [Events](/nomercy-music-player/events), `current` event payload includes the item
 - [LyricsPlugin](/nomercy-music-player/plugins/lyrics), reads `lyricsUrl` on each track change
-- [MediaSessionPlugin](/nomercy-music-player/plugins/media-session), reads `name`, `artistTracks`, `albumTracks`, `cover`
+- [MediaSessionPlugin](/nomercy-music-player/plugins/media-session), reads `name`, `artist`, `album`, `cover`

@@ -88,9 +88,16 @@ Returns the `MediaKeys` instance currently bound to the video element, or `null`
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 import { DrmPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-const player = nmplayer('player')
+// DrmPlugin reads item.drm at runtime via an internal type cast.
+// VideoPlaylistItem has no drm field, so extend it for your own items:
+interface DrmVideoItem extends VideoPlaylistItem {
+  drm?: { keySystem?: string; initData?: ArrayBuffer };
+}
+
+const player = nmplayer<DrmVideoItem>('player')
   .addPlugin(DrmPlugin, {
     keySystem: 'com.widevine.alpha',
     licenseUrl: 'https://api.example.com/license/widevine',

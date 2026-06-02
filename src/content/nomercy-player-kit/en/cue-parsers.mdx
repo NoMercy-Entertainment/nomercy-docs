@@ -17,24 +17,26 @@ Most-recently-registered wins, so consumer parsers can override the player core'
 
 Register a custom cue-format parser.
 
-| Parameter | Type        | Description                                              |
-| --------- | ----------- | -------------------------------------------------------- |
-| `parser`  | `CueParser` | Parser object                                            |
-| `prepend` | `boolean`   | Insert at the back of the priority list (lower priority) |
+| Parameter | Type          | Description                                              |
+| --------- | ------------- | -------------------------------------------------------- |
+| `parser`  | `ICueParser`  | Parser object                                            |
+| `prepend` | `boolean`     | Insert at the back of the priority list (lower priority) |
 
-### CueParser interface
+### ICueParser interface
 
 ```ts
-interface CueParser {
+interface ICueParser<T = unknown> {
   /** Stable identifier for this parser. */
-  id: string;
-  /** Return true when this parser can handle the given URL. */
-  canParse(url: string): boolean;
+  readonly id: string;
+  /** Return true when this parser can handle the given URL or content-type. */
+  canParse(url: string, contentType?: string): boolean;
   /**
-   * Fetch and parse the given URL into a CueList.
-   * The player's auth pipeline applies to the fetch automatically.
+   * Parse raw text into a CueList. The player fetches the file first, then
+   * calls parse() with the raw content. The parser never fetches anything itself.
+   * opts.baseUrl is forwarded for parsers that need to resolve relative URLs
+   * inside the content (e.g. sprite VTT image paths).
    */
-  parse(url: string, auth?: AuthConfig): Promise<CueList>;
+  parse(raw: string, opts?: { baseUrl?: string }): CueList<T>;
 }
 ```
 
@@ -46,7 +48,7 @@ Unregister a cue parser by id.
 
 Resolve the registered parser for the given URL. Returns `undefined` when no parser matches.
 
-**Returns:** `CueParser | undefined`
+**Returns:** `ICueParser | undefined`
 
 ## Built-in parsers
 
@@ -94,10 +96,11 @@ tracker.attach(player); // starts listening to player.on('time', ...)
 
 ### CueTrackerOptions
 
-| Field       | Type     | Default | Description                               |
-| ----------- | -------- | ------- | ----------------------------------------- |
-| `trackerId` | `string` | none    | Stable identifier (for debugging)         |
-| `tolerance` | `number` | `0`     | Seconds of tolerance for early/late entry |
+| Field        | Type     | Default | Description                                   |
+| ------------ | -------- | ------- | --------------------------------------------- |
+| `trackerId`  | `string` | none    | Stable identifier (surfaces in cue payloads)  |
+| `tolerance`  | `number` | `0`     | Seconds of look-ahead for early entry         |
+| `historyMax` | `number` | `32`    | Cap on recently-entered cues kept by `history(n)` |
 
 ### Cleanup
 
@@ -106,18 +109,20 @@ The media-tracks mixin calls this automatically when switching subtitle tracks.
 
 ## Custom parser example (TTML)
 
+The player fetches the file, then calls `parse()` with the raw text.
+Your parser receives the content string, not a URL.
+
 ```ts
 player.registerCueParser({
   id: 'ttml',
   canParse: (url) => url.endsWith('.ttml') || url.endsWith('.xml'),
-  async parse(url) {
-    const response = await this.fetch(url, { responseType: 'text' });
-    return parseTTML(response);
+  parse(raw) {
+    return parseTTML(raw);
   },
 });
 ```
 
 ## See also
 
-- [Media Tracks](/nomercy-player-core/media-tracks): `currentSubtitle`, sidecar VTT handling
+- [Media Tracks](/nomercy-player-core/media-tracks): `subtitle`, sidecar VTT handling
 - [Events Reference](/nomercy-player-core/events-reference): `cue:enter`, `cue:exit`, `subtitleCue`

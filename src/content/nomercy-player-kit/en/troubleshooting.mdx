@@ -33,7 +33,7 @@ The `ready` event never fires.
 
 **Causes and fixes:**
 
-1. **A plugin's `use()` returned a Promise that never resolves.** `player.setup()` awaits all `use()` promises (capped by `pluginInitTimeoutMs`, default 10 seconds) before emitting `ready`. Audit each registered plugin for async work without timeouts.
+1. **A plugin's `use()` returned a Promise that never resolves.** `player.setup()` awaits all `use()` promises (capped by `pluginInitTimeoutMs`, default 30 seconds) before emitting `ready`. Audit each registered plugin for async work without timeouts.
 2. **The container element doesn't exist in the DOM at `setup()`.** The core doesn't wait for the element to appear. Ensure `document.getElementById('player')` returns a non-null element before calling `nmplayer('id')`.
 3. **A plugin's `use()` rejected.** Check the console for `plugin:<id>:failed` events. The failed plugin is disabled; `ready` still fires for the remaining plugins. If you see no `ready` and no `failed`, the promise is stuck (see #1).
 4. **You're inspecting the wrong instance.** `nmplayer('main')` returns the same instance on every call with the same id. If two parts of your code call setup on different ids, they're different players.
@@ -194,8 +194,7 @@ player.setup({
   auth: {
     bearerToken: () => myAuth.getAccessToken(),
     refreshOnUnauthenticated: async () => {
-      await myAuth.refresh();
-      return myAuth.getAccessToken();
+      await myAuth.refresh(); // bearerToken() is re-read automatically after this resolves
     },
   },
 });

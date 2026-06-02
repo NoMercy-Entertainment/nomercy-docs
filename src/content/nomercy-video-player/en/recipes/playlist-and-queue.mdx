@@ -54,13 +54,13 @@ player.queueMove(0, 4); // move index 0 to index 4
 
 ```ts
 // Set current item by id or by object reference:
-player.current(track2);
+player.item(track2);
 
 // Jump to index:
 player.seekToIndex(2);
 
 // Read current item:
-const nowPlaying = player.current();
+const nowPlaying = player.item();
 ```
 
 ## Peek next and previous
@@ -122,17 +122,17 @@ player.on('repeat', ({ state }) => {
 Without it, the player stops at the end of each track.
 
 ```ts
-import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player';
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 player.addPlugin(AutoAdvancePlugin, {
-  crossfadeOnEnd: false, // set true to use crossfade instead of immediate next()
+  enabled: true, // set false to suspend auto-advance without unregistering the plugin
 });
 ```
 
 On the video player, import from `@nomercy-entertainment/nomercy-video-player`:
 
 ```ts
-import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 player.addPlugin(AutoAdvancePlugin);
 // When the current video ends, player.next() is called automatically
@@ -143,7 +143,7 @@ player.addPlugin(AutoAdvancePlugin);
 The player does not ship a built-in sort method, so sort the array before setting it:
 
 ```ts
-const sorted = [...player.queue()].sort((a, b) => a.name.localeCompare(b.name));
+const sorted = [...player.queue()].sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''));
 player.queue(sorted);
 ```
 
@@ -170,12 +170,13 @@ The active track is preserved because the player matches by `id`.
 ```ts
 player.on('current', ({ item, index }) => {
   // fires when the active track changes
-  nowPlayingDisplay.textContent = item.name;
+  nowPlayingDisplay.textContent = item?.title ?? '';
 });
 
-player.on('queue', ({ queue }) => {
+player.on('queue', (items) => {
   // fires when the queue array changes (append, remove, reorder, replace)
-  renderQueueList(queue);
+  // payload is the new queue as a plain array, not an object
+  renderQueueList(items);
 });
 ```
 

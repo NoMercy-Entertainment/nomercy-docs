@@ -92,14 +92,14 @@ const progress = computed(() =>
 function seek(event: MouseEvent) {
   const bar = event.currentTarget as HTMLElement;
   const ratio = event.offsetX / bar.clientWidth;
-  void player.currentTime(ratio * player.duration());
+  void player.time(ratio * player.duration());
 }
 </script>
 
 <template>
   <div class="player">
     <p>{{ currentTrack?.name ?? 'Nothing playing' }}</p>
-    <p>{{ currentTrack?.artistTracks?.[0]?.name }}</p>
+    <p>{{ currentTrack?.artist }}</p>
 
     <div class="progress" @click="seek">
       <div class="fill" :style="{ width: `${progress}%` }" />
@@ -184,7 +184,7 @@ export const useMusicPlayerStore = defineStore('musicPlayer', {
     formattedCurrentTime: (state) => formatTime(state.currentTime),
     formattedDuration: (state) => formatTime(state.duration),
     artistNames: (state) =>
-      state.currentTrack?.artistTracks?.map((a) => a.name).join(', ') ?? '',
+      state.currentTrack?.artist ?? '',
   },
 
   actions: {

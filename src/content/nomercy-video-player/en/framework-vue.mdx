@@ -22,15 +22,11 @@ import {
 
 export function useVideoPlayer(containerId: string) {
   const player = shallowRef(
-    nmplayer('main').setup({
-      container: document.getElementById(containerId)!,
-      playlist: [],
-    }),
+    nmplayer(containerId)
+      .addPlugin(DesktopUiPlugin)
+      .addPlugin(AutoAdvancePlugin)
+      .setup({ playlist: [] }),
   );
-
-  player.value
-    .addPlugin(DesktopUiPlugin)
-    .addPlugin(AutoAdvancePlugin);
 
   onUnmounted(() => {
     player.value.dispose();
@@ -49,21 +45,17 @@ import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
 import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
 
-const containerRef = ref<HTMLDivElement>();
 let player: NMVideoPlayer | null = null;
 
 const isPlaying = ref(false);
 const currentTime = ref(0);
 
 onMounted(async () => {
-  if (!containerRef.value) return;
-
-  player = nmplayer('main').setup({
-    container: containerRef.value,
-    playlist: [{ id: '1', url: '...', title: 'Demo' }],
-  });
-
-  player.addPlugin(DesktopUiPlugin);
+  player = nmplayer('main')
+    .addPlugin(DesktopUiPlugin)
+    .setup({
+      playlist: [{ id: '1', url: '...', title: 'Demo' }],
+    });
 
   player.on('play', () => {
     isPlaying.value = true;
@@ -85,7 +77,7 @@ onUnmounted(() => {
 
 <template>
   <div>
-    <div ref="containerRef" style="width: 100%; aspect-ratio: 16/9;" />
+    <div id="main" style="width: 100%; aspect-ratio: 16/9;" />
     <div>
       <button @click="isPlaying ? player?.pause() : player?.play()">
         {{ isPlaying ? 'Pause' : 'Play' }}
@@ -108,10 +100,12 @@ import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plu
 
 export const player = shallowRef(nmplayer('global'));
 
-// Call setup() once after the DOM is ready (e.g., in App.vue onMounted):
-export async function initPlayer(container: HTMLElement) {
-  player.value.setup({ container, playlist: [] });
-  player.value.addPlugin(DesktopUiPlugin);
+// Call setup() once after the DOM is ready (e.g., in App.vue onMounted).
+// The player mounts by finding the div with id 'global'.
+export async function initPlayer() {
+  player.value
+    .addPlugin(DesktopUiPlugin)
+    .setup({ playlist: [] });
   await player.value.ready();
 }
 ```
@@ -146,15 +140,15 @@ watch(
 
 ## Reactive playlist updates
 
-To swap the entire queue while the player is running, call `player.queue(newItems)` to replace the list, then `player.current(0, { autoplay: true })` to jump to the first item and start playback.
-`queue()` accepts `VideoPlaylistItem[]`; `current()` accepts an item, an id string, or a numeric index.
+To swap the entire queue while the player is running, call `player.queue(newItems)` to replace the list, then `player.item(0, { autoplay: true })` to jump to the first item and start playback.
+`queue()` accepts `VideoPlaylistItem[]`; `item()` accepts an item, an id string, or a numeric index.
 
 ```ts
 import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
 function loadNewPlaylist(items: VideoPlaylistItem[]) {
   player.value?.queue(items);
-  player.value?.current(0, { autoplay: true });
+  player.value?.item(0, { autoplay: true });
 }
 ```
 
@@ -172,7 +166,7 @@ watch(
   () => store.selectedPlaylist,
   (items: VideoPlaylistItem[]) => {
     player.value.queue(items);
-    player.value.current(0, { autoplay: true });
+    player.value.item(0, { autoplay: true });
   },
 );
 ```
@@ -203,7 +197,7 @@ const sintelPlaylist: VideoPlaylistItem[] = [
 loadNewPlaylist(sintelPlaylist);
 ```
 
-> **Note:** Calling `queue()` replaces the list immediately but does not start loading. The `current(0, { autoplay: true })` call triggers the load and playback. If you want to append items to a running queue instead, use `player.queueAppend(items)`.
+> **Note:** Calling `queue()` replaces the list immediately but does not start loading. The `item(0, { autoplay: true })` call triggers the load and playback. If you want to append items to a running queue instead, use `player.queueAppend(items)`.
 
 ## Nuxt / SSR
 

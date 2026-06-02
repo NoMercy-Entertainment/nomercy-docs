@@ -38,8 +38,16 @@ Use `IVideoPlayer` as the `P` generic.
 `IVideoPlayer` is the stable public interface for the video player — it is the correct type for plugins and consumer functions.
 `NMVideoPlayer` is the concrete class (implementation detail); prefer `IVideoPlayer` so your plugin does not depend on the class hierarchy.
 
+When a plugin needs to read the active item with `this.player.item()`, add `& WithCurrentItem<YourItemType>` to the `P` generic.
+Plugins that only call transport methods or `metrics()` can omit it — those are on `IPlayer` directly.
+
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type {
+  IPlayer,
+  WithCurrentItem,
+  BaseEventMap,
+} from '@nomercy-entertainment/nomercy-player-core';
 import type { IVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
 interface WatchProgressOptions {
@@ -52,7 +60,7 @@ interface WatchProgressEvents {
 }
 
 export class WatchProgressPlugin extends Plugin<
-  IVideoPlayer,
+  IVideoPlayer & WithCurrentItem<VideoPlaylistItem>,
   WatchProgressOptions,
   WatchProgressEvents
 > {
@@ -69,8 +77,10 @@ export class WatchProgressPlugin extends Plugin<
   dispose(): void {}
 
   private async saveProgress(time: number, percentage: number): Promise<void> {
-    const item = this.player.current();
+    const item = this.player.item();   // VideoPlaylistItem
     if (!item) return;
+
+    const snapshot = this.player.metrics(); // PlaybackMetrics — no constraint needed
 
     await this.fetch(this.opts.reportUrl, {
       method: 'POST',
@@ -87,6 +97,8 @@ export class WatchProgressPlugin extends Plugin<
 }
 ```
 
+Plugins that don't read the active item omit `& WithCurrentItem<...>`; `metrics()`, `getPlugin()`, and transport methods are on `IPlayer` directly.
+
 ## Accessing video-specific methods
 
 Inside a plugin, `this.player` is typed as `IVideoPlayer`.
@@ -98,7 +110,7 @@ use(): void {
     if (!item) return;
     const subtitles = this.player.subtitles();
     const audioTracks = this.player.audioTracks();
-    const quality = this.player.currentQuality();
+    const quality = this.player.quality();
     this.reportTrackAvailability(subtitles.length, audioTracks.length);
   });
 }
@@ -152,7 +164,7 @@ player.addPlugin(MyKeyHandler);
 ## Video playlist item type extension
 
 Extend `VideoPlaylistItem` with your own fields.
-The type threads through `current()`, `queue()`, and `beforeLoad`:
+The type threads through `item()`, `queue()`, and `beforeLoad`:
 
 ```ts
 interface MyItem extends VideoPlaylistItem {

@@ -11,7 +11,7 @@ draft: false
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 
-function nmplayer(id: string): NMVideoPlayer<VideoPlaylistItem>;
+function nmplayer(id?: string | number): NMVideoPlayer<VideoPlaylistItem>;
 ```
 
 The default export.
@@ -20,9 +20,9 @@ If a player is already attached to `id`, the same instance is returned (singleto
 
 **Parameters:**
 
-| Name | Type     | Description                                                            |
-| ---- | -------- | ---------------------------------------------------------------------- |
-| `id` | `string` | The `id` attribute of the container element the player will mount into |
+| Name | Type               | Description                                                                                                    |
+| ---- | ------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `id` | `string \| number` | Optional. The `id` attribute of the container element to mount into. A `number` retrieves an existing instance from the registry by index. |
 
 **Returns:** `NMVideoPlayer<VideoPlaylistItem>`, the player instance, ready to chain `.addPlugin()` and `.setup()`.
 
@@ -50,7 +50,7 @@ const player = nmplayer('player')
   });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 
@@ -83,15 +83,15 @@ Registration happens during the `pluginsRegistering` phase.
 ```ts
 const player = nmplayer('player')
   .addPlugin(DesktopUiPlugin)
-  .addPlugin(OctopusPlugin, { workerUrl: '/octopus-worker.js' })
+  .addPlugin(KeyHandlerPlugin)
   .addPlugin(AutoAdvancePlugin, { enabled: true })
   .setup({ playlist: [{ url: '...' }] });
 ```
 
-## destroy
+## dispose
 
 ```ts
-player.destroy(): void
+player.dispose(): void
 ```
 
 Tears down the player: disposes all plugins, removes the DOM tree, cancels pending network requests, and releases the HLS instance.

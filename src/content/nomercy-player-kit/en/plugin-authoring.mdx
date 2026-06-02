@@ -21,6 +21,43 @@ Decide which layer your plugin belongs to:
 Both layers use the same `Plugin<P, O, E>` base class.
 The distinction is what they import and what goes in their options.
 
+## Typing your plugin's player generic
+
+The `P` generic controls which player API your plugin can access.
+
+- Use `IPlayer<BaseEventMap>` for core-level plugins that don't touch the active item (analytics, error reporters, adapters). `metrics()`, `getPlugin()`, and all transport methods are available directly.
+- Add `& WithCurrentItem<YourItemType>` when your plugin needs `this.player.item()`. Both `NMVideoPlayer<T>` and `NMMusicPlayer<T>` satisfy this constraint structurally.
+- Use the concrete player type (`NMVideoPlayer`, `NMMusicPlayer`) when you need library-specific methods like `subtitles()` or `crossfade()`.
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type {
+  IPlayer,
+  WithCurrentItem,
+  BaseEventMap,
+} from '@nomercy-entertainment/nomercy-player-core';
+
+// Core-level plugin — no item access, metrics available directly:
+class AnalyticsPlugin extends Plugin<IPlayer<BaseEventMap>, AnalyticsOptions, AnalyticsEvents> {
+  private report(): void {
+    const snapshot = this.player.metrics(); // PlaybackMetrics — no constraint needed
+  }
+}
+
+// Item-aware plugin — needs current(), adds WithCurrentItem:
+class MyPlugin<
+  P extends IPlayer<BaseEventMap> & WithCurrentItem<MyItem>,
+  I extends MyItem = MyItem,
+> extends Plugin<P, MyOptions, MyEvents> {
+  onEnded(): void {
+    const item = this.player.item();     // MyItem
+    const snapshot = this.player.metrics(); // PlaybackMetrics — no constraint needed
+  }
+}
+```
+
+Plugins that don't read the active item omit `& WithCurrentItem<...>`; `metrics()`, `getPlugin()`, and transport methods are on `IPlayer` directly.
+
 ## Minimal plugin skeleton
 
 ```ts
@@ -29,7 +66,7 @@ import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player'
 
 interface ScrobbleOptions {
   endpoint: string;
-  minWatchedPercent?: number; // default 0.5
+  minWatchedPercent?: number; // default 50 (percentage 0–100)
 }
 
 interface ScrobbleEvents {
@@ -44,7 +81,7 @@ export class ScrobblePlugin extends Plugin<NMVideoPlayer, ScrobbleOptions, Scrob
 
   use(): void {
     this.on('progress', ({ percentage }) => {
-      const threshold = this.opts.minWatchedPercent ?? 0.5;
+      const threshold = this.opts.minWatchedPercent ?? 50;
       if (percentage >= threshold) {
         this.scrobble(percentage);
       }
@@ -56,7 +93,7 @@ export class ScrobblePlugin extends Plugin<NMVideoPlayer, ScrobbleOptions, Scrob
   }
 
   private async scrobble(percentage: number): Promise<void> {
-    const item = this.player.current();
+    const item = this.player.item();
     if (!item) return;
 
     try {
@@ -86,7 +123,7 @@ Usage:
 player.addPlugin(ScrobblePlugin, { endpoint: '/api/v1/progress' });
 
 player.on('plugin:scrobble:scrobbled', ({ itemId, watchedPercent }) => {
-  console.log(`Scrobbled ${itemId} at ${watchedPercent * 100}%`);
+  console.log(`Scrobbled ${itemId} at ${watchedPercent}%`);
 });
 ```
 
@@ -246,12 +283,15 @@ static readonly advisories: PluginAdvisory[] = [
 **Replace** a built-in plugin with the same id:
 
 ```ts
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session';
+import type { MediaSessionMetadata } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session';
+
 class MyMediaSession extends MediaSessionPlugin {
   static readonly id = 'media-session';
   static readonly replaces = 'media-session';
 
-  protected getMetadata(item: VideoPlaylistItem): MediaMetadata {
-    return new MediaMetadata({ title: item.localizedTitle });
+  protected getMetadata(item): MediaSessionMetadata {
+    return { title: item.title };
   }
 }
 player.addPlugin(MyMediaSession);
@@ -276,7 +316,7 @@ class MyKeyHandler extends KeyHandlerPlugin {
 use(): void {
   const root = this.mount('toast');   // returns a div appended to player.container
                                        // auto-removed on dispose
-  this.storage.set('volume', 0.8);    // key namespaced to nmplayer-<id>-volume
+  this.storage.set('volume', '0.8');  // values are strings; key namespaced to nmplayer-<id>-volume
   this.storage.get('volume');
 }
 ```
@@ -285,7 +325,6 @@ use(): void {
 
 ```ts
 import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
-import { assertNoListenerLeak } from '@nomercy-entertainment/nomercy-player-core/testing';
 
 describePlugin(ScrobblePlugin, ({ player, plugin }) => {
   test('emits scrobbled after progress threshold', async () => {
@@ -297,14 +336,10 @@ describePlugin(ScrobblePlugin, ({ player, plugin }) => {
     await vi.waitFor(() => events.length > 0);
     expect(events[0]).toMatchObject({ watchedPercent: 0.9 });
   });
-
-  test('no listener leak', () => {
-    assertNoListenerLeak(player, ScrobblePlugin);
-  });
 });
 ```
 
-`describePlugin` provides a fresh player with the plugin registered and auto-disposes in `afterEach`.
+`describePlugin` provides a fresh player with the plugin registered, auto-disposes in `afterEach`, and automatically asserts no listener leak after each test.
 
 ## Conformance checklist
 

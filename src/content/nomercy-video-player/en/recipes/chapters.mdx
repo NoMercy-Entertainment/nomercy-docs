@@ -17,7 +17,6 @@ The simplest approach is to embed chapter data directly in each queue item:
 
 ```ts
 const player = nmplayer('main').setup({
-  container: document.getElementById('player')!,
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
   playlist: [
     {
@@ -39,58 +38,33 @@ No extra configuration is needed.
 
 ## VTT chapter file
 
-Supply a custom `IChapterSource` that fetches and parses a WebVTT chapter file,
-then register it in `setup()`:
+`VideoPlaylistItem` has no `tracks` field — `tracks` was removed in v2.
+The default `VttChapterSource` reads chapters from the `chapters` array on each item.
+Parse the VTT on your server (or in a loader) and supply the result as `ChapterRef[]`:
 
 ```ts
-import type {
-  IChapterSource,
-  Chapter,
-  VideoPlaylistItem,
-} from '@nomercy-entertainment/nomercy-video-player';
+import type { ChapterRef } from '@nomercy-entertainment/nomercy-video-player';
 
-class VttFileChapterSource implements IChapterSource {
-  constructor(private readonly vttUrl: string) {}
-
-  private _chapters: Chapter[] = [];
-
-  async load(_item: VideoPlaylistItem): Promise<Chapter[]> {
-    const text = await fetch(this.vttUrl).then((r) => r.text());
-    this._chapters = parseVttChapters(text);
-    return this._chapters;
-  }
-
-  current(timeSeconds: number): Chapter | null {
-    return this._chapters.find(
-      (ch) => timeSeconds >= ch.start && timeSeconds < ch.end,
-    ) ?? null;
-  }
-
-  all(): Chapter[] {
-    return this._chapters;
-  }
-
-  unload(): void {
-    this._chapters = [];
-  }
-}
+// Parse the VTT on your side and pass the result as ChapterRef[]:
+const chapters: ChapterRef[] = [
+  { index: 0, start: 0,    end: 90,   title: 'Cold Open' },
+  { index: 1, start: 90,   end: 900,  title: 'Act 1' },
+  { index: 2, start: 2700, end: 2820, title: 'Credits' },
+];
 
 const player = nmplayer('main').setup({
-  container: document.getElementById('player')!,
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
-  chapterSource: new VttFileChapterSource(
-    'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films/Sintel.(2010)/chapters.vtt',
-  ),
   playlist: [
     {
       id: 'sintel',
       url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      chapters,
     },
   ],
 });
 ```
 
-A valid WebVTT chapters file:
+A valid WebVTT chapters file (for reference — parse server-side before passing to the player):
 
 ```
 WEBVTT
@@ -111,7 +85,7 @@ Credits
 ## Chapter events and API
 
 ```ts
-// Fires when currentTime() enters a new chapter range:
+// Fires when time() enters a new chapter range:
 player.on('chapter', ({ index, title }) => {
   console.log(`Now in chapter ${index}: ${title}`);
 });
@@ -121,7 +95,7 @@ const chapters = player.chapters();
 // [{ index, start, end, title }, ...]
 
 // Read the currently active chapter:
-const current = player.currentChapter();
+const current = player.chapter();
 // { index, start, end, title } | null
 ```
 
@@ -133,14 +107,14 @@ Jump to a chapter by index or by its start time:
 // Seek to the start of chapter at index 2:
 const chapters = player.chapters();
 if (chapters[2]) {
-  player.currentTime(chapters[2].start);
+  player.time(chapters[2].start);
 }
 
 // Build a chapter menu:
 chapters.forEach((chapter) => {
   const button = document.createElement('button');
   button.textContent = chapter.title;
-  button.addEventListener('click', () => player.currentTime(chapter.start));
+  button.addEventListener('click', () => player.time(chapter.start));
   chapterMenu.appendChild(button);
 });
 ```
@@ -150,31 +124,36 @@ chapters.forEach((chapter) => {
 Load chapters from a database or API instead of a VTT file:
 
 ```ts
-import type {
-  IChapterSource,
-  Chapter,
-  VideoPlaylistItem,
-} from '@nomercy-entertainment/nomercy-video-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { Chapter } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
-class ApiChapterSource implements IChapterSource {
-  async load(item: VideoPlaylistItem): Promise<Chapter[]> {
-    // item.id is the queue item id passed to the server
-    const response = await fetch(`/api/chapters/${item.id}`);
-    const data: Array<{ id: number; start_ms: number; end_ms: number; name: string }> =
-      await response.json();
+// There is no chapterSource config field — build a Plugin that fetches
+// chapters on 'current' and emits 'chapters' so the player and UI pick them up.
+class ApiChapterSourcePlugin extends Plugin<NMVideoPlayer<VideoPlaylistItem>> {
+  static readonly id = 'api-chapter-source';
+  static readonly version = '1.0.0';
 
-    return data.map((ch, index) => ({
-      index,
-      start: ch.start_ms / 1000,
-      end: ch.end_ms / 1000,
-      title: ch.name,
-    }));
+  override use(): void {
+    this.on('current', async ({ item }) => {
+      if (!item) return;
+      // Use this.fetch() so the player's auth pipeline applies.
+      const data = await this.fetch<Array<{ id: number; start_ms: number; end_ms: number; name: string }>>(
+        `/api/chapters/${item.id}`,
+        { responseType: 'json' },
+      );
+      const chapters: Chapter[] = data.map((ch, index) => ({
+        index,
+        start: ch.start_ms / 1000,
+        end: ch.end_ms / 1000,
+        title: ch.name,
+      }));
+      this.player.emit('chapters', { chapters });
+    });
   }
 }
 
-player.setup({
-  chapterSource: new ApiChapterSource(),
-});
+player.addPlugin(ApiChapterSourcePlugin);
 ```
 
 ## What to read next

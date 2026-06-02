@@ -93,15 +93,12 @@ player.on('backend:changed', ({ kind }) => {
 
 ## Transport events (inherited)
 
-| Event     | Payload     | When                                     |
-| --------- | ----------- | ---------------------------------------- |
-| `play`    | `undefined` | Playback starts                          |
-| `pause`   | `undefined` | Playback pauses                          |
-| `playing` | `undefined` | Media rendering after buffering resolves |
-| `ended`   | `undefined` | Current track finishes naturally         |
-| `waiting` | `undefined` | Buffer underrun                          |
-| `canplay` | `undefined` | Enough data to begin playback            |
-| `stalled` | `undefined` | Data unavailable for unexpected period   |
+| Event     | Payload        | When                                     |
+| --------- | -------------- | ---------------------------------------- |
+| `play`    | `ActionOptions` | Playback starts                         |
+| `pause`   | `ActionOptions` | Playback pauses                         |
+| `playing` | `undefined`    | Media rendering after buffering resolves |
+| `ended`   | `undefined`    | Current track finishes naturally         |
 
 ## Time events (inherited)
 
@@ -117,14 +114,14 @@ Duration fires once after `loadedmetadata`.
 
 | Event             | Payload                         | When                                       |
 | ----------------- | ------------------------------- | ------------------------------------------ |
-| `queue`           | `ReadonlyArray<T>`              | Queue replaced                             |
-| `queue:append`    | `{ items: T[]; index: number }` | Items appended                             |
-| `queue:prepend`   | `{ items: T[]; index: number }` | Items prepended                            |
-| `queue:remove`    | `{ id: string \| number }`      | Item removed                               |
-| `queue:move`      | `{ from: number; to: number }`  | Item moved                                 |
-| `queue:clear`     | `undefined`                     | Queue cleared                              |
-| `queue:exhausted` | `undefined`                     | Queue played through with no repeat active |
-| `backlog`         | `ReadonlyArray<T>`              | Backlog changes                            |
+| `queue`           | `T[]`                           | Queue replaced                             |
+| `queue:append`    | `{ items: T[]; from: number }`                            | Items appended. `from` is the index of the first appended item. |
+| `queue:prepend`   | `{ items: T[] }`                                          | Items prepended                            |
+| `queue:remove`    | `{ id: string \| number; index: number; item: T }`        | Item removed. `index` is the position that was vacated. |
+| `queue:move`      | `{ from: number; to: number }`                            | Item moved                                 |
+| `queue:clear`     | `{ previousLength: number }`                              | Queue cleared. `previousLength` is the count before clearing. |
+| `queue:exhausted` | `undefined`                                               | Queue played through with no repeat active |
+| `backlog`         | `ReadonlyArray<T>`                                        | Backlog changes                            |
 
 ## Volume events (inherited from BaseEventMap)
 
@@ -176,8 +173,8 @@ interface PlayerErrorEvent {
 
 | Event            | Payload              | When                    |
 | ---------------- | -------------------- | ----------------------- |
-| `auth:refreshed` | `{ token: string }`  | Token refresh succeeded |
-| `auth:failed`    | `{ error: unknown }` | Token refresh failed    |
+| `auth:refreshed` | `{ tokenAcquiredAt: number }` | Token refresh succeeded. `tokenAcquiredAt` is a `Date.now()` timestamp. |
+| `auth:failed`    | `{ error: PlayerErrorEvent['error'] }` | Token refresh failed    |
 
 ## Subscribing and unsubscribing
 
@@ -220,7 +217,7 @@ Examples:
 | `plugin:lyrics:line`      | `{ text: string }` |
 | `plugin:lyrics:lineEnter` | `{ text: string }` |
 | `plugin:lyrics:lineExit`  | `{ text: string }` |
-| `plugin:lyrics:loaded`    | `undefined`        |
+| `plugin:lyrics:loaded`    | `{ count: number }` |
 
 ```ts
 player.on('plugin:lyrics:line', ({ text }) => {

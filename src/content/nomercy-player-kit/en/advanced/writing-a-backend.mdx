@@ -1,404 +1,212 @@
 ---
 title: 'Writing a Backend'
-description: 'The IVideoBackend / IAudioBackend contracts and wiring a custom backend into either the video or music player.'
+description: 'Registering a custom IStreamFactory to handle new protocols or MSE pipelines alongside the built-in HLS and native backends.'
 ---
+
+{/* Source: packages/nomercy-player-kit/src/adapters/stream/IStreamSource.ts */}
 
 # Writing a Backend
 
-Read this when you need to replace a built-in backend, either the HLS/html5 video backend (for DASH or a custom MSE pipeline) or the audio backend (for a custom Web Audio pipeline).
+Read this when you need to support a streaming protocol or media pipeline not covered by the built-in backends, such as MPEG-DASH, smooth streaming, or a custom MSE pipeline.
+The extension point is `IStreamFactory` and `IStreamSource` from `@nomercy-entertainment/nomercy-player-core/adapters/stream`.
 
-For the video-specific surface (`IVideoBackend`) see [Custom Video Backend](/nomercy-video-player/adapters/video-backend).
-For the music-specific surface (`IAudioBackend`) see [Custom Audio Backend](/nomercy-music-player/advanced/writing-an-audio-backend).
+**Prerequisites:** [Streams](/nomercy-player-core/streams) covers the default HLS and native stream factories.
+Read it first, because many needs can be addressed by configuring hls.js rather than writing a new factory.
 
-**Prerequisites:** [HLS](/nomercy-video-player/hls) covers the default video backend's capabilities.
-Read it first, because many needs can be addressed without replacing the backend.
+## When to write a custom stream factory
 
-## When to replace the backend
+Before writing a factory, check whether the need can be addressed with lower-effort options:
 
-Before replacing the backend, check whether the need can be addressed with lower-effort options:
+1. **hls.js config override**: tune bitrate caps, retry counts, or level limits through the `hlsConfig` setup option.
+2. **Stream interceptor**: intercept manifest and segment responses before hls.js sees them via `StreamRegistry.intercept()`. Useful for signing URLs or transforming responses.
+3. **Custom plugin**: if the need is behavioral (custom ABR, buffer management), write a plugin that calls existing player methods rather than owning the media pipeline.
 
-1. **Custom stream factory**: register a `StreamFactory` via `registerStream()` to handle a new URL scheme or content type (e.g. DASH, smooth streaming). See [Adapter Ports, Streams](/nomercy-player-core/streams).
+Replace the factory only when none of the above covers the use case.
 
-2. **hls.js config override**: if you need to tune HLS behavior (bitrate cap, fragment retry count, level cap), configure it through the `hlsConfig` setup option rather than replacing the entire backend.
-
-3. **Custom plugin**: if the need is behavioral (custom ABR, buffer management, fragment interception), write a plugin that wraps the backend rather than replacing it. See [Advanced: Custom Plugin](/nomercy-player-core/advanced/custom-plugin).
-
-Replace the backend only when none of the above covers the use case.
-
-## Registering the backend
+## Registering a custom factory
 
 ```ts
-player.setup({
-  backendFactory: (kind, config) => {
-    return new MyVideoBackend(config.container);
-  },
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import type { IStreamFactory } from '@nomercy-entertainment/nomercy-player-core/adapters/stream';
+
+const player = nmplayer('main').setup({
+  playlist: [{ id: '1', url: 'https://example.com/manifest.mpd' }],
 });
+
+// Register before calling play():
+player.registerStream(myDashFactory);
 ```
 
-`backendFactory` receives the `kind` string and a `config` object that includes the player container element.
-Return an object that implements `IVideoBackend` or `IAudioBackend`.
+`registerStream(factory)` adds the factory to the `StreamRegistry`.
+When a URL is resolved, each registered factory's `canPlay(url, contentType)` is called in registration order.
+The first factory that returns `true` wins.
+The built-in HLS and native factories are always present as fallbacks.
 
-## The IVideoBackend interface
-
-All methods follow the overloaded-function convention: stateful values are read with no argument and written with an argument.
-
-```ts
-import type { IVideoBackend } from '@nomercy-entertainment/nomercy-video-player';
-```
-
-### Lifecycle
-
-| Method    | Signature                               | Description                                |
-| --------- | --------------------------------------- | ------------------------------------------ |
-| `load`    | `(url: string, opts?) => Promise<void>` | Load a media URL                           |
-| `unload`  | `() => void`                            | Clear the source                           |
-| `dispose` | `() => void`                            | Full teardown                              |
-
-### Transport
-
-| Method  | Signature             | Description      |
-| ------- | --------------------- | ---------------- |
-| `play`  | `() => Promise<void>` | Begin playback   |
-| `pause` | `() => void`          | Pause playback   |
-| `stop`  | `() => void`          | Stop playback    |
-
-### Time and position
-
-| Method               | Signature                | Description                 |
-| -------------------- | ------------------------ | --------------------------- |
-| `currentTime()`      | `() => number`           | Current position in seconds |
-| `currentTime(t)`     | `(t: number) => void`    | Seek to position `t`        |
-| `duration()`         | `() => number`           | Total duration in seconds   |
-| `buffered()`         | `() => number`           | End of buffered range       |
-| `bufferedRanges()`   | `() => TimeRanges`       | Full buffered `TimeRanges`  |
-| `seekable()`         | `() => TimeRanges`       | Seekable range              |
-| `playbackRate()`     | `() => number`           | Current playback rate       |
-| `playbackRate(rate)` | `(rate: number) => void` | Set playback rate           |
-
-### Volume
-
-| Method               | Signature                         | Description          |
-| -------------------- | --------------------------------- | -------------------- |
-| `volume()`           | `() => number`                    | Current volume (0–1) |
-| `volume(newVolume)`  | `(newVolume: number) => void`     | Set volume           |
-| `mute()`             | `() => void`                      | Mute audio           |
-| `unmute()`           | `() => void`                      | Unmute audio         |
-
-### Events
-
-Backends emit through a typed `on` / `off` pair. The core subscribes in `backend()`:
-
-```ts
-backend.on('play', () => { /* ... */ });
-backend.on('timeupdate', () => { /* ... */ });
-backend.on('ended', () => { /* ... */ });
-```
-
-All event names and payload shapes are defined in `BackendEventPayload`.
-Your backend must call `on` / `off` with the same signature.
-
-## Minimal custom backend
-
-A skeleton that wraps a `<video>` element:
+## The IStreamFactory interface
 
 ```ts
 import type {
-  IVideoBackend,
-  BackendEvent,
-  BackendEventPayload,
-  BackendState,
-  BackendLoaderState,
-  QualityLevel,
-} from '@nomercy-entertainment/nomercy-video-player';
-import type { AudioTrack, SubtitleTrack } from '@nomercy-entertainment/nomercy-player-core';
+  IStreamFactory,
+  IStreamSource,
+  StreamFactoryOptions,
+  StreamCapabilities,
+} from '@nomercy-entertainment/nomercy-player-core/adapters/stream';
+```
 
-type Listener<E extends BackendEvent> = (data?: BackendEventPayload[E]) => void;
+```ts
+interface IStreamFactory {
+  readonly id: string;
 
-export class MyNativeBackend implements IVideoBackend {
-  readonly kind = 'html5' as const;
+  canPlay(
+    url: string,
+    contentType?: string,
+    capabilities?: StreamCapabilities,
+  ): boolean;
 
-  private video: HTMLVideoElement;
-  private listeners = new Map<string, Set<Listener<any>>>();
-
-  constructor(container: HTMLElement) {
-    this.video = document.createElement('video');
-    this.video.style.width = '100%';
-    this.video.style.height = '100%';
-    container.appendChild(this.video);
-
-    // Bridge native element events to the backend's own emitter:
-    this.video.addEventListener('play', (event) => this._emit('play', event as Event));
-    this.video.addEventListener('pause', (event) => this._emit('pause', event as Event));
-    this.video.addEventListener('ended', (event) => this._emit('ended', event as Event));
-    this.video.addEventListener('timeupdate', (event) => this._emit('timeupdate', event as Event));
-    this.video.addEventListener('loadstart', (event) => this._emit('loadstart', event as Event));
-    this.video.addEventListener('loadedmetadata', () => {
-      this._emit('loadedmetadata', {
-        url: this.video.src,
-        kind: 'html5',
-        duration: this.video.duration,
-      });
-    });
-    this.video.addEventListener('canplay', (event) => this._emit('canplay', event as Event));
-    this.video.addEventListener('waiting', (event) => this._emit('waiting', event as Event));
-    this.video.addEventListener('playing', (event) => this._emit('playing', event as Event));
-    this.video.addEventListener('emptied', (event) => this._emit('emptied', event as Event));
-  }
-
-  // Lifecycle
-  async load(url: string): Promise<void> {
-    this.video.src = url;
-    this.video.load();
-  }
-
-  unload(): void {
-    this.video.src = '';
-    this.video.load();
-  }
-
-  dispose(): void {
-    this.unload();
-    this.video.remove();
-    this.listeners.clear();
-  }
-
-  // Transport
-  play(): Promise<void> { return this.video.play(); }
-  pause(): void { this.video.pause(); }
-  stop(): void { this.video.pause(); this.video.currentTime = 0; }
-
-  // Time / position
-  currentTime(): number;
-  currentTime(t: number): void;
-  currentTime(t?: number): number | void {
-    if (t === undefined) return this.video.currentTime;
-    this.video.currentTime = t;
-  }
-
-  duration(): number { return this.video.duration; }
-
-  buffered(): number {
-    const ranges = this.video.buffered;
-    return ranges.length > 0 ? ranges.end(ranges.length - 1) : 0;
-  }
-
-  bufferedRanges(): TimeRanges { return this.video.buffered; }
-  seekable(): TimeRanges { return this.video.seekable; }
-
-  playbackRate(): number;
-  playbackRate(rate: number): void;
-  playbackRate(rate?: number): number | void {
-    if (rate === undefined) return this.video.playbackRate;
-    this.video.playbackRate = rate;
-  }
-
-  // Volume
-  volume(): number;
-  volume(newVolume: number): void;
-  volume(newVolume?: number): number | void {
-    if (newVolume === undefined) return this.video.volume;
-    this.video.volume = newVolume;
-  }
-
-  mute(): void { this.video.muted = true; }
-  unmute(): void { this.video.muted = false; }
-
-  // Video-specific (no ABR on native backend)
-  videoWidth(): number { return this.video.videoWidth; }
-  videoHeight(): number { return this.video.videoHeight; }
-  audioTracks(): AudioTrack[] { return []; }
-  setAudioTrack(_idx: number): void { /* no-op */ }
-  subtitleTracks(): SubtitleTrack[] { return []; }
-  setSubtitleTrack(_idx: number | null): void { /* no-op */ }
-  qualityLevels(): QualityLevel[] { return []; }
-  setQuality(_idx: number | 'auto'): void { /* no-op */ }
-  currentLevel(): number { return -1; }
-
-  // State
-  state(): BackendState { return this.video.paused ? 'paused' : 'playing'; }
-
-  // Raw element access
-  mediaElement(): HTMLVideoElement { return this.video; }
-
-  // MediaStream capture
-  captureStream(): MediaStream {
-    return (this.video as HTMLVideoElement & { captureStream?: () => MediaStream }).captureStream?.() ?? new MediaStream();
-  }
-
-  // Audio output
-  async setSinkId(deviceId: string): Promise<void> {
-    const el = this.video as HTMLVideoElement & { setSinkId?: (id: string) => Promise<void> };
-    await el.setSinkId?.(deviceId);
-  }
-
-  getSinkId(): string {
-    const el = this.video as HTMLVideoElement & { sinkId?: string };
-    return el.sinkId ?? '';
-  }
-
-  // EME / DRM
-  mediaKeys(): MediaKeys | undefined { return this.video.mediaKeys ?? undefined; }
-  async setMediaKeys(keys: MediaKeys): Promise<void> { await this.video.setMediaKeys(keys); }
-  outputProtectionState(): 'unrestricted' | 'restricted' | 'unsupported' { return 'unrestricted'; }
-
-  // Loader backpressure (no-ops for native element)
-  pauseLoader(): void { /* no-op */ }
-  resumeLoader(): void { /* no-op */ }
-  loaderState(): BackendLoaderState { return 'running'; }
-
-  // Events
-  on<E extends BackendEvent>(event: E, fn: Listener<E>): void {
-    if (!this.listeners.has(event)) this.listeners.set(event, new Set());
-    this.listeners.get(event)!.add(fn as Listener<any>);
-  }
-
-  off<E extends BackendEvent>(event: E, fn: Listener<E>): void {
-    this.listeners.get(event)?.delete(fn as Listener<any>);
-  }
-
-  private _emit<E extends BackendEvent>(event: E, data?: BackendEventPayload[E]): void {
-    this.listeners.get(event)?.forEach(fn => fn(data));
-  }
+  create(opts: StreamFactoryOptions): IStreamSource;
 }
 ```
 
-Register it:
+`canPlay` is called for every URL the player resolves.
+Return `true` only when your factory can handle it.
+Use the optional `capabilities` argument to decline when the device cannot decode the stream.
+
+`create` is called at most once per URL resolution and must return an `IStreamSource`.
+
+## The IStreamSource interface
 
 ```ts
-player.setup({
-  backendFactory: (_kind, config) => new MyNativeBackend(config.container),
-});
+interface IStreamSource {
+  readonly kind: 'native' | 'hls' | 'dash';
+
+  /** Wire this source to a media element. Resolves once metadata is available. */
+  attach(element: HTMLMediaElement): Promise<void>;
+
+  /** Remove this source from the element without releasing internal state. */
+  detach(): void;
+
+  /** Detach and release all internal state. Unusable after this. */
+  destroy(): void;
+
+  /** Current lifecycle state. */
+  state(): StreamSourceState;
+
+  getLevels?(): StreamLevel[];
+  setLevel?(idx: number): void;
+  getCurrentLevel?(): StreamLevel | undefined;
+  setLevelStrategy?(
+    fn: (levels: StreamLevel[], ctx: { bandwidth: number; bufferedSeconds: number }) => number,
+  ): void;
+
+  on<E extends StreamEvent>(event: E, fn: (data: StreamEventPayloadMap[E]) => void): void;
+  off<E extends StreamEvent>(event: E, fn: (data: StreamEventPayloadMap[E]) => void): void;
+}
 ```
 
-## Shaka Player backend example
+`StreamSourceState` is one of `'idle' | 'loading' | 'ready' | 'playing' | 'error'`.
 
-Shaka Player is a DASH/HLS player from Google.
-The Shaka SDK uses its own `getVariantTracks()` / `selectVariantTrack()` API, those are Shaka's methods, not the core's.
-Your backend wraps them and exposes the core's overloaded-function surface:
+The events a source can emit are:
+
+| Event | Payload | When |
+| ----- | ------- | ---- |
+| `manifest-loaded` | `undefined` | Playlist / header parsed; levels are available |
+| `level-switched` | `LevelSwitchedData` | ABR or manual call changed the active quality |
+| `level-considered` | `{ level: number; reason: string }` | ABR evaluated but did not switch |
+| `fragment-loaded` | `FragLoadedData` | A media segment finished downloading |
+| `encrypted` | `{ keyUri: string; keyFormat?: string }` | An encrypted segment was encountered |
+| `error` | `MediaError \| ErrorData` | A fatal or non-fatal error occurred |
+
+## Minimal Shaka Player factory (DASH)
 
 ```ts
 import shaka from 'shaka-player';
 import type {
-  IVideoBackend,
-  BackendEvent,
-  BackendEventPayload,
-  BackendState,
-  BackendLoaderState,
-  QualityLevel,
-} from '@nomercy-entertainment/nomercy-video-player';
-import type { AudioTrack, SubtitleTrack } from '@nomercy-entertainment/nomercy-player-core';
+  IStreamFactory,
+  IStreamSource,
+  StreamFactoryOptions,
+  StreamLevel,
+  StreamEvent,
+  StreamEventPayloadMap,
+  StreamSourceState,
+} from '@nomercy-entertainment/nomercy-player-core/adapters/stream';
 
-type Listener<E extends BackendEvent> = (data?: BackendEventPayload[E]) => void;
+const DASH_RE = /\.mpd(\?|$)/i;
 
-export class ShakaBackend implements IVideoBackend {
-  readonly kind = 'html5' as const;
+export class ShakaStreamFactory implements IStreamFactory {
+  readonly id = 'shaka-dash';
 
-  private shakaPlayer: shaka.Player;
-  private video: HTMLVideoElement;
-  private listeners = new Map<string, Set<Listener<any>>>();
+  canPlay(url: string, contentType?: string): boolean {
+    return DASH_RE.test(url) || contentType === 'application/dash+xml';
+  }
 
-  constructor(container: HTMLElement) {
-    this.video = document.createElement('video');
-    container.appendChild(this.video);
+  create(opts: StreamFactoryOptions): IStreamSource {
+    return new ShakaStreamSource(opts);
+  }
+}
+
+class ShakaStreamSource implements IStreamSource {
+  readonly kind = 'dash' as const;
+
+  private shakaPlayer: shaka.Player | null = null;
+  private listeners = new Map<string, Set<(data: any) => void>>();
+  private _state: StreamSourceState = 'idle';
+  private readonly url: string;
+
+  constructor(private opts: StreamFactoryOptions) {
+    this.url = opts.url;
+  }
+
+  async attach(element: HTMLMediaElement): Promise<void> {
+    this._state = 'loading';
     this.shakaPlayer = new shaka.Player();
-    this.shakaPlayer.attach(this.video);
+    await this.shakaPlayer.attach(element);
 
-    this.video.addEventListener('play', (event) => this._emit('play', event as Event));
-    this.video.addEventListener('pause', (event) => this._emit('pause', event as Event));
-    this.video.addEventListener('ended', (event) => this._emit('ended', event as Event));
-    this.video.addEventListener('timeupdate', (event) => this._emit('timeupdate', event as Event));
-    this.video.addEventListener('loadstart', (event) => this._emit('loadstart', event as Event));
-    this.video.addEventListener('loadedmetadata', () => {
-      this._emit('loadedmetadata', {
-        url: this.video.src,
-        kind: 'html5',
-        duration: this.video.duration,
-      });
-    });
-    this.video.addEventListener('canplay', (event) => this._emit('canplay', event as Event));
-    this.video.addEventListener('waiting', (event) => this._emit('waiting', event as Event));
-    this.video.addEventListener('playing', (event) => this._emit('playing', event as Event));
-    this.video.addEventListener('emptied', (event) => this._emit('emptied', event as Event));
-
-    // Shaka-specific: bridge variant changes to level-switched
     this.shakaPlayer.addEventListener('variantchanged', () => {
-      const variant = this.shakaPlayer.getVariantTracks().find((t) => t.active);
-      if (variant) this._emit('level-switched', { level: variant.id });
+      const variant = this.shakaPlayer!.getVariantTracks().find((t) => t.active);
+      if (variant) {
+        this._emit('level-switched', { level: variant.id } as any);
+      }
     });
+
+    try {
+      await this.shakaPlayer.load(this.url);
+      this._state = 'ready';
+      this._emit('manifest-loaded', undefined);
+    } catch (err) {
+      this._state = 'error';
+      this._emit('error', err as any);
+      throw err;
+    }
   }
 
-  async load(url: string): Promise<void> {
-    await this.shakaPlayer.load(url);
-    const levels = this.qualityLevels();
-    this._emit('levels', { levels });
+  detach(): void {
+    this.shakaPlayer?.detach();
   }
 
-  unload(): void { this.shakaPlayer.unload(); }
-
-  async dispose(): Promise<void> {
-    await this.shakaPlayer.destroy();
-    this.video.remove();
+  destroy(): void {
+    void this.shakaPlayer?.destroy();
+    this.shakaPlayer = null;
     this.listeners.clear();
+    this._state = 'idle';
   }
 
-  play(): Promise<void> { return this.video.play(); }
-  pause(): void { this.video.pause(); }
-  stop(): void { this.video.pause(); this.video.currentTime = 0; }
-
-  currentTime(): number;
-  currentTime(t: number): void;
-  currentTime(t?: number): number | void {
-    if (t === undefined) return this.video.currentTime;
-    this.video.currentTime = t;
+  state(): StreamSourceState {
+    return this._state;
   }
 
-  duration(): number { return this.video.duration; }
-
-  buffered(): number {
-    const ranges = this.video.buffered;
-    return ranges.length > 0 ? ranges.end(ranges.length - 1) : 0;
-  }
-
-  bufferedRanges(): TimeRanges { return this.video.buffered; }
-  seekable(): TimeRanges { return this.video.seekable; }
-
-  playbackRate(): number;
-  playbackRate(rate: number): void;
-  playbackRate(rate?: number): number | void {
-    if (rate === undefined) return this.video.playbackRate;
-    this.video.playbackRate = rate;
-  }
-
-  volume(): number;
-  volume(newVolume: number): void;
-  volume(newVolume?: number): number | void {
-    if (newVolume === undefined) return this.video.volume;
-    this.video.volume = newVolume;
-  }
-
-  mute(): void { this.video.muted = true; }
-  unmute(): void { this.video.muted = false; }
-
-  videoWidth(): number { return this.video.videoWidth; }
-  videoHeight(): number { return this.video.videoHeight; }
-  audioTracks(): AudioTrack[] { return []; }
-  setAudioTrack(_idx: number): void { /* no-op */ }
-  subtitleTracks(): SubtitleTrack[] { return []; }
-  setSubtitleTrack(_idx: number | null): void { /* no-op */ }
-
-  // Shaka's getVariantTracks() is Shaka's own SDK API, wrapped here:
-  qualityLevels(): QualityLevel[] {
-    return this.shakaPlayer.getVariantTracks().map((track) => ({
-      id: track.id,
-      width: track.width ?? 0,
-      height: track.height ?? 0,
-      bitrate: track.bandwidth,
-      label: track.label ?? undefined,
+  getLevels(): StreamLevel[] {
+    return (this.shakaPlayer?.getVariantTracks() ?? []).map((t) => ({
+      bitrate: t.bandwidth,
+      height: t.height ?? undefined,
+      width: t.width ?? undefined,
+      label: t.label ?? String(t.id),
+      index: t.id,
     }));
   }
 
-  setQuality(idx: number | 'auto'): void {
-    if (idx === 'auto') {
+  setLevel(idx: number): void {
+    if (!this.shakaPlayer) return;
+    if (idx === -1) {
       this.shakaPlayer.configure({ abr: { enabled: true } });
       return;
     }
@@ -407,54 +215,43 @@ export class ShakaBackend implements IVideoBackend {
     if (target) this.shakaPlayer.selectVariantTrack(target, true);
   }
 
-  currentLevel(): number {
-    const active = this.shakaPlayer.getVariantTracks().find((t) => t.active);
-    return active?.id ?? -1;
+  getCurrentLevel(): StreamLevel | undefined {
+    const active = this.shakaPlayer?.getVariantTracks().find((t) => t.active);
+    if (!active) return undefined;
+    return {
+      bitrate: active.bandwidth,
+      height: active.height ?? undefined,
+      width: active.width ?? undefined,
+      label: active.label ?? String(active.id),
+      index: active.id,
+    };
   }
 
-  state(): BackendState { return this.video.paused ? 'paused' : 'playing'; }
-
-  mediaElement(): HTMLVideoElement { return this.video; }
-
-  captureStream(): MediaStream {
-    return (this.video as HTMLVideoElement & { captureStream?: () => MediaStream }).captureStream?.() ?? new MediaStream();
-  }
-
-  async setSinkId(deviceId: string): Promise<void> {
-    const el = this.video as HTMLVideoElement & { setSinkId?: (id: string) => Promise<void> };
-    await el.setSinkId?.(deviceId);
-  }
-
-  getSinkId(): string {
-    const el = this.video as HTMLVideoElement & { sinkId?: string };
-    return el.sinkId ?? '';
-  }
-
-  mediaKeys(): MediaKeys | undefined { return this.video.mediaKeys ?? undefined; }
-  async setMediaKeys(keys: MediaKeys): Promise<void> { await this.video.setMediaKeys(keys); }
-  outputProtectionState(): 'unrestricted' | 'restricted' | 'unsupported' { return 'unrestricted'; }
-
-  pauseLoader(): void { /* no-op */ }
-  resumeLoader(): void { /* no-op */ }
-  loaderState(): BackendLoaderState { return 'running'; }
-
-  on<E extends BackendEvent>(event: E, fn: Listener<E>): void {
+  on<E extends StreamEvent>(event: E, fn: (data: StreamEventPayloadMap[E]) => void): void {
     if (!this.listeners.has(event)) this.listeners.set(event, new Set());
-    this.listeners.get(event)!.add(fn as Listener<any>);
+    this.listeners.get(event)!.add(fn);
   }
 
-  off<E extends BackendEvent>(event: E, fn: Listener<E>): void {
-    this.listeners.get(event)?.delete(fn as Listener<any>);
+  off<E extends StreamEvent>(event: E, fn: (data: StreamEventPayloadMap[E]) => void): void {
+    this.listeners.get(event)?.delete(fn);
   }
 
-  private _emit<E extends BackendEvent>(event: E, data?: BackendEventPayload[E]): void {
-    this.listeners.get(event)?.forEach(fn => fn(data));
+  private _emit<E extends StreamEvent>(event: E, data: StreamEventPayloadMap[E]): void {
+    this.listeners.get(event)?.forEach((fn) => fn(data));
   }
 }
 ```
 
+Register it on the player:
+
+```ts
+player.registerStream(new ShakaStreamFactory());
+```
+
+From this point, any `.mpd` URL in the playlist resolves through Shaka instead of hls.js or the native element.
+
 ## What to read next
 
-- [HLS](/nomercy-video-player/hls): before replacing the backend, check if custom hls.js config covers your need
-- [Core Adapters](/nomercy-player-core/adapters): the full `IVideoBackend` port entry
-- [Advanced: Custom Plugin](/nomercy-player-core/advanced/custom-plugin): if you need to add behavior on top of the backend without replacing it
+- [Streams](/nomercy-player-core/streams): the full `IStreamFactory` / `IStreamSource` reference and the built-in HLS and native factories
+- [Adapter Ports](/nomercy-player-core/adapters): every swappable port the core exposes
+- [Advanced: Custom Plugin](/nomercy-player-core/advanced/custom-plugin): adding behavior on top of any backend

@@ -223,7 +223,7 @@ dispose(): void {
 }
 ```
 
-> **Note:** You do not need to call `this.on(...)` cleanup manually. All listeners registered via the plugin's `this.on(...)` are automatically removed when `dispose()` runs.
+> **Note:** All listeners registered via `this.on(...)` are removed automatically when `dispose()` runs. The elements explicitly removed in `dispose()` above are children of the overlay root (`this.mount('overlay')`), which itself is auto-removed by the lifecycle registry — the explicit calls are belt-and-suspenders and not required.
 
 ## Full plugin at this stage
 
@@ -430,7 +430,7 @@ const player = nmplayer('nomercy-player')
   });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 

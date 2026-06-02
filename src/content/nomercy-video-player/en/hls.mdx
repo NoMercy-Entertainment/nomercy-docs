@@ -9,17 +9,16 @@ The video player uses hls.js for HLS playback.
 The player core's stream adapter wraps hls.js behind the `IVideoBackend` interface.
 HDR-aware ABR is automatic.
 
-## How hls.js is bundled
+## How hls.js is wired in
 
-hls.js ships with `nomercy-video-player` as a regular dependency, so installing the player installs hls.js too.
-You don't add it yourself:
+`hls.js` installs automatically with the player (a transitive dependency via `@nomercy-entertainment/nomercy-player-core`) — nothing extra to install for the npm / bundler path. See [Installation](/nomercy-video-player/installation) for the CDN exception.
 
-```
-npm install @nomercy-entertainment/nomercy-video-player@beta
-```
-
-The player loads hls.js via dynamic import on first HLS source, so it stays out of your initial bundle until you actually play `.m3u8`.
+The build output marks `hls.js` as external so it is not inlined into the player's own dist bundle.
+At runtime the player loads it via a dynamic import on first HLS source, so it stays out of your initial bundle until you actually play `.m3u8`.
 On Safari / iOS, native HLS is used and hls.js is never instantiated.
+
+For the CDN / IIFE path (no bundler), the IIFE bundle expects `Hls` as a global, so load `hls.js` via a separate `<script>` before the player script.
+See [Quick Start: CDN embed](/nomercy-video-player/quickstart#cdn-embed-no-bundler).
 
 ## Adaptive bitrate (ABR)
 
@@ -35,8 +34,8 @@ player.setup({
 Lock to a specific quality level (index into `qualityLevels()`):
 
 ```ts
-player.currentQuality(2); // lock to level index 2
-player.currentQuality(-1); // back to auto
+player.quality(2); // lock to level index 2
+player.quality('auto'); // back to adaptive (ABR)
 ```
 
 Listen for level changes:
@@ -72,15 +71,13 @@ The check runs on the `screen-change` platform event.
 
 ```ts
 interface QualityLevel {
-  id: number;
-  width: number;
-  height: number;
-  bitrate: number;
-  label?: string; // human-readable (e.g. '1080p')
-  hdr?: boolean; // true if the level uses HDR color range
-  frameRate?: number;
-  videoCodec?: string;
-  audioCodec?: string;
+  bitrate: number;              // stream bitrate in bits per second
+  height?: number;              // encoded height in px, if known
+  width?: number;               // encoded width in px, if known
+  label: string;                // human-readable (e.g. '1080p')
+  index: number;                // zero-based level index; pass to quality(idx)
+  supported?: boolean;          // set when qualityLevels({ includeUnsupported: true })
+  dynamicRange?: 'sdr' | 'hdr'; // 'hdr' for PQ/HLG streams, 'sdr' otherwise
 }
 ```
 
@@ -113,9 +110,13 @@ player.streams(); // ['dash', 'hls', 'native']
 For full control over the `<video>` element or for non-standard streaming protocols:
 
 ```ts
-import type { IVideoBackend } from '@nomercy-entertainment/nomercy-video-player';
+import type { IVideoBackend, VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+import type { BasePlaylistItem } from '@nomercy-entertainment/nomercy-player-core';
 
 class MyBackend implements IVideoBackend {
+  constructor(_config: VideoPlayerConfig<BasePlaylistItem>) {
+    // ... receive config
+  }
   // ... implement the interface
 }
 
@@ -124,21 +125,6 @@ player.setup({
 });
 ```
 
-## Low-latency HLS
+## Low-latency HLS and custom hls.js config
 
-hls.js supports low-latency HLS (LL-HLS).
-Configure via `backendFactory` to pass custom hls.js config:
-
-```ts
-import Hls from 'hls.js';
-
-player.setup({
-  backendFactory: (_kind, config) => {
-    const hls = new Hls({
-      lowLatencyMode: true,
-      backBufferLength: 30,
-    });
-    return new Html5VideoBackend(config.container, hls);
-  },
-});
-```
+The built-in `Html5VideoBackend` creates its hls.js instance internally and does **not** currently expose a hook for custom hls.js config — `lowLatencyMode` is off and cannot be toggled through the player config. Customizing hls.js settings (including LL-HLS) requires supplying your own backend via `backendFactory` that owns its `Hls` instance and implements `IVideoBackend`. See the [Video Backend adapter](/nomercy-video-player/adapters/video-backend) for the contract.

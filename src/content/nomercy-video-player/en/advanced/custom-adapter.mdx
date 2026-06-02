@@ -17,10 +17,8 @@ The default `StorageBackedSubtitleStyleStore` writes to `localStorage`.
 For larger style objects or cross-tab sync, use IndexedDB:
 
 ```ts
-import type {
-  ISubtitleStyleStore,
-  SubtitleStyle,
-} from '@nomercy-entertainment/nomercy-video-player';
+import type { ISubtitleStyleStore } from '@nomercy-entertainment/nomercy-video-player';
+import type { SubtitleStyle } from '@nomercy-entertainment/nomercy-player-core';
 
 const DB_NAME = 'player-preferences';
 const STORE_NAME = 'subtitle-styles';
@@ -64,8 +62,16 @@ class IndexedDbSubtitleStyleStore implements ISubtitleStyleStore {
   }
 }
 
-player.setup({
-  subtitleStyleStore: new IndexedDbSubtitleStyleStore(),
+// Persist on every style change, restore after ready.
+const styleStore = new IndexedDbSubtitleStyleStore();
+
+player.on('subtitleStyle', (style) => {
+  void styleStore.save(style);
+});
+
+player.on('ready', async () => {
+  const saved = await styleStore.load();
+  if (saved) player.subtitleStyle(saved);
 });
 ```
 
@@ -74,50 +80,55 @@ player.setup({
 When chapters come from an API, avoid refetching per-item with a simple cache:
 
 ```ts
-import { authFetch } from '@nomercy-entertainment/nomercy-player-core';
-import type {
-  IChapterSource,
-  Chapter,
-  VideoPlaylistItem,
-} from '@nomercy-entertainment/nomercy-video-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { Chapter } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
-class CachedApiChapterSource implements IChapterSource {
+// IChapterSource is an adapter interface — there is no chapterSource config field.
+// Build a Plugin that owns the cache, loads on 'current', and emits 'chapters'.
+class CachedApiChapterSourcePlugin extends Plugin<NMVideoPlayer<VideoPlaylistItem>> {
+  static readonly id = 'cached-api-chapter-source';
+  static readonly version = '1.0.0';
+
   private cache = new Map<string, Chapter[]>();
 
-  async load(item: VideoPlaylistItem): Promise<Chapter[]> {
-    if (this.cache.has(item.id)) {
-      return this.cache.get(item.id)!;
-    }
+  override use(): void {
+    this.on('current', async ({ item }) => {
+      if (!item) return;
+      const key = String(item.id);
+      if (this.cache.has(key)) {
+        this.player.emit('chapters', { chapters: this.cache.get(key)! });
+        return;
+      }
 
-    let chapterData: Array<{ id: string; start_ms: number; end_ms: number; title: string }>;
+      let chapterData: Array<{ id: string; start_ms: number; end_ms: number; title: string }>;
+      try {
+        chapterData = await this.fetch<Array<{ id: string; start_ms: number; end_ms: number; title: string }>>(
+          `/api/v1/chapters/${key}`,
+          { responseType: 'json' },
+        );
+      } catch {
+        return;
+      }
 
-    try {
-      chapterData = await authFetch<Array<{ id: string; start_ms: number; end_ms: number; title: string }>>({
-        url: `/api/v1/chapters/${item.id}`,
-        responseType: 'json',
-        signal: AbortSignal.timeout(10_000),
-      });
-    } catch {
-      return [];
-    }
+      const chapters: Chapter[] = chapterData.map((entry, index) => ({
+        index,
+        start: entry.start_ms / 1000,
+        end: entry.end_ms / 1000,
+        title: entry.title,
+      }));
 
-    const chapters: Chapter[] = chapterData.map((entry, index) => ({
-      index,
-      start: entry.start_ms / 1000,
-      end: entry.end_ms / 1000,
-      title: entry.title,
-    }));
-
-    this.cache.set(item.id, chapters);
-
-    return chapters;
+      this.cache.set(key, chapters);
+      this.player.emit('chapters', { chapters });
+    });
   }
 
-  // Call this when the queue changes to prevent stale data:
-  invalidate(itemId: string): void {
-    this.cache.delete(itemId);
+  invalidate(itemId: string | number): void {
+    this.cache.delete(String(itemId));
   }
 }
+
+player.addPlugin(CachedApiChapterSourcePlugin);
 ```
 
 ## IThumbnailSource, sprite-sheet from API
@@ -125,46 +136,30 @@ class CachedApiChapterSource implements IChapterSource {
 When your server generates preview sprites on demand instead of serving a static VTT file:
 
 ```ts
-import { authFetch } from '@nomercy-entertainment/nomercy-player-core';
 import type {
   IThumbnailSource,
   ThumbnailFrame,
   VideoPlaylistItem,
 } from '@nomercy-entertainment/nomercy-video-player';
 
+// IThumbnailSource is an adapter interface — there is no thumbnailSource config field.
+// Implement it inside your own UI plugin that owns the scrub-preview rendering.
+// VttSpriteThumbnailSource (the built-in) reads item.previewSpriteUrl automatically.
+// Only implement IThumbnailSource when your server returns a non-VTT format.
 class ApiThumbnailSource implements IThumbnailSource {
   private cache: ThumbnailFrame[] = [];
-  private currentItemId: string | undefined;
+  private currentItemId: string | number | undefined;
 
   async load(item: VideoPlaylistItem): Promise<boolean> {
     if (this.currentItemId === item.id) return this.cache.length > 0;
     this.currentItemId = item.id;
     this.cache = [];
 
-    let frames: Array<{
-      url: string;
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      start: number;
-      end: number;
-    }>;
-
+    type ApiFrame = { url: string; x: number; y: number; width: number; height: number; start: number; end: number };
+    let frames: ApiFrame[];
     try {
-      frames = await authFetch<Array<{
-        url: string;
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-        start: number;
-        end: number;
-      }>>({
-        url: `/api/v1/thumbnails/${item.id}`,
-        responseType: 'json',
-        signal: AbortSignal.timeout(10_000),
-      });
+      const response = await fetch(`/api/v1/thumbnails/${item.id}`);
+      frames = await response.json() as ApiFrame[];
     } catch {
       return false;
     }
@@ -192,9 +187,10 @@ class ApiThumbnailSource implements IThumbnailSource {
   }
 }
 
-player.setup({
-  thumbnailSource: new ApiThumbnailSource(),
-});
+// Use your source inside a UI plugin — pass it to the scrub-preview handler:
+// const thumbnailSource = new ApiThumbnailSource();
+// In your plugin's 'current' handler: await thumbnailSource.load(item);
+// In your scrub handler: const frame = thumbnailSource.lookup(timeSeconds);
 ```
 
 `lookup()` is called synchronously on every scrub hover event.

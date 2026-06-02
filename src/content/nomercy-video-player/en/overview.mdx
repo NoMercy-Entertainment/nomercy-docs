@@ -10,7 +10,8 @@ draft: false
 
 `nomercy-video-player` is the headless HLS engine that powers video on NoMercy TV.
 It does the parts of video that are genuinely hard, switching bitrate as the network changes, matching HDR to the display, rendering subtitles in several formats, and keeping the picture moving through all of it, then hands you the result as plain events and methods.
-No UI is bundled: add the built-in `DesktopUiPlugin` for a full set of controls, or build your own.
+
+The player is headless: a pure TypeScript engine with no built-in UI. It manages the HLS pipeline, queue, tracks, auth, and state, and communicates through typed events and CSS classes on the container element. Everything on screen is a plugin — `DesktopUiPlugin` is the first-party overlay; replace it, extend it, or build your own.
 
 ## What you get
 
@@ -27,7 +28,7 @@ The generic parts (queue, auth, plugins, i18n, storage) live in `nomercy-player-
 <LayerStack layers={[
   { n: 3, name: 'Your application', pkg: 'Your app code', knows: 'Your UI and app logic, built on the player.' },
   { n: 2, name: 'nomercy-video-player', pkg: 'You are here', knows: 'Video-specific methods and events (IVideoPlayer<T>).' },
-  { n: 1, name: 'nomercy-player-core', pkg: 'Peer dependency', knows: 'Queue, auth, plugins, event bus, i18n, storage.' },
+  { n: 1, name: 'nomercy-player-core', pkg: 'Dependency', knows: 'Queue, auth, plugins, event bus, i18n, storage.' },
 ]} />
 
 Plugin authors type against `IVideoPlayer<T>` rather than the concrete class.

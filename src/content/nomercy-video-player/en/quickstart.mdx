@@ -18,8 +18,7 @@ The seek bar, play/pause, volume, and fullscreen controls appear (from `DesktopU
 npm install @nomercy-entertainment/nomercy-video-player@beta
 ```
 
-`hls.js` ships with the player, so no separate install is needed.
-The player loads it lazily the first time you point at an HLS (`.m3u8`) source.
+`hls.js` installs automatically with the player (a transitive dependency via `@nomercy-entertainment/nomercy-player-core`) — nothing extra to install for the npm / bundler path. See [Installation](/nomercy-video-player/installation) for the CDN exception.
 
 ## Minimal working player
 
@@ -65,7 +64,7 @@ const player = nmplayer('nomercy-player')
   .setup(config);
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 
@@ -73,7 +72,7 @@ The `DesktopUiPlugin` mounts the full built-in UI: play/pause, seek bar, volume,
 Remove it if you are building a custom UI.
 
 The inline `playlist:` array is auto-queued during setup.
-`current(0, { autoplay: true })` selects the first item and starts playback in sequence.
+`item(0, { autoplay: true })` selects the first item and starts playback in sequence.
 
 ## Auto-advance
 
@@ -112,7 +111,7 @@ const player = nmplayer('main')
   });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 
@@ -127,13 +126,13 @@ player.stop();
 player.next();
 player.previous();
 player.seekToIndex(2); // jump to the third item (0-based)
-player.currentTime(120); // seek to 2:00
+player.time(120); // seek to 2:00
 player.volume(60); // 0-100
 player.mute();
 player.unmute();
 player.toggleMute();
-player.fullscreenState(true);
-player.pipState(true);
+player.fullscreen(true);
+player.pip(true);
 ```
 
 ## Auth-protected HLS
@@ -153,7 +152,7 @@ const player = nmplayer('main').setup({
 });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 
@@ -202,7 +201,7 @@ const player = nmplayer('main').setup({
 });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 
@@ -232,14 +231,14 @@ The bundle expects `hls.js` as the `Hls` global, so load that script first.
   });
 
   player.on('ready', function () {
-    player.current(0, { autoplay: true });
+    player.item(0, { autoplay: true });
   });
 </script>
 ```
 
 ## Headless architecture in one paragraph
 
-The player has no built-in UI. It is a pure TypeScript engine: it manages the HLS pipeline, queue, tracks, auth, and state, then communicates through typed events and CSS class mutations on the container element. Everything you see on screen is a plugin. `DesktopUiPlugin` is the first-party desktop overlay; you can replace it, extend it, or skip it entirely and build your own from scratch.
+The player is headless: a pure TypeScript engine with no built-in UI. It manages the HLS pipeline, queue, tracks, auth, and state, and communicates through typed events and CSS classes on the container element. Everything on screen is a plugin — `DesktopUiPlugin` is the first-party overlay; replace it, extend it, or build your own.
 
 All plugins share the same lifecycle. They are registered via `addPlugin(PluginClass)` before `setup()`, initialised during the setup pipeline, and torn down when `dispose()` is called.
 
@@ -281,29 +280,29 @@ import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import {
   DesktopUiPlugin,
   KeyHandlerPlugin,
-  OctopusPlugin,
 } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-// All addPlugin() calls before setup() — guaranteed order of initialisation.
+// All addPlugin() calls before setup() — initialised in registration order.
 const player = nmplayer('nomercy-player')
   .addPlugin(DesktopUiPlugin)
   .addPlugin(KeyHandlerPlugin)
-  .addPlugin(OctopusPlugin)
   .setup({
     baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
     playlist: [{ id: 'sintel', url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8', duration: 888 }],
   });
 ```
 
+Both plugins here act on any playlist: `DesktopUiPlugin` mounts the UI, `KeyHandlerPlugin` binds keyboard control. Content-gated plugins such as `OctopusPlugin` (ASS/SSA only) are shown with content that exercises them in their own sections below — don't add them against media they can't act on.
+
 You can also call `addPlugin()` after `setup()`, in which case initialisation runs immediately. If you need to act on the result, register a `plugin:installed` listener on the player first, then call `addPlugin()`.
 
 Retrieve a plugin instance with `getPlugin(PluginClass)`:
 
 ```ts
-import { OctopusPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-const octopus = player.getPlugin(OctopusPlugin);
-// octopus is typed as OctopusPlugin | undefined
+const keyHandler = player.getPlugin(KeyHandlerPlugin);
+// keyHandler is typed as KeyHandlerPlugin | undefined (undefined if it was never added)
 ```
 
 ## Cleanup with dispose()
@@ -351,7 +350,7 @@ const player = nmplayer('nomercy-player')
   });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 
@@ -383,9 +382,9 @@ To disable all keyboard shortcuts without removing the plugin, pass `disableCont
 
 ## OctopusPlugin: ASS/SSA subtitles
 
-`OctopusPlugin` renders ASS and SSA subtitles using libass via WebAssembly. It is a heavy dependency, so only add it when your content uses styled subtitles. VTT subtitles are handled natively without this plugin.
+`OctopusPlugin` renders ASS and SSA subtitles using libass via WebAssembly. The WASM worker is heavy at runtime, so only add the plugin when your content uses styled subtitles. VTT subtitles are handled natively without this plugin.
 
-`@nomercy-entertainment/nomercy-subtitle-octopus` is an optional peer dependency. The plugin degrades gracefully if it is absent: playback continues and VTT subtitles still render; ASS/SSA tracks simply do not display.
+`@nomercy-entertainment/nomercy-subtitle-octopus` ships as a regular dependency of the player, so it is always installed alongside it — there is nothing extra to add. The plugin loads it through a guarded dynamic import; in the unlikely event that import fails at runtime it logs a warning and marks itself degraded, and playback continues with VTT subtitles unaffected.
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -421,7 +420,7 @@ const player = nmplayer('nomercy-player')
   });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 
@@ -477,7 +476,7 @@ const player = nmplayer('nomercy-player')
   });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 

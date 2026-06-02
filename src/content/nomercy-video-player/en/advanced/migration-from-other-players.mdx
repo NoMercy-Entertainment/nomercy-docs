@@ -19,11 +19,11 @@ The NoMercy video player wraps hls.js behind `IVideoBackend`.
 | ----------------------------------------- | -------------------------------------------- |
 | `new Hls()`                               | `nmplayer('id')`                             |
 | `hls.loadSource(url)`                     | `player.queue([{ url }])`                    |
-| `hls.attachMedia(video)`                  | `player.setup({ container })`                |
+| `hls.attachMedia(video)`                  | (implicit — `nmplayer('id')` mounts to that element id) |
 | `hls.on(Hls.Events.MANIFEST_PARSED, ...)` | `player.on('levels', ...)`                   |
 | `hls.on(Hls.Events.LEVEL_SWITCHED, ...)`  | `player.on('level-switched', ...)`           |
-| `hls.currentLevel = n`                    | `player.currentQuality(n)`                   |
-| `hls.autoLevelEnabled = false`            | `player.currentQuality(-1)` to re-enable ABR |
+| `hls.currentLevel = n`                    | `player.quality(n)`                   |
+| `hls.autoLevelEnabled = false`            | `player.quality('auto')` to re-enable ABR |
 | `hls.levels`                              | `player.qualityLevels()`                     |
 
 ### Key differences
@@ -54,7 +54,7 @@ video.js is a full-featured player with its own plugin system and UI.
 | `videojs('player-id', options)`                  | `nmplayer('player-id').setup(options)`         |
 | `player.src({ src, type })`                      | `player.queue([{ url, ... }])`                 |
 | `player.play()` / `player.pause()`               | Same                                           |
-| `player.currentTime()` / `player.currentTime(t)` | Same (getter/setter)                           |
+| `player.currentTime()` / `player.currentTime(t)` | `player.time()` / `player.time(t)`             |
 | `player.volume()` / `player.volume(v)`           | Same                                           |
 | `player.on(event, handler)`                      | Same                                           |
 | `player.off(event, handler)`                     | Same                                           |
@@ -72,13 +72,14 @@ To customize the UI, subclass `DesktopUiPlugin`, do not add elements directly to
 
 ```ts
 // video.js:
+// @ts-expect-error — addRemoteTextTrack is a video.js API, not available in the NoMercy player
 player.addRemoteTextTrack({ kind: 'subtitles', src, srclang: 'en' });
 
-// NoMercy player:
+// NoMercy player: declare subtitles per playlist item with url (not file):
 player.setup({
   playlist: [
     {
-      subtitles: [{ id: 'en', language: 'en', label: 'English', file: src, kind: 'subtitles' }],
+      subtitles: [{ id: 'en', language: 'en', label: 'English', url: src, kind: 'subtitles' }],
     },
   ],
 });
@@ -94,13 +95,13 @@ It has no HLS support built in, so users typically pair it with hls.js manually.
 
 | Plyr                               | NoMercy video player                                        |
 | ---------------------------------- | ----------------------------------------------------------- |
-| `new Plyr('#player', options)`     | `nmplayer('id').setup({ container, ...options })`           |
+| `new Plyr('#player', options)`     | `nmplayer('player').setup(options)` (the id is the element id) |
 | `player.play()` / `player.pause()` | Same                                                        |
-| `player.currentTime` (property)    | `player.currentTime()` (method)                             |
+| `player.currentTime` (property)    | `player.time()` (method)                                    |
 | `player.volume` (property, 0–1)    | `player.volume()` (method, 0–100)                           |
 | `player.muted` (property)          | `player.mute()` / `player.unmute()` / `player.toggleMute()` |
-| `player.fullscreen.enter()`        | `player.fullscreenState(true)`                              |
-| `player.fullscreen.exit()`         | `player.fullscreenState(false)`                             |
+| `player.fullscreen.enter()`        | `player.fullscreen(true)`                                   |
+| `player.fullscreen.exit()`         | `player.fullscreen(false)`                                  |
 | `player.on('play', cb)`            | `player.on('play', cb)`                                     |
 | `player.destroy()`                 | `player.dispose()`                                          |
 
@@ -117,11 +118,11 @@ hls.attachMedia(video);
 const player = new Plyr(video);
 
 // NoMercy player (new):
-const player = nmplayer('main').setup({
-  container: document.getElementById('player')!,
-  playlist: [{ id: '1', url: src }],
-});
-player.addPlugin(DesktopUiPlugin);
+const player = nmplayer('main')
+  .addPlugin(DesktopUiPlugin)
+  .setup({
+    playlist: [{ id: '1', url: src }],
+  });
 ```
 
 ## From Tone.js (audio / music apps)

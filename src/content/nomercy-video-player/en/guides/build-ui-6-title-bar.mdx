@@ -64,7 +64,7 @@ export class PlayerUiPlugin extends Plugin<NMVideoPlayer> {
     this.buildBottomBar();
 
     // Populate immediately with whatever is already loaded.
-    this.updateTitleBar(this.player.current());
+    this.updateTitleBar(this.player.item());
 
     // Keep in sync as the queue advances.
     this.on('current', ({ item }) => this.updateTitleBar(item));
@@ -155,7 +155,9 @@ Its payload is `{ item: VideoPlaylistItem | undefined; index: number }`.
 
 `this.on(...)` inside `use()` registers a lifecycle-tracked listener, so it is removed automatically when the plugin disposes, no manual cleanup needed.
 
-Calling `this.updateTitleBar(this.player.current())` before registering the listener handles the case where the player was already loaded before the plugin ran.
+Calling `this.updateTitleBar(this.player.item())` before registering the listener handles the case where the player was already loaded before the plugin ran.
+`NMVideoPlayer` satisfies `WithCurrentItem<VideoPlaylistItem>` structurally, so `item()` is available on `this.player` when the plugin is typed against the concrete class.
+If you type against the interface (`IVideoPlayer & WithCurrentItem<VideoPlaylistItem>`), the same call works without a cast.
 
 ## Styling note
 
@@ -233,7 +235,7 @@ const player = nmplayer('player')
   });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 

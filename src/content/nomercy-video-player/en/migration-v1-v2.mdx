@@ -26,12 +26,12 @@ Read the checklist below, then work through each section.
 
 ## Quick migration checklist
 
-- Replace `player.seek(t)` with `player.currentTime(t)`
+- Replace `player.seek(t)` with `player.time(t)`
 - Replace `player.speed(v)` / `player.speeds()` with `player.playbackRate(v)` / `player.playbackRates()`
 - Replace `player.muted(bool)` with `player.mute()` / `player.unmute()`
-- Replace `player.quality(idx)` with `player.currentQuality(idx)`
-- Replace `player.audioTrack(idx)` with `player.currentAudioTrack(idx)`
-- Replace `player.subtitle(idx)` with `player.currentSubtitle(idx)`
+- Replace `player.quality(idx)` with the v2 `player.quality(idx)` — the name returned to the bare-noun form
+- Replace `player.audioTrack(idx)` with the v2 `player.audioTrack(idx)` — the name returned to the bare-noun form
+- Replace `player.subtitle(idx)` with the v2 `player.subtitle(idx)` — the name returned to the bare-noun form
 - Replace `player.playlist()` with `player.queue()`, `player.setPlaylist(items)` with `player.queue(items)`
 - Replace `player.playVideo(idx)` with `player.seekToIndex(idx)`
 - Replace `player.fetchPlaylist(url)` with `player.loadQueue(url, parser?)`
@@ -47,7 +47,7 @@ Read the checklist below, then work through each section.
 - Replace `item.duration` string with `item.duration` number (was formatted string, now seconds)
 - Update every `player.on(...)` event handler, payload shapes changed for all events
 - Remove calls to `hasSpeeds()`, `hasQualities()`, `hasAudioTracks()`, `hasSubtitles()`, derive from lengths instead
-- Remove calls to `setEpisode(s, e)`, use `queue(items)` + `current(targetItem)` instead
+- Remove calls to `setEpisode(s, e)`, use `queue(items)` + `item(targetItem)` instead
 
 ## Events renamed
 
@@ -105,7 +105,7 @@ Update every `player.on(...)` call.
 | `levels`                               | `Level[]`                    | `{ levels: QualityLevel[] }`                                 |
 | `level-switched` (was `levelsChanged`) | `CurrentTrack`               | `{ level: number }`                                          |
 | `audioTracks`                          | `AudioTrack[]`               | `{ tracks: AudioTrack[] }`                                   |
-| `subtitle` (was `subtitleChanged`)     | `SubtitleTrack \| undefined` | `{ index: number \| null }`                                  |
+| `subtitle` (was `subtitleChanged`)     | `SubtitleTrack \| undefined` | `{ track: number \| null }`                                  |
 | `subtitleCue`                          | (new)                        | `SubtitleCueChange`                                          |
 | `fullscreen`                           | `boolean`                    | `{ active: boolean }`                                        |
 | `pip`                                  | `boolean`                    | `{ active: boolean }`                                        |
@@ -118,29 +118,29 @@ Update every `player.on(...)` call.
 
 | v1 method                    | v2 method                                                            |
 | ---------------------------- | -------------------------------------------------------------------- |
-| `seek(t)`                    | `currentTime(t, opts?)`                                              |
+| `seek(t)`                    | `time(t, opts?)`                                                     |
 | `speed(v?)`                  | `playbackRate(r?)`                                                   |
 | `speeds()`                   | `playbackRates()`                                                    |
 | `muted(v?)`                  | `mute()` / `unmute()` / `toggleMute()`                               |
-| `quality(idx?)`              | `currentQuality(idx?)`                                               |
-| `audioTrack(idx?)`           | `currentAudioTrack(idx?)`                                            |
-| `audioTrackIndex()`          | `currentAudioTrack()` (getter overload)                              |
-| `subtitle(idx?)`             | `currentSubtitle(idx?)`                                              |
-| `subtitleIndex()`            | `currentSubtitle()` (getter overload)                                |
-| `chapter(time)`              | `currentChapter()`                                                   |
-| `fullscreen(v?)`             | `fullscreenState(v?)`                                                |
-| `enterFullscreen()`          | `fullscreenState(true)` or `toggleFullscreen()`                      |
-| `exitFullscreen()`           | `fullscreenState(false)`                                             |
-| `pip(v?)`                    | `pipState(v?)`                                                       |
-| `theater(v?)`                | `theaterState(v?)`                                                   |
+| `quality(idx?)`              | `quality(idx?)` (same bare-noun form retained)                       |
+| `audioTrack(idx?)`           | `audioTrack(idx?)` (same bare-noun form retained)                    |
+| `audioTrackIndex()`          | `audioTrack()` (getter overload)                                     |
+| `subtitle(idx?)`             | `subtitle(idx?)` (same bare-noun form retained)                      |
+| `subtitleIndex()`            | `subtitle()` (getter overload)                                       |
+| `chapter(time)`              | `chapter()`                                                          |
+| `fullscreen(v?)`             | `fullscreen(v?)`                                                     |
+| `enterFullscreen()`          | `fullscreen(true)` or `toggleFullscreen()`                           |
+| `exitFullscreen()`           | `fullscreen(false)`                                                  |
+| `pip(v?)`                    | `pip(v?)`                                                            |
+| `theater(v?)`                | `theater(v?)`                                                        |
 | `aspect(v?)`                 | `aspectRatio(v?)`                                                    |
 | `playlist()`                 | `queue()`                                                            |
 | `setPlaylist(items)`         | `queue(items)`                                                       |
 | `load(items)`                | `queue(items)`                                                       |
 | `fetchPlaylist(url)`         | `loadQueue(url, parser?)`                                            |
 | `playVideo(idx)`             | `seekToIndex(idx, opts?)`                                            |
-| `playlistItem(idx?)`         | `current()` / `seekToIndex(idx)`                                     |
-| `playlistIndex()`            | `currentIndex()`                                                     |
+| `playlistItem(idx?)`         | `item()` / `seekToIndex(idx)`                                        |
+| `playlistIndex()`            | `index()`                                                            |
 | `state()`                    | `playState()`                                                        |
 | `element()`                  | `player.container` (property)                                        |
 | `buffer()`                   | `bufferedRanges()`                                                   |
@@ -164,9 +164,9 @@ These methods have no direct v2 replacement. Use the alternatives described.
 | `hasAudioTracks()`                               | `player.audioTracks().length > 1`                                                 |
 | `hasSubtitles()`                                 | `player.subtitles().length > 0`                                                   |
 | `hdrSupported()`                                 | Backend-internal; use `player.canPlay(profile)`                                   |
-| `setEpisode(season, ep)`                         | Find item in `player.queue()`, call `player.current(item)`                        |
-| `isFirstPlaylistItem()`                          | `player.currentIndex() === 0`                                                     |
-| `isLastPlaylistItem()`                           | `player.currentIndex() === player.queueLength() - 1`                              |
+| `setEpisode(season, ep)`                         | Find item in `player.queue()`, call `player.item(item)`                           |
+| `isFirstPlaylistItem()`                          | `player.index() === 0`                                                            |
+| `isLastPlaylistItem()`                           | `player.index() === player.queueLength() - 1`                                     |
 | `hasPlaylists()`                                 | `player.queueLength() > 1`                                                        |
 | `seasons()`                                      | Derive from `player.queue()` grouped by `item.season`                             |
 | `tracks(kind?)`                                  | Call `player.subtitles()`, `player.audioTracks()`, `player.chapters()` separately |
@@ -179,7 +179,7 @@ These methods have no direct v2 replacement. Use the alternatives described.
 | `setConfig(opts)`                                | Use typed methods: `auth()`, `baseUrl()`, `volume()`, etc.                        |
 | `setTitle(text)`                                 | Consumer concern, do not call player for this                                     |
 | `displayMessage(msg)`                            | `player.getPlugin(MessagePlugin).show(msg)`                                       |
-| `currentSrc()`                                   | `player.current()?.url`                                                           |
+| `currentSrc()`                                   | `player.item()?.url`                                                              |
 | `skippers()`                                     | `player.getPlugin(SkipperPlugin).skippers()`                                      |
 | `skip()`                                         | `player.getPlugin(SkipperPlugin).skip(kind?)`                                     |
 | `gain(v?)`                                       | `player.getPlugin(AudioGraphPlugin)`                                              |
@@ -207,6 +207,7 @@ If your server API returns playlist items with a `file` field and you pass them 
 
 ```ts
 // v1: server returns { file: '...', title: '...' }
+// @ts-expect-error — setPlaylist does not exist in v2
 player.setPlaylist(serverItems); // worked because player read item.file
 
 // v2: BREAKS. item.url is undefined, player cannot load the source.
@@ -251,7 +252,7 @@ Either update the server response or register a custom cue parser that bridges t
 ## `PlaylistItem` generic parameter
 
 `NMVideoPlayer<T extends VideoPlaylistItem>` is generic in v2.
-Your playlist item type is threaded through the player's type system, so `player.current()` returns `T | undefined` rather than `VideoPlaylistItem | undefined`.
+Your playlist item type is threaded through the player's type system, so `player.item()` returns `T | undefined` rather than `VideoPlaylistItem | undefined`.
 
 ```ts
 interface MyPlaylistItem extends VideoPlaylistItem {
@@ -261,8 +262,8 @@ interface MyPlaylistItem extends VideoPlaylistItem {
 
 const player = nmplayer<MyPlaylistItem>('player-1').setup({ ... });
 
-// player.current() is typed as MyPlaylistItem | undefined
-const item = player.current();
+// player.item() is typed as MyPlaylistItem | undefined
+const item = player.item();
 item?.internalId; // typed, no cast needed
 ```
 
@@ -271,10 +272,10 @@ item?.internalId; // typed, no cast needed
 v1's `subtitle(idx)` and `quality(idx)` setters accepted index values where `-1` meant "disable subtitles" or "auto quality".
 v2 follows the same convention: `-1` / `null` means disabled/auto.
 
-`currentQuality()` still returns the HLS.js `currentLevel` index where `-1` means auto-select.
+`quality()` still returns the HLS.js `currentLevel` index where `-1` means auto-select.
 The getter is unchanged.
 
-`currentSubtitle()` returns `number | null` where `null` means off.
+`subtitle()` returns `number | null` where `null` means off.
 
 ## `ready` event timing
 
@@ -298,8 +299,11 @@ v1 used a string-keyed instance registry:
 
 ```ts
 // v1
+// @ts-expect-error — registerPlugin does not exist in v2
 player.registerPlugin('octopus', new OctopusPlugin({ ... }));
+// @ts-expect-error — usePlugin does not exist in v2
 player.usePlugin('octopus');
+// @ts-expect-error — plugin() does not exist in v2
 const plugin = player.plugin('octopus');
 ```
 
@@ -347,11 +351,7 @@ const player = nmplayer('player-1').setup({
   // Injecting core adapters:
   platform: browserPlatform,
   storage: new LocalStorageBackend(),
-  accessToken: () => myAuth.getToken(),
-
-  // Video-specific adapters (chapterSource, thumbnailSource, subtitleStyleStore)
-  // inject the same way. The defaults read from the playlist item, so you pass
-  // one only when you need custom behaviour.
+  auth: { bearerToken: () => myAuth.getToken() },
 });
 ```
 
@@ -371,16 +371,13 @@ v2 exports each adapter and plugin from a dedicated subpath, enabling tree-shaki
 The root barrel import still works; subpaths are opt-in.
 
 ```ts
-// Still works (barrel):
-import { OctopusPlugin, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+// All plugins via the /plugins barrel:
+import { OctopusPlugin, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-// Tree-shakeable subpaths:
+// Tree-shakeable per-plugin subpaths:
 import { OctopusPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/octopus';
 import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/desktop-ui';
-import { Html5VideoBackend } from '@nomercy-entertainment/nomercy-video-player/adapters/video-backend';
-import { VttChapterSource } from '@nomercy-entertainment/nomercy-video-player/adapters/chapter-source';
-import { VttSpriteThumbnailSource } from '@nomercy-entertainment/nomercy-video-player/adapters/thumbnail-source';
-import { StorageBackedSubtitleStyleStore } from '@nomercy-entertainment/nomercy-video-player/adapters/subtitle-style-store';
+import { Html5VideoBackend, VttChapterSource, VttSpriteThumbnailSource, StorageBackedSubtitleStyleStore } from '@nomercy-entertainment/nomercy-video-player';
 ```
 
 ## Configuration shape changes
@@ -404,7 +401,7 @@ import { StorageBackedSubtitleStyleStore } from '@nomercy-entertainment/nomercy-
 | `disableHls`                   | Backend decision, use `backendFactory`              |
 | `forceHls`                     | Backend decision, use `backendFactory`              |
 | `float`                        | Consumer viewport concern                           |
-| `pip` (config object)          | Replaced by `pipState()` method + desktop UI plugin |
+| `pip` (config object)          | Replaced by `pip()` method + desktop UI plugin      |
 | `messagePlugin`                | Use `addPlugin(MessagePlugin)`                      |
 | `disableTouchControls`         | Use `addPlugin(TouchZonesPlugin)` and disable       |
 | `chapters` (boolean)           | Always through `IChapterSource` adapter             |
@@ -431,7 +428,7 @@ import { StorageBackedSubtitleStyleStore } from '@nomercy-entertainment/nomercy-
 High-impact areas:
 
 - Every `player.on(...)` event handler in the music and video views needs payload updates (all events)
-- `setEpisode(s, e)` calls in the episode player need replacing with `queue(items)` + `current(item)` navigation
+- `setEpisode(s, e)` calls in the episode player need replacing with `queue(items)` + `item(item)` navigation
 - `hasSpeeds()`, `hasQualities()`, `hasAudioTracks()`, `hasSubtitles()` calls in control-visibility logic need replacing with `.length` checks
 - `seasons()` call in the series view needs replacing with a groupBy over `player.queue()`
 - `progress.time` → `progress.timestamp` in continue-watching logic

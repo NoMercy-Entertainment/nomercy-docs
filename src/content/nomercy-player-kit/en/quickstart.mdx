@@ -65,6 +65,9 @@ export class AnalyticsPlugin extends Plugin<
 }
 ```
 
+The `AnalyticsPlugin` above is typed against plain `IPlayer<BaseEventMap>` and calls `this.player.metrics()` directly — no cast, no extra constraint needed.
+Plugins that don't read the active item omit `& WithCurrentItem<...>`; `metrics()`, `getPlugin()`, and transport methods are on `IPlayer` directly.
+
 Register it on any player:
 
 ```ts
@@ -104,20 +107,24 @@ See [Core: Adapters](/nomercy-player-core/adapters) for the full catalog.
 
 ```ts
 import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
-import { assertNoListenerLeak } from '@nomercy-entertainment/nomercy-player-core/testing';
 
 describePlugin(AnalyticsPlugin, ({ player, plugin }) => {
-  test('no listener leak', () => {
-    assertNoListenerLeak(player, AnalyticsPlugin);
+  test('emits session:reported', () => {
+    const events: unknown[] = [];
+    player.on('plugin:analytics:session:reported', (event) => events.push(event));
+
+    player.emit('ended', undefined);
+
+    expect(events).toHaveLength(1);
   });
 });
 ```
 
-The testing stub provides a minimal IPlayer implementation that satisfies the player core contracts without any browser APIs.
+`describePlugin` provides a fresh player with the plugin registered, auto-disposes in `afterEach`, and automatically asserts no listener leak after each test. No separate leak test is needed.
 
 ## What success looks like
 
-A core-level plugin registers without errors, `use()` is called during `setup()`, and `assertNoListenerLeak` passes after dispose.
+A core-level plugin registers without errors, `use()` is called during `setup()`, and the automatic leak harness in `describePlugin` passes after dispose.
 The plugin emits its typed events, and `player.on('plugin:analytics:session:reported', ...)` receives them.
 
 ## What to read next

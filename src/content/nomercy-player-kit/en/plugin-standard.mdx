@@ -216,12 +216,12 @@ Expose `protected` methods for behaviors most likely to vary:
 
 ```ts
 class MediaSessionPlugin extends Plugin {
-  protected getMetadata(item: T): MediaMetadata { /* default */ }
+  protected getMetadata(item: T): MediaSessionMetadata { /* default */ }
 }
 
 class MyMediaSession extends MediaSessionPlugin {
-  protected getMetadata(item: T) {
-    return new MediaMetadata({ title: item.localizedTitle, ... });
+  protected getMetadata(item: T): MediaSessionMetadata {
+    return { title: item.localizedTitle };
   }
 }
 ```
@@ -490,11 +490,31 @@ Lint-flagged. Requires inline comment explaining why no lower tier works.
 ### Leak harness (required)
 
 ```ts
-import { assertNoListenerLeak } from '@nomercy-entertainment/nomercy-player-core/testing';
+import {
+  assertNoListenerLeak,
+  createStubPlayer,
+} from '@nomercy-entertainment/nomercy-player-core/testing';
+import { LifecycleRegistry } from '@nomercy-entertainment/nomercy-player-core';
 
-test('no listener leak', () => {
-  const player = nmplayer('test').setup({});
-  assertNoListenerLeak(player, MyPlugin);
+// describePlugin auto-asserts no listener leak after every test.
+// Use assertNoListenerLeak directly when you need an explicit stand-alone check:
+test('no listener leak', async () => {
+  const player = createStubPlayer();
+  const plugin = new MyPlugin();
+  const lifecycle = new LifecycleRegistry();
+
+  await assertNoListenerLeak({
+    subjectId: 'my-plugin',
+    player,
+    setup: async () => {
+      plugin.initialize(player, {}, lifecycle);
+      await plugin.use();
+    },
+    teardown: () => {
+      plugin.dispose();
+      lifecycle.dispose();
+    },
+  });
 });
 ```
 
@@ -507,7 +527,8 @@ describePlugin(MyPlugin, ({ player, plugin }) => {
   test('emits dataFetched on track change', async () => {
     const events: unknown[] = [];
     player.on('plugin:my-plugin:dataFetched', (event) => events.push(event));
-    player.current({ id: '1', name: 'Track', url: '...' });
+    // Trigger the event the plugin listens for to drive the behavior under test:
+    player.emit('current', { item: { id: '1', name: 'Track', url: '...' } });
     await vi.waitFor(() => events.length > 0);
     expect(events[0]).toMatchObject({ count: expect.any(Number) });
   });

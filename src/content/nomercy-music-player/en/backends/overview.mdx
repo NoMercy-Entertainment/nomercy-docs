@@ -35,10 +35,10 @@ You pay zero Web Audio overhead if no plugin requests the graph.
 
 Routes audio through a full `AudioContext` graph.
 Crossfade uses `linearRampToValueAtTime` for sample-accurate gain ramps.
-Volume changes are smoothed with a 10 ms ramp to eliminate clicks.
+Volume changes are smoothed via `GainNode.gain.setTargetAtTime` with a 10 ms time constant to eliminate clicks.
 
 HLS streams fall back to `MediaElementAudioSourceNode` even in `webaudio` mode, because `hls.js` requires a `<audio>` element.
-Pure file playback (MP3, AAC, FLAC, OGG) decodes through `AudioBufferSourceNode`.
+Non-HLS playback (MP3, AAC, FLAC, OGG) also uses `MediaElementAudioSourceNode` — the backend always routes through the `<audio>` element so `hls.js` and non-HLS sources are handled identically.
 
 **Choose this when:**
 

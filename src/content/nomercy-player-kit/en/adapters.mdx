@@ -126,7 +126,7 @@ storage: new LocalStorageBackend();
 storage: new MemoryStorageBackend();
 
 // High-capacity: for large datasets (EQ preset libraries, subtitle cache):
-storage: new IndexedDBBackend('my-player-db');
+storage: new IndexedDBBackend({ dbName: 'my-player-db' });
 ```
 
 All three implement `IStorage`:
@@ -152,7 +152,7 @@ import type { IStorage } from '@nomercy-entertainment/nomercy-player-core';
 
 class RemoteStorageBackend implements IStorage {
   get(key: string): string | null {
-    return sessionStorage.getItem(key); // or call your remote API synchronously
+    return sessionStorage.getItem(key);
   }
   set(key: string, value: string): void {
     sessionStorage.setItem(key, value);
@@ -160,8 +160,13 @@ class RemoteStorageBackend implements IStorage {
   remove(key: string): void {
     sessionStorage.removeItem(key);
   }
-  clear(): void {
-    sessionStorage.clear();
+  getJSON<T>(key: string): T | null {
+    const raw = this.get(key);
+    if (raw === null) return null;
+    try { return JSON.parse(raw) as T; } catch { return null; }
+  }
+  setJSON<T>(key: string, value: T): void {
+    this.set(key, JSON.stringify(value));
   }
 }
 

@@ -19,37 +19,37 @@ This page lists the inherited surface grouped by concern and links to the canoni
 | `next`           | `(opts?: ActionOptions) => Promise<void>` | Advance to the next playlist item       |
 | `previous`       | `(opts?: ActionOptions) => Promise<void>` | Return to the previous playlist item    |
 | `togglePlayback` | `() => Promise<void>`                     | Toggle between play and pause           |
-| `rewind`         | `(seconds?: number) => Promise<void>`     | Seek backward by `seconds` (default 10) |
-| `forward`        | `(seconds?: number) => Promise<void>`     | Seek forward by `seconds` (default 10)  |
+| `rewind`         | `(seconds?: number) => Promise<void>`     | Seek backward by `seconds` (default 5)  |
+| `forward`        | `(seconds?: number) => Promise<void>`     | Seek forward by `seconds` (default 5)   |
 
 ## Queue / playlist
 
 | Method                   | Signature                                        | Description                                |
 | ------------------------ | ------------------------------------------------ | ------------------------------------------ |
-| `current()`              | `() => T \| undefined`                           | Active playlist item                       |
-| `current(target, opts?)` | `(target: T \| string \| number, opts?) => void` | Set the active item by value, id, or index |
-| `playlist()`             | `() => T[]`                                      | Full playlist array                        |
-| `playlist(items)`        | `(items: T[]) => void`                           | Replace the playlist                       |
+| `item()`              | `() => T \| undefined`                           | Active playlist item                       |
+| `item(target, opts?)` | `(target: T \| string \| number, opts?) => void` | Set the active item by value, id, or index |
+| `queue()`                | `() => ReadonlyArray<T>`                         | Full queue as a read-only array            |
+| `queue(items)`           | `(items: T[]) => void`                           | Replace the queue contents                 |
 
 ## Time
 
 | Method           | Signature             | Description                 |
 | ---------------- | --------------------- | --------------------------- |
-| `currentTime()`  | `() => number`        | Current position in seconds |
-| `currentTime(seconds)` | `(seconds: number) => void` | Seek to `seconds`         |
+| `time()`  | `() => number`        | Current position in seconds |
+| `time(seconds)` | `(seconds: number) => void` | Seek to `seconds`         |
 | `duration()`     | `() => number`        | Total duration in seconds   |
 
 ## Volume
 
 | Method         | Signature                  | Description                             |
 | -------------- | -------------------------- | --------------------------------------- |
-| `volume()`     | `() => number`             | Current volume level (0–1)              |
-| `volume(level)`    | `(level: number) => void`      | Set volume level                        |
-| `muted()`      | `() => boolean`            | Whether audio is muted                  |
-| `muted(state)` | `(state: boolean) => void` | Set mute state                          |
-| `toggleMute`   | `() => void`               | Toggle mute                             |
-| `volumeUp`     | `(step?: number) => void`  | Increase volume by `step` (default 0.1) |
-| `volumeDown`   | `(step?: number) => void`  | Decrease volume by `step` (default 0.1) |
+| `volume()`     | `() => number`             | Current volume level (0–100)                     |
+| `volume(level)`    | `(level: number) => void`      | Set volume level, clamped to [0, 100]        |
+| `mute()`       | `(opts?: ActionOptions) => void` | Mute the player                            |
+| `unmute()`     | `(opts?: ActionOptions) => void` | Unmute the player                          |
+| `toggleMute`   | `() => void`               | Toggle mute                                      |
+| `volumeUp`     | `(step?: number) => void`  | Increase volume by `step` percentage points (default 5) |
+| `volumeDown`   | `(step?: number) => void`  | Decrease volume by `step` percentage points (default 5) |
 
 ## Playback rate
 
@@ -80,14 +80,14 @@ This page lists the inherited surface grouped by concern and links to the canoni
 | Method                   | Signature                                  | Description                                       |
 | ------------------------ | ------------------------------------------ | ------------------------------------------------- |
 | `subtitles()`            | `() => SubtitleTrackRef[]`                 | Available subtitle tracks                         |
-| `currentSubtitle()`      | `() => CurrentSubtitleSelection \| null`   | Active subtitle track                             |
-| `currentSubtitle(idx)`   | `(idx: number \| null) => void`            | Activate subtitle by index, or `null` to turn off |
+| `subtitle()`      | `() => CurrentSubtitleSelection \| null`   | Active subtitle track                             |
+| `subtitle(idx)`   | `(idx: number \| null) => void`            | Activate subtitle by index, or `null` to turn off |
 | `audioTracks()`          | `() => AudioTrackRef[]`                    | Available audio tracks                            |
-| `currentAudioTrack()`    | `() => CurrentAudioTrackSelection \| null` | Active audio track                                |
-| `currentAudioTrack(idx)` | `(idx: number) => void`                    | Activate audio track by index                     |
+| `audioTrack()`    | `() => CurrentAudioTrackSelection \| null` | Active audio track                                |
+| `audioTrack(idx)` | `(idx: number) => void`                    | Activate audio track by index                     |
 | `qualityLevels()`        | `() => QualityLevel[]`                     | Available quality levels                          |
-| `currentQuality()`       | `() => CurrentQualitySelection \| 'auto'`  | Active quality level                              |
-| `currentQuality(idx)`    | `(idx: number \| 'auto') => void`          | Pin quality or return to ABR                      |
+| `quality()`       | `() => CurrentQualitySelection \| 'auto'`  | Active quality level                              |
+| `quality(idx)`    | `(idx: number \| 'auto') => void`          | Pin quality or return to ABR                      |
 
 ## State queries
 
@@ -101,17 +101,17 @@ This page lists the inherited surface grouped by concern and links to the canoni
 | Method              | Signature               | Description                           |
 | ------------------- | ----------------------- | ------------------------------------- |
 | `chapters()`        | `() => Chapter[]`       | All chapters for the current item     |
-| `currentChapter()`  | `() => Chapter \| null` | Chapter active at `currentTime()`     |
-| `nextChapter()`     | `() => void`            | Jump to the next chapter boundary     |
-| `previousChapter()` | `() => void`            | Jump to the previous chapter boundary |
+| `chapter()`  | `() => Chapter \| null` | Chapter active at `time()`     |
+| `nextChapter(opts?)`     | `(opts?: ActionOptions) => void` | Jump to the next chapter boundary     |
+| `previousChapter(opts?)` | `(opts?: ActionOptions) => void` | Jump to the previous chapter boundary |
 
 ## Plugin management
 
 | Method                  | Signature                                        | Description                          |
 | ----------------------- | ------------------------------------------------ | ------------------------------------ |
-| `addPlugin(cls, opts?)` | See [Factory](/nomercy-video-player/api/factory) | Register a plugin before `setup()`   |
-| `plugin(id)`            | `(id: string) => Plugin \| undefined`            | Retrieve a registered plugin by id   |
-| `hasPlugin(id)`         | `(id: string) => boolean`                        | Check whether a plugin is registered |
+| `addPlugin(cls, opts?)` | See [Factory](/nomercy-video-player/api/factory)     | Register a plugin before `setup()`                                  |
+| `getPlugin(Cls)`        | `(Cls: PluginCtorWithId) => P \| undefined`          | Retrieve a registered plugin instance by constructor (type-safe)    |
+| `getPluginById(id)`     | `(id: string) => P \| undefined`                     | Retrieve a registered plugin instance by its static `id` string     |
 
 ## Events
 

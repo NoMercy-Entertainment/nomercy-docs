@@ -26,18 +26,16 @@ This guide walks through two of the most commonly replaced ones:
 
 ```ts
 interface IStorage {
-  get(key: string): string | null;
-  set(key: string, value: string): void;
-  remove(key: string): void;
-  clear(): void;
+  get(key: string): string | null | Promise<string | null>;
+  set(key: string, value: string): void | Promise<void>;
+  remove(key: string): void | Promise<void>;
+  getJSON<T>(key: string): T | null | Promise<T | null>;
+  setJSON<T>(key: string, value: T): void | Promise<void>;
 }
 ```
 
-The interface is synchronous.
-For async backends (IndexedDB, remote API), you need to either:
-
-- Use a write-through cache that flushes asynchronously
-- Use `IndexedDBBackend` (ships with the core) if standard IndexedDB fits
+Methods may return values or Promises, so synchronous backends (`localStorage`) and asynchronous ones (IndexedDB, remote API) share one interface. Plugin code always uses `await`.
+For large async datasets, the `IndexedDBBackend` (ships with the core) covers the most common case.
 
 ### Custom backend backed by IndexedDB Workers
 
@@ -150,42 +148,82 @@ get(key: string): string | null {
 
 ```ts
 interface ITranslator {
-  translate(key: string, locale: string, params?: Record<string, string>): string;
-  hasKey(key: string, locale: string): boolean;
+  t(key: string, vars?: Record<string, string>): string;
+  language(): string;
+  language(lang: string): Promise<void>;
+  addTranslations(bundle: Translations): void;
+  translation(lang: string, key: string): string | undefined;
+  translation(lang: string, key: string, value: string): void;
+  removeTranslations(prefix: string, lang?: string): void;
+  dispose(): void;
 }
 ```
+
+Variable interpolation uses single-brace `{var}` syntax: `'Hello {name}'`.
 
 ### CMS-backed translator
 
 Load translation strings from a CMS (e.g. Contentful, Sanity, or your own API) and cache them:
 
 ```ts
-import type { ITranslator } from '@nomercy-entertainment/nomercy-player-core';
+import type { ITranslator, Translations } from '@nomercy-entertainment/nomercy-player-core';
 
 export class CmsTranslator implements ITranslator {
   private strings: Record<string, Record<string, string>> = {};
-  private ready = false;
+  private currentLang = 'en';
 
   constructor(private cmsUrl: string) {}
 
   // Load all strings for the given locale. Call this before player.setup():
-  async load(locale: string): Promise<void> {
-    const response = await fetch(`${this.cmsUrl}/player-strings/${locale}`);
-    if (!response.ok) throw new Error(`Failed to load translations for ${locale}`);
-    this.strings[locale] = await response.json();
-    this.ready = true;
+  async load(lang: string): Promise<void> {
+    const response = await fetch(`${this.cmsUrl}/player-strings/${lang}`);
+    if (!response.ok) throw new Error(`Failed to load translations for ${lang}`);
+    this.strings[lang] = await response.json();
   }
 
-  translate(key: string, locale: string, params?: Record<string, string>): string {
-    const base = this.strings[locale]?.[key] ?? key;
-    if (!params) return base;
+  t(key: string, vars?: Record<string, string>): string {
+    const base = this.strings[this.currentLang]?.[key] ?? key;
+    if (!vars) return base;
 
-    // Simple {{variable}} interpolation:
-    return base.replace(/\{\{(\w+)\}\}/g, (_, name) => params[name] ?? `{{${name}}}`);
+    // Single-brace {variable} interpolation:
+    return base.replace(/\{(\w+)\}/g, (_, name) => vars[name] ?? `{${name}}`);
   }
 
-  hasKey(key: string, locale: string): boolean {
-    return key in (this.strings[locale] ?? {});
+  language(): string;
+  language(lang: string): Promise<void>;
+  language(lang?: string): string | Promise<void> {
+    if (lang === undefined) return this.currentLang;
+    this.currentLang = lang;
+    return this.load(lang);
+  }
+
+  addTranslations(bundle: Translations): void {
+    for (const [lang, keys] of Object.entries(bundle)) {
+      this.strings[lang] = { ...(this.strings[lang] ?? {}), ...keys };
+    }
+  }
+
+  translation(lang: string, key: string): string | undefined;
+  translation(lang: string, key: string, value: string): void;
+  translation(lang: string, key: string, value?: string): string | undefined | void {
+    if (value === undefined) return this.strings[lang]?.[key];
+    if (!this.strings[lang]) this.strings[lang] = {};
+    this.strings[lang]![key] = value;
+  }
+
+  removeTranslations(prefix: string, lang?: string): void {
+    const langs = lang ? [lang] : Object.keys(this.strings);
+    for (const l of langs) {
+      for (const k of Object.keys(this.strings[l] ?? {})) {
+        if (k.startsWith(prefix)) delete this.strings[l]![k];
+      }
+    }
+  }
+
+  dispose(): void {
+    for (const lang of Object.keys(this.strings)) {
+      delete this.strings[lang];
+    }
   }
 }
 ```
@@ -199,22 +237,23 @@ const translator = new CmsTranslator('https://cms.example.com/api');
 await translator.load('en');
 
 player.setup({
-  translations: translator,
+  translator,
 });
 ```
 
 ## Lifecycle hooks
 
 Some adapter interfaces include lifecycle callbacks.
-For example, `IRealtimeChannel` has `open()` / `close()` methods called by the player's lifecycle.
-Always implement them even if your adapter does not need them, the player calls them unconditionally.
+For example, `IRealtimeChannel` exposes lifecycle events (`'open'`, `'close'`) that the player's lifecycle layer responds to.
+Always implement the full interface shape — the core enforces the contract.
 
 ```ts
 interface IRealtimeChannel {
-  open(): Promise<void>;
-  close(): void;
-  send(event: string, data: unknown): void;
-  on(event: string, handler: (data: unknown) => void): () => void;
+  send(data: string | ArrayBuffer | Blob): void;
+  close(code?: number, reason?: string): void;
+  on(event: 'open' | 'message' | 'close' | 'error', fn: (data?: unknown) => void): void;
+  off(event: 'open' | 'message' | 'close' | 'error', fn: (data?: unknown) => void): void;
+  readonly readyState: 'connecting' | 'open' | 'closing' | 'closed';
 }
 ```
 
@@ -243,12 +282,12 @@ describe('IndexedDBWorkerBackend', () => {
   });
 
   it('stores and retrieves values from cache', () => {
-    backend.set('volume', '80'); // kit scale is 0-100
+    backend.set('volume', '0.8');
     expect(backend.get('volume')).toBe('0.8');
   });
 
   it('removes keys', () => {
-    backend.set('volume', '80'); // kit scale is 0-100
+    backend.set('volume', '0.8');
     backend.remove('volume');
     expect(backend.get('volume')).toBeNull();
   });

@@ -149,7 +149,7 @@ private createProgressBar(): void {
     this.isMouseDown = false;
     const percent = getPercentFromEvent(e as MouseEvent);
     const duration = this.player.duration();
-    this.player.currentTime(duration * (percent / 100));
+    this.player.time(duration * (percent / 100));
     sliderNipple.style.left = `${percent}%`;
   });
 
@@ -184,7 +184,11 @@ private createProgressBar(): void {
   });
 
   // Update the buffer bar even when the video is paused but still downloading.
-  this.player.videoElement?.addEventListener('progress', updateBuffer);
+  // Use this.listen() so the handler is removed automatically on dispose.
+  const video = this.player.videoElement;
+  if (video) {
+    this.listen(video, 'progress', updateBuffer);
+  }
 
   this.on('current', () => {
     sliderBuffer.style.width = '0';
@@ -193,7 +197,7 @@ private createProgressBar(): void {
 }
 ```
 
-> **Note:** Use `this.listen(target, event, fn)` for DOM listeners so the plugin base removes them automatically on `dispose()`. The native `<video>` `'progress'` listener added directly is one exception covered in `dispose()` below.
+> **Note:** Use `this.listen(target, event, fn)` for all DOM listeners so the plugin base removes them automatically on `dispose()`. This includes the `<video>` `'progress'` listener — always use `this.listen` rather than raw `addEventListener`.
 
 Key points:
 
@@ -213,7 +217,7 @@ private isAutoQuality = true;
 private selectedQualityIndex = -1;
 ```
 
-`'auto'` is the initial state. When the user picks a level, `isAutoQuality` becomes `false` and `selectedQualityIndex` stores which level they chose. The player exposes `player.currentQuality('auto')` to restore adaptive behavior.
+`'auto'` is the initial state. When the user picks a level, `isAutoQuality` becomes `false` and `selectedQualityIndex` stores which level they chose. The player exposes `player.quality('auto')` to restore adaptive behavior.
 
 ```ts
 private qualityMenu: HTMLDivElement | null = null;
@@ -255,7 +259,7 @@ private createQualityButton(): void {
     autoOption.textContent = 'Auto';
     this.listen(autoOption, 'click', (e) => {
       e.stopPropagation();
-      this.player.currentQuality('auto');
+      this.player.quality('auto');
       this.isAutoQuality = true;
       this.highlightCurrentQuality();
       this.toggleMenu(null);
@@ -270,7 +274,7 @@ private createQualityButton(): void {
       option.textContent = level.label || (level.height ? `${level.height}p` : `Level ${index + 1}`);
       this.listen(option, 'click', (e) => {
         e.stopPropagation();
-        this.player.currentQuality(index);
+        this.player.quality(index);
         this.isAutoQuality = false;
         this.selectedQualityIndex = index;
         this.highlightCurrentQuality();
@@ -289,8 +293,8 @@ private createQualityButton(): void {
 
 Three things to note:
 
-1. The **Auto button** is always index 0 in the rendered list. It calls `currentQuality('auto')`, which is the v2 API for handing control back to HLS adaptive bitrate.
-2. **Manual selection** calls `currentQuality(index)` with a zero-based index into the `levels` array.
+1. The **Auto button** is always index 0 in the rendered list. It calls `quality('auto')`, which is the v2 API for handing control back to HLS adaptive bitrate.
+2. **Manual selection** calls `quality(index)` with a zero-based index into the `levels` array.
 3. After the `'levels'` event fires, `isAutoQuality` resets to `true` because the player defaults to Auto on every new source.
 
 ### Highlighting and icon toggling
@@ -384,7 +388,7 @@ private rebuildSubtitleMenu(): void {
   offOption.textContent = 'Off';
   this.listen(offOption, 'click', (e) => {
     e.stopPropagation();
-    this.player.currentSubtitle(null);
+    this.player.subtitle(null);
     this.toggleMenu(null);
   });
 
@@ -397,7 +401,7 @@ private rebuildSubtitleMenu(): void {
     option.textContent = track.label || track.language || `Track ${index + 1}`;
     this.listen(option, 'click', (e) => {
       e.stopPropagation();
-      this.player.currentSubtitle(index);
+      this.player.subtitle(index);
       this.toggleMenu(null);
     });
   });
@@ -406,17 +410,17 @@ private rebuildSubtitleMenu(): void {
 }
 ```
 
-> **Note:** `player.currentSubtitle(null)` is the v2 call that turns subtitles off. The older v1 convention of passing `-1` is not the v2 contract. The getter form `player.currentSubtitle()` returns a `CurrentSubtitleSelection` object (with `.index` and `.track`) when a track is active, or `null` when off — not a bare number.
+> **Note:** `player.subtitle(null)` is the v2 call that turns subtitles off. The older v1 convention of passing `-1` is not the v2 contract. The getter form `player.subtitle()` returns a `CurrentSubtitleSelection` object (with `.index` and `.track`) when a track is active, or `null` when off — not a bare number.
 
 ### Subtitle highlighting and icon toggling
 
-`player.currentSubtitle()` returns a `CurrentSubtitleSelection` object (with an `.index` property) when a track is active, or `null` when subtitles are off. The Off button is at DOM index 0; the track buttons start at DOM index 1:
+`player.subtitle()` returns a `CurrentSubtitleSelection` object (with an `.index` property) when a track is active, or `null` when subtitles are off. The Off button is at DOM index 0; the track buttons start at DOM index 1:
 
 ```ts
 private highlightCurrentSubtitle(): void {
   if (!this.subtitleMenu) return;
 
-  const current = this.player.currentSubtitle();
+  const current = this.player.subtitle();
   const isOff = current === null;
   const currentIndex = isOff ? -1 : current.index;
 
@@ -480,7 +484,7 @@ private createAudioButton(): void {
       option.textContent = track.label || track.language || `Track ${index + 1}`;
       this.listen(option, 'click', (e) => {
         e.stopPropagation();
-        this.player.currentAudioTrack(index);
+        this.player.audioTrack(index);
         this.toggleMenu(null);
       });
     });
@@ -493,7 +497,7 @@ private createAudioButton(): void {
 
 private highlightCurrentAudio(): void {
   if (!this.audioMenu) return;
-  const current = this.player.currentAudioTrack();
+  const current = this.player.audioTrack();
   const activeIndex = current !== null ? current.index : 0;
   this.audioMenu.querySelectorAll('button').forEach((btn, index) => {
     btn.classList.toggle('bg-white/20', index === activeIndex);
@@ -536,13 +540,10 @@ use(): void {
   // Close menus when the user clicks outside them.
   this.listen(document, 'click', this.onDocumentClick);
 
-  // When autoplay is off the video starts paused but no 'pause' event fires,
-  // so the controls would never receive the paused class. Apply it directly.
-  if (this.player.videoElement?.paused) {
-    this.player.container.classList.add('paused');
-  } else {
+  // When autoplay is off the video starts paused but no 'play' event fires,
+  // so hide the center button only when the element is already playing.
+  if (this.player.videoElement?.paused === false) {
     this.centerButton.style.display = 'none';
-    this.player.container.classList.remove('paused');
   }
 }
 ```
@@ -551,14 +552,12 @@ The `this.listen(document, 'click', fn)` call routes through the plugin base's l
 
 ## `dispose()`
 
-Document-level listeners need explicit removal because they are not part of the player's element tree. All other cleanup happens automatically through `this.listen()`:
+All listeners registered via `this.listen()` are removed automatically by the lifecycle registry, including document-level listeners. The `dispose()` only needs to remove DOM elements not tracked by `this.mount()`:
 
 ```ts
 dispose(): void {
-  // this.listen() auto-removes every listener registered through it,
-  // including the document click handler above.
-
-  // Remove DOM elements — removing a parent also removes all child listeners.
+  // this.listen() auto-removes every listener, including the document click handler.
+  // Remove DOM elements — removing a parent also removes all child elements.
   this.topBar?.remove();
   this.bottomBar?.remove();
   this.centerButton?.remove();
@@ -616,7 +615,7 @@ const player = nmplayer('nomercy-player')
   .setup(config);
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 

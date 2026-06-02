@@ -12,7 +12,7 @@ Reach for this plugin when you want your music player to cast to a Chromecast de
 It opens the Cast session picker, forwards the current track to the receiver, and keeps the receiver in sync as the user plays, pauses, seeks, and changes tracks.
 When the receiver disconnects, the plugin restores local playback from the receiver's last position.
 
-The music-specific work this class does is small: it sets `'audio/mpeg'` as the default content type and maps the music item shape (`name`, `artistTracks`, `albumTracks`, `cover`) to `MusicTrackMediaMetadata`.
+The music-specific work this class does is small: it sets `'audio/mpeg'` as the default content type and maps the music item shape (`name`, `artist`, `album`, `cover`) to `MusicTrackMediaMetadata`.
 Everything else (SDK probe, session negotiation, `RemotePlayer` event mirroring, forward and rewind helpers, resume-on-disconnect) lives in the core base class.
 
 ```ts
@@ -28,7 +28,7 @@ Plugin id: `'cast-sender'`
 | `chromecastAppId` | `string` | `undefined` | Chromecast receiver app id. When omitted, the Cast SDK uses the default media receiver. |
 | `enableAirPlay` | `boolean` | `undefined` | Whether AirPlay is allowed (Safari only). |
 | `customReceiverNamespace` | `string` | `undefined` | Custom receiver namespace for messages sent to the receiver. |
-| `resumeLocalOnDisconnect` | `boolean` | `true` | Resume local playback after the receiver disconnects, restoring the receiver's last `currentTime` and play/pause state. |
+| `resumeLocalOnDisconnect` | `boolean` | `true` | Resume local playback after the receiver disconnects, restoring the receiver's last `time` and play/pause state. |
 | `defaultContentType` | `string` | `'audio/mpeg'` | Override the default MIME type sent to the Cast SDK. Override per-item by setting `mime` or `contentType` on the playlist item. |
 | `live` | `boolean` | `false` | Treat the source as a live unbounded stream rather than VOD. |
 
@@ -112,8 +112,8 @@ When `MusicTrackMediaMetadata` is not available from the Cast SDK, it falls back
 | `MusicPlaylistItem` field | `MusicTrackMediaMetadata` field |
 | ------------------------- | ------------------------------- |
 | `name` | `title` |
-| `artistTracks[].name` joined with `, ` | `artist` |
-| `albumTracks[0].name` | `albumName` |
+| `artist` | `artist` |
+| `album` | `albumName` |
 | `cover` (resolved via `resolveUrl`) | `images[0].url` |
 
 ## Registration
@@ -138,18 +138,18 @@ const player = nmMPlayer('main')
         name: 'Thaw You Out',
         url: '/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.mp3',
         cover: '/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.jpg',
-        artistTracks: [{ id: 1, name: 'Derek Clegg' }],
-        albumTracks: [{ id: 1, name: 'KJC' }],
+        artist: 'Derek Clegg',
+        album: 'KJC',
       },
     ],
   });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 
 ## See also
 
-- [MusicPlaylistItem](/nomercy-music-player/playlist-item), `name`, `artistTracks`, `albumTracks`, `cover`
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item), `name`, `artist`, `album`, `cover`
 - [Player Core, Cast](/nomercy-player-core/cast), shared Cast lifecycle, session events, forward and rewind helpers

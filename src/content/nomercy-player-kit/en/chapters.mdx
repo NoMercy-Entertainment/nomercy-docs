@@ -1,6 +1,6 @@
 ---
 title: 'Chapters'
-description: 'chapters, seekToChapter, nextChapter, previousChapter, and currentChapter.'
+description: 'chapters, seekToChapter, nextChapter, previousChapter, and chapter.'
 draft: false
 ---
 
@@ -40,7 +40,7 @@ player.on('chapters', ({ chapters }) => {
 
 Seek to the start of the chapter at `idx`.
 Out-of-range indexes no-op.
-The seek goes through `currentTime()` so `beforeSeek` fires and the seek is cancellable.
+The seek goes through `time()` so `beforeSeek` fires and the seek is cancellable.
 
 | Parameter | Type            | Description              |
 | --------- | --------------- | ------------------------ |
@@ -67,17 +67,17 @@ UX rule: if more than 10 seconds into the current chapter, jumps to that chapter
 
 No-op when the chapter list is empty or playback is before the first chapter.
 
-## `currentChapter(idx?)`
+## `chapter(idx?)`
 
-**Read:** `currentChapter()` returns the `Chapter` whose time range contains `currentTime`, or `null` when playback is between chapters or the list is empty.
+**Read:** `chapter()` returns the `Chapter` whose time range contains `time`, or `null` when playback is between chapters or the list is empty.
 
-**Write:** `currentChapter(idx)` jump to the chapter at `idx` (equivalent to `seekToChapter(idx)`).
+**Write:** `chapter(idx)` jump to the chapter at `idx` (equivalent to `seekToChapter(idx)`).
 No-op when `idx` is out of range.
 
 ```ts
 // highlight the active chapter in a UI list
 player.on('seek', () => {
-  const ch = player.currentChapter();
+  const ch = player.chapter();
   if (ch) highlightChapter(ch.index);
 });
 ```

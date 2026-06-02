@@ -11,7 +11,7 @@ Read this when you need custom keyboard bindings: adding a shortcut the default 
 
 ## Default bindings
 
-`DesktopUiPlugin` includes `KeyHandlerPlugin` and registers these bindings by default:
+When `KeyHandlerPlugin` is registered alongside `DesktopUiPlugin`, it installs these bindings by default (the video player subclass extends the base set):
 
 | Key         | Action                |
 | ----------- | --------------------- |
@@ -22,31 +22,34 @@ Read this when you need custom keyboard bindings: adding a shortcut the default 
 | `↑` / `↓`   | Volume ±10%           |
 | `c`         | Cycle subtitle tracks |
 
-## Adding custom bindings on top of DesktopUiPlugin
+## Adding custom bindings alongside DesktopUiPlugin
 
-Subclass `DesktopUiPlugin` and override `addPlaybackKeys`:
+Subclass `KeyHandlerPlugin` and override the binding group methods, then register it alongside `DesktopUiPlugin`:
 
 ```ts
-import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin, KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-class MyDesktopUi extends DesktopUiPlugin {
-  // Same id as the built-in, replaces it
-  static readonly id = 'desktop-ui';
+// KeyHandlerPlugin<T> is generic over the playlist item type, not the player type.
+class MyKeyHandler extends KeyHandlerPlugin {
+  // Different id so both this and the built-in can coexist,
+  // or keep 'key-handler' to replace the default.
+  static override readonly id = 'my-key-handler';
 
-  protected addPlaybackKeys(): void {
+  protected override addPlaybackKeys(): void {
     super.addPlaybackKeys(); // keep all the default bindings
 
-    // Add custom bindings using this.bind(key, handler):
-    this.bind('n', (player) => player.next()); // 'n' for next
-    this.bind('p', (player) => player.previous()); // 'p' for previous
-    this.bind('t', (player) => {
-      // 't' toggles theater mode, requires a theater state on your container
-      player.container.classList.toggle('nm-theater');
-    });
+    // Add extra bindings using this.bind(key, handler):
+    this.bind('n', () => { void this.player.next(); }); // 'n' for next
+    this.bind('p', () => { void this.player.previous(); }); // 'p' for previous
+    this.bind('t', () => { this.player.toggleTheater(); }); // 't' for theater
   }
 }
 
-player.addPlugin(MyDesktopUi);
+const player = nmplayer('player')
+  .addPlugin(DesktopUiPlugin)
+  .addPlugin(MyKeyHandler)
+  .setup({ playlist: [] });
 ```
 
 ## Standalone KeyHandlerPlugin (no DesktopUiPlugin)
@@ -54,20 +57,20 @@ player.addPlugin(MyDesktopUi);
 For custom UIs that don't use `DesktopUiPlugin`, register `KeyHandlerPlugin` directly:
 
 ```ts
-import { nmplayer, KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-const player = nmplayer('main').setup({
-  container: document.getElementById('player')!,
-  playlist: [{ id: '1', url: '...m3u8' }],
-});
-
-player.addPlugin(KeyHandlerPlugin);
+const player = nmplayer('main')
+  .addPlugin(KeyHandlerPlugin)
+  .setup({
+    playlist: [{ id: '1', url: '...m3u8' }],
+  });
 
 // Bind keys via the plugin after registration:
 const keyHandler = player.getPlugin(KeyHandlerPlugin);
 
 keyHandler.bind(' ', (playerInstance) => playerInstance.togglePlayback()); // Space = toggle
-keyHandler.bind('f', (playerInstance) => playerInstance.fullscreenState(!playerInstance.fullscreenState())); // f = fullscreen
+keyHandler.bind('f', (playerInstance) => playerInstance.toggleFullscreen()); // f = fullscreen
 keyHandler.bind('ArrowLeft', (playerInstance) => playerInstance.rewind(10)); // ← = seek back 10s
 keyHandler.bind('ArrowRight', (playerInstance) => playerInstance.forward(10)); // → = seek forward 10s
 ```
@@ -90,21 +93,24 @@ Key names follow the `KeyboardEvent.key` standard. Common values:
 `KeyHandlerPlugin` captures keyboard events on the player container.
 If you have page-level key handlers (e.g. a search input), the player should not steal those events.
 
-By default, the plugin ignores key events when focus is on an `<input>`, `<textarea>`, or `[contenteditable]` element. To add more exclusions:
+Use the `when` option to suppress all key handling when a condition is true — for example, while a modal is open or when focus is inside a specific element:
 
 ```ts
+let modalOpen = false;
+
 player.addPlugin(KeyHandlerPlugin, {
-  // Selector string: key events are ignored when this element has focus
-  ignoreWhenFocused: 'input, textarea, [contenteditable], .my-modal',
+  // Return false to block all key handling for that event.
+  when: (e) => {
+    if (modalOpen) return false;
+    const tag = (e.target as HTMLElement)?.tagName;
+    return tag !== 'INPUT' && tag !== 'TEXTAREA';
+  },
 });
-```
 
-To temporarily pause all key handling (e.g. while a modal is open):
-
-```ts
-const keyHandler = player.getPlugin(KeyHandlerPlugin);
-keyHandler.pause(); // all bindings suspended
-keyHandler.resume(); // restore
+// Suspend key handling while a modal is open:
+modalOpen = true;
+// Restore when closed:
+modalOpen = false;
 ```
 
 ## Removing a binding
@@ -115,8 +121,8 @@ const keyHandler = player.getPlugin(KeyHandlerPlugin);
 // Remove a specific key:
 keyHandler.unbind('c');
 
-// Remove all bindings:
-keyHandler.unbindAll();
+// Replace all bindings with an empty set:
+player.addPlugin(KeyHandlerPlugin, { extend: false });
 ```
 
 ## What to read next

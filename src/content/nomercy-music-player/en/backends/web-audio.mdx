@@ -29,7 +29,7 @@ await player.backend('webaudio');
 The backend constructs a graph rooted at the `AudioContext`:
 
 <LayerStack layers={[
-  { n: 4, name: 'AudioBufferSourceNode / MediaElementSourceNode', pkg: 'WebAudioBackend', knows: 'Source node. AudioBufferSourceNode for pure file playback; MediaElementSourceNode when hls.js requires a native audio element.' },
+  { n: 4, name: 'MediaElementAudioSourceNode', pkg: 'WebAudioBackend', knows: 'Source node. Always wraps the <audio> element via createMediaElementSource(), for both HLS and non-HLS sources.' },
   { n: 3, name: 'GainNode (primary volume)', pkg: 'WebAudioBackend', knows: 'Controls playback volume and executes crossfade ramps via linearRampToValueAtTime.' },
   { n: 2, name: 'Backend output node', pkg: 'WebAudioBackend', knows: 'Tap point for AudioGraphPlugin effect chains. Connect custom analyser or effect nodes here.' },
   { n: 1, name: 'AudioContext.destination', pkg: 'Web Audio API', knows: 'Final sink routed to the device speakers or headphones.' },
@@ -37,10 +37,11 @@ The backend constructs a graph rooted at the `AudioContext`:
 
 When `AudioGraphPlugin` is registered, it connects its effect chain between the `outputNode()` and `AudioContext.destination`.
 
-## HLS fallback
+## Source node
 
-HLS streams (`.m3u8`) always use `MediaElementAudioSourceNode` because `hls.js` requires a `<audio>` element.
-Pure file playback (MP3, AAC, FLAC, OGG) uses `AudioBufferSourceNode` for sample-accurate decoding.
+`WebAudioBackend` always routes through a `<audio>` element and wraps it with `createMediaElementSource()`.
+This applies to both HLS streams and direct file URLs (MP3, AAC, FLAC, OGG).
+`hls.js` attaches to the same `<audio>` element, so there is no separate code path per format.
 
 ## Crossfade implementation
 
@@ -53,7 +54,7 @@ Pure file playback (MP3, AAC, FLAC, OGG) uses `AudioBufferSourceNode` for sample
 
 **Accuracy:** Sample-accurate. No RAF loop, no jitter.
 
-Volume changes are smoothed with a 10 ms `linearRampToValueAtTime` ramp to prevent clicks on mute/unmute or abrupt volume changes.
+Volume changes are smoothed with `GainNode.gain.setTargetAtTime` (time constant 10 ms) to prevent clicks on mute/unmute or abrupt volume changes.
 
 ## iOS considerations
 

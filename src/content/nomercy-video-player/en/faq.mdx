@@ -6,8 +6,13 @@ draft: false
 
 ## Do I need to install hls.js separately?
 
-No. hls.js ships as a regular dependency of `@nomercy-entertainment/nomercy-video-player`.
-Your bundler will include it automatically.
+No. `hls.js` installs automatically with the player (a transitive dependency via `@nomercy-entertainment/nomercy-player-core`) — nothing extra to install for the npm / bundler path. See [Installation](/nomercy-video-player/installation) for the CDN exception.
+
+For the CDN / IIFE bundle (no bundler), the IIFE externalises hls.js and expects a global `Hls`, so load it via a separate `<script>` before the player script:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+```
 
 ## How do I type my plugin against the player?
 
@@ -103,7 +108,7 @@ Listen to `skipper:available` to render your own skip button.
 
 ## Can I use the player with Vue or React?
 
-Yes. The player is headless and framework-agnostic.
+Yes. The player is headless — no built-in UI — and framework-agnostic.
 Mount it into a `ref`-attached element:
 
 ```ts
@@ -111,7 +116,7 @@ Mount it into a `ref`-attached element:
 onMounted(() => {
   player = nmplayer(containerRef.value.id).setup({ ... });
 });
-onUnmounted(() => player.destroy());
+onUnmounted(() => player.dispose());
 ```
 
 ## How do I swap the video backend for a custom implementation?

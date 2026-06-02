@@ -96,11 +96,11 @@ Custom counters appear in `player.metrics()` and in the `playback:metrics` event
 
 Two separate throttled events serve different purposes:
 
-| Event              | Interval                          | Use for                                                                        |
-| ------------------ | --------------------------------- | ------------------------------------------------------------------------------ |
-| `progress`         | `metricsIntervalMs` (default 10s) | Server watch-position saves, contains `{ time, duration, percentage }`         |
-| `playback:metrics` | `metricsIntervalMs` (same timer)  | Analytics ingestion, contains the full `PlaybackMetrics` snapshot              |
+| Event              | Config key           | Default | Use for                                                             |
+| ------------------ | -------------------- | ------- | ------------------------------------------------------------------- |
+| `progress`         | `progressIntervalMs` | `5000`  | Server watch-position saves, payload `{ time, duration, percentage }` |
+| `playback:metrics` | `metricsIntervalMs`  | `10000` | Analytics ingestion, payload is the full `PlaybackMetrics` snapshot |
 
-Both fire on the same interval.
+These are separate timers with separate config keys and different defaults.
 `progress` is the lightweight event for position reporting.
 `playback:metrics` carries the full metrics object.

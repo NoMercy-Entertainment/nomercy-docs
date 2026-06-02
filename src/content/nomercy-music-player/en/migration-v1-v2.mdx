@@ -27,9 +27,9 @@ Read the checklist below, then work through each section.
 
 ## Quick migration checklist
 
-- Replace `player.seek(time)` with `player.currentTime(t, opts?)`
+- Replace `player.seek(time)` with `player.time(t, opts?)`
 - Replace `player.getDuration()` with `player.duration()`
-- Replace `player.getCurrentTime()` with `player.currentTime()`
+- Replace `player.getCurrentTime()` with `player.time()`
 - Replace `player.getBuffer()` with `player.buffered()`
 - Replace `player.getTimeData()` with `player.timeData()` (payload shape also changed)
 - Replace `player.setVolume(v)` with `player.volume(v)`
@@ -44,9 +44,9 @@ Read the checklist below, then work through each section.
 - Replace `player.setBackLog(items)` with `player.backlog(items)`
 - Replace `player.addToBackLog(item)` with `player.backlogAppend(item)`
 - Replace `player.removeFromBackLog(item)` with `player.backlogRemove(id)`
-- Replace `player.playTrack(track, tracks?)` with `player.current(track, opts?)` + `player.queue(tracks)`
-- Replace `player.setCurrentSong(item)` with `player.current(item, opts?)`
-- Replace `player.currentSong` (property) with `player.current()` (method)
+- Replace `player.playTrack(track, tracks?)` with `player.item(track, opts?)` + `player.queue(tracks)`
+- Replace `player.setCurrentSong(item)` with `player.item(item, opts?)`
+- Replace `player.currentSong` (property) with `player.item()` (method)
 - Replace `player.shuffle(value)` with `player.shuffleState(value)` (boolean to `ShuffleState` enum)
 - Replace `player.repeat(value)` with `player.repeatState(value)`
 - Replace `player.prepareCrossfade(item?)` with `player.crossfadeTo(track, opts?)`, see note below
@@ -122,9 +122,9 @@ Update every `player.on(...)` call.
 
 | v1 method                           | v2 method                                               |
 | ----------------------------------- | ------------------------------------------------------- |
-| `seek(time)`                        | `currentTime(t, opts?)`                                 |
+| `seek(time)`                        | `time(t, opts?)`                                        |
 | `getDuration()`                     | `duration()`                                            |
-| `getCurrentTime()`                  | `currentTime()`                                         |
+| `getCurrentTime()`                  | `time()`                                                |
 | `getBuffer()`                       | `buffered()`                                            |
 | `getTimeData()`                     | `timeData()`                                            |
 | `setVolume(v)`                      | `volume(v)`                                             |
@@ -140,9 +140,9 @@ Update every `player.on(...)` call.
 | `addToBackLog(item)`                | `backlogAppend(item)`                                   |
 | `pushToBackLog(items)`              | `backlogAppend(items)`                                  |
 | `removeFromBackLog(item)`           | `backlogRemove(id)` (takes id, not full item)           |
-| `playTrack(track, tracks?)`         | `current(track, opts?)` + `queue(tracks)`               |
-| `setCurrentSong(item)`              | `current(item, opts?)`                                  |
-| `currentSong` (property)            | `current()` (method)                                    |
+| `playTrack(track, tracks?)`         | `item(track, opts?)` + `queue(tracks)`                  |
+| `setCurrentSong(item)`              | `item(item, opts?)`                                     |
+| `currentSong` (property)            | `item()` (method)                                       |
 | `shuffle(value)`                    | `shuffleState(value)` (boolean to `ShuffleState` enum)  |
 | `repeat(value)`                     | `repeatState(value)`                                    |
 | `prepareCrossfade(item?)`           | `crossfadeTo(track, opts?)`, semantics changed          |
@@ -174,6 +174,7 @@ If your server API returns track objects with a `path` field and you pass them t
 
 ```ts
 // v1: server returns { path: '...', name: '...' }
+// @ts-expect-error — setQueue does not exist in v2
 player.setQueue(serverTracks); // worked because player read item.path
 
 // v2: BREAKS. item.url is undefined, player cannot load the source.
@@ -196,8 +197,8 @@ Full `MusicPlaylistItem` shape changes:
 | --------------------------------------------- | ------------------------------ | ----------------------------------- |
 | `path: string` (required)                     | `url?: string`                 | Renamed + now optional              |
 | `name: string` (required)                     | `name: string` (required)      | Same                                |
-| `album_track: { name, ...any }[]` (required)  | `albumTracks?: AlbumRef[]`     | Renamed + required → optional       |
-| `artist_track: { name, ...any }[]` (required) | `artistTracks?: ArtistRef[]`   | Renamed + required → optional       |
+| `album_track: { name, ...any }[]` (required)  | `album?: string`               | Renamed + required → optional plain string |
+| `artist_track: { name, ...any }[]` (required) | `artist?: string`              | Renamed + required → optional plain string |
 | `cover` (typed as `any`)                      | `cover?: string`               | Now typed                           |
 | (not present)                                 | `lyricsUrl?: string`           | New, source URL for `LyricsPlugin`  |
 | (not present)                                 | `duration?: number`            | New                                 |
@@ -216,8 +217,8 @@ interface MyTrack extends MusicPlaylistItem {
 
 const player = nmMPlayer<MyTrack>('player-1').setup({ ... });
 
-// player.current() returns MyTrack | undefined, no cast needed
-const track = player.current();
+// player.item() returns MyTrack | undefined, no cast needed
+const track = player.item();
 track?.userRating;
 ```
 
@@ -227,11 +228,13 @@ v1's `player.shuffle(value)` accepted a `boolean`.
 v2's `player.shuffleState(value)` accepts a `ShuffleState` enum.
 
 ```ts
+import { ShuffleState } from '@nomercy-entertainment/nomercy-music-player';
+
 // v1
+// @ts-expect-error — shuffle does not exist in v2
 player.shuffle(true);
 
 // v2
-import { ShuffleState } from '@nomercy-entertainment/nomercy-music-player';
 player.shuffleState(ShuffleState.ON); // or ShuffleState.OFF
 ```
 
@@ -247,6 +250,7 @@ Server-orchestrated crossfade code must be restructured:
 
 ```ts
 // v1: called by SignalR when server decides to start staging
+// @ts-expect-error — prepareCrossfade does not exist in v2
 player.prepareCrossfade(nextTrack);
 
 // v2: there is no "stage then trigger later" one-liner.
@@ -284,24 +288,14 @@ In v2, every non-core feature is a plugin you must explicitly register.
 Nothing is always-on.
 
 ```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { AutoAdvancePlugin, EqualizerPlugin, SpectrumPlugin, MediaSessionPlugin, AudioGraphPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
 // v1: features built in, configured via constructor
-const player = new NMMusicPlayer({
-  motionConfig: { ... },    // spectrum analyzer
-  actions: { ... },          // MediaSession
-  onCrossfadeStart: fn,
-  onCrossfadeComplete: fn,
-});
+// new NMMusicPlayer({ motionConfig, actions, onCrossfadeStart, onCrossfadeComplete })
+// — constructor no longer accepts options; use addPlugin() instead
 
 // v2: everything is an opt-in plugin
-import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
-import {
-  AutoAdvancePlugin,
-  EqualizerPlugin,
-  SpectrumPlugin,
-  MediaSessionPlugin,
-  AudioGraphPlugin,
-} from '@nomercy-entertainment/nomercy-music-player/plugins';
-
 const player = nmMPlayer('player-1').setup({
   crossfadeDefaults: {
     duration: 3,
@@ -404,9 +398,10 @@ On first v2 boot, saved volume will not be restored from v1 storage.
 If restoring saved volume matters for your users, read the v1 key before initializing the v2 player and pass it in:
 
 ```ts
-const savedVolume = parseFloat(localStorage.getItem('nmplayer-music-volume') ?? '1');
+// v1 stored volume as a 0-1 float; v2 uses the 0-100 scale.
+const savedV1Volume = parseFloat(localStorage.getItem('nmplayer-music-volume') ?? '1');
 const player = nmMPlayer('player-1').setup({
-  volume: savedVolume,
+  defaultVolume: Math.round(savedV1Volume * 100),
   // ...
 });
 ```
@@ -419,10 +414,10 @@ v2 exports each adapter and plugin from a dedicated subpath.
 The root barrel import still works; subpaths are opt-in for tree-shaking.
 
 ```ts
-// Still works (barrel):
-import { AutoAdvancePlugin, LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player';
+// All plugins from the shared plugins subpath:
+import { AutoAdvancePlugin, LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
-// Tree-shakeable subpaths:
+// Tree-shakeable per-plugin subpaths:
 import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/auto-advance';
 import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/lyrics';
 import { GroupListeningPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/group-listening';
@@ -440,7 +435,7 @@ High-impact areas:
 - `player.setPreGain()` / `player.setFilter()` calls → `player.getPlugin(EqualizerPlugin).*`
 - `prepareCrossfade(item)` SignalR handler → `crossfadeTo(track, opts)`
 - `item.path` → `item.url` in the adapter layer that maps server responses to track objects
-- `player.currentSong` property access → `player.current()` method call
+- `player.currentSong` property access → `player.item()` method call
 - `player.isShuffling` / `player.isRepeating` property access → method calls with enum types
 - `player.isMuted` / `player.isPlaying` → `player.volumeState()` / `player.playState()`
 - Group listening queue serialization: verify `url` field is present in serialized items

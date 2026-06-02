@@ -20,7 +20,6 @@ import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 const player = nmplayer('main').setup({
-  container: document.getElementById('player')!,
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
   defaultSubtitleLanguage: 'en',
   playlist: [
@@ -53,14 +52,14 @@ const tracks = player.subtitles();
 // [{ id: 'en', language: 'en', label: 'English' }, ...]
 
 // Activate by index:
-player.currentSubtitle(0); // English
-player.currentSubtitle(1); // Dutch
+player.subtitle(0); // English
+player.subtitle(1); // Dutch
 
 // Disable subtitles:
-player.currentSubtitle(null);
+player.subtitle(null);
 
 // Read which is active (null = off):
-const active = player.currentSubtitle();
+const active = player.subtitle();
 ```
 
 Listen for changes:
@@ -105,7 +104,6 @@ import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { OctopusPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 const player = nmplayer('main').setup({
-  container: document.getElementById('player')!,
   // baseUrl is a media library root (the same folder the media server exposes).
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Anime',
   defaultSubtitleLanguage: 'en',
@@ -174,40 +172,31 @@ Register both plugins. The correct one activates for each track.
 
 ## Subtitle style customization
 
-`SubtitleOverlayPlugin` persists user preferences (font size, color, background opacity) via the `ISubtitleStyleStore` adapter.
-The default store writes to `localStorage` under the player's namespace.
-
-Override the store to use a different backend:
+Subtitle style preferences (font size, color, background opacity) are read and written via `player.subtitleStyle()`.
+Changes emit the `'subtitleStyle'` event and `SubtitleOverlayPlugin` repaints active cues immediately.
 
 ```ts
-import { authFetch } from '@nomercy-entertainment/nomercy-player-core';
-import type {
-  ISubtitleStyleStore,
-  SubtitleStyle,
-} from '@nomercy-entertainment/nomercy-video-player';
+// Read current style
+const style = player.subtitleStyle();
 
-class RemoteSubtitleStyleStore implements ISubtitleStyleStore {
-  async load(): Promise<SubtitleStyle | null> {
-    return authFetch<SubtitleStyle | null>({
-      url: '/api/user/subtitle-style',
-      responseType: 'json',
-      signal: AbortSignal.timeout(10_000),
-    });
-  }
+// Merge a partial update
+player.subtitleStyle({
+  fontSize: 120,
+  textColor: 'yellow',
+  edgeStyle: 'dropShadow',
+});
+```
 
-  async save(style: SubtitleStyle): Promise<void> {
-    await authFetch({
-      url: '/api/user/subtitle-style',
-      method: 'PUT',
-      body: JSON.stringify(style),
-      headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(10_000),
-    });
-  }
-}
+To persist preferences across sessions, call `player.subtitleStyle()` in a `'subtitleStyle'` listener and save the result to your own storage, then restore it at startup by passing the saved patch to `player.subtitleStyle()` after `ready()`.
 
-player.setup({
-  subtitleStyleStore: new RemoteSubtitleStyleStore(),
+```ts
+player.on('subtitleStyle', (style) => {
+  localStorage.setItem('subtitle-style', JSON.stringify(style));
+});
+
+player.on('ready', () => {
+  const saved = localStorage.getItem('subtitle-style');
+  if (saved) player.subtitleStyle(JSON.parse(saved));
 });
 ```
 

@@ -202,20 +202,21 @@ Plugins use the same pattern to signal each other. For example, a custom skip-re
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
-import type { IVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+import type { WithCurrentItem } from '@nomercy-entertainment/nomercy-player-core';
+import type { IVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
-class SkipRecapPlugin extends Plugin<IVideoPlayer> {
+class SkipRecapPlugin extends Plugin<IVideoPlayer & WithCurrentItem<VideoPlaylistItem>> {
   static readonly id = 'skip-recap';
   static readonly version = '1.0.0';
   static readonly description = 'Automatically skips the recap segment on load.';
 
   use() {
     this.on('current', () => {
-      const item = this.player.current();
+      const item = this.player.item(); // VideoPlaylistItem | undefined
       const recap = item?.skippers?.recap;
       if (recap) {
         this.once('firstFrame', () => {
-          this.player.currentTime(recap.end);
+          this.player.time(recap.end);
           this.player.emit('display-message', { text: 'Recap skipped' });
         });
       }
@@ -267,7 +268,7 @@ async function savePosition(itemId: string, time: number) {
 }
 
 player.on('progress', ({ time }) => {
-  const item = player.current();
+  const item = player.item();
   if (item?.id) savePosition(String(item.id), time);
 });
 ```

@@ -40,10 +40,10 @@ Leader:                   Followers:
 Wire the player to a realtime channel via the player core's realtime adapter:
 
 ```ts
-import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 const player = nmplayer('main').setup({
-  container: document.getElementById('player')!,
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
   playlist: [
     {
@@ -68,25 +68,25 @@ ws.onmessage = (event) => {
 
   if (msg.type === 'play') {
     // Sync position before playing to account for message latency:
-    player.currentTime(msg.serverPosition + estimateLatencySeconds());
+    player.time(msg.serverPosition + estimateLatencySeconds());
     player.play();
   }
 
   if (msg.type === 'pause') {
-    player.currentTime(msg.serverPosition);
+    player.time(msg.serverPosition);
     player.pause();
   }
 
   if (msg.type === 'seek') {
-    player.currentTime(msg.serverPosition);
+    player.time(msg.serverPosition);
   }
 
   if (msg.type === 'sync-tick') {
     // Periodic correction: if drift exceeds threshold, correct:
-    const localPosition = player.currentTime();
+    const localPosition = player.time();
     const drift = localPosition - msg.serverPosition;
     if (Math.abs(drift) > DRIFT_CORRECTION_THRESHOLD_SECONDS) {
-      player.currentTime(msg.serverPosition);
+      player.time(msg.serverPosition);
     }
   }
 };
@@ -105,7 +105,7 @@ function applyDriftCorrection(localTime: number, serverTime: number): void {
 
   if (Math.abs(drift) > 2.0) {
     // Drift too large, hard seek:
-    player.currentTime(serverTime);
+    player.time(serverTime);
 
     return;
   }
@@ -185,8 +185,8 @@ claimLeadership();
 When released, the `GroupListeningPlugin` will replace the manual setup above:
 
 ```ts
-// Future API, not yet available:
-import { GroupListeningPlugin } from '@nomercy-entertainment/nomercy-video-player';
+// Planned for v2.1 — GroupListeningPlugin ships in nomercy-video-player.
+// The import and API shape below are illustrative; not yet importable.
 
 player.addPlugin(GroupListeningPlugin, {
   roomId: 'watch-party-42',

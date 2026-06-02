@@ -132,11 +132,14 @@ player.on('plugin:equalizer:change', ({ bands, selectedPreset }) => {
 
 ## Persistence
 
-EQ state (current bands, preset name, preGain) is automatically persisted to the configured storage backend.
-On the next `player.setup()`, `EqualizerPlugin` restores from storage.
+Persistence is opt-in: set `persistKey` in `EqualizerPlugin` options and EQ state (bands, selected preset, pre-gain, custom presets) is saved on every change and restored on the next `use()`.
+
+```ts
+player.addPlugin(EqualizerPlugin, { persistKey: 'my-app-eq' });
+```
 
 The default storage backend is `LocalStorageBackend`.
-Override in setup for different persistence characteristics:
+Override by passing a custom backend in `setup()`:
 
 ```ts
 import { MemoryStorageBackend } from '@nomercy-entertainment/nomercy-player-core';

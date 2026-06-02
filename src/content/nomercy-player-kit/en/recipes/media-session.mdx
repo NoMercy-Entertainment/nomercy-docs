@@ -13,7 +13,8 @@ The [Media Session API](https://developer.mozilla.org/en-US/docs/Web/API/Media_S
 ## Basic setup
 
 ```ts
-import { nmMPlayer, MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player';
+import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player';
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session';
 
 const player = nmMPlayer('main').setup({
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
@@ -44,10 +45,10 @@ It wires `play`, `pause`, `previoustrack`, `nexttrack`, `seekbackward`, `seekfor
 The setup is identical for the video player:
 
 ```ts
-import { nmplayer, MediaSessionPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session';
 
 const player = nmplayer('main').setup({
-  container: document.getElementById('player')!,
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
   playlist: [
     {
@@ -88,22 +89,25 @@ When `artwork` is a string (single URL), the plugin wraps it in a single-entry a
 Override how the plugin builds `MediaMetadata` by subclassing:
 
 ```ts
-import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player';
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session';
+import type { MediaSessionMetadata } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session';
 import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+// year is a consumer-defined field — extend MusicPlaylistItem with your own fields.
+interface MyTrack extends MusicPlaylistItem {
+  year?: number;
+}
 
 class MyMediaSession extends MediaSessionPlugin {
   static readonly id = 'media-session'; // same id = replaces built-in
 
-  protected getMetadata(item: MusicPlaylistItem): MediaMetadata {
-    return new MediaMetadata({
+  protected getMetadata(item: MyTrack): MediaSessionMetadata {
+    return {
       title: item.name,
       artist: item.artist ?? 'Unknown Artist',
       // Add the year to the album field
       album: item.album ? `${item.album} (${item.year ?? ''})` : '',
-      artwork: Array.isArray(item.artwork)
-        ? item.artwork
-        : [{ src: item.artwork ?? '', sizes: '512x512', type: 'image/jpeg' }],
-    });
+    };
   }
 }
 

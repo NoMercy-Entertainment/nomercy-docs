@@ -10,7 +10,7 @@ draft: false
 
 `MusicUiPlugin` is the built-in transport UI for `NMMusicPlayer`.
 Drop it in when you want a ready-made album art display, track info block, seekable progress bar, and playback controls without building the DOM yourself.
-The plugin mounts a self-contained overlay inside the core-managed `.nomercyplayer` container and wires itself to player events automatically.
+The plugin mounts a self-contained overlay inside the core-managed `.nomercymusicplayer` container and wires itself to player events automatically.
 State classes on the container (`.playing`, `.paused`, `.muted`, `.buffering`) are applied by the player core; the plugin reads them via CSS selectors so no extra toggling is needed.
 
 ```ts
@@ -25,7 +25,7 @@ Plugin id: `'music-ui'`
 
 The plugin builds and inserts a `.nmmusic-ui` element into the player container on `use()`.
 It subscribes to player events (`play`, `pause`, `ended`, `time`, `duration`, `volume`, `mute`, `repeat`, `shuffle`, `current`, `crossfadeStart`, `crossfadeComplete`) and updates the overlay in response.
-Clicking the seek bar calls `player.currentTime(time)` with the target position to perform the seek, and emits a `seek` event for observation.
+Clicking the seek bar calls `player.time(time)` with the target position to perform the seek, and emits a `seek` event for observation.
 Volume slider orientation adapts to container width and touch capability unless you lock it with the `volumeSlider` option.
 Styles are injected once into the document on first use.
 
@@ -48,7 +48,7 @@ You can also update options after setup by calling `player.getPlugin(MusicUiPlug
 
 | Event | Payload | Description |
 | ----- | ------- | ----------- |
-| `seek` | `{ time: number }` | Fires when the user drags or clicks the seek bar. `time` is the target position in seconds. The plugin calls `player.currentTime(time)` internally to perform the seek, so this event is for observation only. |
+| `seek` | `{ time: number }` | Fires when the user drags or clicks the seek bar. `time` is the target position in seconds. The plugin calls `player.time(time)` internally to perform the seek, so this event is for observation only. |
 
 ```ts
 player.on('plugin:music-ui:seek', ({ time }) => {

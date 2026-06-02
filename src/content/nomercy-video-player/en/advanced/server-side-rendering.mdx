@@ -29,7 +29,8 @@ Mark the player component `'use client'` and wrap `setup()` in a `useEffect`.
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
 
 interface VideoPlayerProps {
@@ -44,13 +45,14 @@ export function VideoPlayer({ src, title }: VideoPlayerProps) {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Safe, runs only in the browser:
-    const player = nmplayer('main').setup({
-      container: containerRef.current,
-      playlist: [{ id: '1', url: src, title }],
-    });
+    // Safe, runs only in the browser.
+    // The div id="main" must exist in the DOM before this call.
+    const player = nmplayer('main')
+      .addPlugin(DesktopUiPlugin)
+      .setup({
+        playlist: [{ id: '1', url: src, title }],
+      });
 
-    player.addPlugin(DesktopUiPlugin);
     playerRef.current = player;
 
     return () => {
@@ -60,7 +62,7 @@ export function VideoPlayer({ src, title }: VideoPlayerProps) {
     };
   }, []); // empty deps, run once on mount
 
-  return <div ref={containerRef} style={{ width: '100%', aspectRatio: '16/9' }} />;
+  return <div id="main" style={{ width: '100%', aspectRatio: '16/9' }} />;
 }
 ```
 
@@ -137,12 +139,13 @@ onMounted(async () => {
 
   if (!container.value) return;
 
-  player.value = nmplayer('main').setup({
-    container: container.value,
-    playlist: [{ id: '1', url: props.src, title: props.title }],
-  });
+  // The <div ref="container"> must be in the DOM. The player mounts by id.
+  player.value = nmplayer('main')
+    .addPlugin(DesktopUiPlugin)
+    .setup({
+      playlist: [{ id: '1', url: props.src, title: props.title }],
+    });
 
-  player.value.addPlugin(DesktopUiPlugin);
   await player.value.ready();
 });
 
@@ -152,7 +155,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="container" style="width: 100%; aspect-ratio: 16/9" />
+  <div id="main" style="width: 100%; aspect-ratio: 16/9" />
 </template>
 ```
 

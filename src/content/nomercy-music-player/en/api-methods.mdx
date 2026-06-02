@@ -161,10 +161,10 @@ current(item: T, opts?: ActionOptions): void
 
 Set the current track. The track must be in the queue.
 
-### `currentIndex()`
+### `index()`
 
 ```ts
-currentIndex(): number
+index(): number
 ```
 
 Index of the current track in the queue. Returns `-1` if no track is loaded.
@@ -180,18 +180,18 @@ Does not start playback.
 
 ## Time
 
-### `currentTime()`
+### `time()`
 
 ```ts
-currentTime(): number
+time(): number
 ```
 
 Return the current playback position in seconds.
 
-### `currentTime(seconds, opts?)`
+### `time(seconds, opts?)`
 
 ```ts
-currentTime(seconds: number, opts?: ActionOptions): Promise<void>
+time(seconds: number, opts?: ActionOptions): Promise<void>
 ```
 
 Seek to a position in seconds.
@@ -255,10 +255,10 @@ Seek to a percentage of the total duration (0–100).
 ### `timeData()`
 
 ```ts
-timeData(): TimeData
+timeData(): TimeState
 ```
 
-Full time snapshot: `{ time, duration, buffered, seekable, playbackRate }`.
+Full time snapshot: `{ position, duration, buffered, remaining, percentage }`. All values in seconds except `percentage` (0–100).
 
 ## Volume
 
@@ -377,10 +377,10 @@ Current shuffle state (`ShuffleState.OFF` | `ShuffleState.ON`).
 ### `shuffleState(state)`
 
 ```ts
-shuffleState(state: ShuffleState): void
+shuffleState(state: ShuffleState | boolean): void
 ```
 
-Set shuffle state.
+Set shuffle state. Accepts a `ShuffleState` enum value or a convenience `boolean` (`true` = `ShuffleState.ON`, `false` = `ShuffleState.OFF`).
 
 ### `repeatState()`
 
@@ -411,7 +411,7 @@ Return the current queue.
 ### `queue(items, opts?)`
 
 ```ts
-queue(items: T[], opts?: QueueOptions): void
+queue(items: T[], opts?: ActionOptions): void
 ```
 
 Replace the queue.
@@ -419,7 +419,7 @@ Replace the queue.
 ### `queueAppend(items, opts?)`
 
 ```ts
-queueAppend(items: T | T[], opts?: QueueOptions): void
+queueAppend(items: T | T[], opts?: ActionOptions): void
 ```
 
 Append one or more tracks to the end of the queue.
@@ -427,7 +427,7 @@ Append one or more tracks to the end of the queue.
 ### `queuePrepend(items, opts?)`
 
 ```ts
-queuePrepend(items: T | T[], opts?: QueueOptions): void
+queuePrepend(items: T | T[], opts?: ActionOptions): void
 ```
 
 Insert one or more tracks immediately after the current track.
@@ -435,7 +435,7 @@ Insert one or more tracks immediately after the current track.
 ### `queueRemove(id, opts?)`
 
 ```ts
-queueRemove(id: string | number, opts?: QueueOptions): void
+queueRemove(id: string | number, opts?: ActionOptions): void
 ```
 
 Remove a track from the queue by id.
@@ -443,7 +443,7 @@ Remove a track from the queue by id.
 ### `queueRemoveAt(index, opts?)`
 
 ```ts
-queueRemoveAt(index: number, opts?: QueueOptions): void
+queueRemoveAt(index: number, opts?: ActionOptions): void
 ```
 
 Remove the track at a specific index.
@@ -451,7 +451,7 @@ Remove the track at a specific index.
 ### `queueInsert(item, index, opts?)`
 
 ```ts
-queueInsert(item: T, index: number, opts?: QueueOptions): void
+queueInsert(item: T | T[], index: number, opts?: ActionOptions): void
 ```
 
 Insert a track at a specific index.
@@ -459,7 +459,7 @@ Insert a track at a specific index.
 ### `queueMove(from, to, opts?)`
 
 ```ts
-queueMove(from: number, to: number, opts?: QueueOptions): void
+queueMove(from: number, to: number, opts?: ActionOptions): void
 ```
 
 Move a track from one index to another.
@@ -467,7 +467,7 @@ Move a track from one index to another.
 ### `queueClear(opts?)`
 
 ```ts
-queueClear(opts?: QueueOptions): void
+queueClear(opts?: ActionOptions): void
 ```
 
 Remove all tracks from the queue.
@@ -475,7 +475,7 @@ Remove all tracks from the queue.
 ### `queueShuffle(opts?)`
 
 ```ts
-queueShuffle(opts?: QueueOptions): void
+queueShuffle(opts?: ActionOptions): void
 ```
 
 Shuffle the current queue in place.
@@ -483,7 +483,7 @@ Shuffle the current queue in place.
 ### `queueSort(fn, opts?)`
 
 ```ts
-queueSort(fn: (a: T, b: T) => number, opts?: QueueOptions): void
+queueSort(fn: (a: T, b: T) => number, opts?: ActionOptions): void
 ```
 
 Sort the queue by a comparator function.
@@ -544,7 +544,7 @@ backlogClear(): void
 ### `crossfadeTo(track, opts?)`
 
 ```ts
-crossfadeTo(track: T, opts?: CrossfadeOpts): Promise<void>
+crossfadeTo(track: T, opts?: CrossfadeOptions & ActionOptions): Promise<void>
 ```
 
 Start a crossfade to the given track immediately.
@@ -568,21 +568,23 @@ audioOutputs(): Promise<MediaDeviceInfo[]>
 
 Enumerate available audio output devices.
 
-### `selectAudioOutput(deviceId)`
+### `selectAudioOutput()`
 
 ```ts
-selectAudioOutput(deviceId: string): Promise<void>
+selectAudioOutput(): Promise<MediaDeviceInfo | null>
 ```
 
-Route audio to a specific output device.
+Opens the browser's audio output device picker.
+Returns the selected `MediaDeviceInfo`, or `null` when the user cancels or the API is unavailable.
 
-### `currentAudioOutput()`
+### `audioOutput()`
 
 ```ts
-currentAudioOutput(): string | undefined
+audioOutput(): Promise<string | null>
+audioOutput(deviceId: string): Promise<void>
 ```
 
-Id of the currently selected audio output device.
+Get the current audio output device id (returns `null` when no device is selected), or route audio to a specific device by id.
 
 ## Audio tracks
 
@@ -595,29 +597,22 @@ audioTracks(): AudioTrack[]
 Available audio tracks exposed by the current backend.
 Most local files surface a single track; multi-track sources (HLS audio renditions, container with multiple `<audio>` streams, etc.) surface one entry per language/variant.
 
-### `currentAudioTrack()`
+### `audioTrack()`
 
 ```ts
-currentAudioTrack(): number
+audioTrack(): CurrentAudioTrackSelection | null
 ```
 
-Index of the current audio track.
+The current audio track selection, or `null` when no explicit selection has been made.
+The returned object has `index: number` (position in the `audioTracks()` list) and `track: AudioTrack` (full metadata).
 
-### `currentAudioTrack(index)`
+### `audioTrack(index)`
 
 ```ts
-currentAudioTrack(index: number): void
+audioTrack(index: number): void
 ```
 
 Switch to an audio track by index.
-
-### `cycleAudioTracks()`
-
-```ts
-cycleAudioTracks(): void
-```
-
-Cycle to the next available audio track.
 
 ## Subtitles and chapters
 
@@ -641,16 +636,20 @@ try {
 }
 ```
 
-### `currentSubtitle()`
+### `subtitle()`
 
 ```ts
-currentSubtitle(): number | null
+subtitle(): CurrentSubtitleSelection | null
 ```
 
-### `currentSubtitle(index)`
+The current subtitle selection, or `null` when subtitles are off.
+The returned object has `index: number` (position in the `subtitles()` list) and `track: SubtitleTrack` (full metadata).
+Note: the music player's `subtitles()` always throws `NotImplementedError`; this method is present for interface compatibility only.
+
+### `subtitle(index)`
 
 ```ts
-currentSubtitle(index: number | null): void
+subtitle(index: number | null): void
 ```
 
 ### `chapters()`
@@ -733,8 +732,8 @@ Use for URLs that cannot carry `Authorization` headers.
 ### `urlResolver()` / `urlResolver(fn)`
 
 ```ts
-urlResolver(): UrlResolver | undefined
-urlResolver(resolver: UrlResolver | undefined): void
+urlResolver(): IUrlResolver | undefined
+urlResolver(resolver: IUrlResolver | undefined): void
 ```
 
 ## Plugins
@@ -742,7 +741,7 @@ urlResolver(resolver: UrlResolver | undefined): void
 ### `addPlugin(PluginClass, opts?)`
 
 ```ts
-addPlugin<P extends Plugin>(Cls: PluginClass<P>, opts?: PluginOptions<P>): NMMusicPlayer<T>
+addPlugin<P extends Plugin>(Cls: PluginCtorWithId & (new () => P), opts?: P['opts']): NMMusicPlayer<T>
 ```
 
 Register and activate a plugin. Returns the player for chaining.
@@ -750,7 +749,7 @@ Register and activate a plugin. Returns the player for chaining.
 ### `getPlugin(PluginClass)`
 
 ```ts
-getPlugin<P extends Plugin>(Cls: PluginClass<P>): P | undefined
+getPlugin<P extends object>(Cls: PluginCtorWithId & (new () => P)): P | undefined
 ```
 
 Retrieve a registered plugin instance, typed.
@@ -766,7 +765,7 @@ Retrieve a plugin by its string id.
 ### `removePlugin(PluginClass, opts?)`
 
 ```ts
-removePlugin<P extends Plugin>(Cls: PluginClass<P>, opts?: { cascade?: boolean }): void
+removePlugin<P extends Plugin>(Cls: PluginCtorWithId & (new () => P)): void
 ```
 
 Dispose and remove a plugin.
@@ -894,7 +893,7 @@ canPlay(profile: {
   height?: number;
   bitrate?: number;
   framerate?: number;
-}): Promise<MediaCapabilitiesDecodingInfo>
+}): Promise<CanPlayResult>
 ```
 
 Query `MediaCapabilities.decodingInfo()`.
@@ -922,7 +921,7 @@ bandwidthEstimator(fn: () => number): void
 ### `registerStream(factory, prepend?)`
 
 ```ts
-registerStream(factory: StreamFactory, prepend?: boolean): this
+registerStream(factory: IStreamFactory, prepend?: boolean): this
 ```
 
 ### `unregisterStream(id)`
@@ -940,7 +939,7 @@ streams(): ReadonlyArray<string>
 ### `getStreamFactory(id)`
 
 ```ts
-getStreamFactory(id: string): StreamFactory | undefined
+getStreamFactory(id: string): IStreamFactory | undefined
 ```
 
 ## Cue parsers
@@ -948,7 +947,7 @@ getStreamFactory(id: string): StreamFactory | undefined
 ### `registerCueParser(parser, prepend?)`
 
 ```ts
-registerCueParser(parser: CueParser, prepend?: boolean): void
+registerCueParser(parser: ICueParser, prepend?: boolean): void
 ```
 
 Register a custom cue parser (LRC, VTT, or custom subtitle format).
@@ -962,7 +961,7 @@ unregisterCueParser(id: string): void
 ### `resolveCueParser(url)`
 
 ```ts
-resolveCueParser(url: string): CueParser | undefined
+resolveCueParser(url: string): ICueParser | undefined
 ```
 
 ## Preload and transition strategies
@@ -970,7 +969,7 @@ resolveCueParser(url: string): CueParser | undefined
 ### `setPreloadStrategy(strategy)`
 
 ```ts
-setPreloadStrategy(strategy: PreloadStrategy): void
+setPreloadStrategy(strategy: IPreloadStrategy): void
 ```
 
 Default: `MusicPreloadStrategy` (preloads 10 s before end).
@@ -978,13 +977,13 @@ Default: `MusicPreloadStrategy` (preloads 10 s before end).
 ### `preloadStrategy()`
 
 ```ts
-preloadStrategy(): PreloadStrategy
+preloadStrategy(): IPreloadStrategy
 ```
 
 ### `setTransitionStrategy(strategy)`
 
 ```ts
-setTransitionStrategy(strategy: TransitionStrategy): void
+setTransitionStrategy(strategy: ITransitionStrategy): void
 ```
 
 Default: `CrossfadeTransitionStrategy` (3 s crossfade, equal-power curve).
@@ -992,7 +991,7 @@ Default: `CrossfadeTransitionStrategy` (3 s crossfade, equal-power curve).
 ### `transitionStrategy()`
 
 ```ts
-transitionStrategy(): TransitionStrategy
+transitionStrategy(): ITransitionStrategy
 ```
 
 ## Setup state and diagnostics
@@ -1035,18 +1034,18 @@ visibilityState(): VisibilityState  // 'visible' | 'hidden'
 streamState(): string
 ```
 
-### `qualityState()` / `qualityState(target)`
+### `qualityMode()` / `qualityMode(target)`
 
 ```ts
-qualityState(): QualityState
-qualityState(target: number | 'auto'): void
+qualityMode(): QualityState
+qualityMode(target: number | 'auto'): void
 ```
 
-### `audioTrackState()` / `audioTrackState(idx)`
+### `audioTrackMode()` / `audioTrackMode(idx)`
 
 ```ts
-audioTrackState(): AudioTrackState
-audioTrackState(idx: number): void
+audioTrackMode(): AudioTrackState
+audioTrackMode(idx: number): void
 ```
 
 ## Cast
@@ -1061,9 +1060,11 @@ castState(): CastState
 
 ```ts
 transferTo(target: CastTarget): Promise<void>
+// type CastTarget = 'cast' | 'airplay' | 'remote-playback' | 'local'
 ```
 
-Hand off playback to a Chromecast or AirPlay device.
+Hand off playback to a Chromecast or AirPlay device, or pass `'local'` to pull playback back.
+`CastTarget` is exported from `@nomercy-entertainment/nomercy-player-core`. See [Cast and Remote Playback](/nomercy-player-core/cast).
 
 ## Announce (accessibility)
 
@@ -1095,12 +1096,12 @@ off<K extends keyof MusicEventMap>(event: K, handler: (payload: MusicEventMap[K]
 once<K extends keyof MusicEventMap>(event: K, handler: (payload: MusicEventMap[K]) => void): void
 ```
 
-### `on(PluginClass, event, handler)` (cross-plugin)
+To subscribe to another plugin's events from outside a plugin, use the namespaced string form:
 
 ```ts
-on<P extends Plugin, K extends keyof P['__events__']>(
-  Cls: PluginClass<P>,
-  event: K,
-  handler: (payload: P['__events__'][K]) => void,
-): void
+player.on('plugin:<id>:<event>', handler);
+// Example:
+player.on('plugin:lyrics:lineEnter', ({ text }) => { /* ... */ });
 ```
+
+The `on(PluginClass, event, handler)` class form is `protected` — it is available inside plugin class bodies only, not from consumer code.

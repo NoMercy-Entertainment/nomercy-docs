@@ -63,12 +63,13 @@ All Color-button (F0 through F3), universal media key, modifier-seek, chapter, s
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { TvUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { TvUiOptions } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 const player = nmplayer('player')
   .addPlugin(TvUiPlugin, {
     arrowSeekSeconds: 5,
     infoDisplayMs: 4000,
-  })
+  } as TvUiOptions)
   .setup({
     baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
     playlist: [
@@ -89,7 +90,7 @@ player.on('plugin:tv-ui:bookmark', ({ time }) => {
 ## Info OSD content
 
 When the Info key is pressed the OSD message is built from three parts.
-First, the item title from `player.current()?.title`.
+First, the item title from `player.item()?.title`.
 Second, the chapter label: chapter number plus title from the active chapter at the current time, or chapter number alone if the chapter has no title.
 Third, `currentTime / -remaining` formatted as `M:SS` or `H:MM:SS` (minutes are not zero-padded; 65 seconds renders as `1:05`).
 The parts are joined with a `·` separator and sent as a single OSD message.

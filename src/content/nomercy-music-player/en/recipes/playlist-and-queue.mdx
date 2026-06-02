@@ -53,13 +53,13 @@ player.queueMove(0, 4); // move index 0 to index 4
 
 ```ts
 // Set current item by id or by object reference:
-player.current(track2);
+player.item(track2);
 
 // Jump to index:
 player.seekToIndex(2);
 
 // Read current item:
-const nowPlaying = player.current();
+const nowPlaying = player.item();
 ```
 
 ## Peek next and previous
@@ -113,7 +113,7 @@ player.on('repeat', ({ state }) => {
 });
 ```
 
-`AutoAdvancePlugin` respects repeat state, calling `player.restart()` when `RepeatState.ONE` is set and a track ends.
+`AutoAdvancePlugin` calls `player.next()` when a track ends. The player's `next()` implementation respects repeat state: when `RepeatState.ONE` is set, it reloads and replays the current track instead of advancing the queue cursor.
 
 ## AutoAdvancePlugin
 
@@ -129,13 +129,11 @@ player.addPlugin(AutoAdvancePlugin, {
 });
 ```
 
-On the video player, import from `@nomercy-entertainment/nomercy-video-player`:
-
 ```ts
-import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player';
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
 player.addPlugin(AutoAdvancePlugin);
-// When the current video ends, player.next() is called automatically
+// When the current track ends, player.next() is called automatically
 ```
 
 ## Sorting the queue

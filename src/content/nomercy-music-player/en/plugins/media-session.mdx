@@ -13,7 +13,7 @@ When music is playing, the operating system can show the track title, artist, al
 Without this plugin, none of that happens.
 Register `MediaSessionPlugin` and the browser's Media Session API wires itself to your player automatically.
 
-The music-specific subclass reads `name`, `artistTracks`, `albumTracks`, and `cover` from each `MusicPlaylistItem`.
+The music-specific subclass reads `name`, `artist`, `album`, and `cover` from each `MusicPlaylistItem`.
 The base player core plugin handles all transport state: play, pause, stop, seek, and position scrubbing.
 
 ```ts
@@ -48,8 +48,8 @@ The music subclass maps `MusicPlaylistItem` fields to `MediaMetadata`:
 | `MusicPlaylistItem` field | `MediaMetadata` field | Notes |
 | ------------------------- | --------------------- | ----- |
 | `name` | `title` | |
-| `artistTracks` | `artist` | Array of `{name}` joined with `, ` or a plain string |
-| `albumTracks` | `album` | Array of `{name}` joined with `, ` or a plain string |
+| `artist` | `artist` | Plain string |
+| `album` | `album` | Plain string |
 | `image` - first non-empty of `image`, `poster`, `thumbnail`, `cover` | `artwork[0].src` (512x512) | Resolved through `urlResolver`; MIME inferred from extension |
 
 ## Methods
@@ -88,8 +88,8 @@ const player = nmMPlayer('main')
         name: 'Thaw You Out',
         url: '/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.mp3',
         cover: '/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.jpg',
-        artistTracks: [{ id: 1, name: 'Derek Clegg' }],
-        albumTracks: [{ id: 1, name: 'KJC' }],
+        artist: 'Derek Clegg',
+        album: 'KJC',
       },
     ],
   });
@@ -106,5 +106,5 @@ Without it OS-level controls do not appear.
 
 ## See also
 
-- [MusicPlaylistItem](/nomercy-music-player/playlist-item), `name`, `artistTracks`, `albumTracks`, `cover` fields
+- [MusicPlaylistItem](/nomercy-music-player/playlist-item), `name`, `artist`, `album`, `cover` fields
 - [Quick Start](/nomercy-music-player/quickstart), minimal player with `MediaSessionPlugin`

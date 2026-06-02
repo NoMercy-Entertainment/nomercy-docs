@@ -1,6 +1,6 @@
 ---
 title: 'Seeking'
-description: 'currentTime, rewind, forward, seekByPercentage, and seekingTransition.'
+description: 'time, rewind, forward, seekByPercentage, and seekingTransition.'
 draft: false
 ---
 
@@ -12,13 +12,13 @@ Seeking methods let consumers position playback at a specific time.
 Every seek dispatches `beforeSeek` first, and listeners may `preventDefault()` to cancel.
 `seekPrevented` fires instead of `seek`/`seeked` when a seek is cancelled.
 
-## `currentTime(t?, opts?)`
+## `time(t?, opts?)`
 
 Get or seek to a playback position in seconds.
 
-**Read:** `currentTime()` returns the current position as a number.
+**Read:** `time()` returns the current position as a number.
 
-**Write:** `currentTime(t, opts?)` dispatches `beforeSeek`; if not prevented, runs a `seeking` phase round-trip, updates position, emits `seek` then `seeked`, and forwards to the backend.
+**Write:** `time(t, opts?)` dispatches `beforeSeek`; if not prevented, runs a `seeking` phase round-trip, updates position, emits `seek` then `seeked`, and forwards to the backend.
 Negative values are clamped to 0.
 
 | Parameter     | Type           | Default  | Description                 |
@@ -32,13 +32,13 @@ Negative values are clamped to 0.
 
 ```ts
 // read
-const pos = player.currentTime(); // seconds
+const pos = player.time(); // seconds
 
 // seek to 2:30
-await player.currentTime(150);
+await player.time(150);
 
 // seek attributed to a remote sync command
-await player.currentTime(150, { source: 'remote' });
+await player.time(150, { source: 'remote' });
 ```
 
 ## `seekByPercentage(pct, opts?)`
@@ -47,7 +47,7 @@ Seek to a position expressed as a percentage (0–100) of the total duration.
 
 `pct` is clamped to [0, 100].
 No-op when `duration` is zero or non-finite (metadata not yet loaded).
-Delegates to `currentTime()` so `beforeSeek` fires and the full seek cycle applies.
+Delegates to `time()` so `beforeSeek` fires and the full seek cycle applies.
 
 | Parameter | Type            | Default | Description        |
 | --------- | --------------- | ------- | ------------------ |

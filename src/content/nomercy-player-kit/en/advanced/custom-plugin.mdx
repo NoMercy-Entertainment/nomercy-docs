@@ -17,8 +17,8 @@ The player core provides helpers that auto-dispose so you don't have to track th
 | Resource           | Managed helper                    | Manual alternative                        |
 | ------------------ | --------------------------------- | ----------------------------------------- |
 | Event listeners    | `this.on(...)`                    | `this.off(...)` in `dispose()`            |
-| Timers             | `this.timeout(ms, fn)`            | `clearTimeout(id)` in `dispose()`         |
-| Intervals          | `this.interval(ms, fn)`           | `clearInterval(id)` in `dispose()`        |
+| Timers             | `this.timeout(fn, ms)`            | `clearTimeout(id)` in `dispose()`         |
+| Intervals          | `this.interval(fn, ms)`           | `clearInterval(id)` in `dispose()`        |
 | Animation frames   | `this.frame(fn)`                  | `cancelAnimationFrame(id)` in `dispose()` |
 | DOM nodes          | `this.mount(className)`           | `el.remove()` in `dispose()`              |
 | External resources | None, you must clean up manually  | WebSocket, Worker, etc.                   |
@@ -66,9 +66,9 @@ export class PlaybackRatePlugin extends Plugin<
   // Private state:
   private currentRate = 1.0;
 
-  use(): void {
+  async use(): Promise<void> {
     // Restore saved rate from storage:
-    const saved = this.storage.get('playback-rate');
+    const saved = await this.storage.get('playback-rate');
     if (saved) {
       this.setRate(parseFloat(saved));
     }
@@ -135,12 +135,12 @@ class ExclusivePlayPlugin extends Plugin<NMVideoPlayer, {}, {}> {
 
     // When this player starts, broadcast to others:
     this.on('play', () => {
-      this.channel?.postMessage({ playerId: this.player.id() });
+      this.channel?.postMessage({ playerId: this.player.id });
     });
 
     // When another player starts, pause this one:
     this.channel.onmessage = (event) => {
-      if (event.data.playerId !== this.player.id()) {
+      if (event.data.playerId !== this.player.id) {
         this.player.pause();
       }
     };
@@ -244,7 +244,7 @@ export class WatchPartyLitePlugin extends Plugin<
       this.ignoreNextEvent = false;
       return;
     }
-    const time = this.player.currentTime();
+    const time = this.player.time();
     this.channel?.postMessage({ action, time });
     this.emit('synced', { action, time });
   }
@@ -253,13 +253,13 @@ export class WatchPartyLitePlugin extends Plugin<
     this.ignoreNextEvent = true;
 
     if (data.action === 'play') {
-      this.player.currentTime(data.time); // sync position first
+      this.player.time(data.time); // sync position first
       this.player.play();
     } else if (data.action === 'pause') {
-      this.player.currentTime(data.time);
+      this.player.time(data.time);
       this.player.pause();
     } else if (data.action === 'seek') {
-      this.player.currentTime(data.time);
+      this.player.time(data.time);
     }
 
     this.emit('synced', { action: data.action, time: data.time });
@@ -281,12 +281,10 @@ player.addPlugin(WatchPartyLitePlugin, { roomId: 'movie-night-42', role: 'follow
 
 ```ts
 import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
-import { assertNoListenerLeak } from '@nomercy-entertainment/nomercy-player-core/testing';
 import { WatchPartyLitePlugin } from './watch-party-lite';
 
 describePlugin(
   WatchPartyLitePlugin,
-  { roomId: 'test-room', role: 'leader' },
   ({ player, plugin }) => {
     test('broadcasts play events', () => {
       const synced: unknown[] = [];
@@ -297,11 +295,8 @@ describePlugin(
       expect(synced).toHaveLength(1);
       expect(synced[0]).toMatchObject({ action: 'play' });
     });
-
-    test('no listener leak', () => {
-      assertNoListenerLeak(player, WatchPartyLitePlugin);
-    });
   },
+  { opts: { roomId: 'test-room', role: 'leader' } },
 );
 ```
 

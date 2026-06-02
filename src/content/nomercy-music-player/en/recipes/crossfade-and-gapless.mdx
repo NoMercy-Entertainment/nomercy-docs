@@ -43,19 +43,19 @@ const player = nmMPlayer('main')
         id: 'kjc-01',
         name: 'Thaw You Out',
         url: '/D/Derek%20Clegg/%5B2010%5D%20KJC/01%20Thaw%20You%20Out.mp3',
-        artistTracks: [{ id: 1, name: 'Derek Clegg' }],
+        artist: 'Derek Clegg',
       },
       {
         id: 'kjc-02',
         name: 'Hope',
         url: '/D/Derek%20Clegg/%5B2010%5D%20KJC/02%20Hope.mp3',
-        artistTracks: [{ id: 1, name: 'Derek Clegg' }],
+        artist: 'Derek Clegg',
       },
     ],
   });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 
@@ -129,7 +129,7 @@ import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/p
 
 const player = nmMPlayer('main')
   .addPlugin(AutoAdvancePlugin, {
-    preloadNext: true, // preload next track on trackEndingSoon
+    preloadNextOnEnding: true, // preload next track on trackEndingSoon
     crossfade: false, // no volume fade, hard cut
   })
   .setup({
@@ -138,7 +138,7 @@ const player = nmMPlayer('main')
   });
 ```
 
-`AutoAdvancePlugin` with `preloadNext: true` calls `player.load(next, { slot: 'next' })` when `trackEndingSoon` fires, so the next track's audio is buffered before `ended`.
+`AutoAdvancePlugin` with `preloadNextOnEnding: true` calls `player.load(next, { slot: 'next' })` when `trackEndingSoon` fires, so the next track's audio is buffered before `ended`.
 
 ## Backend choice and accuracy
 
@@ -173,6 +173,6 @@ crossfadeDefaults: { duration: 6 }
 ## See also
 
 - [Crossfade, full `crossfadeTo()` API and per-call options](/nomercy-music-player/crossfade)
-- [AutoAdvancePlugin, `crossfade`, `preloadNext`, and `crossfadeDuration` options](/nomercy-music-player/plugins/auto-advance)
+- [AutoAdvancePlugin, `crossfade`, `preloadNextOnEnding`, and `crossfadeDuration` options](/nomercy-music-player/plugins/auto-advance)
 - [Backends overview, `audio-element` vs `webaudio` crossfade trade-offs](/nomercy-music-player/backends/overview)
 - [Lyrics and Equalizer, EQ applies through crossfade transitions](/nomercy-music-player/recipes/lyrics-and-equalizer)

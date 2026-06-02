@@ -1,6 +1,6 @@
 ---
 title: 'Queue Navigation'
-description: 'current, currentIndex, seekToIndex, peekNext, peekPrevious, next, previous.'
+description: 'item, index, seekToIndex, peekNext, peekPrevious, next, previous.'
 draft: false
 ---
 
@@ -12,13 +12,13 @@ Navigation methods read and move the queue cursor.
 Moving the cursor triggers `load()` on the newly-selected item (unless the player is idle or disposed).
 A monotonic `_currentEpoch` guard prevents in-flight loads from overwriting a newer navigation.
 
-## `current(target?, opts?)`
+## `item(target?, opts?)`
 
 Read or write the active queue cursor.
 
-**Read:** `current()` returns the active playlist item, or `undefined` when the queue is empty.
+**Read:** `item()` returns the active playlist item, or `undefined` when the queue is empty.
 
-**Write:** `current(target, opts?)` moves the cursor to `target`. `target` may be:
+**Write:** `item(target, opts?)` moves the cursor to `target`. `target` may be:
 
 - A `BasePlaylistItem` reference
 - An item `id` (string or number)
@@ -39,20 +39,38 @@ If `opts.autoplay` is true, `play()` is called after load resolves.
 **Events emitted:** `current` with `{ item, index }`
 
 ```ts
+import type {
+  ActionOptions,
+  BaseEventMap,
+  BasePlaylistItem,
+  IPlayer,
+  WithCurrentItem,
+} from '@nomercy-entertainment/nomercy-player-core';
+
+// item() getter lives on WithCurrentItem.
+// The setter overload is on concrete players (NMVideoPlayer, NMMusicPlayer).
+// Intersect both here so the example compiles against the kit surface.
+type PlayerWithItemCursor<T extends BasePlaylistItem = BasePlaylistItem> =
+  IPlayer<BaseEventMap>
+  & WithCurrentItem<T>
+  & { item(target: T | string | number | ((item: T) => boolean), opts?: ActionOptions): void };
+
+declare const player: PlayerWithItemCursor<BasePlaylistItem>;
+
 // move by id
-player.current('sintel');
+player.item('sintel');
 
 // move by index
-player.current(2);
+player.item(2);
 
 // move by predicate
-player.current((item) => item.title === 'Tears of Steel');
+player.item((item) => item.title === 'Tears of Steel');
 
 // move and autoplay
-player.current(0, { autoplay: true });
+player.item(0, { autoplay: true });
 ```
 
-## `currentIndex()`
+## `index()`
 
 Return the zero-based index of the currently active item, or `-1` when the queue is empty.
 

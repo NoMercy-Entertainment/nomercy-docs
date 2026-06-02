@@ -40,7 +40,7 @@ const items: MusicPlaylistItem[] = [
     url: '/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.mp3',
     cover:
       '/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.jpg',
-    artistTracks: [{ id: 1, name: 'bent wyre' }],
+    artist: 'bent wyre',
   },
   {
     id: 'bent-wyre-02',
@@ -48,7 +48,7 @@ const items: MusicPlaylistItem[] = [
     url: '/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/02%20Beat%20of%20Trespass.mp3',
     cover:
       '/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/02%20Beat%20of%20Trespass.jpg',
-    artistTracks: [{ id: 1, name: 'bent wyre' }],
+    artist: 'bent wyre',
   },
 ];
 
@@ -63,7 +63,7 @@ const player = nmMPlayer('main')
   .setup(config);
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 
@@ -110,10 +110,10 @@ player.queueRemove('4');
 player.queueMove(fromIndex, toIndex);
 
 // Jump to a track:
-player.current(track2);
+player.item(track2);
 
 // Read current:
-const currentTrack = player.current(); // T | undefined
+const currentTrack = player.item(); // T | undefined
 ```
 
 ## Volume
@@ -144,8 +144,8 @@ player.repeatState(RepeatState.ALL);
 ## Seeking
 
 ```ts
-player.currentTime(30); // seek to 30 seconds
-const pos = player.currentTime(); // read position
+player.time(30); // seek to 30 seconds
+const pos = player.time(); // read position
 const dur = player.duration(); // total duration
 
 player.forward(10); // skip forward 10s
@@ -193,13 +193,12 @@ const player = nmMPlayer('main').setup({
     bearerToken: () => myAuth.getAccessToken(),
     refreshOnUnauthenticated: async () => {
       await myAuth.refresh();
-      return myAuth.getAccessToken();
     },
   },
 });
 
 player.on('ready', () => {
-  player.current(0, { autoplay: true });
+  player.item(0, { autoplay: true });
 });
 ```
 
@@ -229,7 +228,7 @@ The bundle expects `hls.js` to be present as the `Hls` global, so load that firs
   });
 
   player.on('ready', function () {
-    player.current(0, { autoplay: true });
+    player.item(0, { autoplay: true });
   });
 </script>
 ```

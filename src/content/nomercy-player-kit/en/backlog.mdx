@@ -43,9 +43,15 @@ Append one item or an array of items to the backlog.
 **Events emitted:** `backlog:append` with `{ items }`
 
 ```ts
+import type { IPlayer, WithCurrentItem, BasePlaylistItem, BaseEventMap } from '@nomercy-entertainment/nomercy-player-core';
+
+// item() lives on WithCurrentItem, not on bare IPlayer.
+// Type the player accordingly when you need the cursor.
+declare const player: IPlayer<BaseEventMap> & WithCurrentItem<BasePlaylistItem>;
+
 // push current item to history before advancing
 player.on('beforeNext', () => {
-  const current = player.current();
+  const current = player.item();
   if (current) player.backlogAppend(current);
 });
 ```

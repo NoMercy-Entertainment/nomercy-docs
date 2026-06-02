@@ -72,14 +72,14 @@ export function NowPlaying() {
   return (
     <div className="player">
       <p>{currentTrack?.name ?? 'Nothing playing'}</p>
-      <p>{currentTrack?.artistTracks?.[0]?.name}</p>
+      <p>{currentTrack?.artist}</p>
 
       <div
         className="progress"
         onClick={(event) => {
           const bar = event.currentTarget;
           const ratio = event.nativeEvent.offsetX / bar.clientWidth;
-          void player.currentTime(ratio * player.duration());
+          void player.time(ratio * player.duration());
         }}
       >
         <div className="fill" style={{ width: `${progress}%` }} />
@@ -239,7 +239,7 @@ export const TrackTitle = memo(function TrackTitle({ name, artist }: TrackTitleP
 const { currentTrack } = useMusicPlayer();
 <TrackTitle
   name={currentTrack?.name ?? 'Nothing playing'}
-  artist={currentTrack?.artistTracks?.[0]?.name}
+  artist={currentTrack?.artist}
 />
 ```
 
@@ -354,16 +354,16 @@ const DEMO_PLAYLIST: MusicPlaylistItem[] = [
   {
     id: 'sintel-score-1',
     name: 'Sintel Theme',
-    artistTracks: [{ id: 'jan-morgenstern', name: 'Jan Morgenstern' }],
-    albumTracks: [{ id: 'sintel-ost', name: 'Sintel OST' }],
+    artist: 'Jan Morgenstern',
+    album: 'Sintel OST',
     url: 'https://protected.cdn.your-domain.com/audio/sintel-theme.mp3',
     duration: 212,
   },
   {
     id: 'bbb-score-1',
     name: 'Big Buck Bunny Theme',
-    artistTracks: [{ id: 'jan-morgenstern', name: 'Jan Morgenstern' }],
-    albumTracks: [{ id: 'bbb-ost', name: 'Big Buck Bunny OST' }],
+    artist: 'Jan Morgenstern',
+    album: 'Big Buck Bunny OST',
     url: 'https://protected.cdn.your-domain.com/audio/bbb-theme.mp3',
     duration: 596,
   },
@@ -439,7 +439,7 @@ export const TrackInfo = memo(function TrackInfo() {
   return (
     <div className="track-info">
       <p className="track-name">{currentTrack?.name ?? 'Nothing playing'}</p>
-      <p className="track-artist">{currentTrack?.artistTracks?.[0]?.name ?? ''}</p>
+      <p className="track-artist">{currentTrack?.artist ?? ''}</p>
     </div>
   );
 });
@@ -472,7 +472,7 @@ export function ProgressBar() {
         onClick={(event) => {
           const bar = event.currentTarget;
           const ratio = event.nativeEvent.offsetX / bar.clientWidth;
-          void player.currentTime(ratio * duration);
+          void player.time(ratio * duration);
         }}
       >
         <div className="progress-fill" style={{ width: `${progress}%` }} />

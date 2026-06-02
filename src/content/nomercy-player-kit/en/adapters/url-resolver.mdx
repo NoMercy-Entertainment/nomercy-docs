@@ -23,7 +23,6 @@ When you only need to extend the built-in behavior rather than replace it, call 
 Everything you import from this page lives in these two lines:
 
 ```ts
-import { URL_CATEGORY } from '@nomercy-entertainment/nomercy-player-core/adapters/url-resolver';
 import type { IUrlResolver, ResolvedUrl, UrlCategory, UrlResolverContext } from '@nomercy-entertainment/nomercy-player-core/adapters/url-resolver';
 ```
 
@@ -110,7 +109,6 @@ The common case is signing media and subtitle URLs with a short-lived CDN token 
 
 ```ts
 import { authFetch } from '@nomercy-entertainment/nomercy-player-core';
-import { URL_CATEGORY } from '@nomercy-entertainment/nomercy-player-core/adapters/url-resolver';
 import type { IUrlResolver } from '@nomercy-entertainment/nomercy-player-core/adapters/url-resolver';
 
 async function fetchSigningToken(): Promise<string> {
@@ -124,8 +122,8 @@ async function fetchSigningToken(): Promise<string> {
 }
 
 const cdnResolver: IUrlResolver = async (url, ctx) => {
-  const signable = ctx.category === URL_CATEGORY.MEDIA
-    || ctx.category === URL_CATEGORY.SUBTITLE;
+  const signable = ctx.category === 'media'
+    || ctx.category === 'subtitle';
 
   if (!signable) {
     return ctx.defaultResolve(url);
@@ -159,7 +157,7 @@ For multi-origin routing, where different asset types come from different hosts:
 
 ```ts
 const routingResolver: IUrlResolver = (url, ctx) => {
-  if (ctx.category === URL_CATEGORY.FONT) {
+  if (ctx.category === 'font') {
     const fontUrl = new URL(url);
     fontUrl.hostname = 'fonts.example.com';
 

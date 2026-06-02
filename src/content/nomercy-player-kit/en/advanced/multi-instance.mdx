@@ -22,12 +22,13 @@ There is no shared mutable global between two player instances unless you introd
 ## Two players on one page
 
 ```ts
-import { nmplayer, DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
-import { nmMPlayer, AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player';
+import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player';
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
 
 // Main video player:
-const videoPlayer = nmplayer('video').setup({
-  container: document.getElementById('video-player')!,
+const videoPlayer = nmplayer('video-player').setup({
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
   playlist: [{
     id: 'bbb',
@@ -75,8 +76,8 @@ mainPlayer.on('pip', ({ active }) => {
 });
 
 // Toggle PiP:
-mainPlayer.pipState(true);  // enter PiP
-mainPlayer.pipState(false); // exit PiP
+mainPlayer.pip(true);  // enter PiP
+mainPlayer.pip(false); // exit PiP
 ```
 
 No second player instance is needed for native PiP, the single player's `<video>` element moves to the PiP window.
@@ -103,9 +104,9 @@ await Promise.all(players.map((player) => player.ready()));
 
 // Sync: when the first tile plays, play all others at the same position:
 players[0].on('play', () => {
-  const time = players[0].currentTime();
+  const time = players[0].time();
   players.slice(1).forEach((tile) => {
-    tile.currentTime(time); // sync position
+    tile.time(time); // sync position
     tile.play();
   });
 });
