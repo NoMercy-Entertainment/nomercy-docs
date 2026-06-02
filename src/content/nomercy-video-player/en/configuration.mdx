@@ -66,6 +66,14 @@ preload?: 'auto' | 'metadata' | 'none'
 
 Passed to the `<video>` element's `preload` attribute. Default: `'auto'`.
 
+### `autoAdvance`
+
+```ts
+autoAdvance?: boolean
+```
+
+When the current item ends, advance to the next item in the queue automatically. Default: `true`. Set to `false` when an external orchestrator (Cast sync, a NoMercy Connect socket) drives `next()` itself, so an item is never advanced twice. With `RepeatState.ONE` active, the player restarts the current item instead of advancing.
+
 ## Display
 
 ### `controls`
@@ -147,10 +155,10 @@ Default: `'auto'`.
 
 ## Image URLs
 
-### `imageBasePath`
+### `baseImageUrl`
 
 ```ts
-imageBasePath?: string
+baseImageUrl?: string
 ```
 
 Base URL prepended to relative `image`, `poster`, and `thumbnail` paths on playlist items.
@@ -158,7 +166,7 @@ Useful for TMDB-style paths:
 
 ```ts
 player.setup({
-  imageBasePath: 'https://image.tmdb.org/t/p/original',
+  baseImageUrl: 'https://image.tmdb.org/t/p/original',
   playlist: [{ id: '1', url: '...', poster: '/abc123.jpg' }],
   // poster resolves to: https://image.tmdb.org/t/p/original/abc123.jpg
 });
@@ -200,6 +208,7 @@ backendFactory?: (kind: VideoBackendKind, config: VideoPlayerConfig) => IVideoBa
 Custom video backend factory.
 Overrides the default `Html5VideoBackend`.
 Use to wire in a WebCodecs backend, a native-shell bridge, or a test stub.
+See [Video: Adapters](/nomercy-video-player/adapters/video-backend) for alternatives.
 
 ## Storage
 
@@ -233,6 +242,7 @@ logger?: ILogger
 
 Custom logger.
 Defaults to the player core's console logger.
+See [Core: Adapters](/nomercy-player-core/adapters/logger) for alternatives.
 
 ### `debug`
 
@@ -253,6 +263,7 @@ platform?: IPlatform
 
 Platform abstraction bundle.
 Defaults to `browserPlatform`.
+See [Core: Adapters](/nomercy-player-core/platform) for alternatives.
 Override individual sub-ports for Capacitor, Tauri, or Electron:
 
 ```ts
@@ -367,7 +378,7 @@ baseUrl?: string
 ```
 
 Base URL prepended to relative media source URLs.
-Separate from `imageBasePath`, this covers audio/video sources, not artwork.
+Separate from `baseImageUrl`, this covers audio/video sources, not artwork.
 
 ### `disableControls` / `disableMediaControls`
 

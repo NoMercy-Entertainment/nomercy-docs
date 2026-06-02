@@ -5,12 +5,7 @@ description: 'Install nomercy-video-player, create a working HLS player with tra
 
 # Video Player: Quick Start
 
-Read this if you are setting up the video player for the first time.
-The snippets below are verified, copy them into a fresh project and they run.
-
-**Success looks like:** the player mounts to your container element, loads the HLS stream, and starts playing on `ready`.
-No errors in the browser console.
-The seek bar, play/pause, volume, and fullscreen controls appear (from `DesktopUiPlugin`).
+A working video player in a few lines: mounted in your own element, playing an HLS stream, with the seek bar, play/pause, volume, and fullscreen controls from `DesktopUiPlugin`.
 
 ## Install
 
@@ -78,14 +73,10 @@ The inline `playlist:` array is auto-queued during setup.
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import {
-  DesktopUiPlugin,
-  AutoAdvancePlugin,
-} from '@nomercy-entertainment/nomercy-video-player/plugins';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 const player = nmplayer('main')
   .addPlugin(DesktopUiPlugin)
-  .addPlugin(AutoAdvancePlugin)
   .setup({
     baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
     playlist: [
@@ -115,7 +106,7 @@ player.on('ready', () => {
 });
 ```
 
-When episode 1 ends, `AutoAdvancePlugin` calls `player.next()` automatically.
+When the current item ends, the player advances to the next one automatically (set `autoAdvance: false` in setup to disable).
 
 ## Basic transport controls
 
@@ -215,7 +206,7 @@ The bundle expects `hls.js` as the `Hls` global, so load that script first.
 
 ```html
 <div id="player" style="width:100%;aspect-ratio:16/9;background:#000"></div>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@nomercy-entertainment/nomercy-video-player@beta/dist/nomercy-video-player.iife.js"></script>
 <script>
   var player = window.nmplayer('player').setup({

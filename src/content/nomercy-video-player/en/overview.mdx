@@ -1,29 +1,125 @@
 ---
 title: 'What is the Video Player'
-description: 'The headless HLS video engine, what it does and where it sits.'
+description: 'The headless web video player as an empty shell: it mounts into your element, plays standard video plus HLS, reflects state as CSS classes, and drives everything through events, methods, and swappable building blocks.'
 draft: false
 ---
 
-{/* Source: packages/nomercy-video-player-v2/src/index.ts, types.ts */}
+{/* Source: packages/nomercy-video-player-v2/src/index.ts, packages/nomercy-player-kit/src/core/mixins/container-class-emit.ts, lifecycle.ts */}
 
 # What is the NoMercy Video Player
 
-`nomercy-video-player` is the headless HLS engine that powers video on NoMercy TV.
-It does the parts of video that are genuinely hard, switching bitrate as the network changes, matching HDR to the display, rendering subtitles in several formats, and keeping the picture moving through all of it, then hands you the result as plain events and methods.
+`nomercy-video-player` is the headless web video player that powers video on NoMercy TV.
+It plays standard video through the browser's native `<video>` element and adds adaptive streaming over HLS, and because the playback backend is a swappable adapter, other streaming formats plug in the same way.
+It also handles the genuinely hard parts for you (matching HDR to the display, rendering subtitles in several formats, switching bitrate as the network shifts on an adaptive stream) and then gets out of your way.
 
-The player is headless: a pure TypeScript engine with no built-in UI. It manages the HLS pipeline, queue, tracks, auth, and state, and communicates through typed events and CSS classes on the container element. Everything on screen is a plugin — `DesktopUiPlugin` is the first-party overlay; replace it, extend it, or build your own.
+The important word is *headless*. There is no UI in the box and no layout you have to accept. What you get is a working video pipeline wired to plain events, plain methods, and a set of building blocks you can swap. Everything you see on screen is yours to build, or you bring in the optional `DesktopUiPlugin` and start from a finished one. The choice stays with you.
 
-## What you get
+## An empty shell you drive
 
-- `NMVideoPlayer<T>`, a typed player class generic over your own item type
-- `nmplayer(id)`, a factory that creates or returns a named instance
-- Adaptive bitrate, HDR-aware quality, multi-track subtitles, chapters, skip markers, and Chromecast
-- A plugin for every optional capability, from the full desktop UI to subtitle overlays
-- Full TypeScript types for every method, event, and option
+Think of the player as an empty shell with three ways in:
+
+- **Methods** are how you tell it what to do: `play()`, `pause()`, `volume(0.5)`, `time(t)` to seek, `next()`.
+- **Events** are how it tells you what happened: `time`, `play`, `pause`, `current`, `qualitychanged`, and the rest of a fully typed event map.
+- **Adapters** are the fundamental behaviors you can exchange: the playback backend, the thumbnail, chapter, and subtitle sources, storage, the event bus, the clock, and the URL resolver. Each one has a sensible default and a port you can replace without subclassing anything.
+
+Nothing is hidden behind a UI you cannot reach. If the player can do it, there is a method, an event, or an adapter for it.
+
+## What it does to your page
+
+You give the player an element. It mounts into that element in place, it does not wrap it or replace it.
+
+```html
+<div id="player" style="width:100%;aspect-ratio:16/9"></div>
+```
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player').setup({
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  playlist: [
+    { title: 'Sintel', url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8' },
+  ],
+});
+```
+
+After `setup()`, your own element is the player container. The player adds the `nomercyplayer` class (your existing classes and styles stay), appends a `<video>` child, and from then on keeps the element in sync with playback:
+
+```html
+<div id="player" class="nomercyplayer paused">
+  <video>…</video>
+  <!-- any plugin UI, like DesktopUiPlugin, mounts here too -->
+</div>
+```
+
+## State classes you can use or ignore
+
+As playback changes, the player reflects state as CSS classes on your container. You never have to read them, but they are there the moment you want to style around state without writing a single event listener.
+
+The play state is one of `playing`, `paused`, `stopped`, `ended`, `loading`, or `buffering` (mutually exclusive). On top of that it toggles `muted`, `fullscreen`, `pip`, and `theater`, and it flips `active` / `inactive` as the viewer moves the pointer or goes idle.
+
+This is the complete set. Every class below is added and removed for you by the core as events fire, so this table is the one place you need:
+
+| Class | On the container while | Group |
+| --- | --- | --- |
+| `playing` | media is playing | play state (one at a time) |
+| `paused` | playback is paused, and as the initial resting state | play state |
+| `stopped` | playback has been stopped | play state |
+| `ended` | playback reached the end | play state |
+| `loading` | a source is loading | play state |
+| `buffering` | playback stalled waiting for data | play state |
+| `muted` | audio is muted | independent toggle |
+| `fullscreen` | the player is in fullscreen | independent toggle |
+| `pip` | the player is in picture-in-picture | independent toggle |
+| `theater` | theater mode is on | independent toggle |
+| `active` | the viewer moved the pointer recently | activity (paired) |
+| `inactive` | the viewer has gone idle | activity (paired) |
+
+The six play-state classes are mutually exclusive: the container always carries exactly one. The four toggles are independent and can stack. `active` and `inactive` are a pair, exactly one at a time.
+
+```css
+/* Your container, your CSS. Dim the picture while paused: */
+.nomercyplayer.paused video { opacity: 0.6; }
+
+/* Reveal your own controls only while the viewer is active: */
+.nomercyplayer .my-controls { opacity: 0; transition: opacity 150ms; }
+.nomercyplayer.active .my-controls { opacity: 1; }
+```
+
+Use them to drive an entire UI from CSS, mix them with event listeners, or ignore them completely and style nothing. They are an affordance, never a requirement.
+
+## Driven by events and methods
+
+Because the player is event and API driven, your UI is just a listener on one side and a caller on the other. This is the whole pattern:
+
+```ts
+player.on('time', ({ time }) => {
+  // move your scrubber, update your clock
+});
+player.on('pause', () => {
+  // show your big play button
+});
+
+player.play();
+player.volume(0.8);
+```
+
+There is no template to fight and no markup you have to match. React to what you care about, drive what you need, and leave the rest.
+
+## Swappable building blocks
+
+The defaults are good, but none of them are locked in. Each fundamental behavior is an adapter port you can replace with your own:
+
+- Swap the **backend** to drive a different media element or a non-HLS source.
+- Swap the **thumbnail**, **chapter**, or **subtitle** source to read your own formats.
+- Swap **storage** to persist preferences server-side instead of in the browser.
+- Swap the **event bus**, **clock**, or **URL resolver** when you need to integrate with an existing system or test in isolation.
+
+That is the door this design opens: a working engine you can reshape from the outside, so the player bends to your product instead of your product bending to the player.
 
 ## Where it sits
 
-The generic parts (queue, auth, plugins, i18n, storage) live in `nomercy-player-core` underneath, so this package stays focused on the hard video parts.
+The generic parts (queue, auth, plugins, i18n, storage) live in `nomercy-player-core` underneath, so this package stays focused on the hard video parts. Plugin authors type against `IVideoPlayer<T>` rather than the concrete class.
 
 <LayerStack layers={[
   { n: 3, name: 'Your application', pkg: 'Your app code', knows: 'Your UI and app logic, built on the player.' },
@@ -31,11 +127,9 @@ The generic parts (queue, auth, plugins, i18n, storage) live in `nomercy-player-
   { n: 1, name: 'nomercy-player-core', pkg: 'Dependency', knows: 'Queue, auth, plugins, event bus, i18n, storage.' },
 ]} />
 
-Plugin authors type against `IVideoPlayer<T>` rather than the concrete class.
+## Start here
 
-## Next steps
-
+- [Installation](/nomercy-video-player/installation): add the package, npm or CDN
 - [Quick Start](/nomercy-video-player/quickstart): a working player in a few lines
-- [Configuration](/nomercy-video-player/configuration): every option and default
-- [Build a Player UI](/nomercy-video-player/guides/build-ui-overview): the step-by-step tutorial for your own controls
-- [Player Core](/nomercy-player-core/): the shared engine and its adapter ports
+- [Configuration](/nomercy-video-player/configuration): every `setup()` option and its default
+- [Adapters](/nomercy-video-player/adapters/video-backend): the building blocks you can swap

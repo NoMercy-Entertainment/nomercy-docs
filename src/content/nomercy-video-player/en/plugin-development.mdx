@@ -15,7 +15,6 @@ All built-in plugins are importable from `@nomercy-entertainment/nomercy-video-p
 
 | Plugin | Plugin id | What it does |
 | ------ | --------- | ------------ |
-| [`AutoAdvancePlugin`](/nomercy-video-player/plugins/auto-advance) | `'auto-advance'` | Calls `next()` on `'ended'`, automatic queue progression |
 | [`DesktopUiPlugin`](/nomercy-video-player/plugins/desktop-ui) | `'desktop-ui'` | Full controls overlay (progress bar, menus, activity hiding) for pointer devices |
 | [`SubtitleOverlayPlugin`](/nomercy-video-player/plugins/subtitle-overlay) | `'subtitle-overlay'` | Renders VTT subtitle cues as a positioned DOM overlay |
 | [`OctopusPlugin`](/nomercy-video-player/plugins/octopus) | `'octopus'` | High-fidelity ASS/SSA subtitle rendering via libass/WASM |
@@ -26,7 +25,7 @@ All built-in plugins are importable from `@nomercy-entertainment/nomercy-video-p
 | [`LiveTranscodingPlugin`](/nomercy-video-player/plugins/live-transcoding) | `'live-transcoding'` | Server-side on-demand transcoding with WebSocket gating and backpressure |
 | [`CastSenderPlugin`](/nomercy-video-player/plugins/cast-sender) | `'cast-sender'` | Chromecast CAF sender with session lifecycle and metadata mirroring |
 | [`MediaSessionPlugin`](/nomercy-video-player/plugins/media-session) | `'media-session'` | Populates the OS "Now Playing" surface (lock screen, notifications) |
-| [`TvUiPlugin`](/nomercy-video-player/plugins/tv-ui) | `'tv-ui'` | D-pad/remote control keyboard bindings for TV environments |
+| [`TvKeyHandlerPlugin`](/nomercy-video-player/plugins/tv-key-handler) | `'tv-key-handler'` | TV remote bindings (Color buttons, Info OSD, MediaRecord bookmark, TV-aware Arrow seek and volume); subclasses `KeyHandlerPlugin` |
 | [`TabLeaderPlugin`](/nomercy-video-player/plugins/tab-leader) | `'tab-leader'` | Web Locks-based single-tab playback enforcement across browser tabs |
 | [`MessagePlugin`](/nomercy-video-player/plugins/message) | `'message'` | Toast and persistent overlay messages inside the player container |
 | [`EmbedPlugin`](/nomercy-video-player/plugins/embed) | `'embed'` | `postMessage`-based control API for players embedded in iframes |
@@ -190,29 +189,31 @@ this.on('current', ({ item }) => {
 The lifecycle helpers (`this.on`, `this.listen`, `this.timeout`, `this.interval`, `this.frame`, `this.websocket`, `this.mount`) all register automatic cleanup when the plugin is torn down. You only need `dispose()` for resources the kit cannot track -- third-party library instances, custom WebGL contexts, non-standard observers.
 
 ```ts
-export class VisualizerPlugin extends Plugin<IVideoPlayer> {
-  static readonly id = 'nomercy:visualizer';
+export class ResponsiveOverlayPlugin extends Plugin<IVideoPlayer> {
+  static readonly id = 'nomercy:responsive-overlay';
 
-  private canvas: HTMLCanvasElement | null = null;
-  private gl: WebGLRenderingContext | null = null;
+  private resizeObserver: ResizeObserver | null = null;
 
   use(): void {
     // mount() is auto-removed on dispose -- no manual cleanup needed
-    const container = this.mount('canvas-wrap');
-    this.canvas = document.createElement('canvas');
-    container.appendChild(this.canvas);
-    this.gl = this.canvas.getContext('webgl');
+    const overlay = this.mount('responsive-overlay');
 
     // on() is auto-cleaned -- no stored reference or manual off() needed
-    this.on('play', () => this.startRender());
-    this.on('pause', () => this.stopRender());
+    this.on('current', ({ item }) => {
+      overlay.textContent = item?.title ?? '';
+    });
+
+    // ResizeObserver is not one of the tracked helpers, so we own its teardown.
+    this.resizeObserver = new ResizeObserver(() => {
+      overlay.dataset.size = this.player.container.clientWidth < 640 ? 'compact' : 'full';
+    });
+    this.resizeObserver.observe(this.player.container);
   }
 
   dispose(): void {
-    // Only clean up what the lifecycle cannot track: the GL context
-    this.gl?.getExtension('WEBGL_lose_context')?.loseContext();
-    this.gl = null;
-    this.canvas = null;
+    // Only clean up what the lifecycle cannot track: the ResizeObserver
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
   }
 }
 ```
@@ -274,7 +275,7 @@ use(): void {
 
 ### Prefer container CSS classes over JS for state-driven visibility
 
-The player sets classes on `this.player.container` (`.playing`, `.paused`, `.buffering`, `.active`, `.inactive`) whenever state changes. Keying visibility on those classes with CSS is cheaper than toggling styles from event handlers and avoids the class of bugs where a handler fires before the DOM is ready.
+The player keeps a set of CSS state classes on `this.player.container` in sync with playback — the play state (`playing` / `paused` / `buffering` / …) plus `active` / `inactive` as the viewer moves or goes idle. Keying visibility on those classes with CSS is cheaper than toggling styles from event handlers and avoids the class of bugs where a handler fires before the DOM is ready.
 
 ```css
 /* plugin stylesheet */

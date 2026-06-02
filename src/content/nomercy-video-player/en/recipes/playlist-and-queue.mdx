@@ -1,11 +1,11 @@
 ---
 title: 'Playlist and Queue'
-description: 'Queue operations (append, prepend, insert, remove, shuffle, sort), peek next/prev, repeat modes, and the AutoAdvancePlugin.'
+description: 'Queue operations (append, prepend, insert, remove, shuffle, sort), peek next/prev, repeat modes, and automatic advance.'
 ---
 
 # Playlist and Queue
 
-Read this when you need queue manipulation beyond the basic `queue([...])` call in the quickstart, inserting tracks mid-stream, implementing a shuffle toggle, peek-ahead for preloading, or custom repeat behaviour.
+Queue manipulation beyond the basic `queue([...])` call in the quickstart: inserting items mid-stream, a shuffle toggle, peek-ahead for preloading, or custom repeat behaviour.
 
 The queue API is identical on video and music players.
 Examples use the music player but every method applies to both.
@@ -33,7 +33,7 @@ console.log(tracks.length); // 3
 // Add to the end:
 player.queueAppend(track4);
 
-// Add at the front (plays after the current track ends via AutoAdvancePlugin):
+// Add at the front (plays after the current item ends):
 player.queuePrepend(track5);
 
 // Insert at a specific index:
@@ -103,7 +103,7 @@ When shuffle is on, `peekNext()` returns the next shuffled item.
 import { RepeatState } from '@nomercy-entertainment/nomercy-music-player';
 
 player.repeatState(RepeatState.Off); // no repeat
-player.repeatState(RepeatState.One); // repeat the current track
+player.repeatState(RepeatState.ONE); // repeat the current track
 player.repeatState(RepeatState.All); // repeat the entire queue
 
 // Read state:
@@ -114,28 +114,22 @@ player.on('repeat', ({ state }) => {
 });
 ```
 
-`AutoAdvancePlugin` respects repeat state, it calls `player.restart()` when `RepeatState.One` is set and a track ends.
+Auto-advance respects repeat state: with `RepeatState.ONE` set, the player restarts the current item when it ends instead of advancing the cursor.
 
-## AutoAdvancePlugin
+## Automatic advance
 
-`AutoAdvancePlugin` drives automatic advancement when a track ends.
-Without it, the player stops at the end of each track.
+When the current item ends, the player advances to the next one in the queue automatically. This is built in — there is no plugin to register.
+
+Disable it in `setup()` when an external orchestrator (Cast sync, a NoMercy Connect socket) drives `next()` itself, so an item is never advanced twice:
 
 ```ts
-import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
-
-player.addPlugin(AutoAdvancePlugin, {
-  enabled: true, // set false to suspend auto-advance without unregistering the plugin
+const player = nmplayer('player').setup({
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  playlist: [
+    { title: 'Sintel', url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8' },
+  ],
+  autoAdvance: false, // default is true
 });
-```
-
-On the video player, import from `@nomercy-entertainment/nomercy-video-player`:
-
-```ts
-import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
-
-player.addPlugin(AutoAdvancePlugin);
-// When the current video ends, player.next() is called automatically
 ```
 
 ## Sorting the queue

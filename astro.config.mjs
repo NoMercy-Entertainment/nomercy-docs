@@ -112,6 +112,12 @@ export default defineConfig({
     "/player/advanced/server-side-rendering": "/nomercy-video-player/advanced/server-side-rendering",
 
     // -----------------------------------------------------------------------
+    // Video plugin renames / removals (v2 API consolidation)
+    // -----------------------------------------------------------------------
+    "/nomercy-video-player/plugins/tv-ui": "/nomercy-video-player/plugins/tv-key-handler",
+    "/nomercy-video-player/plugins/auto-advance": "/nomercy-video-player/recipes/playlist-and-queue",
+
+    // -----------------------------------------------------------------------
     // /mediaserver/ → /nomercy-media-server/
     // -----------------------------------------------------------------------
     "/mediaserver/": "/nomercy-media-server/",
