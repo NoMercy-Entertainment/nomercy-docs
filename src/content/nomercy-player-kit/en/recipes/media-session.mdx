@@ -37,8 +37,8 @@ await player.play();
 ```
 
 That is all that is needed.
-The plugin reads `name`, `artist`, `album`, and `artwork` from the current queue item and writes them to `navigator.mediaSession.metadata`.
-It wires `play`, `pause`, `previoustrack`, `nexttrack`, `seekbackward`, `seekforward`, and `stop` action handlers.
+The plugin reads `title`, `artist`, `album`, and artwork (`image` / `poster` / `thumbnail` / `cover`) from the current queue item and writes them to `navigator.mediaSession.metadata` (the music library maps its `name` field to `title` at the library layer).
+It wires `play`, `pause`, `previoustrack`, `nexttrack`, `seekbackward`, `seekforward`, `seekto`, and `stop` action handlers.
 
 ## Video player
 
@@ -119,10 +119,11 @@ player.addPlugin(MyMediaSession);
 If you need to respond to media key presses independently (e.g. for analytics):
 
 ```ts
-player.on('plugin:media-session:action', ({ action }) => {
-  // action is 'play' | 'pause' | 'previoustrack' | 'nexttrack' | etc.
-  analytics.track('media-key', { action });
-});
+// MediaSessionPlugin routes OS media-key handlers straight to transport
+// methods; observe the resulting player events rather than a plugin event:
+player.on('play', () => analytics.track('media-key', { action: 'play' }));
+player.on('pause', () => analytics.track('media-key', { action: 'pause' }));
+player.on('next', () => analytics.track('media-key', { action: 'next' }));
 ```
 
 ## Browser support

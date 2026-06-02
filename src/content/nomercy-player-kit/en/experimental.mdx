@@ -56,14 +56,13 @@ player.experimental.restore('play');
 
 ## `player.experimental.overrides()`
 
-Snapshot of all active overrides.
-Each entry names the method and which layer installed it (`'consumer'` for app code, or a plugin id).
+Snapshot of all active overrides. `by` is always `'consumer'` — `override()` is a consumer-only API (plugin code is lint-blocked from calling it), so it records `'consumer'` regardless of caller.
 
-**Returns:** `Array<{ method: string; by: string | 'consumer' }>`
+**Returns:** `Array<{ method: string; by: 'consumer' }>`
 
 ```ts
 const active = player.experimental.overrides();
-// e.g. [{ method: 'play', by: 'consumer' }, { method: 'time', by: 'nomercy:sync' }]
+// e.g. [{ method: 'play', by: 'consumer' }, { method: 'time', by: 'consumer' }]
 ```
 
 ## Plugin lint rule
@@ -78,10 +77,9 @@ player.experimental.override('play', myFn);
 
 Consumer (app) code is free to use it without lint friction.
 
-## Auto-restore
+## Restoring an override
 
-When a plugin that installed an override is disposed (via `removePlugin`), its overrides are restored automatically.
-Consumer-installed overrides (`by: 'consumer'`) are not auto-restored.
+`override()` returns a `restore` function — call it to undo that one override. There is no automatic restore: overrides persist until you call the returned function, and `removePlugin` does not touch them.
 
 ## See also
 

@@ -36,7 +36,7 @@ The player injects `Authorization: Bearer <token>` on every HLS manifest and seg
 
 | Status | What happens                                                                                                    |
 | ------ | --------------------------------------------------------------------------------------------------------------- |
-| 401    | `refreshOnUnauthenticated` called once → `bearerToken` re-read → request retried → if refresh fails, `auth:failed` fires |
+| 401    | `refreshOnUnauthenticated` called once → `bearerToken` re-read → request retried → if refresh fails, the request rejects with `core:auth/refresh-failed` on the `error` channel |
 | 403    | Error propagates immediately. `refreshOnUnauthenticated` is **never** called.                                   |
 
 Do not lump 401 and 403 in the same catch block.
@@ -176,20 +176,14 @@ class MetadataPlugin extends Plugin<NMVideoPlayer, { endpoint: string }, {}> {
 
 ## Retry policy
 
-The default retry policy retries failed network requests 3 times with exponential backoff.
-Auth refresh retries are separate, and `refreshOnUnauthenticated` is called exactly once, never retried.
+By default only specific error codes retry (`DEFAULT_RETRY_POLICY`): 5xx and timeouts a few times with backoff, fragment loads up to 5; generic 4xx and unmatched failures use `attempts: 0` (no retry). Auth refresh is separate — `refreshOnUnauthenticated` is called exactly once, never retried.
 
-To tune the general retry behavior, pass a partial `IRetryPolicy` map to `setup()`.
-It is merged over `DEFAULT_RETRY_POLICY`:
+There is no setup-level retry option. To override retry behaviour for a specific request, pass a `RetryConfig` as the `retry` option on `this.fetch()` inside a plugin:
 
 ```ts
-import type { IRetryPolicy } from '@nomercy-entertainment/nomercy-player-core';
-
-player.setup({
-  retryPolicy: {
-    '*': { attempts: 5, backoff: 'exponential', baseMs: 200, maxMs: 10_000 },
-    'core:auth/forbidden': { attempts: 0 }, // never retry 403
-  } satisfies IRetryPolicy,
+// inside a plugin's use()
+await this.fetch(url, {
+  retry: { attempts: 5, backoff: 'exponential', baseMs: 200, maxMs: 10_000 },
 });
 ```
 

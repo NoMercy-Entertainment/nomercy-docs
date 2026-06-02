@@ -39,7 +39,7 @@ See [Video, Subtitle Overlay](/nomercy-video-player/plugins/subtitle-overlay) fo
 
 Yes. The auth pipeline treats them differently by design:
 
-- **401**, token expired. `refreshOnUnauthenticated` is called once, the new token is applied, and the request is retried. If refresh fails, an `auth:failed` event fires and the request errors.
+- **401**, token expired. `refreshOnUnauthenticated` is called once, the new token is applied, and the request is retried. If refresh fails, the request errors with `core:auth/refresh-failed` (the `auth:failed` event itself fires from `player.refreshAuth()`).
 - **403**, access denied. The error propagates immediately. `refreshOnUnauthenticated` is never called for 403s. The server has denied access even with valid credentials.
 
 Never lump 401 and 403 in the same catch block.

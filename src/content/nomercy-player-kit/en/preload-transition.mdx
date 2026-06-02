@@ -36,7 +36,7 @@ interface PreloadStrategy {
 
 ```ts
 interface PreloadContext {
-  time: number; // seconds
+  currentTime: number; // seconds
   duration: number; // seconds (0 when not yet known)
   nextItem: BasePlaylistItem | null;
 }
@@ -53,8 +53,8 @@ Per-library players (music, video) compose domain-specific asset lists on top by
 ```ts
 player.setup({
   preloadStrategy: {
-    shouldPreload({ time, duration }) {
-      return duration > 0 && duration - time < 20;
+    shouldPreload({ currentTime, duration }) {
+      return duration > 0 && duration - currentTime < 20;
     },
     assetsToPreload(item: VideoItem) {
       return [{ url: item.url, category: 'media', mode: 'metadata' }];
@@ -72,9 +72,11 @@ player.setup({
 
 ```ts
 interface TransitionStrategy {
-  shouldTransition(context: TransitionContext): boolean;
-  execute(context: TransitionContext, backend: TransitionBackend): Promise<void>;
-  cancel(): void;
+  shouldTransition(context: PreloadContext): boolean;
+  start(outgoing: BasePlaylistItem, incoming: BasePlaylistItem, backend: TransitionBackend | null): void;
+  tick(context: TransitionContext, backend: TransitionBackend | null): void;
+  complete(from: BasePlaylistItem, to: BasePlaylistItem): void;
+  cancel(reason: string): void;
 }
 ```
 
@@ -82,7 +84,7 @@ interface TransitionStrategy {
 
 ```ts
 interface TransitionContext {
-  time: number;
+  currentTime: number;
   duration: number;
   outgoingItem: BasePlaylistItem;
   incomingItem: BasePlaylistItem;

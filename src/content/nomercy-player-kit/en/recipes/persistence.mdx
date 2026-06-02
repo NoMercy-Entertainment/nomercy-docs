@@ -31,22 +31,16 @@ player.setup({ storage: new MemoryStorageBackend() });
 player.setup({ storage: new IndexedDBBackend({ dbName: 'my-player-db' }) });
 ```
 
-The player and all built-in plugins write to storage under the player's namespace (`nmplayer-<id>-*`).
-You don't need to manage keys manually for built-in features.
+Built-in plugins write to storage under a per-plugin namespace (`nmplayer-<plugin-id>-*`). The player core itself reads and writes nothing — `config.storage` is consumed only by plugins, via `Plugin.storage`.
 
-## What the player persists automatically
+## What persists
 
-With the default `LocalStorageBackend`, the player saves and restores:
+The core persists nothing on its own. Volume, mute, and language live in memory for the session unless you persist them — listen for the relevant events and write to `storage` yourself, or let a plugin do it:
 
-- Volume level
-- Mute state
-- Subtitle language preference (the last selected language)
-- Audio language preference
-- EQ state (if `EqualizerPlugin` is registered)
-- Subtitle style preferences (if `SubtitleOverlayPlugin` is registered)
+- `EqualizerPlugin` persists EQ state when you set its `persistKey` option.
+- `SubtitleOverlayPlugin` persists subtitle style preferences.
 
-Playback position is **not** saved automatically, because the player does not know where your server stores watch history.
-That requires a consumer plugin.
+Playback position is likewise not saved automatically, because the core does not know where your server stores watch history. That requires a consumer plugin.
 
 ## Saving and restoring playback position
 

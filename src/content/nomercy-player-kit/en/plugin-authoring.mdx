@@ -122,7 +122,7 @@ Usage:
 ```ts
 player.addPlugin(ScrobblePlugin, { endpoint: '/api/v1/progress' });
 
-player.on('plugin:scrobble:scrobbled', ({ itemId, watchedPercent }) => {
+player.on('plugin:nomercy:scrobble:scrobbled', ({ itemId, watchedPercent }) => {
   console.log(`Scrobbled ${itemId} at ${watchedPercent}%`);
 });
 ```
@@ -332,7 +332,7 @@ static readonly requires = [
 
 ## Phase advisories
 
-Declare which phases are safe for each method. The player core surfaces these as warnings in development:
+Declare which phases are safe for each method. When a guarded mutation matches, the player emits the advisory's severity event (`info` / `warning` / `error`) — in all environments, not just development:
 
 ```ts
 static readonly advisories: PluginAdvisory[] = [
@@ -397,7 +397,7 @@ import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testi
 describePlugin(ScrobblePlugin, ({ player, plugin }) => {
   test('emits scrobbled after progress threshold', async () => {
     const events: unknown[] = [];
-    player.on('plugin:scrobble:scrobbled', (event) => events.push(event));
+    player.on('plugin:nomercy:scrobble:scrobbled', (event) => events.push(event));
 
     player.emit('progress', { time: 90, duration: 100, percentage: 0.9 });
 

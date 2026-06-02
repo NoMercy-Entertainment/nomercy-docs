@@ -13,7 +13,6 @@ Each call to `nmplayer(id)` or `nmMPlayer(id)` returns a scoped player singleton
 Two players with different ids are completely independent:
 
 - Separate event buses
-- Separate storage namespaces (`nmplayer-<id>-*`)
 - Separate plugin registries
 - Separate queue state
 
@@ -75,7 +74,7 @@ mainPlayer.on('pip', ({ active }) => {
   }
 });
 
-// Toggle PiP:
+// Toggle PiP (a video-player method; the kit base player exposes PiP via platform().pip):
 mainPlayer.pip(true);  // enter PiP
 mainPlayer.pip(false); // exit PiP
 ```
@@ -185,13 +184,9 @@ class PlayerCoordinator {
 }
 ```
 
-## Storage namespace isolation
+## Storage namespacing
 
-Each player's storage is namespaced by its `id`.
-Two players with ids `'main'` and `'pip'` write to different storage keys:
-
-- `nmplayer-main-volume`
-- `nmplayer-pip-volume`
+Storage is namespaced by **plugin id**, not player id: a plugin's keys are prefixed `nmplayer-<plugin-id>-*` (the player core writes nothing itself). So two player instances that share one storage backend and register the same plugin will share those keys. To isolate per player, give each instance its own storage backend, or derive per-instance plugin ids.
 
 If you want two players to share a storage state (e.g. the same volume preference), pass the same `IStorage` backend instance through `setup()` and use a shared key namespace:
 

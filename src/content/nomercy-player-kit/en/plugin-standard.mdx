@@ -52,7 +52,7 @@ Provided by the base class, no code needed for default behavior:
 enabled(): boolean           // is the plugin active?
 enable(): void               // re-activate. Idempotent.
 disable(): void              // deactivate without unloading. Idempotent.
-state(): PluginState<O>      // { id, enabled, opts, runtime }
+state(): PluginState<O>      // { id, version, enabled, opts, runtime }
 options(): Readonly<O>       // current options (read)
 options(partial): void       // shallow-merge patch (write), emits opts:changed
 ```
@@ -159,7 +159,8 @@ interface BeforeEvent<TData> {
 Never throw raw errors or call `player.emit('error', ...)` directly:
 
 ```ts
-// Fatal: plugin fails, marks itself disabled. Player survives.
+// Fatal: surfaces the error and aborts the current flow. Does NOT auto-disable
+// the plugin — map the code to 'disable' in static onError for that.
 this.throw({
   severity: 'fatal',
   code: 'my-plugin/connection-lost',
@@ -480,7 +481,7 @@ const StrictMediaSession = MediaSessionPlugin.derive({ requireMetadata: true });
 
 ```ts
 const restore = player.experimental.override('subtitles', () => mySubtitles);
-// auto-restored when the calling plugin disposes
+// call restore() to undo — there is no auto-restore on dispose
 ```
 
 Lint-flagged. Requires inline comment explaining why no lower tier works.

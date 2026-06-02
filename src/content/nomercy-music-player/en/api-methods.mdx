@@ -119,13 +119,13 @@ previous(opts?: ActionOptions): Promise<void>
 
 Return to the previous track.
 
-### `seekToIndex(index, opts?)`
+### `seekToIndex(position, opts?)`
 
 ```ts
-seekToIndex(index: number, opts?: ActionOptions): void
+seekToIndex(position: number, opts?: ActionOptions): void
 ```
 
-Jump to a specific position in the queue by index.
+Navigate to a playlist item by **1-based** ordinal position: `seekToIndex(1)` loads the first item, `seekToIndex(queueLength())` the last. Throws `RangeError` for non-positive-integer values; out-of-range positions are ignored.
 
 ### `peekNext()`
 
@@ -145,21 +145,21 @@ Return the previous track without changing the current track.
 
 ## Current track
 
-### `current()`
+### `item()`
 
 ```ts
-current(): T | undefined
+item(): T | undefined
 ```
 
-Return the currently loaded track.
+Return the currently loaded track. (`current` is the event name; the method is `item()`.)
 
-### `current(item, opts?)`
+### `item(target, opts?)`
 
 ```ts
-current(item: T, opts?: ActionOptions): void
+item(target: T | string | number, opts?: ActionOptions): void
 ```
 
-Set the current track. The track must be in the queue.
+Set the current track by item, id, or index. The target must be in the queue.
 
 ### `index()`
 
@@ -768,8 +768,8 @@ Retrieve a plugin by its string id.
 removePlugin<P extends Plugin>(Cls: PluginCtorWithId & (new () => P)): void
 ```
 
-Dispose and remove a plugin.
-Throws if other plugins depend on it (unless `cascade: true`).
+Dispose and remove a plugin, plus any plugins that depend on it (cascade is the default).
+Pass `{ cascade: false }` to instead throw `core:plugin/has-dependents` when other plugins depend on it.
 
 ### `plugins()`
 

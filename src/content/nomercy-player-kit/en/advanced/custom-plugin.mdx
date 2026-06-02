@@ -155,7 +155,7 @@ class ExclusivePlayPlugin extends Plugin<NMVideoPlayer, {}, {}> {
 
 ## Phase advisories
 
-Advisories let the player core warn in development when a method is called at the wrong lifecycle phase:
+Advisories let the player core flag a method called at the wrong lifecycle phase:
 
 ```ts
 static readonly advisories: PluginAdvisory[] = [
@@ -169,8 +169,7 @@ static readonly advisories: PluginAdvisory[] = [
 ];
 ```
 
-In `NODE_ENV=development`, the player core emits a console warning.
-In production, advisories are silent.
+When a guarded mutation matches, the player emits the advisory's severity event (`info` / `warning` / `error`) on the player — in all environments. It is an event, not a console-only warning, and it is not gated on `NODE_ENV`.
 
 ## Static onError recovery
 
@@ -288,7 +287,7 @@ describePlugin(
   ({ player, plugin }) => {
     test('broadcasts play events', () => {
       const synced: unknown[] = [];
-      player.on('plugin:watch-party-lite:synced', (event) => synced.push(event));
+      player.on('plugin:myapp:watch-party-lite:synced', (event) => synced.push(event));
 
       player.emit('play');
 
