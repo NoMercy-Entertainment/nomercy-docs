@@ -41,8 +41,8 @@ player.on('ready', () => {
 });
 ```
 
-The plugin intercepts requests to the server's transcode endpoint and attaches session headers.
-When the server is still encoding, the plugin polls for readiness before handing the manifest URL to hls.js.
+The plugin opens a control WebSocket to `controlUrl` and listens for transcode-progress messages from the server.
+When the server is still encoding, it gates `beforeLoad` and `beforeSeek` until the transcoder has reached the requested position, so playback never outruns the encode.
 
 ## Monitoring transcode progress
 
@@ -84,11 +84,11 @@ When the server is encoding multiple quality variants in parallel, the player's 
 ## Session cleanup
 
 The transcode session on the server holds resources (CPU, disk).
-Dispose the player to send a cleanup signal:
+Disposing the player closes the plugin's control WebSocket (the channel auto-closes on `dispose`), which is the server's signal to tear the session down:
 
 ```ts
 // On page unload or player unmount:
-player.dispose(); // LiveTranscodingPlugin sends DELETE /api/transcode/{sessionId}
+player.dispose(); // closes the control WebSocket; the server tears down the session on disconnect
 ```
 
 For single-page apps, wire disposal to your router's leave hook:
