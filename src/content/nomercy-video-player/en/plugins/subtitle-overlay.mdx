@@ -35,7 +35,7 @@ For ASS/SSA subtitle files, add the OctopusPlugin instead, this overlay handles 
 
 ## Options
 
-`SubtitleOverlayPlugin` takes no options. All subtitle style settings (font family, size, color, edge style, background) are driven by the `ISubtitleStyleStore` adapter and the `player.subtitleStyle()` API at runtime.
+`SubtitleOverlayPlugin` takes no options. All subtitle style settings (font family, size, color, edge style, background) are driven by the `player.subtitleStyle()` API at runtime; the overlay repaints whenever the `subtitleStyle` event fires.
 
 ## Registration
 
@@ -127,7 +127,7 @@ player.on('subtitleCue', ({ cues, language }) => {
 
 ## Style persistence
 
-User style preferences (font size, color, background opacity) are persisted via the `ISubtitleStyleStore` adapter. The default `StorageBackedSubtitleStyleStore` writes to `localStorage`.
+Subtitle style lives in memory via `player.subtitleStyle()`; the player does not persist it automatically. To remember preferences across reloads, save the style in a `subtitleStyle` event listener and re-apply it after `ready()`. The exported `StorageBackedSubtitleStyleStore` helper (backed by the core `IStorage` adapter) is one ready-made way to do this; see [Recipes: Subtitles](/nomercy-video-player/recipes/subtitles).
 
 ## Accessibility
 

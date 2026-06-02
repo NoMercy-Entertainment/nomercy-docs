@@ -8,8 +8,9 @@ draft: false
 
 ## What is a subtitle style store?
 
-`ISubtitleStyleStore` is the adapter the player uses to persist and restore the user's subtitle style preferences across page reloads.
-The default implementation (`StorageBackedSubtitleStyleStore`) uses the core's `IStorage` adapter so the storage backend is swappable.
+`ISubtitleStyleStore` is a contract for persisting and restoring the user's subtitle style preferences across page reloads.
+The player does not wire one in: `player.subtitleStyle()` keeps the style in memory and emits the `subtitleStyle` event, and persistence is left to the consumer.
+`StorageBackedSubtitleStyleStore` is an exported reference implementation that uses the core's `IStorage` adapter (so the storage backend is swappable); you call it from your own code.
 
 ## ISubtitleStyleStore interface
 
@@ -20,14 +21,16 @@ import type { ISubtitleStyleStore } from '@nomercy-entertainment/nomercy-video-p
 | Method        | Signature                                       | Description                                                                          |
 | ------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `load()`      | `() => Promise<Partial<SubtitleStyle> \| null>` | Load the persisted style. Returns `null` when no preference has been saved           |
-| `save(style)` | `(style: SubtitleStyle) => Promise<void>`       | Persist the full merged style. Called after every `player.subtitleStyle(patch)` call |
+| `save(style)` | `(style: SubtitleStyle) => Promise<void>`       | Persist the full merged style. Call this from your own `subtitleStyle` event listener |
 | `clear()`     | `() => Promise<void>`                           | Clear persisted preferences (e.g. "reset to defaults")                               |
 
-## When is this called?
+## How to wire it
 
-- `load()`: once during `setup()`. The player applies the returned style as the initial `SubtitleStyle` state before any subtitle tracks are activated.
-- `save(style)`: after every `player.subtitleStyle(patch)` call, with the full merged style.
-- `clear()`: consumer-triggered, e.g. a "Reset subtitle preferences" button in a settings screen.
+The player never calls these methods for you, so wire the store yourself:
+
+- `load()`: call once after `ready()` and apply the result with `player.subtitleStyle(style)`.
+- `save(style)`: call from a `subtitleStyle` event listener so each change is persisted.
+- `clear()`: call from a "Reset subtitle preferences" control in your settings screen.
 
 ## SubtitleStyle
 
@@ -51,7 +54,7 @@ import type { ISubtitleStyleStore } from '@nomercy-entertainment/nomercy-video-p
 // Read current style
 const style = player.subtitleStyle();
 
-// Merge a partial update, triggers save() on the adapter
+// Merge a partial update; emits the 'subtitleStyle' event
 player.subtitleStyle({
   fontSize: 120,
   textColor: 'yellow',
