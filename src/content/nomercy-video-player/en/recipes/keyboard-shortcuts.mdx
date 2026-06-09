@@ -90,7 +90,15 @@ Key names follow the `KeyboardEvent.key` standard. Common values:
 
 ## Conflict resolution
 
-`KeyHandlerPlugin` captures keyboard events on `document` by default (set `scope: 'container'` to scope them to the player element).
+`KeyHandlerPlugin` captures keyboard events on `document` by default.
+Set `scope: 'container'` to scope them to the player element only.
+
+> **Note on `scope: 'container'`:** the container element must have `tabindex="0"` or another means of receiving keyboard focus. Keys fire only while the container (or a child inside it) has focus. Without `tabindex="0"` the container is never focused and no key events reach the plugin.
+
+```html
+<div id="player" tabindex="0" style="width: 100%; aspect-ratio: 16/9;"></div>
+```
+
 If you have page-level key handlers (e.g. a search input), the player should not steal those events.
 
 Use the `when` option to suppress all key handling when a condition is true — for example, while a modal is open or when focus is inside a specific element:

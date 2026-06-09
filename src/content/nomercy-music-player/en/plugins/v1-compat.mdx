@@ -1,0 +1,220 @@
+---
+title: 'V1 Compatibility Plugin'
+description: 'Drop-in migration shim for nomercy-music-player v1 consumers. Register once and your existing v1 code keeps working while you migrate call sites at your own pace.'
+draft: false
+---
+
+{/* Source: packages/nomercy-music-player-v2/src/plugins/v1-compat/index.ts */}
+{/* Tests: packages/nomercy-music-player-v2/src/__tests__/plugins/v1-compat.test.ts */}
+
+# V1 Compatibility Plugin
+
+`V1MusicCompatPlugin` is a temporary migration shim that lets a v1 consumer install `@nomercy-entertainment/nomercy-music-player` v2 and have their existing code keep working without any changes.
+Register the plugin once, then migrate call sites at your own pace guided by the deprecation warnings in the browser console.
+
+This plugin is **temporary**. It will be removed in the first stable 2.x release after the migration window closes.
+New projects should use the v2 API directly and never register this plugin.
+
+## Plugin id
+
+`'v1-compat'`
+
+## When to use this plugin
+
+Use it when you have an existing v1 integration that you need to move to v2 without a big-bang rewrite.
+The typical path is:
+
+1. Install the v2 package.
+2. Register `V1MusicCompatPlugin`.
+3. Your code runs. The browser console shows deprecation warnings naming the v2 replacement for each v1 API you use.
+4. Work through the warnings one by one, migrating each call site to v2.
+5. Once no warnings appear, remove the plugin.
+
+Do not use this plugin for new projects. If you are starting fresh, use the v2 API directly and read the full [migration guide](/nomercy-music-player/migration-v1-v2).
+
+## Import
+
+The plugin ships on its own subpath export so it does not add to the bundle of projects that do not need it.
+
+```ts
+import { V1MusicCompatPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/v1-compat';
+```
+
+## Registration
+
+Register the plugin immediately after constructing the player, before calling `setup()` or any v1 methods.
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { V1MusicCompatPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/v1-compat';
+
+const player = nmMPlayer('music-player');
+player.addPlugin(V1MusicCompatPlugin);
+
+await player.setup({
+  // your existing v1 setup options
+});
+
+// Your existing v1 code works unchanged:
+player.setQueue([{ id: '1', path: 'track.mp3', name: 'My Track' }]);
+player.setCurrentSong({ id: '1', path: 'track.mp3', name: 'My Track' });
+player.on('song', (track) => console.log('Now playing', track.name));
+```
+
+## What the plugin does
+
+When registered, `V1MusicCompatPlugin`:
+
+- Patches every renamed v1 method onto the player instance, each delegating to its v2 equivalent.
+- Intercepts `player.on()` and transparently re-wires v1 event names to the corresponding v2 events, reshaping payloads to match what v1 listeners expect.
+- Emits a `console.warn` deprecation notice once per distinct v1 API name across the lifetime of the page. Calling the same v1 method a hundred times produces exactly one warning.
+- Removes all patches and bridges cleanly on `player.dispose()` or `player.removePlugin(V1MusicCompatPlugin)`.
+
+## Deprecation warnings
+
+Each warning names the v1 API and the v2 replacement:
+
+```
+[nomercy-music-player] DEPRECATED "setQueue(items)" — use "queue(items)" instead.
+This shim is provided by V1MusicCompatPlugin and will be removed in the first stable 2.x release.
+```
+
+Use these warnings as a work list. When you have migrated every call site and no warnings appear on any page, the plugin is safe to remove.
+
+## v1 method mapping
+
+Every v1 method shimmed by this plugin is listed below with its v2 replacement.
+
+### Volume
+
+| v1 method | v2 replacement |
+| --- | --- |
+| `setVolume(volume)` | `volume(v)` |
+| `getVolume()` | `volume()` |
+| `mute()` | `mute()` |
+| `unmute()` | `unmute()` |
+
+### Time
+
+| v1 method | v2 replacement |
+| --- | --- |
+| `seek(time)` | `time(t)` |
+| `getDuration()` | `duration()` |
+| `getCurrentTime()` | `time()` |
+| `getBuffer()` | `buffered()` |
+| `getTimeData()` | `timeData()` |
+
+### Queue
+
+| v1 method | v2 replacement |
+| --- | --- |
+| `getQueue()` | `queue()` |
+| `setQueue(items)` | `queue(items)` |
+| `addToQueue(item)` | `queueAppend(item)` |
+| `pushToQueue(item\|items)` | `queueAppend(item\|items)` |
+| `removeFromQueue(item)` | `queueRemove(id)` |
+| `addToQueueNext(item)` | `queuePrepend(item)` |
+
+### Backlog
+
+| v1 method | v2 replacement |
+| --- | --- |
+| `getBackLog()` | `backlog()` |
+| `setBackLog(items)` | `backlog(items)` |
+| `addToBackLog(item)` | `backlogAppend(item)` |
+| `pushToBackLog(item\|items)` | `backlogAppend(item\|items)` |
+| `removeFromBackLog(item)` | `backlogRemove(id)` |
+
+### Current song
+
+| v1 method | v2 replacement |
+| --- | --- |
+| `setCurrentSong(track)` | `item(track)` |
+| `currentSong` (property) | `item()` |
+| `playTrack(track, tracks?)` | `item(track)` + `queue(tracks)` |
+
+### Repeat / shuffle
+
+| v1 method | v2 replacement |
+| --- | --- |
+| `repeat(value)` | `repeatState(value)` |
+| `shuffle(value)` | `shuffleState(value)` |
+
+### Crossfade
+
+| v1 method | v2 replacement |
+| --- | --- |
+| `prepareCrossfade(item?)` | `crossfadeTo(item)` — note semantic difference below |
+
+### Access / config
+
+| v1 method | v2 replacement |
+| --- | --- |
+| `setAccessToken(token)` | `auth({ bearerToken: token })` |
+| `setBaseUrl(url)` | `baseUrl(url)` |
+
+## The `prepareCrossfade` semantic difference
+
+`prepareCrossfade(item?)` in v1 pre-staged a secondary track into a buffer for a server-triggered crossfade later.
+`crossfadeTo(item)` in v2 starts the crossfade immediately.
+
+The shim calls `crossfadeTo(item)` right away, which is the closest available behavior.
+If you need the "stage first, trigger later" pattern, that is not yet supported in v2.
+Coordinate with your server to send the crossfade signal earlier to account for load time, and call `crossfadeTo(track, opts)` in the handler.
+
+## `setAutoPlayback` best-effort behavior
+
+`setAutoPlayback(value)` in v1 was a runtime toggle for auto-advance.
+In v2, auto-advance is configured at setup time via the `AutoAdvancePlugin`, not at runtime.
+
+The shim attempts a best-effort patch of `player.options.autoAdvance` but this is not guaranteed to take effect.
+The console warning will tell you to set `autoAdvance` in your `setup()` config.
+Migrate this call site before removing the plugin.
+
+## v1 event bridge
+
+These v1 event names are intercepted by the `player.on()` proxy.
+
+| v1 event | v2 event | Payload notes |
+| --- | --- | --- |
+| `play` | `play` | Passes through as `undefined` (v1 passed `HTMLAudioElement`) |
+| `pause` | `pause` | Passes through as `undefined` |
+| `time` | `time` | `{ buffered, duration, percentage, position, remaining }` (v1 `TimeState` shape) |
+| `song` | `current` | Receives the item object directly (v1 shape) |
+| `repeat` | `repeat` | Extracts the state string (v1 fired the string directly) |
+| `shuffle` | `shuffle` | Converts `{ state: 'on' }` to `true`, `'off'` to `false` |
+| `mute` | `mute` | Extracts `muted` boolean (v1 fired `boolean` directly) |
+| `volume` | `volume` | Extracts the level number (v1 fired `number` directly) |
+| `ready` | `ready` | Passes through |
+| `error` | `error` | Passes through |
+| `ended` | `ended` | Passes through |
+| `firstFrame` | `firstFrame` | Passes through |
+| `seeked` | `time` | Receives v1 `TimeState` shape, bridged from the `time` event |
+| `crossfadeStart` | `crossfadeStart` | Receives `{ from, to }` (v1 shape, drops `duration` field) |
+| `crossfadeComplete` | `crossfadeComplete` | Receives the track object directly (v1 shape) |
+| `queue` | `ready` | No-op bridge — v2 has no queue-set event; read `player.queue()` after `ready` |
+| `backlog` | `ready` | No-op bridge — same reason |
+
+## Unshimmable APIs
+
+These v1 APIs no-op (warn, then return an empty value) rather than throwing.
+
+| v1 API | Consumer replacement |
+| --- | --- |
+| `loadEqualizerSettings()` | `player.getPlugin(EqualizerPlugin).load()` |
+| `saveEqualizerSettings()` | `EqualizerPlugin` with the `persistKey` option |
+| `setPreGain(gain)` | `player.getPlugin(EqualizerPlugin).preGain(gain)` |
+| `setPanner(pan)` | `player.getPlugin(MixerPlugin)` |
+| `setFilter(band)` | `player.getPlugin(EqualizerPlugin).band(freq, gain)` |
+| `setAutoPlayback(value)` | Set `autoAdvance` in `setup()` config via `AutoAdvancePlugin` |
+| `isPlatform(platform)` | `player.device()` or `navigator.userAgent` directly |
+
+## Removal timeline
+
+This plugin will be deleted in the first stable 2.x release after the migration window closes.
+Watch the [changelog](/nomercy-music-player/faq) and the deprecation warnings in your console to track your progress.
+
+## Related pages
+
+- [Migration guide: v1 to v2](/nomercy-music-player/migration-v1-v2) — complete breaking-change tables and manual migration reference
+- [Plugin development](/nomercy-music-player/plugin-development) — how the plugin system works

@@ -10,6 +10,39 @@ Read it before upgrading.
 
 For core-level changes (subpath imports, adapter ports, five-layer architecture), see the [core migration guide](/nomercy-player-core/storage).
 
+## Fast path: compat plugin
+
+If you want your existing v1 code running immediately while you migrate gradually, register `V1VideoCompatPlugin` right after constructing the player.
+
+```
+npm install @nomercy-entertainment/nomercy-video-player@beta
+```
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { V1VideoCompatPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/v1-compat';
+
+const player = nmplayer('player-1');
+player.addPlugin(V1VideoCompatPlugin);
+
+await player.setup({ /* your existing config */ });
+
+// Your existing v1 code keeps working:
+player.setPlaylist(items);
+player.playVideo(0);
+player.on('item', (item) => console.log(item.title));
+```
+
+The browser console will show a deprecation warning for each v1 API you use, naming the exact v2 replacement.
+Migrate one call site at a time, guided by those warnings. When they stop, remove the plugin.
+
+The compat plugin is **temporary** and ships as a separate subpath so it never adds weight to new projects.
+See the [compat plugin reference](/nomercy-video-player/plugins/v1-compat) for the complete method mapping, event bridge table, and unshimmable APIs.
+
+## Manual migration
+
+The rest of this page covers every breaking change for teams that prefer a planned, single-pass upgrade.
+
 ## TL;DR: is my import broken?
 
 The npm package name is the same: `@nomercy-entertainment/nomercy-video-player`.
@@ -33,7 +66,7 @@ Read the checklist below, then work through each section.
 - Replace `player.audioTrack(idx)` with the v2 `player.audioTrack(idx)` — the name returned to the bare-noun form
 - Replace `player.subtitle(idx)` with the v2 `player.subtitle(idx)` — the name returned to the bare-noun form
 - Replace `player.playlist()` with `player.queue()`, `player.setPlaylist(items)` with `player.queue(items)`
-- Replace `player.playVideo(idx)` with `player.seekToIndex(idx)`
+- Replace `player.playVideo(idx)` with `player.seekToIndex(idx + 1)` — `seekToIndex` is 1-based; `playVideo(0)` becomes `seekToIndex(1)`
 - Replace `player.fetchPlaylist(url)` with `player.loadQueue(url, parser?)`
 - Replace `player.element()` with `player.container`
 - Replace `player.state()` with `player.playState()`
@@ -137,8 +170,8 @@ Update every `player.on(...)` call.
 | `setPlaylist(items)`         | `queue(items)`                                                       |
 | `load(items)`                | `queue(items)`                                                       |
 | `fetchPlaylist(url)`         | `loadQueue(url, parser?)`                                            |
-| `playVideo(idx)`             | `seekToIndex(idx, opts?)`                                            |
-| `playlistItem(idx?)`         | `item()` / `seekToIndex(idx)`                                        |
+| `playVideo(idx)`             | `seekToIndex(idx + 1, opts?)` — see index convention note below      |
+| `playlistItem(idx?)`         | `item()` / `seekToIndex(idx + 1)`                                    |
 | `playlistIndex()`            | `index()`                                                            |
 | `state()`                    | `playState()`                                                        |
 | `element()`                  | `player.container` (property)                                        |
@@ -265,6 +298,26 @@ const player = nmplayer<MyPlaylistItem>('player-1').setup({ ... });
 const item = player.item();
 item?.internalId; // typed, no cast needed
 ```
+
+## `seekToIndex` is 1-based
+
+> **Index convention changed.** `playVideo(0)` in v1 loaded the first item. The v2 equivalent is `seekToIndex(1)`.
+
+`seekToIndex` uses a 1-based ordinal: `seekToIndex(1)` is the first item, `seekToIndex(queueLength())` is the last.
+Passing `0` or any non-positive integer throws `RangeError`.
+
+```ts
+// v1 — 0-based
+player.playVideo(0); // first item
+player.playVideo(2); // third item
+
+// v2 — 1-based
+player.seekToIndex(1); // first item
+player.seekToIndex(3); // third item
+player.seekToIndex(0); // RangeError — never pass 0
+```
+
+Any v1 code that passes a loop index directly to `playVideo(i)` must be updated to `seekToIndex(i + 1)`.
 
 ## Subtitle and quality index convention
 

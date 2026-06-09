@@ -312,9 +312,57 @@ player.addPlugin(TvKeyHandlerPlugin);
 - Theater, PiP, and Fullscreen are binary toggles: direct action on click.
 - Menus close when clicking outside the menu frame, or when another menu opens.
 
+## i18n
+
+`DesktopUiPlugin` ships `en` and `nl` translation bundles covering every tooltip, menu label, and shortcut sheet string.
+All keys use the `plugin.desktop-ui.*` namespace.
+
+The plugin registers its bundles automatically when it loads, so no manual setup is needed for `en` and `nl`.
+To override a label or add a third language, pass the keys through the player's `translations` config:
+
+```ts
+import { defaultTranslations } from '@nomercy-entertainment/nomercy-player-core';
+
+player.setup({
+  language: 'fr',
+  translations: {
+    ...defaultTranslations,
+    fr: {
+      'plugin.desktop-ui.tooltip.play': 'Lecture / Pause',
+      'plugin.desktop-ui.tooltip.fullscreen': 'Plein écran',
+      'plugin.desktop-ui.tooltip.subtitles': 'Sous-titres',
+      'plugin.desktop-ui.menu.quality': 'Qualité',
+      'plugin.desktop-ui.menu.auto': 'Automatique',
+      'plugin.desktop-ui.menu.off': 'Désactivé',
+    },
+  },
+  playlist: [/* ... */],
+});
+```
+
+Key categories in the `plugin.desktop-ui.*` namespace:
+
+| Category | Example keys |
+| -------- | ------------ |
+| `tooltip.*` | `tooltip.play`, `tooltip.fullscreen`, `tooltip.subtitles`, `tooltip.audio`, `tooltip.quality` |
+| `shortcuts.*` | `shortcuts.title`, `shortcuts.playPause`, `shortcuts.seekBack5`, `shortcuts.volumeUp` |
+| `shortcuts.group.*` | `shortcuts.group.playback`, `shortcuts.group.seeking`, `shortcuts.group.volume` |
+| `menu.*` | `menu.settings`, `menu.quality`, `menu.audio`, `menu.subtitles`, `menu.auto`, `menu.off` |
+| `menu.subtitle.*` | `menu.subtitle.font`, `menu.subtitle.textSize`, `menu.subtitle.textColor` |
+
+To switch language at runtime:
+
+```ts
+await player.language('nl');
+```
+
+The Dutch bundle is already registered; the player switches immediately.
+For any other language, provide the bundle via `translations` or `loadTranslations`.
+
 ## See also
 
 - [SubtitleOverlay plugin](/nomercy-video-player/plugins/subtitle-overlay)
 - [KeyHandler plugin](/nomercy-video-player/plugins/key-handler)
 - [TouchZones plugin](/nomercy-video-player/plugins/touch-zones)
 - [Thumbnail Source adapter](/nomercy-video-player/adapters/thumbnail-source)
+- [Core: i18n](/nomercy-player-core/i18n)

@@ -29,6 +29,15 @@ private isMouseDown = false;
 Add `createProgressBar()` to the class and call it from `use()` after `createBottomBar()` and before `createBottomRow()`.
 The method creates four nested elements: the outer track, a buffer fill, a progress fill, and a thumb dot.
 
+The outer track element must be an accessible slider so keyboard users can seek without a pointer device. That means:
+- `role="slider"` so assistive technology announces it as an interactive range control
+- `tabindex="0"` so it receives keyboard focus
+- `aria-label` for a human-readable name
+- `aria-valuemin`/`aria-valuemax`/`aria-valuenow` updated live as the position changes
+- a `keydown` handler for `ArrowLeft`/`ArrowRight` (±5 s), `Home` (start), and `End` (end)
+
+Without these, keyboard and screen-reader users have no way to seek.
+
 ```ts
 private createProgressBar(): void {
   this.sliderBar = this.player
@@ -41,6 +50,14 @@ private createProgressBar(): void {
     ])
     .appendTo(this.bottomBar)
     .get();
+
+  // Accessible slider attributes — required for keyboard and screen-reader users.
+  this.sliderBar.setAttribute('role', 'slider');
+  this.sliderBar.setAttribute('tabindex', '0');
+  this.sliderBar.setAttribute('aria-label', 'Seek');
+  this.sliderBar.setAttribute('aria-valuemin', '0');
+  this.sliderBar.setAttribute('aria-valuemax', '100');
+  this.sliderBar.setAttribute('aria-valuenow', '0');
 
   const sliderBuffer = this.player
     .createElement('div', 'slider-buffer')
@@ -119,14 +136,36 @@ private createProgressBar(): void {
     this.isMouseDown = false;
   });
 
+  // Keyboard seek: ArrowLeft/Right ±5 s, Home = start, End = end.
+  // This makes the slider accessible to keyboard-only users.
+  this.listen(this.sliderBar, 'keydown', (e: Event) => {
+    const key = (e as KeyboardEvent).key;
+    const duration = this.player.duration();
+    if (key === 'ArrowLeft') {
+      e.preventDefault();
+      void this.player.rewind(5);
+    } else if (key === 'ArrowRight') {
+      e.preventDefault();
+      void this.player.forward(5);
+    } else if (key === 'Home') {
+      e.preventDefault();
+      void this.player.time(0);
+    } else if (key === 'End' && duration > 0) {
+      e.preventDefault();
+      void this.player.time(duration);
+    }
+  });
+
   // Sync progress bar with playback position.
   // Skip updates while the user is scrubbing so the bar does not fight the drag.
+  // Also update aria-valuenow so screen readers can announce the current position.
   this.on('time', (data) => {
     const duration = this.player.duration();
     const pct = duration > 0 ? (data.time / duration) * 100 : 0;
     if (this.isMouseDown) return;
     sliderProgress.style.width = `${pct}%`;
     sliderNipple.style.left = `${pct}%`;
+    this.sliderBar.setAttribute('aria-valuenow', String(Math.round(pct)));
   });
 
   // Reset slider when the playlist moves to a new item.
@@ -264,6 +303,14 @@ export class PlayerUiPlugin extends Plugin<NMVideoPlayer> {
       .appendTo(this.sliderBar)
       .get();
 
+    // Accessible slider attributes.
+    this.sliderBar.setAttribute('role', 'slider');
+    this.sliderBar.setAttribute('tabindex', '0');
+    this.sliderBar.setAttribute('aria-label', 'Seek');
+    this.sliderBar.setAttribute('aria-valuemin', '0');
+    this.sliderBar.setAttribute('aria-valuemax', '100');
+    this.sliderBar.setAttribute('aria-valuenow', '0');
+
     const getPercentFromEvent = (e: MouseEvent | TouchEvent): number => {
       const rect = this.sliderBar.getBoundingClientRect();
       const clientX =
@@ -301,12 +348,22 @@ export class PlayerUiPlugin extends Plugin<NMVideoPlayer> {
 
     this.listen(this.sliderBar, 'mouseleave', () => { this.isMouseDown = false; });
 
+    this.listen(this.sliderBar, 'keydown', (e: Event) => {
+      const key = (e as KeyboardEvent).key;
+      const duration = this.player.duration();
+      if (key === 'ArrowLeft') { e.preventDefault(); void this.player.rewind(5); }
+      else if (key === 'ArrowRight') { e.preventDefault(); void this.player.forward(5); }
+      else if (key === 'Home') { e.preventDefault(); void this.player.time(0); }
+      else if (key === 'End' && duration > 0) { e.preventDefault(); void this.player.time(duration); }
+    });
+
     this.on('time', (data) => {
       const duration = this.player.duration();
       const pct = duration > 0 ? (data.time / duration) * 100 : 0;
       if (this.isMouseDown) return;
       sliderProgress.style.width = `${pct}%`;
       sliderNipple.style.left = `${pct}%`;
+      this.sliderBar.setAttribute('aria-valuenow', String(Math.round(pct)));
     });
 
     this.on('current', () => {

@@ -3,23 +3,68 @@ title: 'i18n'
 description: 'The translation adapter, the t() method, async language loading, and the Vite translation plugin.'
 ---
 
+{/* Source: packages/nomercy-player-kit/src/i18n/en.ts */}
+
 # i18n
 
 The player ships a lightweight i18n layer.
 All player-generated strings (error messages, phase labels, accessibility announcements) are routable through a pluggable `ITranslator` adapter.
 
+## Key namespaces
+
+Translation keys are namespaced:
+
+- `core.*` — network, auth, policy, media, DRM, state, and a11y announcements. These live in the kit's built-in `en` bundle.
+- `plugin.<id>.*` — plugin-owned strings. Each plugin registers its own bundle when it loads.
+
+Examples of real core keys:
+
+| Key | Default English string |
+| --- | ---------------------- |
+| `core.network.offline` | No internet connection. |
+| `core.network.timeout` | The connection timed out. Trying again… |
+| `core.auth.forbidden` | Your account doesn't have access to this content. |
+| `core.policy.autoplayBlocked` | Tap or click anywhere to start playback. |
+| `core.media.unsupported` | This format is not supported by your browser. |
+| `core.drm.licenseFailed` | Could not get a license for this content. |
+| `core.a11y.playing` | Playing `{title}` |
+| `core.a11y.paused` | Paused |
+| `plugin.tab-leader.lost` | Playback paused — another tab is now playing. |
+
+The full list is in `packages/nomercy-player-kit/src/i18n/en.ts`.
+
 ## Configuration
 
+The `translations` option uses a locale-nested shape: the outer key is a BCP-47 language tag, and the inner record maps translation keys to strings.
+The kit's English bundle is always merged underneath as the final fallback — you do not need to reproduce it.
+
 ```ts
+import { defaultTranslations, nlTranslations } from '@nomercy-entertainment/nomercy-player-core';
+
 player.setup({
   language: 'nl',
   translations: {
-    'player.error.stream-load-failed': 'Stream kon niet worden geladen',
-    'player.action.play': 'Afspelen',
+    ...defaultTranslations,        // spread in the built-in English bundle as fallback
+    nl: nlTranslations,            // complete built-in Dutch bundle
   },
-  loadTranslations: async (lang) => {
-    const mod = await import(`./locales/${lang}.json`);
-    return mod.default;
+});
+```
+
+`defaultTranslations` is exported from `@nomercy-entertainment/nomercy-player-core` and contains `{ en: { ...allCoreKeys } }`.
+Spreading it ensures English strings are always available when a locale key is missing.
+The kit also ships `nlTranslations`, a complete Dutch bundle covering every core key.
+
+For a locale without a built-in bundle, supply the keys yourself. Anything you leave out falls back to English:
+
+```ts
+player.setup({
+  language: 'de',
+  translations: {
+    ...defaultTranslations,
+    de: {
+      'core.policy.autoplayBlocked': 'Zum Starten irgendwo klicken.',
+      'core.network.offline': 'Keine Internetverbindung.',
+    },
   },
 });
 ```
@@ -30,27 +75,27 @@ player.setup({
 language?: string
 ```
 
-Initial language code (BCP-47, e.g. `'en'`, `'nl'`, `'ja-JP'`). Default: `'en'`.
+Initial language code (BCP-47, e.g. `'en'`, `'nl'`, `'ja-JP'`). Default: `navigator.language`.
 
 ### `translations`
 
 ```ts
-translations?: Translations
+translations?: Record<string, Record<string, string>>
 ```
 
-Inline translation map.
-Keys are the player's internal translation keys.
-Values are translated strings.
-Supports variable interpolation:
+Inline translation bundles keyed by BCP-47 language tag.
+Each inner record maps translation keys to translated strings for that locale.
+The kit's English bundle is always merged underneath as the final fallback.
+
+Supports variable interpolation with `{key}` syntax:
 
 ```ts
-translations: {
-  'player.queue.items-remaining': '{count} items remaining',
-}
-```
+// This core key uses variable interpolation:
+// 'core.a11y.playing': 'Playing {title}'
 
-Merged with `loadTranslations` output.
-Inline translations take precedence.
+player.t('core.a11y.playing', { title: 'Sintel' });
+// → 'Playing Sintel'
+```
 
 ### `loadTranslations`
 
@@ -63,12 +108,12 @@ Async loader called during `setup()` (if `language` is set) or when `language(la
 ## Runtime language switching
 
 ```ts
-await player.language('fr');
+await player.language('nl');
 
-player.language(); // 'fr'
+player.language(); // 'nl'
 ```
 
-`language('fr')` calls `loadTranslations('fr')`, merges the result with any inline translations, and emits a `language` event:
+`language('nl')` calls `loadTranslations('nl')`, merges the result into the active table, and emits a `language` event:
 
 ```ts
 player.on('language', ({ lang }) => {
@@ -76,21 +121,43 @@ player.on('language', ({ lang }) => {
 });
 ```
 
+## Adding a single key override
+
+Override one key without replacing the whole bundle:
+
+```ts
+import { defaultTranslations } from '@nomercy-entertainment/nomercy-player-core';
+
+player.setup({
+  language: 'en',
+  translations: {
+    ...defaultTranslations,
+    en: {
+      ...defaultTranslations.en,
+      'core.policy.autoplayBlocked': 'Click to watch',
+    },
+  },
+});
+```
+
 ## Translate a key
 
 ```ts
-player.t('player.queue.items-remaining', { count: 5 });
-// → '5 items remaining' (after variable substitution)
+player.t('core.network.timeout');
+// → 'The connection timed out. Trying again…'
+
+player.t('core.a11y.playing', { title: 'Sintel' });
+// → 'Playing Sintel'
 ```
 
-Variable substitution uses `{key}` syntax (single braces).
+Variable substitution uses `{key}` syntax.
 Unrecognized keys fall back to the key string itself so the player never silently hides text.
 
 ## Translation events
 
-| Event          | Payload                            | Fires when                     |
-| -------------- | ---------------------------------- | ------------------------------ |
-| `language`     | `{ lang: string }`                 | Language changes               |
+| Event      | Payload             | Fires when      |
+| ---------- | ------------------- | --------------- |
+| `language` | `{ lang: string }`  | Language changes |
 
 ## Custom translator adapter
 

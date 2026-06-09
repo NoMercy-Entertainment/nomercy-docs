@@ -10,6 +10,39 @@ Read it before upgrading.
 
 For core-level changes (subpath imports, adapter ports, five-layer architecture), see the [core migration guide](/nomercy-player-core/adapters).
 
+## Fast path: compat plugin
+
+If you want your existing v1 code running immediately while you migrate gradually, register `V1MusicCompatPlugin` right after constructing the player.
+
+```
+npm install @nomercy-entertainment/nomercy-music-player@beta
+```
+
+```ts
+import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
+import { V1MusicCompatPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/v1-compat';
+
+const player = nmMPlayer('music-player');
+player.addPlugin(V1MusicCompatPlugin);
+
+await player.setup({ /* your existing config */ });
+
+// Your existing v1 code keeps working:
+player.setQueue(tracks);
+player.setCurrentSong(track);
+player.on('song', (track) => console.log(track.name));
+```
+
+The browser console will show a deprecation warning for each v1 API you use, naming the exact v2 replacement.
+Migrate one call site at a time, guided by those warnings. When they stop, remove the plugin.
+
+The compat plugin is **temporary** and ships as a separate subpath so it never adds weight to new projects.
+See the [compat plugin reference](/nomercy-music-player/plugins/v1-compat) for the complete method mapping, event bridge table, and unshimmable APIs.
+
+## Manual migration
+
+The rest of this page covers every breaking change for teams that prefer a planned, single-pass upgrade.
+
 ## TL;DR: is my import broken?
 
 The npm package name is the same: `@nomercy-entertainment/nomercy-music-player`.

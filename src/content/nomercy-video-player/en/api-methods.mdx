@@ -87,13 +87,21 @@ next(opts?: ActionOptions): Promise<void>
 previous(opts?: ActionOptions): Promise<void>
 ```
 
-### `seekToIndex(index, opts?)`
+### `seekToIndex(position, opts?)`
 
 ```ts
-seekToIndex(index: number, opts?: ActionOptions): void
+seekToIndex(position: number, opts?: ActionOptions): void
 ```
 
-Jump to a queue position by index.
+Navigate to a playlist item by 1-based ordinal position. `seekToIndex(1)` loads the first item; `seekToIndex(player.queueLength())` loads the last.
+
+Throws `RangeError` when `position` is zero, negative, or not an integer.
+
+```ts
+player.seekToIndex(1); // first item
+player.seekToIndex(3); // third item
+player.seekToIndex(0); // RangeError — use seekToIndex(1) for the first item
+```
 
 ### `peekNext()`, `peekPrevious()`
 

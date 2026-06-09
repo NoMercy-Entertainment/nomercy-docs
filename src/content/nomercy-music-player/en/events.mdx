@@ -102,12 +102,14 @@ player.on('backend:changed', ({ kind }) => {
 
 ## Time events (inherited)
 
-| Event      | Payload                | When                          |
-| ---------- | ---------------------- | ----------------------------- |
-| `time`     | `{ time: number }`     | Position updates (from the backend `timeupdate`) |
-| `duration` | `{ duration: number }` | Duration becomes known        |
+| Event      | Payload                                                  | When                          |
+| ---------- | -------------------------------------------------------- | ----------------------------- |
+| `time`     | `{ time: number }`                                       | Position updates (from the backend `timeupdate`) |
+| `duration` | `{ duration: number }`                                   | Duration becomes known        |
+| `progress` | `{ time: number; duration: number; percentage: number }` | Throttled position update (default every 5 s). Use for server-side watch-position saves instead of `time` to avoid per-frame callback noise. Configure the interval with `progressIntervalMs` in `setup()`; set to `0` to disable. |
 
 Use `time` to drive a real-time seekbar.
+Use `progress` to save resume positions server-side.
 Duration fires once after `loadedmetadata`.
 
 ## Queue events (inherited)

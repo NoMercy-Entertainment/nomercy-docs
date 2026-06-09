@@ -12,15 +12,55 @@ For the full breaking-change tables, go to the per-package guides:
 - **Music player:** [`packages/nomercy-music-player-v2/MIGRATION.md`](https://github.com/NoMercy-Entertainment/nomercy-music-player/blob/master/MIGRATION.md)
 - **Core (adapter ports + subpath imports):** [`packages/nomercy-player-kit/MIGRATION.md`](https://github.com/NoMercy-Entertainment/nomercy-player-core/blob/master/MIGRATION.md)
 
+## Fast path: the compat plugin
+
+If you have existing v1 code and want to keep it running immediately while you migrate gradually, both packages ship a v1 compatibility plugin.
+The migration then becomes a three-step process at whatever pace you choose.
+
+**Step 1.** Install the v2 package:
+
+```
+npm install @nomercy-entertainment/nomercy-video-player@beta
+npm install @nomercy-entertainment/nomercy-music-player@beta
+```
+
+**Step 2.** Register the compat plugin for whichever players you use:
+
+```ts
+import { V1VideoCompatPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/v1-compat';
+import { V1MusicCompatPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/v1-compat';
+
+videoPlayer.addPlugin(V1VideoCompatPlugin);
+musicPlayer.addPlugin(V1MusicCompatPlugin);
+```
+
+Your existing v1 code keeps working. The browser console shows a deprecation warning for each v1 API you are still using, naming the v2 replacement.
+
+**Step 3.** Work through the warnings at your own pace, migrating one call site at a time. When no warnings appear on any page, remove the plugins.
+
+The compat plugins are **temporary** and will be removed in the first stable 2.x release.
+New projects should skip this path and write v2 API directly.
+
+For a complete description of every shimmed method, event bridge, and unshimmable API, see:
+
+- [Video player compat plugin](/nomercy-video-player/plugins/v1-compat)
+- [Music player compat plugin](/nomercy-music-player/plugins/v1-compat)
+
+## Manual migration
+
+The rest of this page covers the high-level manual migration for teams that prefer a single planned upgrade rather than a gradual one.
+
 ## Is my import broken?
 
 The npm package names are the same.
-`^1.x` ranges will not automatically resolve to v2, so you must opt in with `^2.0.0`.
+`^1.x` ranges will not automatically resolve to v2, and `^2.0.0` semver ranges exclude prerelease versions by default, so you must install by the `beta` dist-tag during the prerelease period:
 
 ```
-npm install @nomercy-entertainment/nomercy-video-player@^2.0.0
-npm install @nomercy-entertainment/nomercy-music-player@^2.0.0
+npm install @nomercy-entertainment/nomercy-video-player@beta
+npm install @nomercy-entertainment/nomercy-music-player@beta
 ```
+
+Once v2.0.0 stable ships and the `latest` tag is updated, a normal semver range like `^2.0.0` will work as expected.
 
 The import names `nmplayer`, `NMVideoPlayer`, `nmMPlayer`, `NMMusicPlayer` resolve identically.
 **Your code will still break** because event payload shapes, method names, and playlist item field names changed significantly.
@@ -102,9 +142,15 @@ const plugin = player.getPlugin(OctopusPlugin); // typed
 | `subtitle(idx)`      | `subtitle(idx)`          |
 | `audioTrack(idx)`    | `audioTrack(idx)`        |
 | `playlist()`         | `queue()`                |
-| `playVideo(idx)`     | `seekToIndex(idx)`       |
+| `playVideo(idx)`     | `seekToIndex(idx + 1)` — 1-based; `playVideo(0)` becomes `seekToIndex(1)` |
 | `song` event         | `current` event          |
 | `item` event (video) | `current` event          |
+
+### seekToIndex is 1-based
+
+> **Index convention changed.** `playVideo(0)` in v1 loaded the first item. The v2 equivalent is `seekToIndex(1)`.
+
+`seekToIndex` uses a 1-based ordinal. Passing `0` throws `RangeError`. Any v1 code passing a loop index directly to `playVideo(i)` must use `seekToIndex(i + 1)`.
 
 ### 5. Always-on features are now opt-in plugins
 

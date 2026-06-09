@@ -206,6 +206,28 @@ Key points:
 - `updateBuffer` reads the browser's `buffered` TimeRanges to compute download progress.
 - The native `'progress'` event on the `<video>` element fires even while paused, keeping the buffer bar live during downloads.
 
+## Accessibility requirements for popup menus
+
+Each selector button and its popup menu need ARIA roles so keyboard and assistive-technology users can navigate them.
+
+On the trigger button:
+- `aria-haspopup="menu"` — announces to screen readers that clicking opens a menu
+- `aria-expanded="true"/"false"` — updated as the menu opens and closes
+- `aria-controls="<menu-id>"` — links to the menu element
+
+On the menu container:
+- `role="menu"`
+
+On each menu item:
+- `role="menuitem"`
+- A `aria-checked="true"` or a visible checkmark on the active item — color highlight alone does not satisfy WCAG 1.4.1 (Use of Color), which requires a non-color cue for state
+
+Focus behavior:
+- Focus moves into the menu when it opens (call `.focus()` on the first item)
+- `Escape` closes the menu and returns focus to the trigger button
+
+The code examples in this step use background-highlight (`bg-white/20`) as the only selection indicator. That satisfies the visual affordance for sighted users, but you must also add `aria-checked="true"` to the active item and `aria-checked="false"` to all others, or prefix the label with a checkmark character. The examples below include `aria-checked`.
+
 ## Quality selector
 
 The quality menu has an **Auto** entry as its first row. When Auto is active, HLS picks the best level automatically. Picking a specific level switches to manual mode.
@@ -226,12 +248,18 @@ private qualityButton: HTMLButtonElement | null = null;
 private createQualityButton(): void {
   this.qualityButton = this.player.createButton('quality-btn', 'Quality', () => {});
   this.qualityButton.style.display = 'none';
+  this.qualityButton.setAttribute('aria-haspopup', 'menu');
+  this.qualityButton.setAttribute('aria-expanded', 'false');
+  this.qualityButton.setAttribute('aria-controls', 'quality-menu');
   this.bottomRow.appendChild(this.qualityButton);
   this.qualityButton.innerHTML = svgIcon(icons.quality.normal);
 
   this.listen(this.qualityButton, 'click', (e) => {
     e.stopPropagation();
     this.toggleMenu('quality');
+    const open = this.activeMenu === 'quality';
+    this.qualityButton?.setAttribute('aria-expanded', String(open));
+    if (open) this.qualityMenu?.querySelector<HTMLElement>('[role=menuitem]')?.focus();
   });
 
   this.qualityMenu = this.player
@@ -245,6 +273,18 @@ private createQualityButton(): void {
     .appendTo(this.bottomRow)
     .get();
 
+  this.qualityMenu.setAttribute('role', 'menu');
+  this.qualityMenu.id = 'quality-menu';
+
+  // Close menu on Escape, return focus to trigger button.
+  this.listen(this.qualityMenu, 'keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Escape') {
+      this.toggleMenu(null);
+      this.qualityButton?.setAttribute('aria-expanded', 'false');
+      this.qualityButton?.focus();
+    }
+  });
+
   this.on('levels', ({ levels }) => {
     if (!this.qualityMenu || !this.qualityButton) return;
     this.qualityButton.style.display = levels.length > 1 ? '' : 'none';
@@ -256,6 +296,8 @@ private createQualityButton(): void {
       .addClasses(['text-white', 'text-sm', 'px-3', 'py-1.5', 'rounded', 'hover:bg-white/20', 'text-left', 'cursor-pointer'])
       .appendTo(this.qualityMenu!)
       .get();
+    autoOption.setAttribute('role', 'menuitem');
+    autoOption.setAttribute('aria-checked', 'true');
     autoOption.textContent = 'Auto';
     this.listen(autoOption, 'click', (e) => {
       e.stopPropagation();
@@ -263,6 +305,8 @@ private createQualityButton(): void {
       this.isAutoQuality = true;
       this.highlightCurrentQuality();
       this.toggleMenu(null);
+      this.qualityButton?.setAttribute('aria-expanded', 'false');
+      this.qualityButton?.focus();
     });
 
     levels.forEach((level, index) => {
@@ -271,6 +315,8 @@ private createQualityButton(): void {
         .addClasses(['text-white', 'text-sm', 'px-3', 'py-1.5', 'rounded', 'hover:bg-white/20', 'text-left', 'cursor-pointer'])
         .appendTo(this.qualityMenu!)
         .get();
+      option.setAttribute('role', 'menuitem');
+      option.setAttribute('aria-checked', 'false');
       option.textContent = level.label || (level.height ? `${level.height}p` : `Level ${index + 1}`);
       this.listen(option, 'click', (e) => {
         e.stopPropagation();
@@ -279,6 +325,8 @@ private createQualityButton(): void {
         this.selectedQualityIndex = index;
         this.highlightCurrentQuality();
         this.toggleMenu(null);
+        this.qualityButton?.setAttribute('aria-expanded', 'false');
+        this.qualityButton?.focus();
       });
     });
 
@@ -309,11 +357,15 @@ private highlightCurrentQuality(): void {
   buttons.forEach((btn, domIndex) => {
     if (domIndex === 0) {
       // The Auto button is active when no explicit level has been picked.
-      btn.classList.toggle('bg-white/20', this.isAutoQuality);
+      const active = this.isAutoQuality;
+      btn.classList.toggle('bg-white/20', active);
+      btn.setAttribute('aria-checked', String(active));
     } else {
       // Level buttons are offset by 1 to account for the Auto button.
       const levelIndex = domIndex - 1;
-      btn.classList.toggle('bg-white/20', !this.isAutoQuality && levelIndex === this.selectedQualityIndex);
+      const active = !this.isAutoQuality && levelIndex === this.selectedQualityIndex;
+      btn.classList.toggle('bg-white/20', active);
+      btn.setAttribute('aria-checked', String(active));
     }
   });
 
@@ -340,12 +392,18 @@ private subtitleButton: HTMLButtonElement | null = null;
 private createSubtitleButton(): void {
   this.subtitleButton = this.player.createButton('subtitle-btn', 'Subtitles', () => {});
   this.subtitleButton.style.display = 'none';
+  this.subtitleButton.setAttribute('aria-haspopup', 'menu');
+  this.subtitleButton.setAttribute('aria-expanded', 'false');
+  this.subtitleButton.setAttribute('aria-controls', 'subtitle-menu');
   this.bottomRow.appendChild(this.subtitleButton);
   this.subtitleButton.innerHTML = svgIcon(icons.subtitles.hover);
 
   this.listen(this.subtitleButton, 'click', (e) => {
     e.stopPropagation();
     this.toggleMenu('subtitles');
+    const open = this.activeMenu === 'subtitles';
+    this.subtitleButton?.setAttribute('aria-expanded', String(open));
+    if (open) this.subtitleMenu?.querySelector<HTMLElement>('[role=menuitem]')?.focus();
   });
 
   this.subtitleMenu = this.player
@@ -358,6 +416,17 @@ private createSubtitleButton(): void {
     ])
     .appendTo(this.bottomRow)
     .get();
+
+  this.subtitleMenu.setAttribute('role', 'menu');
+  this.subtitleMenu.id = 'subtitle-menu';
+
+  this.listen(this.subtitleMenu, 'keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Escape') {
+      this.toggleMenu(null);
+      this.subtitleButton?.setAttribute('aria-expanded', 'false');
+      this.subtitleButton?.focus();
+    }
+  });
 
   // Rebuild the menu whenever a new item loads (new item = new track list).
   this.on('current', () => this.rebuildSubtitleMenu());
@@ -385,11 +454,15 @@ private rebuildSubtitleMenu(): void {
     .addClasses(['text-white', 'text-sm', 'px-3', 'py-1.5', 'rounded', 'hover:bg-white/20', 'text-left', 'cursor-pointer'])
     .appendTo(this.subtitleMenu!)
     .get();
+  offOption.setAttribute('role', 'menuitem');
+  offOption.setAttribute('aria-checked', 'false');
   offOption.textContent = 'Off';
   this.listen(offOption, 'click', (e) => {
     e.stopPropagation();
     this.player.subtitle(null);
     this.toggleMenu(null);
+    this.subtitleButton?.setAttribute('aria-expanded', 'false');
+    this.subtitleButton?.focus();
   });
 
   filteredTracks.forEach((track, index) => {
@@ -398,11 +471,15 @@ private rebuildSubtitleMenu(): void {
       .addClasses(['text-white', 'text-sm', 'px-3', 'py-1.5', 'rounded', 'hover:bg-white/20', 'text-left', 'cursor-pointer'])
       .appendTo(this.subtitleMenu!)
       .get();
+    option.setAttribute('role', 'menuitem');
+    option.setAttribute('aria-checked', 'false');
     option.textContent = track.label || track.language || `Track ${index + 1}`;
     this.listen(option, 'click', (e) => {
       e.stopPropagation();
       this.player.subtitle(index);
       this.toggleMenu(null);
+      this.subtitleButton?.setAttribute('aria-expanded', 'false');
+      this.subtitleButton?.focus();
     });
   });
 
@@ -426,9 +503,13 @@ private highlightCurrentSubtitle(): void {
 
   this.subtitleMenu.querySelectorAll('button').forEach((btn, domIndex) => {
     if (domIndex === 0) {
-      btn.classList.toggle('bg-white/20', isOff);
+      const active = isOff;
+      btn.classList.toggle('bg-white/20', active);
+      btn.setAttribute('aria-checked', String(active));
     } else {
-      btn.classList.toggle('bg-white/20', !isOff && (domIndex - 1) === currentIndex);
+      const active = !isOff && (domIndex - 1) === currentIndex;
+      btn.classList.toggle('bg-white/20', active);
+      btn.setAttribute('aria-checked', String(active));
     }
   });
 
@@ -451,12 +532,18 @@ private audioButton: HTMLButtonElement | null = null;
 private createAudioButton(): void {
   this.audioButton = this.player.createButton('audio-btn', 'Audio', () => {});
   this.audioButton.style.display = 'none';
+  this.audioButton.setAttribute('aria-haspopup', 'menu');
+  this.audioButton.setAttribute('aria-expanded', 'false');
+  this.audioButton.setAttribute('aria-controls', 'audio-menu');
   this.bottomRow.appendChild(this.audioButton);
   this.audioButton.innerHTML = svgIcon(icons.audio);
 
   this.listen(this.audioButton, 'click', (e) => {
     e.stopPropagation();
     this.toggleMenu('audio');
+    const open = this.activeMenu === 'audio';
+    this.audioButton?.setAttribute('aria-expanded', String(open));
+    if (open) this.audioMenu?.querySelector<HTMLElement>('[role=menuitem]')?.focus();
   });
 
   this.audioMenu = this.player
@@ -470,6 +557,17 @@ private createAudioButton(): void {
     .appendTo(this.bottomRow)
     .get();
 
+  this.audioMenu.setAttribute('role', 'menu');
+  this.audioMenu.id = 'audio-menu';
+
+  this.listen(this.audioMenu, 'keydown', (e) => {
+    if ((e as KeyboardEvent).key === 'Escape') {
+      this.toggleMenu(null);
+      this.audioButton?.setAttribute('aria-expanded', 'false');
+      this.audioButton?.focus();
+    }
+  });
+
   this.on('audioTracks', ({ tracks }) => {
     if (!this.audioMenu || !this.audioButton) return;
     this.audioButton.style.display = tracks.length > 1 ? '' : 'none';
@@ -481,11 +579,15 @@ private createAudioButton(): void {
         .addClasses(['text-white', 'text-sm', 'px-3', 'py-1.5', 'rounded', 'hover:bg-white/20', 'text-left', 'cursor-pointer'])
         .appendTo(this.audioMenu!)
         .get();
+      option.setAttribute('role', 'menuitem');
+      option.setAttribute('aria-checked', 'false');
       option.textContent = track.label || track.language || `Track ${index + 1}`;
       this.listen(option, 'click', (e) => {
         e.stopPropagation();
         this.player.audioTrack(index);
         this.toggleMenu(null);
+        this.audioButton?.setAttribute('aria-expanded', 'false');
+        this.audioButton?.focus();
       });
     });
 
@@ -500,7 +602,9 @@ private highlightCurrentAudio(): void {
   const current = this.player.audioTrack();
   const activeIndex = current !== null ? current.index : 0;
   this.audioMenu.querySelectorAll('button').forEach((btn, index) => {
-    btn.classList.toggle('bg-white/20', index === activeIndex);
+    const active = index === activeIndex;
+    btn.classList.toggle('bg-white/20', active);
+    btn.setAttribute('aria-checked', String(active));
   });
 }
 ```

@@ -155,7 +155,45 @@ const player = nmMPlayer('main')
   .setup({ playlist: myTracks });
 ```
 
+## i18n
+
+`MusicUiPlugin` registers its translation strings at load time under the `plugin.music-ui.*` namespace.
+All tooltip labels are in the `plugin.music-ui.tooltip.*` sub-namespace.
+
+To override a label or add a new language, pass the keys through the player's `translations` config:
+
+```ts
+import { defaultTranslations } from '@nomercy-entertainment/nomercy-player-core';
+
+player.setup({
+  language: 'fr',
+  translations: {
+    ...defaultTranslations,
+    fr: {
+      'plugin.music-ui.tooltip.play': 'Lecture',
+      'plugin.music-ui.tooltip.pause': 'Pause',
+      'plugin.music-ui.tooltip.previous': 'Précédent',
+      'plugin.music-ui.tooltip.next': 'Suivant',
+      'plugin.music-ui.tooltip.shuffle': 'Aléatoire',
+      'plugin.music-ui.tooltip.repeat': 'Répéter',
+      'plugin.music-ui.tooltip.repeatOne': 'Répéter un',
+      'plugin.music-ui.tooltip.mute': 'Muet',
+      'plugin.music-ui.tooltip.unmute': 'Activer le son',
+      'plugin.music-ui.tooltip.speed': 'Vitesse de lecture',
+    },
+  },
+  playlist: [/* ... */],
+});
+```
+
+To switch language at runtime:
+
+```ts
+await player.language('fr');
+```
+
 ## See also
 
 - [KeyHandlerPlugin](/nomercy-music-player/plugins/key-handler), keyboard control that pairs with the UI
 - [Recipes: Lyrics and Equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer), adding a lyrics display alongside the UI plugin
+- [Core: i18n](/nomercy-player-core/i18n)

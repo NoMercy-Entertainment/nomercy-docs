@@ -40,7 +40,7 @@ The player always reaches `ready`, so if the fetch fails, it starts with an empt
 autoPlay?: boolean
 ```
 
-Start playback immediately after setup resolves. Default `false`.
+Start playback when the first item's media is ready (the `mediaReady` event). Requires a non-empty `playlist` at setup time. Setup resolving alone does not trigger playback; the player waits until media is ready to decode. Default `false`.
 
 ### `muted`
 
@@ -201,6 +201,32 @@ Custom video backend factory.
 Overrides the default `Html5VideoBackend`.
 Use to wire in a WebCodecs backend, a native-shell bridge, or a test stub.
 See [Video: Adapters](/nomercy-video-player/adapters/video-backend) for alternatives.
+
+## Crossfade
+
+### `crossfadeEnabled`
+
+```ts
+crossfadeEnabled?: boolean
+```
+
+Enable the crossfade/overlap transition between queue items. When `false` (the video default), the player uses a hard-cut gapless transition: assets are preloaded but there is no audio overlap. The music player default is `true`. Set to `true` to enable sample-accurate crossfade in the video player (requires a compatible `ITransitionStrategy`).
+
+### `crossfadeLeadSeconds`
+
+```ts
+crossfadeLeadSeconds?: number
+```
+
+How many seconds before the outgoing item ends the player begins the crossfade window. Only used when `crossfadeEnabled: true`. Default `3`.
+
+### `crossfadeTailSeconds`
+
+```ts
+crossfadeTailSeconds?: number
+```
+
+How many seconds the incoming item plays in parallel with the outgoing item before the outgoing item is fully silent. Only used when `crossfadeEnabled: true`. Default `3`.
 
 ## Storage
 

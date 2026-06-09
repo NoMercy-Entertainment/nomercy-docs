@@ -46,6 +46,14 @@ class PlayerUiPlugin extends Plugin {
 }
 ```
 
+## Accessibility for the volume slider
+
+The div-based volume slider needs the same ARIA treatment as the seek bar so keyboard and assistive-technology users can adjust volume without a pointer.
+After construction, apply `role="slider"`, `tabindex="0"`, `aria-label`, and `aria-valuemin`/`aria-valuemax`/`aria-valuenow`.
+Wire `keydown` for `ArrowLeft`/`ArrowRight` (±5 volume), `Home` (mute / 0), and `End` (100).
+
+If you would prefer to skip this wiring, the native `<input type="range">` alternative at the bottom of this section handles all of it for free.
+
 ## Build the volume control
 
 Add a `createVolumeControl()` method and call it from `use()` after the time display from Step 4:
@@ -102,6 +110,14 @@ private createVolumeControl(): void {
     ])
     .appendTo(volumeContainer)
     .get();
+
+  // Accessible slider attributes — required for keyboard and screen-reader users.
+  this.volumeSlider.setAttribute('role', 'slider');
+  this.volumeSlider.setAttribute('tabindex', '0');
+  this.volumeSlider.setAttribute('aria-label', 'Volume');
+  this.volumeSlider.setAttribute('aria-valuemin', '0');
+  this.volumeSlider.setAttribute('aria-valuemax', '100');
+  this.volumeSlider.setAttribute('aria-valuenow', String(this.player.volume()));
 
   // White fill bar — width is set as a percentage by updateSliderUI().
   const volumeProgress = this.player.createElement('div', 'volume-progress')
@@ -188,6 +204,24 @@ private createVolumeControl(): void {
   this.listen(document, 'mouseup',  () => { dragging = false; }, { passive: true });
   this.listen(document, 'touchend', () => { dragging = false; }, { passive: true });
 
+  // Keyboard control: ArrowLeft/Right ±5, Home = 0, End = 100.
+  this.listen(this.volumeSlider, 'keydown', (e) => {
+    const key = (e as KeyboardEvent).key;
+    if (key === 'ArrowLeft') {
+      e.preventDefault();
+      this.player.volumeDown(5);
+    } else if (key === 'ArrowRight') {
+      e.preventDefault();
+      this.player.volumeUp(5);
+    } else if (key === 'Home') {
+      e.preventDefault();
+      this.player.volume(0);
+    } else if (key === 'End') {
+      e.preventDefault();
+      this.player.volume(100);
+    }
+  });
+
   // ── Player event listeners ─────────────────────────────────────────
 
   // `'volume'` fires when the numeric level changes.
@@ -195,6 +229,7 @@ private createVolumeControl(): void {
     updateSliderUI(level);
     const muted = this.player.volumeState() === VolumeState.MUTED;
     updateIcon(level, muted);
+    this.volumeSlider.setAttribute('aria-valuenow', String(level));
   });
 
   // `'mute'` fires when the mute state toggles without a level change.
@@ -202,6 +237,7 @@ private createVolumeControl(): void {
     const level = this.player.volume();
     updateSliderUI(level);
     updateIcon(level, muted);
+    this.volumeSlider.setAttribute('aria-valuenow', String(level));
   });
 
   // Set initial UI from current player state.
@@ -246,6 +282,30 @@ A `dragging` boolean gates the move handlers:
 The player separates volume changes into two events. `'volume'` carries `{ level: number }` and fires when `player.volume(n)` is called. `'mute'` carries `{ muted: boolean }` and fires when mute state is toggled. To read current mute state inside a `'volume'` listener, call `player.volumeState()` and compare against `VolumeState.MUTED`.
 
 Wiring both keeps the slider and icon current regardless of whether the change came from the control bar, a keyboard shortcut plugin, or any external call to the player API.
+
+## Native `<input type="range">` alternative
+
+If you want accessible keyboard behavior without writing drag logic or ARIA attributes by hand, swap the div-based slider for a native `<input type="range">`. The browser handles keyboard seek, focus ring, screen-reader announcements, and touch input automatically:
+
+```ts
+const nativeSlider = document.createElement('input');
+nativeSlider.type = 'range';
+nativeSlider.min = '0';
+nativeSlider.max = '100';
+nativeSlider.step = '1';
+nativeSlider.value = String(this.player.volume());
+nativeSlider.setAttribute('aria-label', 'Volume');
+volumeContainer.appendChild(nativeSlider);
+
+this.listen(nativeSlider, 'input', () => {
+  this.player.volume(Number(nativeSlider.value));
+});
+this.on('volume', ({ level }) => {
+  nativeSlider.value = String(level);
+});
+```
+
+The trade-off is less control over the visual appearance — styling `input[type=range]` cross-browser requires extra CSS. The div-based slider gives you pixel-perfect styling; the native input gives you accessibility for free.
 
 ## Styling without Tailwind
 
