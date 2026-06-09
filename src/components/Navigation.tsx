@@ -2,7 +2,7 @@
 
 import clsx from 'clsx';
 import { AnimatePresence, motion, useIsPresent } from 'framer-motion';
-import { forwardRef, useRef, useState, useEffect } from 'react';
+import { forwardRef, useId, useRef, useState, useEffect } from 'react';
 
 import { useIsInsideMobileNavigation } from './MobileNavigation';
 import { useSectionStore, type Section } from './SectionProvider';
@@ -281,6 +281,7 @@ function NavigationGroup({
   // page navigation within the same browsing session). Active group ignores
   // the stored collapse so the reader never lands on a hidden current page.
   const storageKey = `docs-nav-group:${group.title}`;
+  const contentId = useId();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -314,6 +315,7 @@ function NavigationGroup({
           type="button"
           onClick={toggle}
           aria-expanded={!isCollapsed}
+          aria-controls={isCollapsed ? undefined : contentId}
           className="flex w-full items-center justify-between gap-2 text-left text-xs font-semibold text-zinc-900 dark:text-white"
         >
           <span>{group.title}</span>
@@ -333,6 +335,7 @@ function NavigationGroup({
         {!isCollapsed && (
           <motion.div
             key="content"
+            id={contentId}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}

@@ -1,11 +1,9 @@
 'use client';
 
-import { useInView } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 
 import { useSectionStore } from './SectionProvider';
 import { Tag } from './protocol/Tag';
-import { remToPx } from '@/lib/remToPx';
 
 // Simple Link component to replace next/link
 const Link = ({ href, className, children, ...props }: { href: string; className?: string; children: React.ReactNode; } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
@@ -48,11 +46,9 @@ function Eyebrow({ tag, label }: { tag?: string; label?: string; }) {
 
 function Anchor({
   id,
-  inView,
   children,
 }: {
   id: string;
-  inView: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -60,13 +56,11 @@ function Anchor({
       href={`#${id}`}
       className="group text-inherit no-underline hover:text-inherit"
     >
-      {inView && (
-        <div className="absolute mt-1 ml-[calc(-1*var(--width))] hidden w-(--width) opacity-0 transition [--width:calc(2.625rem+0.5px+50%-min(50%,calc(var(--container-lg)+(--spacing(8)))))] group-hover:opacity-100 group-focus:opacity-100 md:block lg:z-50 2xl:[--width:--spacing(10)]">
-          <div className="group/anchor block h-5 w-5 rounded-lg bg-zinc-50 ring-1 ring-zinc-300 transition ring-inset hover:ring-zinc-500 dark:bg-zinc-800 dark:ring-zinc-700 dark:hover:bg-zinc-700 dark:hover:ring-zinc-600">
-            <AnchorIcon className="h-5 w-5 stroke-zinc-500 transition dark:stroke-zinc-400 dark:group-hover/anchor:stroke-white" />
-          </div>
+      <div className="absolute mt-1 ml-[calc(-1*var(--width))] hidden w-(--width) opacity-0 transition [--width:calc(2.625rem+0.5px+50%-min(50%,calc(var(--container-lg)+(--spacing(8)))))] group-hover:opacity-100 group-focus:opacity-100 md:block lg:z-50 2xl:[--width:--spacing(10)]">
+        <div className="group/anchor block h-5 w-5 rounded-lg bg-zinc-50 ring-1 ring-zinc-300 transition ring-inset hover:ring-zinc-500 dark:bg-zinc-800 dark:ring-zinc-700 dark:hover:bg-zinc-700 dark:hover:ring-zinc-600">
+          <AnchorIcon className="h-5 w-5 stroke-zinc-500 transition dark:stroke-zinc-400 dark:group-hover/anchor:stroke-white" />
         </div>
-      )}
+      </div>
       {children}
     </Link>
   );
@@ -91,11 +85,6 @@ export function Heading<Level extends 2 | 3>({
   let ref = useRef<HTMLHeadingElement>(null);
   let registerHeading = useSectionStore((s) => s.registerHeading);
 
-  let inView = useInView(ref, {
-    margin: `${remToPx(-3.5)}px 0px 0px 0px`,
-    amount: 'all',
-  });
-
   useEffect(() => {
     if (level === 2) {
       registerHeading({
@@ -115,7 +104,7 @@ export function Heading<Level extends 2 | 3>({
         {...props}
       >
         {anchor ? (
-          <Anchor id={props.id} inView={inView}>
+          <Anchor id={props.id}>
             {children}
           </Anchor>
         ) : (

@@ -67,14 +67,14 @@ function TopLevelNavItem({
   );
 }
 
-interface HeaderProps extends React.ComponentPropsWithoutRef<typeof motion.div> {
+interface HeaderProps extends React.ComponentPropsWithoutRef<typeof motion.header> {
   navigation?: NavSection[];
   apiGroups?: NavGroup[];
   initialPathname?: string;
 }
 
 export const Header = forwardRef<
-  React.ComponentRef<'div'>,
+  React.ComponentRef<'header'>,
   HeaderProps
 >(function Header({ className, navigation = [], apiGroups = [], initialPathname, ...props }, ref) {
   let { isOpen: mobileNavIsOpen } = useMobileNavigationStore();
@@ -90,7 +90,7 @@ export const Header = forwardRef<
   let bgOpacityDark = useTransform(scrollY, [0, 72], ['20%', '80%']);
 
   return (
-    <motion.div
+    <motion.header
       {...props}
       ref={ref}
       className={clsx(
@@ -143,6 +143,6 @@ export const Header = forwardRef<
           <ThemeToggle />
         </div>
       </div>
-    </motion.div>
+    </motion.header>
   );
 });

@@ -7,6 +7,7 @@ import { CodeHighlighter } from "../components/CodeHighlighter";
 import { VersionInjector } from "../components/VersionInjector";
 import PackageManagerSwitcher from "../components/PackageManagerSwitcher.astro";
 import { getNavigation } from "../lib/navigation";
+import { t } from "../lib/i18n";
 
 interface Props {
   title: string;
@@ -17,6 +18,14 @@ interface Props {
 
 const { title, description, sections = [], landing = false } = Astro.props;
 const pathname = Astro.url.pathname;
+const locale = Astro.currentLocale ?? "en";
+
+const siteName = t("site.name", undefined, locale);
+const defaultTitle = t("site.title", undefined, locale);
+const pageTitle =
+  !title || title === defaultTitle
+    ? defaultTitle
+    : t("site.titleTemplate", { title, siteName }, locale);
 
 // Fetch navigation from all collections
 const { sections: navigation, apiGroups } = await getNavigation();
@@ -42,12 +51,12 @@ const allSections: Record<
 ---
 
 <!doctype html>
-<html lang="en" class="h-full" suppressHydrationWarning>
+<html lang={locale} class="h-full" suppressHydrationWarning>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
-    <title>{title ? `${title} - NoMercy Docs` : "NoMercy Documentation"}</title>
+    <title>{pageTitle}</title>
     <script is:inline>
       (function () {
         try {
@@ -79,9 +88,9 @@ const allSections: Record<
   >
     <a
       href="#main-content"
-      class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-100 focus:rounded-md focus:bg-emerald-500 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:outline-none"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-100 focus:rounded-md focus:bg-emerald-500 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
     >
-      Skip to content
+      {t("layout.skipToContent", undefined, locale)}
     </a>
     <Providers client:load>
       <div class="w-full">

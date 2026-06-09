@@ -7,11 +7,12 @@ import {
   TransitionChild,
 } from '@headlessui/react'
 import { motion } from 'framer-motion'
-import { Suspense, createContext, useContext } from 'react'
+import { Suspense, createContext, useContext, useId } from 'react'
 import { create } from 'zustand'
 
 import { Header } from './Header'
 import { Navigation } from './Navigation'
+import { t } from '@/lib/i18n'
 
 // Navigation types
 interface NavLink {
@@ -76,11 +77,14 @@ function MobileNavigationDialog({
   apiGroups?: NavGroup[]
   initialPathname?: string
 }) {
+  let titleId = useId()
+
   return (
     <Dialog
       transition
       open={isOpen}
       onClose={close}
+      aria-labelledby={titleId}
       className="fixed inset-0 z-50 lg:hidden"
     >
       <DialogBackdrop
@@ -100,9 +104,9 @@ function MobileNavigationDialog({
             className="fixed top-14 bottom-0 left-0 w-full overflow-y-auto bg-white px-4 pt-6 pb-4 shadow-lg ring-1 shadow-zinc-900/10 ring-zinc-900/7.5 duration-500 ease-in-out data-closed:-translate-x-full min-[416px]:max-w-sm sm:px-6 sm:pb-10 dark:bg-zinc-900 dark:ring-zinc-800"
           >
             <div className="mb-6 border-b border-zinc-200 pb-6 dark:border-white/10">
-              <h3 className="mb-3 text-xs font-semibold tracking-wide text-zinc-900 uppercase dark:text-white">
-                Documentation
-              </h3>
+              <h2 id={titleId} className="mb-3 text-xs font-semibold tracking-wide text-zinc-900 uppercase dark:text-white">
+                {t('nav.menu.title')}
+              </h2>
               <ul role="list" className="flex flex-col gap-3">
                 {navigation.map((section) => {
                   const segment = section.href.split('/').filter(Boolean)[0]
@@ -159,7 +163,7 @@ export function MobileNavigation({ navigation = [], apiGroups = [], initialPathn
       <button
         type="button"
         className="relative flex size-6 items-center justify-center rounded-md transition hover:bg-zinc-900/5 dark:hover:bg-white/5"
-        aria-label="Toggle navigation"
+        aria-label={t('nav.menu.toggle')}
         aria-expanded={isOpen ? 'true' : 'false'}
         aria-controls="mobile-nav-panel"
         onClick={toggle}

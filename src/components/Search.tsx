@@ -18,6 +18,7 @@ import {
   useState,
 } from 'react'
 import { useMobileNavigationStore } from './MobileNavigation'
+import { t } from '@/lib/i18n'
 
 // Define Result type for our search
 export interface Result {
@@ -164,7 +165,7 @@ function useAutocomplete({ onNavigate }: { onNavigate: () => void }) {
         React.KeyboardEvent
       >({
         id,
-        placeholder: 'Find something...',
+        placeholder: t('nav.search.placeholder'),
         defaultActiveItemId: 0,
         onStateChange({ state }) {
           setAutocompleteState(state)
@@ -293,9 +294,9 @@ function SearchResult({
   let sectionTitle = result.section
   if (!sectionTitle) {
     const url = result.url.split('#')[0]
-    if (url.startsWith('/app')) sectionTitle = 'App'
-    else if (url.startsWith('/mediaserver')) sectionTitle = 'Media Server'
-    else sectionTitle = 'API'
+    if (url.startsWith('/app')) sectionTitle = t('nav.search.sectionApp')
+    else if (url.startsWith('/mediaserver')) sectionTitle = t('nav.search.sectionMediaServer')
+    else sectionTitle = t('nav.search.sectionApi')
   }
   let hierarchy = [sectionTitle, result.pageTitle].filter(
     (x): x is string => typeof x === 'string' && x !== sectionTitle,
@@ -362,15 +363,16 @@ function SearchResults({
   collection: AutocompleteCollection<Result>
 }) {
   if (collection.items.length === 0) {
+    const [beforeQuery, afterQuery] = t('nav.search.noResults').split('{query}')
     return (
-      <div className="p-6 text-center">
+      <div role="status" aria-live="polite" className="p-6 text-center">
         <NoResultsIcon className="mx-auto h-5 w-5 stroke-zinc-900 dark:stroke-zinc-600" />
         <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-400">
-          Nothing found for{' '}
+          {beforeQuery}
           <strong className="font-semibold wrap-break-word text-zinc-900 dark:text-white">
-            &lsquo;{query}&rsquo;
+            {query}
           </strong>
-          . Please try again.
+          {afterQuery}
         </p>
       </div>
     )
@@ -412,7 +414,7 @@ const SearchInput = forwardRef<
           'flex-auto appearance-none bg-transparent pl-10 text-zinc-900 placeholder:text-zinc-500 focus:w-full focus:flex-none focus-visible:outline-2 focus-visible:outline-emerald-500 sm:text-sm dark:text-white [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden [&::-webkit-search-results-button]:hidden [&::-webkit-search-results-decoration]:hidden',
           (autocompleteState as any).status === 'stalled' ? 'pr-11' : 'pr-4',
         )}
-        placeholder="Find something..."
+        placeholder={t('nav.search.placeholder')}
         {...inputProps}
         onKeyDown={(event) => {
           if (
@@ -495,6 +497,7 @@ function SearchDialog({
         setOpen(false)
         autocomplete?.setQuery('')
       }}
+      aria-label={t('nav.search.label')}
       className={clsx('fixed inset-0 z-50', className)}
     >
       <DialogBackdrop
@@ -582,12 +585,17 @@ export function Search() {
     <div className="hidden lg:block lg:max-w-md lg:flex-auto">
       <button
         type="button"
+        aria-label={
+          modifierKey
+            ? t('nav.search.open', { shortcut: `${modifierKey.trim()}+K` })
+            : t('nav.search.label')
+        }
         className="hidden h-8 w-full items-center gap-2 rounded-full bg-white pr-3 pl-2 text-sm text-zinc-500 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 lg:flex dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20"
         {...buttonProps}
       >
         <SearchIcon className="h-5 w-5 stroke-current" />
-        Find something...
-        <kbd className="ml-auto text-2xs text-zinc-400 dark:text-zinc-500">
+        {t('nav.search.placeholder')}
+        <kbd aria-hidden="true" className="ml-auto text-2xs text-zinc-400 dark:text-zinc-500">
           <kbd className="font-sans">{modifierKey}</kbd>
           <kbd className="font-sans">K</kbd>
         </kbd>
@@ -608,7 +616,7 @@ export function MobileSearch() {
       <button
         type="button"
         className="relative flex size-6 items-center justify-center rounded-md transition hover:bg-zinc-900/5 lg:hidden dark:hover:bg-white/5"
-        aria-label="Find something..."
+        aria-label={t('nav.search.placeholder')}
         {...buttonProps}
       >
         <span className="absolute size-12 pointer-fine:hidden" />

@@ -134,7 +134,7 @@ function CodePanelHeader({ tag, label }: { tag?: string; label?: string; }) {
         <span className="h-0.5 w-0.5 rounded-full bg-zinc-500" />
       )}
       {label && (
-        <span className="font-mono text-xs text-zinc-400">{label}</span>
+        <span className="font-mono text-xs text-zinc-600 dark:text-zinc-400">{label}</span>
       )}
     </div>
   );
@@ -254,7 +254,7 @@ function CodeGroupHeader({
   return (
     <div className="flex min-h-[calc(--spacing(12)+1px)] flex-wrap items-start gap-x-4 border-b border-zinc-200 bg-zinc-100 px-4 dark:border-zinc-800 dark:bg-transparent">
       {title && (
-        <h3 className="mr-auto pt-3 text-xs font-semibold text-white">
+        <h3 className="mr-auto pt-3 text-xs font-semibold text-zinc-900 dark:text-white">
           {title}
         </h3>
       )}
@@ -265,8 +265,8 @@ function CodeGroupHeader({
               className={clsx(
                 'border-b py-3 transition focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-1',
                 childIndex === selectedIndex
-                  ? 'border-emerald-500 text-emerald-400'
-                  : 'border-transparent text-zinc-400 hover:text-zinc-300',
+                  ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400'
+                  : 'border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-300',
               )}
             >
               {getPanelTitle(
@@ -534,7 +534,7 @@ export function CodeGroup({
           {/* Tab headers */}
           <div className="flex min-h-[calc(--spacing(12)+1px)] flex-wrap items-start gap-x-4 border-b border-zinc-200 bg-zinc-100 px-4 dark:border-zinc-800 dark:bg-transparent">
             {title && (
-              <h3 className="mr-auto pt-3 text-xs font-semibold text-white">
+              <h3 className="mr-auto pt-3 text-xs font-semibold text-zinc-900 dark:text-white">
                 {title}
               </h3>
             )}
@@ -543,7 +543,7 @@ export function CodeGroup({
                 <label
                   key={index}
                   htmlFor={`${groupId}-tab-${index}`}
-                  className="border-b py-3 transition cursor-pointer border-transparent text-zinc-400 hover:text-zinc-300"
+                  className="border-b py-3 transition cursor-pointer border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-300"
                   data-tab-label={index}
                 >
                   {block.title}
@@ -571,12 +571,19 @@ export function CodeGroup({
           ))}
         </div>
 
-        {/* CSS to handle tab switching and active tab highlighting */}
+        {/* CSS to handle tab switching, active tab highlighting, and visible keyboard focus */}
         <style dangerouslySetInnerHTML={{
           __html: codeBlocks.map((_, index) => `
             #${groupId}-tab-${index}:checked ~ div label[data-tab-label="${index}"] {
               border-color: rgb(16 185 129) !important;
+              color: rgb(4 120 87) !important;
+            }
+            .dark #${groupId}-tab-${index}:checked ~ div label[data-tab-label="${index}"] {
               color: rgb(52 211 153) !important;
+            }
+            #${groupId}-tab-${index}:focus-visible ~ div label[data-tab-label="${index}"] {
+              outline: 2px solid rgb(16 185 129);
+              outline-offset: -2px;
             }
             #${groupId}-tab-${index}:checked ~ div[data-tab-content="${index}"] {
               display: block !important;
@@ -603,7 +610,7 @@ export function CodeGroup({
         <div className="not-prose">
           {singleBlockTitle && (
             <div className="flex min-h-[calc(--spacing(12)+1px)] flex-wrap items-start gap-x-4 border-b border-zinc-200 bg-zinc-100 px-4 dark:border-zinc-800 dark:bg-transparent">
-              <h3 className="mr-auto pt-3 text-xs font-semibold text-white">
+              <h3 className="mr-auto pt-3 text-xs font-semibold text-zinc-900 dark:text-white">
                 {singleBlockTitle}
               </h3>
             </div>

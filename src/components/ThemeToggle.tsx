@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
+import { t } from '@/lib/i18n';
+
 // Self-contained theme toggle. next-themes is NOT used: each Astro `client:load`
 // island is its own React root, so a <ThemeProvider> in one island never reaches
 // this button in another. Instead we own the `dark` class + the `theme` localStorage
@@ -52,7 +54,11 @@ export function ThemeToggle() {
     setDark(next);
   };
 
-  const label = mounted ? `Switch to ${dark ? 'light' : 'dark'} theme` : 'Toggle theme';
+  const label = mounted
+    ? dark
+      ? t('nav.theme.toLight')
+      : t('nav.theme.toDark')
+    : t('nav.theme.toggle');
 
   return (
     <button

@@ -4,6 +4,8 @@
 // (which sees the real per-product navigation). This footer only owns the
 // social row + copyright now.
 
+import { t } from '@/lib/i18n';
+
 const Link = ({ href, className, children, tabIndex, ...props }: { href: string; className?: string; children: React.ReactNode; tabIndex?: number; } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
   <a href={href} className={className} tabIndex={tabIndex} {...props}>
     {children}
@@ -59,17 +61,17 @@ function SmallPrint() {
   return (
     <div className="flex flex-col items-center justify-between gap-5 border-t border-zinc-900/5 pt-8 sm:flex-row dark:border-white/5">
       <p className="text-xs text-zinc-600 dark:text-zinc-400">
-        &copy; Copyright {new Date().getFullYear()}. All rights reserved.
+        {t('footer.copyright', { year: String(new Date().getFullYear()) })}
       </p>
       <div className="flex gap-4">
         <SocialLink href="https://twitter.com/stoney_eagle" icon={XIcon}>
-          Follow us on X
+          {t('footer.followX')}
         </SocialLink>
         <SocialLink href="https://github.com/NoMercy-Entertainment" icon={GitHubIcon}>
-          Follow us on GitHub
+          {t('footer.followGitHub')}
         </SocialLink>
         <SocialLink href="https://discord.gg/dHHvnvFsXR" icon={DiscordIcon}>
-          Join our Discord server
+          {t('footer.joinDiscord')}
         </SocialLink>
       </div>
     </div>
