@@ -188,8 +188,14 @@ player.setup({
 
 ## Vite plugin
 
-The player core ships a Vite plugin for build-time translation bundling.
-It scans your locale files and generates typed translation keys:
+The player core ships a Vite plugin that rewrites `translationsFromGlob('./i18n/*.ts')`
+call sites into the `import.meta.glob` form Vite's static analyser requires.
+Without it, any code that calls the helper with a literal string (the built-in
+UI plugins do) throws a `StateError` at runtime.
+
+Two pieces are needed in your `vite.config.ts`. Register the plugin, and keep
+the player packages out of `optimizeDeps` (esbuild pre-bundling bypasses Vite
+transforms, so a pre-bundled player never gets rewritten):
 
 ```ts
 // vite.config.ts
@@ -199,8 +205,16 @@ export default {
   plugins: [
     nomercyTranslationsPlugin(),
   ],
+  optimizeDeps: {
+    exclude: [
+      '@nomercy-entertainment/nomercy-player-core',
+      '@nomercy-entertainment/nomercy-video-player',
+      '@nomercy-entertainment/nomercy-music-player',
+    ],
+  },
 };
 ```
 
-This is optional.
-The runtime adapter works with any locale file format.
+The rewrite stays lazy: only the active language bundle is fetched at runtime.
+You only need this when code calls `translationsFromGlob` with a string pattern.
+Passing inline `translations` objects works without the plugin.
