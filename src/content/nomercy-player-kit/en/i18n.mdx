@@ -188,14 +188,15 @@ player.setup({
 
 ## Vite plugin
 
-The player core ships a Vite plugin that rewrites `translationsFromGlob('./i18n/*.ts')`
-call sites into the `import.meta.glob` form Vite's static analyser requires.
-Without it, any code that calls the helper with a literal string (the built-in
-UI plugins do) throws a `StateError` at runtime.
+The published packages are self-contained: their translation bundles are
+resolved at package build time into plain lazy imports, so installing and
+importing them needs no special Vite configuration at all.
 
-Two pieces are needed in your `vite.config.ts`. Register the plugin, and keep
-the player packages out of `optimizeDeps` (esbuild pre-bundling bypasses Vite
-transforms, so a pre-bundled player never gets rewritten):
+The Vite plugin exists for one case: your own source code calling
+`translationsFromGlob('./i18n/*.ts')` with a literal string, for example in a
+plugin you author yourself. Vite's static analyser cannot see through the
+helper, so the plugin rewrites the call into the `import.meta.glob` form during
+your build:
 
 ```ts
 // vite.config.ts
@@ -205,16 +206,8 @@ export default {
   plugins: [
     nomercyTranslationsPlugin(),
   ],
-  optimizeDeps: {
-    exclude: [
-      '@nomercy-entertainment/nomercy-player-core',
-      '@nomercy-entertainment/nomercy-video-player',
-      '@nomercy-entertainment/nomercy-music-player',
-    ],
-  },
 };
 ```
 
 The rewrite stays lazy: only the active language bundle is fetched at runtime.
-You only need this when code calls `translationsFromGlob` with a string pattern.
 Passing inline `translations` objects works without the plugin.
