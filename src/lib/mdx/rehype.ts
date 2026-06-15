@@ -195,7 +195,7 @@ function rehypeWrapCodeBlocks() {
         type: 'element',
         tagName: 'div',
         properties: {
-          className: ['my-6', 'overflow-hidden', 'rounded-2xl', 'bg-zinc-50', 'ring-1', 'ring-zinc-200', 'shadow-md', 'dark:bg-zinc-900', 'dark:ring-white/10'],
+          className: ['my-6', 'overflow-hidden', 'rounded-2xl', 'bg-zinc-200', 'ring-1', 'ring-zinc-300', 'shadow-md', 'dark:bg-zinc-900', 'dark:ring-white/10'],
         },
         children: [{
           type: 'element',
@@ -212,7 +212,7 @@ function rehypeWrapCodeBlocks() {
         type: 'element',
         tagName: 'div',
         properties: {
-          className: ['flex', 'items-center', 'gap-2', 'border-b', 'border-zinc-200', 'bg-zinc-100', 'px-5', 'py-2.5', 'dark:border-white/10', 'dark:bg-white/2.5'],
+          className: ['flex', 'items-center', 'gap-2', 'border-b', 'border-zinc-400', 'bg-zinc-300', 'px-5', 'py-2.5', 'dark:border-white/10', 'dark:bg-white/2.5'],
         },
         children: [{
           type: 'element',

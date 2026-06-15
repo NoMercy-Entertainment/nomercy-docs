@@ -124,7 +124,7 @@ function CodePanelHeader({ tag, label }: { tag?: string; label?: string; }) {
   }
 
   return (
-    <div className="flex h-9 items-center gap-2 border-y border-t-transparent border-b-zinc-200 bg-zinc-100 px-4 dark:border-b-white/5 dark:bg-white/1">
+    <div className="flex h-9 items-center gap-2 border-y border-t-transparent border-b-zinc-400 bg-zinc-300 px-4 dark:border-b-white/5 dark:bg-white/1">
       {tag && (
         <div className="dark flex">
           <Tag variant="small">{tag}</Tag>
@@ -511,7 +511,7 @@ export function CodeGroup({
   const hasTabs = codeBlocks.length > 1;
 
   let containerClassName =
-    'my-6 overflow-hidden rounded-2xl bg-zinc-50 ring-1 ring-zinc-200 shadow-md dark:bg-zinc-900 dark:ring-white/10';
+    'my-6 overflow-hidden rounded-2xl bg-zinc-200 ring-1 ring-zinc-300 shadow-md dark:bg-zinc-900 dark:ring-white/10';
 
   // If we have parsed code blocks, render radio button tabs (CSS-only switching)
   if (hasTabs) {
@@ -532,7 +532,7 @@ export function CodeGroup({
           ))}
 
           {/* Tab headers */}
-          <div className="flex min-h-[calc(--spacing(12)+1px)] flex-wrap items-start gap-x-4 border-b border-zinc-200 bg-zinc-100 px-4 dark:border-zinc-800 dark:bg-transparent">
+          <div className="flex min-h-[calc(--spacing(12)+1px)] flex-wrap items-start gap-x-4 border-b border-zinc-400 bg-zinc-300 px-4 dark:border-zinc-800 dark:bg-transparent">
             {title && (
               <h3 className="mr-auto pt-3 text-xs font-semibold text-zinc-900 dark:text-white">
                 {title}
@@ -609,7 +609,7 @@ export function CodeGroup({
       <div className={containerClassName}>
         <div className="not-prose">
           {singleBlockTitle && (
-            <div className="flex min-h-[calc(--spacing(12)+1px)] flex-wrap items-start gap-x-4 border-b border-zinc-200 bg-zinc-100 px-4 dark:border-zinc-800 dark:bg-transparent">
+            <div className="flex min-h-[calc(--spacing(12)+1px)] flex-wrap items-start gap-x-4 border-b border-zinc-400 bg-zinc-300 px-4 dark:border-zinc-800 dark:bg-transparent">
               <h3 className="mr-auto pt-3 text-xs font-semibold text-zinc-900 dark:text-white">
                 {singleBlockTitle}
               </h3>

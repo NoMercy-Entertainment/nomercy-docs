@@ -10,6 +10,7 @@ import {
   useIsInsideMobileNavigation,
   useMobileNavigationStore,
 } from './MobileNavigation';
+import { PackageManagerMenu } from './PackageManagerMenu';
 import { MobileSearch, Search } from './Search';
 import { ThemeToggle } from './ThemeToggle';
 import { CloseButton } from '@headlessui/react';
@@ -138,8 +139,9 @@ export const Header = forwardRef<
           </ul>
         </nav>
         <div className="hidden md:block md:h-5 md:w-px md:bg-zinc-900/10 md:dark:bg-white/15" />
-        <div className="flex gap-4">
+        <div className="flex items-center gap-4">
           <MobileSearch />
+          <PackageManagerMenu />
           <ThemeToggle />
         </div>
       </div>
