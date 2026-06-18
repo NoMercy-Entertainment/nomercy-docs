@@ -3,20 +3,19 @@ import { getEntry, render } from 'astro:content';
 import MarkdownLayout from '../../layouts/MarkdownLayout.astro';
 import * as mdxComponents from '../../components/protocol';
 
-const indexDoc = await getEntry('nomercy-app-android', 'en/index.mdx');
-if (!indexDoc) {
-  return Astro.redirect('/nomercy-app-android/overview');
-}
+const doc = (await getEntry('nomercy-app-android', 'en/index.mdx'))
+  ?? (await getEntry('nomercy-app-android', 'en/overview.mdx'));
+if (!doc) return Astro.redirect('/');
 
-const { Content, headings } = await render(indexDoc);
-const sections = indexDoc.data.sections || headings
+const { Content, headings } = await render(doc);
+const sections = doc.data.sections || headings
   .filter((h: any) => h.depth === 2)
   .map((h: any) => ({ id: h.slug, title: h.text }));
 ---
 
 <MarkdownLayout
-  title={indexDoc.data.title}
-  description={indexDoc.data.description}
+  title={doc.data.title}
+  description={doc.data.description}
   sections={sections}
 >
   <Content components={mdxComponents} />
