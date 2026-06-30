@@ -65,7 +65,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "DOM Utilities", pages: ['dom'] },
     { group: "Types Reference", pages: ['types/classes', 'types/errors', 'types/enums', 'types/interfaces'] },
     { group: "Writing Plugins", pages: ['plugin-authoring', 'plugin-standard'] },
-    { group: "Recipes", pages: ['recipes-index', 'recipes/media-session', 'recipes/persistence', 'recipes/auth-and-tokens'] },
+    { group: "Recipes", pages: ['recipes-index', 'recipes/writing-a-core-plugin', 'recipes/media-session', 'recipes/persistence', 'recipes/auth-and-tokens'] },
     { group: "Troubleshooting", pages: ['troubleshooting'] },
     { group: "Advanced", pages: ['experimental', 'advanced/custom-adapter', 'advanced/custom-plugin', 'advanced/writing-a-backend', 'advanced/multi-instance', 'testing'] },
     { group: "Reference", pages: ['changelog', 'errors', 'faq', 'versioning'] },

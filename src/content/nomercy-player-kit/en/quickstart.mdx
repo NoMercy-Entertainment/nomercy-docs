@@ -1,12 +1,11 @@
 ---
 title: 'Quick Start'
-description: 'Get started writing against the nomercy-player-core directly, for library authors and plugin authors who need core-level access.'
+description: 'Compose a player from the nomercy-player-core mixins and drive it with transport, queue, and events. Copy-paste runs as-is.'
 ---
 
-# Player Core Quick Start
+# Player Core: Quick Start
 
-For library authors and plugin developers working directly against `nomercy-player-core`, the base library beneath the video and music players.
-If you are building a video or music player, use the [Video Quick Start](/nomercy-video-player/quickstart) or [Music Quick Start](/nomercy-music-player/quickstart) instead, as both library packages include everything from the core.
+For library authors and plugin developers working directly against `nomercy-player-core`, the base library beneath the video and music players. If you are building a video or music player, use the [Video Quick Start](/nomercy-video-player/quickstart) or [Music Quick Start](/nomercy-music-player/quickstart) instead — both packages include everything here.
 
 ## Install
 
@@ -14,131 +13,81 @@ If you are building a video or music player, use the [Video Quick Start](/nomerc
 npm install @nomercy-entertainment/nomercy-player-core@rc
 ```
 
-## Writing a core-level plugin
+`hls.js` ships with the core as the default HLS stream factory. See [Installation](/nomercy-player-core/installation) for details.
 
-A core-level plugin works with any player built on the player core, whether video, music, or a custom library you write.
-Type the `P` generic broadly:
+## Minimal working player
 
-```ts
-import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
-import type { IPlayer, BaseEventMap } from '@nomercy-entertainment/nomercy-player-core';
-
-interface AnalyticsOptions {
-  endpoint: string;
-  sampleRateMs?: number;
-}
-
-interface AnalyticsEvents {
-  'session:reported': { duration: number; rebufferRatio: number };
-}
-
-export class AnalyticsPlugin extends Plugin<
-  IPlayer<BaseEventMap>,
-  AnalyticsOptions,
-  AnalyticsEvents
-> {
-  static readonly id = 'nomercy:analytics';
-  static readonly version = '1.0.0';
-  static readonly description = 'Reports session metrics to an analytics endpoint';
-
-  use(): void {
-    this.on('dispose', () => this.report());
-  }
-
-  dispose(): void {}
-
-  private async report(): Promise<void> {
-    const metrics = this.player.metrics();
-    await this.fetch(this.opts.endpoint, {
-      method: 'POST',
-      responseType: 'json',
-      body: JSON.stringify({
-        duration: metrics.sessionDurationMs,
-        rebufferRatio: metrics.rebufferRatio,
-      }),
-    });
-    this.emit('session:reported', {
-      duration: metrics.sessionDurationMs,
-      rebufferRatio: metrics.rebufferRatio,
-    });
-  }
-}
-```
-
-The `AnalyticsPlugin` above is typed against plain `IPlayer<BaseEventMap>` and calls `this.player.metrics()` directly — no cast, no extra constraint needed.
-Plugins that don't read the active item omit `& WithCurrentItem<...>`; `metrics()`, `getPlugin()`, and transport methods are on `IPlayer` directly.
-
-Register it on any player:
-
-```ts
-import { nmplayer } from '@nomercy-entertainment/nomercy-video-player';
-import { nmMPlayer } from '@nomercy-entertainment/nomercy-music-player';
-
-nmplayer('video')
-  .addPlugin(AnalyticsPlugin, {
-    endpoint: '/api/v1/analytics',
-  })
-  .setup({ ... });
-
-nmMPlayer('music')
-  .addPlugin(AnalyticsPlugin, {
-    endpoint: '/api/v1/analytics',
-  })
-  .setup({ ... });
-```
-
-## Accessing adapter ports
-
-Core adapters are available from the player core's subpath exports:
+The core is the player engine. Compose its method mixins onto a class and you have a working player: the queue, transport, time, volume, the typed event bus, and the plugin system are all there.
 
 ```ts
 import {
-  LocalStorageBackend,
-  MemoryStorageBackend,
-  DEFAULT_RETRY_POLICY,
-  browserPlatform,
+  composeMixins,
+  initPlayerCoreState,
+  lifecycleMethods,
+  playerCoreMethods,
+  queueMethods,
+  timeMethods,
+  transportMethods,
+  volumeMethods,
 } from '@nomercy-entertainment/nomercy-player-core';
-import type { IRetryPolicy } from '@nomercy-entertainment/nomercy-player-core';
+
+class MyPlayer {
+  constructor(id: string) {
+    initPlayerCoreState(this, { className: 'MyPlayer' });
+    this.setup({ playlist: [{ id, url: '/path/to/media.m3u8' }] });
+  }
+}
+
+composeMixins(
+  MyPlayer.prototype,
+  playerCoreMethods,
+  lifecycleMethods,
+  queueMethods,
+  transportMethods,
+  timeMethods,
+  volumeMethods,
+);
+
+const player = new MyPlayer('intro');
+
+player.on('ready', () => player.play());
 ```
 
-See [Core: Adapters](/nomercy-player-core/adapters) for the full catalog.
+That class drives the full core surface. The only thing it does not do on its own is render a medium — which is what `nomercy-video-player` and `nomercy-music-player` add on top.
 
-## Testing core-level plugins
+## Core controls
 
 ```ts
-import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
+player.play();
+player.pause();
+player.stop();
+player.next();
+player.previous();
 
-describePlugin(AnalyticsPlugin, ({ player, plugin }) => {
-  test('emits session:reported', () => {
-    const events: unknown[] = [];
-    player.on('plugin:nomercy:analytics:session:reported', (event) => events.push(event));
+player.time(30);   // seek to 30 seconds
+player.volume(80); // 0-100
+player.mute();
 
-    player.emit('ended', undefined);
-
-    expect(events).toHaveLength(1);
-  });
-});
+player.queue();    // read the queue
 ```
 
-`describePlugin` provides a fresh player with the plugin registered, auto-disposes in `afterEach`, and automatically asserts no listener leak after each test. No separate leak test is needed.
+See [Playback Control](/nomercy-player-core/transport) for the full transport, time, and volume surface.
 
-## What success looks like
+## Listening to events
 
-A core-level plugin registers without errors, `use()` is called during `setup()`, and the automatic leak harness in `describePlugin` passes after dispose.
-The plugin emits its typed events, and `player.on('plugin:nomercy:analytics:session:reported', ...)` receives them (the event name is `plugin:<id>:<event>`, and this plugin's id is `nomercy:analytics`).
+```ts
+player.on('ready', () => { /* setup complete */ });
+player.on('current', ({ item, index }) => { /* active item changed */ });
+player.on('time', ({ time }) => { /* position update */ });
+player.on('play', () => { /* started */ });
+player.on('pause', () => { /* paused */ });
+```
 
-## What to read next
-
-- [Core: Adapters](/nomercy-player-core/adapters): the infrastructure ports your plugin can swap
-- [Core: Event System](/nomercy-player-core/event-system): typed events, cross-plugin listening
-- [Core: Lifecycle](/nomercy-player-core/lifecycle): phase model and plugin ordering
-- [Core: Testing](/nomercy-player-core/testing): full `describePlugin` and assertion API
-- [Plugin Authoring](/nomercy-player-core/plugin-authoring): complete plugin contract reference
-- [Advanced: Custom Plugin](/nomercy-player-core/advanced/custom-plugin): production-grade plugin patterns
+See [Event System](/nomercy-player-core/event-system) for typed events and cross-plugin listening.
 
 ## Next steps
 
-- [Architecture](/nomercy-player-core/architecture) — the five-layer model and how the player is composed.
-- [Playback Control](/nomercy-player-core/transport) — transport, seeking, time, and volume.
-- [Plugins](/nomercy-player-core/plugins) — the plugin system and the built-in plugins.
+- [Writing a core-level plugin](/nomercy-player-core/recipes/writing-a-core-plugin) — build, register, and test a plugin that works on any player.
+- [Plugin Authoring](/nomercy-player-core/plugin-authoring) — the complete plugin contract.
 - [Adapter Ports](/nomercy-player-core/adapters) — every cross-cutting port and its default.
+- [Architecture](/nomercy-player-core/architecture) — the five-layer model and how the player is composed.
