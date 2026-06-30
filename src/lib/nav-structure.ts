@@ -72,11 +72,11 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Migration", pages: ['migration-v1-v2'] },
   ],
   'nomercy-video-player': [
-    { group: "Getting Started", pages: ['overview', 'installation', 'quickstart', 'configuration'] },
+    { group: "Getting Started", pages: ['overview', 'installation', 'quickstart'] },
     { group: "Building", pages: ['plugin-development', 'guides/build-ui-overview', 'guides/build-ui-1-shell-and-layout', 'guides/build-ui-2-play-pause', 'guides/build-ui-3-progress-bar', 'guides/build-ui-4-time-and-skip', 'guides/build-ui-5-volume', 'guides/build-ui-6-title-bar', 'guides/build-ui-7-fullscreen-and-speed', 'guides/build-ui-8-selectors', 'guides/build-ui-9-seek-preview', 'guides/build-ui-10-touch-zones'] },
     { group: "Framework Integration", pages: ['framework-integration', 'framework-vue', 'framework-react', 'framework-svelte', 'framework-angular', 'framework-vanilla'] },
     { group: "Plugins", pages: ['plugins/desktop-ui', 'plugins/subtitle-overlay', 'plugins/octopus', 'plugins/touch-zones', 'plugins/key-handler', 'plugins/skipper', 'plugins/drm', 'plugins/live-transcoding', 'plugins/cast-sender', 'plugins/media-session', 'plugins/tv-key-handler', 'plugins/tab-leader', 'plugins/message', 'plugins/embed', 'plugins/audio-graph', 'plugins/v1-compat'] },
-    { group: "API Reference", pages: ['api-methods', 'api/factory', 'api/playback-state', 'api/aspect-ratio', 'api/cycling', 'api/backend', 'api/kit-methods', 'api/utility-functions', 'events', 'types', 'playlist-item'] },
+    { group: "API Reference", pages: ['configuration', 'api-methods', 'api/factory', 'api/playback-state', 'api/aspect-ratio', 'api/cycling', 'api/backend', 'api/kit-methods', 'api/utility-functions', 'events', 'types', 'playlist-item'] },
     { group: "Adapters", pages: ['adapters/video-backend', 'adapters/thumbnail-source', 'adapters/chapter-source', 'adapters/subtitle-style-store'] },
     { group: "Recipes", pages: ['recipes/overview', 'recipes/subtitles', 'recipes/chapters', 'recipes/quality-selection', 'recipes/playlist-and-queue', 'recipes/keyboard-shortcuts', 'recipes/live-transcoding'] },
     { group: "Advanced", pages: ['hls', 'advanced/server-side-rendering', 'advanced/custom-adapter', 'advanced/embedding', 'advanced/distributed-playback', 'advanced/performance', 'advanced/migration-from-other-players'] },
