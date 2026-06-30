@@ -1,6 +1,6 @@
 ---
 title: 'What is the Player Core'
-description: 'The shared, headless engine the video and music players are built on.'
+description: 'The shared, headless engine the video and music players are built on: queue, transport, auth, the plugin system, the typed event bus, i18n, and storage.'
 draft: false
 ---
 
@@ -8,20 +8,20 @@ draft: false
 
 # What is the NoMercy Player Core
 
-The video player and the music player are mostly the same machine underneath.
-A queue is a queue, auth is auth, and a plugin system does not care whether it is driving a film or an album.
-`nomercy-player-core` is that shared machine pulled into one package, so the two players do not each carry their own copy.
-It is headless and you never run it on its own; the library packages bring it along as a dependency.
+[`nomercy-player-core`](/nomercy-player-core/quickstart) is the shared, headless engine the video and music players are built on. The two players are mostly the same machine underneath — a queue is a queue, auth is auth, and a plugin system does not care whether it is driving a film or an album — so that machine lives here once, and a fix in it lands in both players at the same time.
+
+It handles the parts neither player should reimplement — the queue and transport, the auth pipeline, the plugin system and typed event bus, i18n, and storage — and then gets out of your way.
+
+The important word is *headless*. There is nothing medium-specific here: no video backend, no audio graph, no UI. Those live in the player packages above. You never run the core on its own — you compose its mixins to build a player, or it arrives as a dependency of `nomercy-video-player` and `nomercy-music-player`.
 
 ## What you get
 
-- Transport and a queue engine (play, pause, seek, next, shuffle, backlog)
-- The auth pipeline (bearer tokens, 401 refresh, 403 propagation)
-- The plugin system and a typed event bus
-- i18n and storage
-- An adapter port for every cross-cutting concern, swappable without subclassing the player
-
-A fix in any of these lands in both players at once.
+- Transport and a [queue engine](/nomercy-player-core/queue) — play, pause, seek, next, shuffle, backlog.
+- The [auth pipeline](/nomercy-player-core/auth-fetch) — bearer tokens, 401 refresh, 403 propagation.
+- The [plugin system](/nomercy-player-core/plugins) and a typed [event bus](/nomercy-player-core/event-system).
+- [i18n](/nomercy-player-core/i18n) and [storage](/nomercy-player-core/storage).
+- An [adapter port](/nomercy-player-core/adapters) for every cross-cutting concern, swappable without subclassing.
+- Full TypeScript types for every method, event, and option.
 
 ## Where it sits
 
@@ -31,11 +31,8 @@ A fix in any of these lands in both players at once.
   { n: 1, name: 'Backend', pkg: 'Html5VideoBackend / WebAudioBackend', knows: 'hls.js, the native media element, or a custom backend.' },
 ]} />
 
-The core knows nothing about NoMercy server APIs or your app; that lives in the layers above it.
-
 ## Next steps
 
-- [Quick Start](/nomercy-player-core/quickstart): the smallest working setup
-- [Architecture](/nomercy-player-core/architecture): the full five-layer model and how the player is composed
-- [Adapter Ports](/nomercy-player-core/adapters): every port and its default
-- [Plugins](/nomercy-player-core/plugins): the built-in plugins shipped with the core
+- [Quick Start](/nomercy-player-core/quickstart) — compose a core-level player and write a plugin.
+- [Architecture](/nomercy-player-core/architecture) — the five-layer model and how the player is composed.
+- [Adapter Ports](/nomercy-player-core/adapters) — every port and its default.

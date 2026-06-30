@@ -1,37 +1,40 @@
 ---
 title: 'What is the Music Player'
-description: 'The headless audio engine with sample-accurate crossfade, what it does and where it sits.'
+description: 'A headless, event-driven audio player with sample-accurate crossfade and gapless playback, lyric sync, and a full equalizer. HLS-ready. No UI — you build your own.'
 draft: false
 ---
 
+{/* Source: packages/nomercy-music-player-v2/src/index.ts */}
+
 # What is the NoMercy Music Player
 
-`nomercy-music-player` is the headless audio engine that powers music on NoMercy TV.
-The tricky part of a music player is the hand-off between two tracks, and this engine is built around getting it right: sample-accurate crossfade on the Web Audio backend, or a gapless transition when you want one track to run straight into the next.
-Lyric sync and a full EQ chain are here too.
-No UI is bundled; you wire your own to plain events and methods.
+[`nomercy-music-player`](/nomercy-music-player/api/factory) is the headless, event-driven audio player that powers music on NoMercy TV. It plays audio through a swappable backend — the Web Audio backend for sample-accurate crossfade, or the native media element — and is HLS-ready for adaptive audio streams.
+
+It handles the genuinely hard part for you — the hand-off between two tracks, as a sample-accurate crossfade or a gapless transition — alongside lyric sync and a full equalizer chain, and then gets out of your way.
+
+The important word is *headless*. There is no UI in the box and no layout you have to accept: you get a working audio pipeline wired to plain events and methods, and everything on screen is yours to build.
 
 ## What you get
 
-- `NMMusicPlayer<T>`, a typed player class generic over your own track type
-- [`nmMPlayer(id)`](/nomercy-music-player/api/factory), a factory that creates or returns a named instance
-- Sample-accurate crossfade and gapless playback, with a swappable audio backend
-- Lyric sync, a ten-band equalizer, and spectrum data for visualisers
-- A plugin for every optional capability, plus full TypeScript types
+- `NMMusicPlayer<T>`, created through the [`nmMPlayer(id)`](/nomercy-music-player/api/factory) factory and generic over your own track type.
+- Sample-accurate [crossfade](/nomercy-music-player/crossfade) and gapless playback, behind a swappable [audio backend](/nomercy-music-player/backends/overview).
+- [Lyric sync](/nomercy-music-player/lyrics), a ten-band [equalizer](/nomercy-music-player/equalizer), and spectrum data for visualisers.
+- HLS-ready adaptive audio streaming.
+- A fully typed [event map](/nomercy-music-player/events) and a plugin for every optional capability.
+- Full TypeScript types for every method, event, and option.
 
 ## Where it sits
 
-The generic parts (queue, auth, plugins, i18n, storage) live in `nomercy-player-core` underneath, so this package stays focused on what makes audio hard.
+The generic parts (queue, auth, plugins, i18n, storage) live in `nomercy-player-core` underneath, so this package stays focused on what makes audio hard. Plugin authors type against `IMusicPlayer<T>` rather than the concrete class.
 
 <LayerStack layers={[
   { n: 3, name: 'Your application', pkg: 'Your app code', knows: 'Your UI and app logic, built on the player.' },
   { n: 2, name: 'nomercy-music-player', pkg: 'You are here', knows: 'Music-specific methods and events (IMusicPlayer<T>).' },
-  { n: 1, name: 'nomercy-player-core', pkg: 'Peer dependency', knows: 'Queue, auth, plugins, event bus, i18n, storage.' },
+  { n: 1, name: 'nomercy-player-core', pkg: 'Dependency', knows: 'Queue, auth, plugins, event bus, i18n, storage.' },
 ]} />
 
 ## Next steps
 
-- [Quick Start](/nomercy-music-player/quickstart): a working player in a few lines
-- [Configuration](/nomercy-music-player/configuration): every option and default
-- [Crossfade](/nomercy-music-player/crossfade): the signature feature
-- [Architecture](/nomercy-music-player/architecture): the Web Audio signal chain, the equalizer, and the design decisions
+- [Installation](/nomercy-music-player/installation) — npm, CDN, and TypeScript setup.
+- [Quick Start](/nomercy-music-player/quickstart) — a working player you can copy-paste.
+- [Crossfade](/nomercy-music-player/crossfade) — the signature feature, end to end.
