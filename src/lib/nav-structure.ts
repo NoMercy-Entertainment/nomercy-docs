@@ -48,7 +48,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Troubleshooting", pages: ['troubleshooting'] },
   ],
   'nomercy-player-kit': [
-    { group: "Getting Started", pages: ['overview', 'quickstart'] },
+    { group: "Getting Started", pages: ['overview', 'installation', 'quickstart'] },
     { group: "Foundations", pages: ['architecture', 'foundations/plugins-and-adapters'] },
     { group: "Lifecycle", pages: ['lifecycle', 'setup', 'dispose'] },
     { group: "Playback Control", pages: ['transport', 'seeking', 'time', 'volume'] },

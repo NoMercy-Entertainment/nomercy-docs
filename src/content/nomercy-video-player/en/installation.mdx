@@ -1,31 +1,29 @@
 ---
 title: 'Installation'
-description: 'Install via npm, yarn, pnpm, or CDN IIFE.'
+description: 'Install nomercy-video-player via npm, yarn, pnpm, or bun. Requirements, CDN, import paths, and TypeScript.'
 draft: false
 ---
 
-{/* Source: packages/nomercy-video-player-v2/package.json */}
+# Installation
 
-## Prerequisites
+## Requirements
 
-- Node.js 18 or later
-- A bundler (Vite, Webpack, Rollup, esbuild) for module builds
+- Node.js 18 or later (tooling only; the player itself runs in any modern browser)
+- A module bundler (Vite, Webpack, Rollup, or similar)
 
-## Install via package manager
+## Install the package
 
 ```bash
 npm install @nomercy-entertainment/nomercy-video-player@rc
 ```
 
-The package publishes under the `rc` dist-tag while v2 is in prerelease — `@rc` always resolves to the newest v2 release. The default `latest` tag still points at the v1 line, so install with the `@rc` tag for v2. Once v2.0.0 stable ships, the tag is no longer needed.
+While v2 is in prerelease it publishes under the `rc` dist-tag — `@rc` always resolves to the newest v2 release. The default `latest` tag still points at the v1 line, so install with `@rc` for v2. The package-manager toggle, pinned to the top right, switches this command to yarn, pnpm, or bun.
 
-The package-manager toggle, pinned to the top right, switches this command to yarn, pnpm, or bun.
-`hls.js` installs automatically with the player — it is a direct dependency of the player package, so `npm install @nomercy-entertainment/nomercy-video-player` pulls it in. The player keeps it out of its own bundle (marked `external`, for dedup) and loads it lazily the first time you point at an HLS (`.m3u8`) source. The CDN / IIFE bundle is the one exception: it expects a global `Hls`, so those users load `hls.js` via a separate `<script>` first.
+`hls.js` installs automatically with the player — it is a dependency, loaded lazily the first time you point at an HLS (`.m3u8`) source. Nothing extra to install for the npm / bundler path.
 
 ## CDN (no bundler)
 
-You can also drop the player onto a page with no build step.
-Load `hls.js` first (the IIFE bundle reads it from the `Hls` global), then the player bundle, which exposes a `nmplayer` global.
+You can drop the player onto a page without a bundler. Load `hls.js` first (the IIFE bundle reads it from the `Hls` global), then the player bundle, which exposes a `nmplayer` global.
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js"></script>
@@ -34,56 +32,42 @@ Load `hls.js` first (the IIFE bundle reads it from the `Hls` global), then the p
 
 Built-in plugins are not part of the IIFE bundle, so use the npm install above when you need them.
 
-## TypeScript
-
-Type definitions are bundled.
-No `@types/` package is needed.
+## Import paths
 
 ```ts
+// Main player + types
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import type { VideoPlaylistItem, IVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
-```
+import type {
+  VideoPlaylistItem,
+  VideoPlayerConfig,
+  IVideoPlayer,
+} from '@nomercy-entertainment/nomercy-video-player';
 
-## Importing plugins
-
-All plugins are available under the `/plugins` deep export:
-
-```ts
+// Plugins — always from the /plugins subpath
 import {
   DesktopUiPlugin,
   SubtitleOverlayPlugin,
   OctopusPlugin,
-  SkipperPlugin,
 } from '@nomercy-entertainment/nomercy-video-player/plugins';
 ```
 
-## Container element
+Importing plugins from the main entry point is not supported; always use `/plugins`.
 
-The player mounts into an existing DOM element.
-The element must exist before calling `nmplayer()`:
+## TypeScript
 
-```html
-<div id="player" style="width: 100%; aspect-ratio: 16/9;"></div>
-```
+The package ships full TypeScript declarations. No `@types/` package is needed.
+
+The recommended type for a consumer-held player reference is `IVideoPlayer<T>`:
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import type { IVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
-const player = nmplayer('player').setup({
-  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
-  playlist: [
-    {
-      title: 'Sintel',
-      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-    },
-  ],
-});
+let player: IVideoPlayer<VideoPlaylistItem>;
 ```
 
-The string passed to `nmplayer()` is the `id` attribute of the container element.
+Use the concrete `NMVideoPlayer<T>` type only when you need internals not exposed on the interface.
 
 ## See also
 
-- [Quick Start](/nomercy-video-player/quickstart)
-- [Factory API](/nomercy-video-player/api/factory)
-- [VideoPlaylistItem](/nomercy-video-player/playlist-item)
+- [Quick Start](/nomercy-video-player/quickstart) — a working player you can copy-paste.
+- [Overview](/nomercy-video-player/overview) — what the player is and where it sits.
