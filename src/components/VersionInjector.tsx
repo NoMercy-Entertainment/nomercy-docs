@@ -77,7 +77,7 @@ async function fetchVersion(pkg: string): Promise<string | null> {
 }
 
 async function resolveVersion(pkg: string): Promise<string | null> {
-	const cacheKey = `npmver:${pkg}`;
+	const cacheKey = `npmver-rc:${pkg}`;
 	try {
 		const cached = sessionStorage.getItem(cacheKey);
 		if (cached) return cached;
