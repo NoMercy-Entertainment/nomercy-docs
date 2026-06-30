@@ -48,7 +48,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Troubleshooting", pages: ['troubleshooting'] },
   ],
   'nomercy-player-kit': [
-    { group: "Getting Started", pages: ['overview', 'quickstart', 'versioning'] },
+    { group: "Getting Started", pages: ['overview', 'quickstart'] },
     { group: "Foundations", pages: ['architecture', 'foundations/plugins-and-adapters'] },
     { group: "Lifecycle", pages: ['lifecycle', 'setup', 'dispose'] },
     { group: "Playback Control", pages: ['transport', 'seeking', 'time', 'volume'] },
@@ -68,7 +68,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Recipes", pages: ['recipes-index', 'recipes/media-session', 'recipes/persistence', 'recipes/auth-and-tokens'] },
     { group: "Troubleshooting", pages: ['troubleshooting'] },
     { group: "Advanced", pages: ['experimental', 'advanced/custom-adapter', 'advanced/custom-plugin', 'advanced/writing-a-backend', 'advanced/multi-instance', 'testing'] },
-    { group: "Reference", pages: ['changelog', 'errors', 'faq'] },
+    { group: "Reference", pages: ['changelog', 'errors', 'faq', 'versioning'] },
     { group: "Migration", pages: ['migration-v1-v2'] },
   ],
   'nomercy-video-player': [
@@ -84,10 +84,11 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Migration", pages: ['migration-v1-v2'] },
   ],
   'nomercy-music-player': [
-    { group: "Getting Started", pages: ['overview', 'installation', 'quickstart', 'configuration', 'architecture'] },
+    { group: "Getting Started", pages: ['overview', 'installation', 'quickstart'] },
+    { group: "Foundations", pages: ['architecture'] },
     { group: "Framework Integration", pages: ['framework-vue', 'framework-react'] },
     { group: "Plugins", pages: ['plugins/auto-advance', 'plugins/lyrics', 'plugins/cast-sender', 'plugins/media-session', 'plugins/key-handler', 'plugins/music-ui', 'plugins/tab-leader', 'plugins/group-listening', 'plugins/drm', 'plugins/live-transcoding', 'plugins/embed', 'plugins/message', 'plugins/audio-graph', 'lyrics', 'equalizer', 'plugin-development', 'plugins/v1-compat'] },
-    { group: "API Reference", pages: ['api-methods', 'api/factory', 'api/backend', 'api/crossfade', 'api/kit-methods', 'crossfade', 'events', 'types', 'playlist-item'] },
+    { group: "API Reference", pages: ['configuration', 'api-methods', 'api/factory', 'api/backend', 'api/crossfade', 'api/kit-methods', 'crossfade', 'events', 'types', 'playlist-item'] },
     { group: "Adapters", pages: ['backends/overview', 'backends/audio-element', 'backends/web-audio', 'backends/backend-interface', 'adapters/lyric-source', 'adapters/scrobbler', 'adapters/now-playing-art', 'adapters/playlist-generator', 'adapters/similarity-engine'] },
     { group: "Recipes", pages: ['recipes/overview', 'recipes/playlist-and-queue', 'recipes/crossfade-and-gapless', 'recipes/lyrics-and-equalizer'] },
     { group: "Advanced", pages: ['advanced/crossfade-tuning', 'advanced/equalizer-customization', 'advanced/lyrics-sync-deep-dive', 'advanced/custom-plugin', 'advanced/writing-an-audio-backend'] },
