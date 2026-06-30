@@ -5,7 +5,7 @@ description: 'Install nomercy-video-player and create a working video player wit
 
 # Video Player: Quick Start
 
-A working video player in a few lines: mounted in your own element, playing an HLS stream, with the seek bar, play/pause, volume, and fullscreen controls from `DesktopUiPlugin`.
+A working video player in a few lines: mounted in your own element, playing an HLS stream, with the play/pause, seek bar, volume, and fullscreen controls from `DesktopUiPlugin`.
 
 ## Install
 
@@ -13,7 +13,7 @@ A working video player in a few lines: mounted in your own element, playing an H
 npm install @nomercy-entertainment/nomercy-video-player@rc
 ```
 
-`hls.js` installs automatically with the player (a direct dependency of the player package) — nothing extra to install for the npm / bundler path. See [Installation](/nomercy-video-player/installation) for the CDN exception.
+`hls.js` installs automatically with the player — nothing extra for the npm / bundler path. See [Installation](/nomercy-video-player/installation) for the CDN exception.
 
 ## Minimal working player
 
@@ -63,433 +63,52 @@ player.on('ready', () => {
 });
 ```
 
-The `DesktopUiPlugin` mounts the full built-in UI: play/pause, seek bar, volume, fullscreen, subtitle and quality menus.
-Remove it if you are building a custom UI.
+The `DesktopUiPlugin` mounts the full built-in UI: play/pause, seek bar, volume, fullscreen, subtitle and quality menus. Remove it if you are building a custom UI. The inline `playlist:` array is auto-queued during setup, and `item(0, { autoplay: true })` selects the first item and starts playback.
 
-The inline `playlist:` array is auto-queued during setup.
-`item(0, { autoplay: true })` selects the first item and starts playback in sequence.
-
-## Auto-advance
-
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
-
-const player = nmplayer('main')
-  .addPlugin(DesktopUiPlugin)
-  .setup({
-    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
-    playlist: [
-      {
-        id: 'sintel',
-        title: 'Sintel',
-        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-        duration: 888,
-      },
-      {
-        id: 'tears-of-steel',
-        title: 'Tears of Steel',
-        url: '/Tears.of.Steel.(2012)/Tears.of.Steel.(2012).NoMercy.m3u8',
-        duration: 724,
-      },
-      {
-        id: 'bbb',
-        title: 'Big Buck Bunny',
-        url: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8',
-        duration: 596,
-      },
-    ],
-  });
-
-player.on('ready', () => {
-  player.item(0, { autoplay: true });
-});
-```
-
-When the current item ends, the player advances to the next one automatically (set `autoAdvance: false` in setup to disable).
-
-## Basic transport controls
+## Core controls
 
 ```ts
 player.play();
 player.pause();
 player.stop();
+player.togglePlayback();
+
 player.next();
 player.previous();
-player.seekToIndex(2); // jump to the second item (1-based; seekToIndex(1) is the first)
-player.time(120); // seek to 2:00
-player.volume(60); // 0-100
+player.seekToIndex(2); // jump to a playlist item (1-based)
+
+player.time(120);      // seek to 2:00
+player.volume(60);     // 0-100
 player.mute();
 player.unmute();
 player.toggleMute();
+
 player.fullscreen(true);
 player.pip(true);
 ```
 
-## Auth-protected HLS
+See [API Methods](/nomercy-video-player/api-methods) for the full surface and the overloaded getter/setter pattern.
+
+## Listening to events
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-
-const player = nmplayer('main').setup({
-  playlist: [{ id: '1', url: 'https://protected.cdn.your-domain.com/stream.m3u8' }],
-  auth: {
-    bearerToken: () => myAuth.getAccessToken(),
-    refreshOnUnauthenticated: async () => {
-      await myAuth.refresh();
-      // bearerToken() is re-read automatically on the retry — no return value needed.
-    },
-  },
-});
-
-player.on('ready', () => {
-  player.item(0, { autoplay: true });
-});
+player.on('ready', () => { /* setup complete */ });
+player.on('time', ({ time }) => updateProgressBar(time / player.duration()));
+player.on('play', () => { /* started */ });
+player.on('pause', () => { /* paused */ });
+player.on('ended', () => { /* reached the end */ });
+player.on('level-switched', () => { /* HLS quality changed */ });
 ```
 
-The player injects `Authorization: Bearer <token>` on every HLS manifest and segment request.
-On 401, `refreshOnUnauthenticated` fires once and the request is retried.
-403 propagates, so the player never retries a 403.
-
-## Subtitles and multi-language audio
-
-Pass subtitle tracks per playlist item:
-
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-
-const player = nmplayer('main').setup({
-  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
-  defaultSubtitleLanguage: 'eng',
-  playlist: [
-    {
-      id: 'sintel',
-      title: 'Sintel',
-      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-      duration: 888,
-      subtitles: [
-        {
-          id: 'eng',
-          language: 'eng',
-          label: 'English',
-          url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
-        },
-        {
-          id: 'dut',
-          language: 'dut',
-          label: 'Dutch',
-          url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.dut.full.vtt',
-        },
-      ],
-      chapters: [
-        { index: 0, start: 0,   end: 196, title: 'Prologue' },
-        { index: 1, start: 196, end: 404, title: 'The Hunt' },
-        { index: 2, start: 404, end: 609, title: 'Dragon Fight' },
-        { index: 3, start: 609, end: 888, title: 'Epilogue' },
-      ],
-    },
-  ],
-});
-
-player.on('ready', () => {
-  player.item(0, { autoplay: true });
-});
-```
-
-For ASS/SSA subtitles with full typesetting, add `OctopusPlugin` from the `/plugins` subpath, see [Plugins: Octopus](/nomercy-video-player/plugins/octopus).
-
-## CDN embed (no bundler)
-
-The IIFE bundle exposes a `nmplayer` global.
-Built-in plugins are not included in the IIFE bundle, so install via npm and use ESM when you need them.
-The bundle expects `hls.js` as the `Hls` global, so load that script first.
-
-```html
-<div id="player" style="width:100%;aspect-ratio:16/9;background:#000"></div>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1.6.15/dist/hls.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@nomercy-entertainment/nomercy-video-player@rc/dist/nomercy-video-player.iife.js"></script>
-<script>
-  var player = window.nmplayer('player').setup({
-    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
-    playlist: [
-      {
-        id: 'sintel',
-        title: 'Sintel',
-        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-        duration: 888,
-      },
-    ],
-  });
-
-  player.on('ready', function () {
-    player.item(0, { autoplay: true });
-  });
-</script>
-```
-
-## Headless architecture in one paragraph
-
-The player is headless: a pure TypeScript engine with no built-in UI. It manages the HLS pipeline, queue, tracks, auth, and state, and communicates through typed events and CSS classes on the container element. Everything on screen is a plugin — `DesktopUiPlugin` is the first-party overlay; replace it, extend it, or build your own.
-
-All plugins share the same lifecycle. They are registered via `addPlugin(PluginClass)` before `setup()`, initialised during the setup pipeline, and torn down when `dispose()` is called.
-
-## State CSS classes on `.nomercyplayer`
-
-The core emits events and the container class mixin automatically reflects them as CSS classes on the `.nomercyplayer` element. You can style your own UI entirely with selectors — no JavaScript state polling required.
-
-| Class | When present |
-|---|---|
-| `playing` | Playback is running |
-| `paused` | Paused (including the initial idle state after `ready`) |
-| `buffering` | `waiting` or `stalled` fired; cleared on `canplay` |
-| `stopped` | `stop()` was called |
-| `ended` | Media reached end of file |
-| `muted` | Volume is muted |
-| `fullscreen` | Fullscreen is active |
-| `pip` | Picture-in-picture is active |
-| `theater` | Theater mode is active |
-| `active` | User activity detected (mouse move, key press); controls are visible |
-| `inactive` | Inactivity timeout elapsed; controls have auto-hidden |
-
-The playback state classes (`playing`, `paused`, `buffering`, `stopped`, `ended`) are mutually exclusive: each swap removes the others first. `theater` is toggled by the plugin via the same mechanism.
-
-Example CSS using only container-level classes:
-
-```css
-.nomercyplayer.playing  .my-play-icon { display: none; }
-.nomercyplayer.paused   .my-play-icon { display: block; }
-.nomercyplayer.buffering .my-spinner  { opacity: 1; }
-.nomercyplayer.inactive .my-controls  { opacity: 0; }
-```
-
-## Plugin lifecycle and when to add plugins
-
-Register plugins before calling `setup()`. The setup pipeline initialises them in registration order during the same tick.
-
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import {
-  DesktopUiPlugin,
-  KeyHandlerPlugin,
-} from '@nomercy-entertainment/nomercy-video-player/plugins';
-
-// All addPlugin() calls before setup() — initialised in registration order.
-const player = nmplayer('nomercy-player')
-  .addPlugin(DesktopUiPlugin)
-  .addPlugin(KeyHandlerPlugin)
-  .setup({
-    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
-    playlist: [{ id: 'sintel', url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8', duration: 888 }],
-  });
-```
-
-Both plugins here act on any playlist: `DesktopUiPlugin` mounts the UI, `KeyHandlerPlugin` binds keyboard control. Content-gated plugins such as `OctopusPlugin` (ASS/SSA only) are shown with content that exercises them in their own sections below — don't add them against media they can't act on.
-
-You can also call `addPlugin()` after `setup()`, in which case initialisation runs immediately. If you need to act on the result, register a `plugin:installed` listener on the player first, then call `addPlugin()`.
-
-Retrieve a plugin instance with `getPlugin(PluginClass)`:
-
-```ts
-import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
-
-const keyHandler = player.getPlugin(KeyHandlerPlugin);
-// keyHandler is typed as KeyHandlerPlugin | undefined (undefined if it was never added)
-```
-
-## Cleanup with dispose()
-
-Call `dispose()` when the player is no longer needed. It tears down the HLS engine, all plugins, the backend `<video>` element, and removes the player from the internal instance registry. Not calling `dispose()` in a single-page app leaks the HLS instance and keeps fetching segments.
-
-```ts
-// React / Vue component teardown
-onUnmounted(() => {
-  player.dispose();
-});
-
-// Plain JS
-window.addEventListener('beforeunload', () => {
-  player.dispose();
-});
-```
-
-After `dispose()` the instance is inert. Do not call methods on it.
-
-## KeyHandlerPlugin keyboard shortcuts
-
-`KeyHandlerPlugin` adds VLC-style keyboard control. Add it before `setup()` and it activates automatically — no extra configuration required.
-
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import {
-  DesktopUiPlugin,
-  KeyHandlerPlugin,
-} from '@nomercy-entertainment/nomercy-video-player/plugins';
-
-const player = nmplayer('nomercy-player')
-  .addPlugin(DesktopUiPlugin)
-  .addPlugin(KeyHandlerPlugin)
-  .setup({
-    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
-    playlist: [
-      {
-        id: 'sintel',
-        title: 'Sintel',
-        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-        duration: 888,
-      },
-    ],
-  });
-
-player.on('ready', () => {
-  player.item(0, { autoplay: true });
-});
-```
-
-Default bindings (all configurable by subclassing):
-
-| Key | Action |
-|---|---|
-| `Space` | Play / pause |
-| `ArrowLeft` / `ArrowRight` | Rewind / forward (default step) |
-| `Shift+ArrowLeft/Right` | Seek ±3 s |
-| `Alt+ArrowLeft/Right` | Seek ±10 s |
-| `Ctrl+ArrowLeft/Right` | Seek ±60 s |
-| `ArrowUp` / `ArrowDown` | Volume up / down |
-| `M` | Toggle mute |
-| `F` / `F11` | Toggle fullscreen |
-| `Escape` | Exit fullscreen |
-| `N` / `P` | Next / previous item |
-| `Shift+N` / `Shift+P` | Next / previous chapter |
-| `V` / `5` | Cycle subtitles |
-| `B` / `2` | Cycle audio tracks |
-| `]` / `[` | Speed up / slow down (uses `playbackRates` list) |
-| `=` | Reset playback speed to 1x |
-| `A` | Cycle aspect ratio |
-| `T` | Show current time as OSD message |
-| `S` | Stop |
-| `Shift+?` | Toggle keyboard shortcut overlay (when `DesktopUiPlugin` is present) |
-
-To disable all keyboard shortcuts without removing the plugin, pass `disableControls: true` in the player config.
-
-## OctopusPlugin: ASS/SSA subtitles
-
-`OctopusPlugin` renders ASS and SSA subtitles using libass via WebAssembly. The WASM worker is heavy at runtime, so only add the plugin when your content uses styled subtitles. VTT subtitles are handled natively without this plugin.
-
-`@nomercy-entertainment/nomercy-subtitle-octopus` ships as a regular dependency of the player, so it is always installed alongside it — there is nothing extra to add. The plugin loads it through a guarded dynamic import; in the unlikely event that import fails at runtime it logs a warning and marks itself degraded, and playback continues with VTT subtitles unaffected.
-
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import {
-  DesktopUiPlugin,
-  OctopusPlugin,
-} from '@nomercy-entertainment/nomercy-video-player/plugins';
-
-const player = nmplayer('nomercy-player')
-  .addPlugin(DesktopUiPlugin)
-  .addPlugin(OctopusPlugin)
-  .setup({
-    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Anime',
-    playlist: [
-      {
-        id: 'rail-wars-s00e00',
-        title: 'Rail Wars! S00E00',
-        url: '/Rail.Wars!.(2014)/Rail.Wars!.S00E00/Rail.Wars!.(2014).S00E00.NoMercy.m3u8',
-        duration: 1440,
-        subtitles: [
-          {
-            id: 'eng',
-            language: 'eng',
-            label: 'English',
-            url: '/Rail.Wars!.(2014)/Rail.Wars!.S00E00/subtitles/Rail.Wars!.(2014).S00E00.NoMercy.eng.full.ass',
-          },
-        ],
-        fonts: [
-          { file: '/Rail.Wars!.(2014)/Rail.Wars!.S00E00/fonts.json' },
-        ],
-      },
-    ],
-  });
-
-player.on('ready', () => {
-  player.item(0, { autoplay: true });
-});
-```
-
-The `fonts` field on the playlist item points to a `fonts.json` manifest listing the font files the ASS script requires. `OctopusPlugin` fetches the manifest and each font binary through the kit's auth pipeline (same bearer token as HLS segments), then passes them to the libass worker as blob URLs. No separate font-hosting setup is needed when your media server serves fonts with auth.
-
-## Multi-track playlist item
-
-A complete item with subtitles in multiple languages, chapters, and a sprite thumbnail sheet:
-
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import {
-  DesktopUiPlugin,
-  KeyHandlerPlugin,
-} from '@nomercy-entertainment/nomercy-video-player/plugins';
-
-const player = nmplayer('nomercy-player')
-  .addPlugin(DesktopUiPlugin)
-  .addPlugin(KeyHandlerPlugin)
-  .setup({
-    baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
-    defaultSubtitleLanguage: 'eng',
-    playlist: [
-      {
-        id: 'sintel',
-        title: 'Sintel',
-        url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-        image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
-        duration: 888,
-        subtitles: [
-          {
-            id: 'eng',
-            language: 'eng',
-            label: 'English',
-            url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
-          },
-          {
-            id: 'dut',
-            language: 'dut',
-            label: 'Dutch',
-            url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.dut.full.vtt',
-          },
-        ],
-        chapters: [
-          { index: 0, start: 0,   end: 196, title: 'Prologue' },
-          { index: 1, start: 196, end: 404, title: 'The Hunt' },
-          { index: 2, start: 404, end: 609, title: 'Dragon Fight' },
-          { index: 3, start: 609, end: 888, title: 'Epilogue' },
-        ],
-        previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.vtt',
-      },
-    ],
-  });
-
-player.on('ready', () => {
-  player.item(0, { autoplay: true });
-});
-```
-
-`defaultSubtitleLanguage: 'eng'` auto-selects the English track after `mediaReady` fires. Language matching is exact-first, then prefix (for example `'en'` matches `'en-US'`).
-
-`previewSpriteUrl` points to a WebVTT sprite sheet manifest. `DesktopUiPlugin` reads it to render seek-preview thumbnails on the progress bar hover pop.
-
-## What to read next
-
-- [Configuration](/nomercy-video-player/configuration): every config option and default
-- [API Methods](/nomercy-video-player/api-methods): full method reference
-- [Events](/nomercy-video-player/events): all events and payload shapes
-- [HLS](/nomercy-video-player/hls): ABR, HDR-aware quality levels, multi-monitor
-- [Plugins: Subtitle Overlay](/nomercy-video-player/plugins/subtitle-overlay): VTT + ASS/SSA rendering
-- [Plugins: Desktop UI](/nomercy-video-player/plugins/desktop-ui): built-in UI plugin details
-- [Recipes: Subtitles](/nomercy-video-player/recipes/subtitles): multi-language subtitles, ASS/SSA, style customization
-- [Recipes: Chapters](/nomercy-video-player/recipes/chapters): chapter markers on the seek bar
-- [Recipes: Quality Selection](/nomercy-video-player/recipes/quality-selection): manual ABR override, HDR-aware menus
+See [Events](/nomercy-video-player/events) for the full list and payload shapes.
 
 ## Next steps
 
-- [Build your own UI](/nomercy-video-player/guides/build-ui-overview) — replace `DesktopUiPlugin` with your own controls, step by step.
-- [DesktopUiPlugin](/nomercy-video-player/plugins/desktop-ui) — configure the built-in UI instead.
+- [Auto-advance, playlists & queue](/nomercy-video-player/recipes/playlist-and-queue)
+- [Subtitles & audio tracks](/nomercy-video-player/recipes/subtitles)
+- [Quality selection](/nomercy-video-player/recipes/quality-selection)
+- [Keyboard shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts)
+- [Auth-protected streams](/nomercy-video-player/recipes/authentication)
+- [Cleanup & disposal](/nomercy-video-player/recipes/lifecycle-and-cleanup)
+- [Build your own UI](/nomercy-video-player/guides/build-ui-overview)
 - [Configuration](/nomercy-video-player/configuration) — every `setup()` option and its default.
-- [API Methods](/nomercy-video-player/api-methods) — the full method surface on the player.
