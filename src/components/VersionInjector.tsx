@@ -60,17 +60,15 @@ function compareSemver(a: string, b: string): number {
 
 async function fetchVersion(pkg: string): Promise<string | null> {
 	try {
-		const res = await fetch(`https://registry.npmjs.org/${pkg}`);
+		// Lightweight: read just the dist-tags map (tiny) and take the highest
+		// semver across the tags, so the newest published line — including the
+		// v2 `rc` — wins, without downloading the full multi-MB packument.
+		const res = await fetch(`https://registry.npmjs.org/-/package/${pkg.replace('/', '%2F')}/dist-tags`);
 		if (!res.ok) return null;
-		const data = (await res.json()) as {
-			versions?: Record<string, unknown>;
-			'dist-tags'?: Record<string, string>;
-		};
-		const all = Object.keys(data.versions ?? {});
-		if (all.length > 0) {
-			return all.reduce((best, v) => (compareSemver(v, best) > 0 ? v : best));
-		}
-		return data['dist-tags']?.latest ?? null;
+		const tags = (await res.json()) as Record<string, string>;
+		const values = Object.values(tags).filter(Boolean);
+		if (values.length === 0) return null;
+		return values.reduce((best, v) => (compareSemver(v, best) > 0 ? v : best));
 	} catch {
 		return null;
 	}

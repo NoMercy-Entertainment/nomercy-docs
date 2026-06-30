@@ -7,6 +7,16 @@ import { fileURLToPath } from "url";
 
 import { remarkPlugins } from "./src/lib/mdx/remark.ts";
 import { rehypePlugins } from "./src/lib/mdx/rehype.ts";
+import { resolveVersions } from "./scripts/resolve-versions.mjs";
+
+// Bake the newest published npm versions (incl. the v2 rc) into
+// src/data/versions.json before the build reads them, so the remark-version-tags
+// plugin can write the real version into install / CDN snippets. Build only —
+// keeps `astro dev` startup offline and fast. Never throws; on a registry
+// failure the committed versions.json seed is used unchanged.
+if (process.argv.includes("build")) {
+  await resolveVersions();
+}
 import { recmaPlugins } from "./src/lib/mdx/recma.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

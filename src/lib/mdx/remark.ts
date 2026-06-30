@@ -11,6 +11,7 @@ import { remarkHero } from './remark-hero';
 import { remarkCallout } from './remark-callout';
 import { remarkLogoCards } from './remark-logo-cards';
 import { remarkCleanup } from './remark-cleanup';
+import { remarkVersionTags } from './remark-version-tags';
 
 // Plugin to extract title from code fence meta and store it for rehype
 function remarkExtractCodeTitle() {
@@ -32,6 +33,7 @@ function remarkExtractCodeTitle() {
 
 export const remarkPlugins = [
   mdxAnnotations.remark,
+  remarkVersionTags, // rewrite our package version tags (@rc) to the resolved npm version at build time
   remarkButton, // transform ::button {{ ... }} to Button
   remarkProperties, // transform ::properties / ::property to Properties/Property
   remarkCodeGroup, // transform ::code-group to CodeGroup
