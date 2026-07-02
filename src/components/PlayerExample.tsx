@@ -108,7 +108,10 @@ export function PlayerExample({ snippet }: PlayerExampleProps) {
   }, [snippet, containerId]);
 
   return (
-    <div className="not-prose my-6 overflow-hidden rounded-2xl bg-black ring-1 ring-zinc-900/10 dark:ring-white/10">
+    <div
+      data-player-example={snippet}
+      className="not-prose my-6 overflow-hidden rounded-2xl bg-black ring-1 ring-zinc-900/10 dark:ring-white/10"
+    >
       <div
         ref={containerRef}
         id={containerId}

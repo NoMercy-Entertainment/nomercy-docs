@@ -1,4 +1,5 @@
 import { mdxAnnotations } from 'mdx-annotations';
+import remarkDirective from 'remark-directive';
 import remarkGfm from 'remark-gfm';
 import { visit } from 'unist-util-visit';
 import type { Root, Code } from 'mdast';
@@ -6,6 +7,7 @@ import { remarkButton } from './remark-button';
 import { remarkRowCol } from './remark-row-col';
 import { remarkProperties } from './remark-properties';
 import { remarkCodeGroup } from './remark-code-group';
+import { remarkSnippet } from './remark-snippet';
 import { remarkIconCards } from './remark-icon-cards';
 import { remarkHero } from './remark-hero';
 import { remarkCallout } from './remark-callout';
@@ -32,9 +34,11 @@ function remarkExtractCodeTitle() {
 
 export const remarkPlugins = [
   mdxAnnotations.remark,
+  remarkDirective, // parse :::name{attrs} directive syntax (consumed by remarkSnippet)
   remarkButton, // transform ::button {{ ... }} to Button
   remarkProperties, // transform ::properties / ::property to Properties/Property
   remarkCodeGroup, // transform ::code-group to CodeGroup
+  remarkSnippet, // transform :::snippet{file="..."} to a code block + PlayerExample
   remarkIconCards, // transform ::IconCards to IconCards component
   remarkHero, // transform ::Hero to Hero component
   remarkCallout, // transform ::Callout to Callout component

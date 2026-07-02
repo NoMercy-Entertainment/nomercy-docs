@@ -1,6 +1,6 @@
 /**
  * MDX Components
- * 
+ *
  * Central export for all MDX components used in documentation.
  * Import as: import * as mdxComponents from '@/components/protocol'
  */
@@ -14,7 +14,9 @@ import { Prose } from './Prose';
 
 /** Custom anchor - standard link behavior */
 export const a = ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-  <a href={href} {...props}>{children}</a>
+  <a href={href} {...props}>
+    {children}
+  </a>
 );
 
 /** Custom h2 - adds anchor links and proper styling */
@@ -24,7 +26,7 @@ export const h2 = (props: Omit<React.ComponentPropsWithoutRef<typeof Heading>, '
 
 /** Article wrapper — no flex stretching, no feedback widget. Footer chrome
  *  (prev/next nav, copyright) is owned by the page template / Layout. */
-export function wrapper({ children }: { children: React.ReactNode; }) {
+export function wrapper({ children }: { children: React.ReactNode }) {
   return (
     <article className="pt-16 pb-10">
       <Prose>{children}</Prose>
@@ -55,3 +57,6 @@ export { LogoCards, LogoCard } from './LogoCards';
 
 // Diagram components
 export { LayerStack } from './LayerStack';
+
+// Live player island (emitted by the :::snippet directive, see remark-snippet.ts)
+export { PlayerExample } from '../PlayerExample';
