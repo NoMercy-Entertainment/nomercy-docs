@@ -180,11 +180,7 @@ export default defineConfig({
       alias: {
         "@": path.resolve(__dirname, "./src"),
       },
-      // Ensure a single React instance to avoid "Invalid hook call" from duplicate React
       dedupe: ["react", "react-dom", "react/jsx-runtime"],
-    },
-    ssr: {
-      noExternal: ["react", "react-dom"],
     },
     server: {
       watch: {
