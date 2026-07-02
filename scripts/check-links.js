@@ -20,7 +20,7 @@ const root = path.resolve(__dirname, '..');
 const contentDir = path.join(root, 'src', 'content');
 
 const COLLECTIONS = [
-  'nomercy-player-kit',
+  'nomercy-player-core',
   'nomercy-video-player',
   'nomercy-music-player',
   'nomercy-media-server',
@@ -40,7 +40,7 @@ function walk(dir) {
 }
 
 // Collections whose served URL base differs from the folder/collection name.
-const URL_BASE = { 'nomercy-player-kit': 'nomercy-player-core' };
+const URL_BASE = {};
 
 // Turn a content file path into the URL Astro serves it at.
 // `<collection>/en/foo/bar.mdx` -> `/<urlBase>/foo/bar`; `index` -> root.

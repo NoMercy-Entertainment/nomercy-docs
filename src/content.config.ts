@@ -26,8 +26,8 @@ const pageSchema = z
   .catchall(z.any());
 
 export const collections = {
-  'nomercy-player-kit': defineCollection({
-    loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/nomercy-player-kit" }),
+  'nomercy-player-core': defineCollection({
+    loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/nomercy-player-core" }),
     schema: pageSchema,
   }),
   'nomercy-video-player': defineCollection({

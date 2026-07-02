@@ -9,7 +9,7 @@ const navLookup = readNavLookup();
 
 // All content directories to index
 const contentDirs = [
-  { dir: './src/content/nomercy-player-kit',   baseUrl: '/nomercy-player-core',  product: 'nomercy-player-kit' },
+  { dir: './src/content/nomercy-player-core',  baseUrl: '/nomercy-player-core',  product: 'nomercy-player-core' },
   { dir: './src/content/nomercy-video-player',  baseUrl: '/nomercy-video-player',  product: 'nomercy-video-player' },
   { dir: './src/content/nomercy-music-player',  baseUrl: '/nomercy-music-player',  product: 'nomercy-music-player' },
   { dir: './src/content/nomercy-media-server',  baseUrl: '/nomercy-media-server',  product: 'nomercy-media-server' },
@@ -19,7 +19,7 @@ const contentDirs = [
 ];
 
 const productLabels = {
-  'nomercy-player-kit':  'Core',
+  'nomercy-player-core': 'Core',
   'nomercy-video-player': 'Video Player',
   'nomercy-music-player': 'Music Player',
   'nomercy-media-server': 'Media Server',

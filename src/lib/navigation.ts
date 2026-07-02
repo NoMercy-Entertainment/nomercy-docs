@@ -24,7 +24,7 @@ export type Product =
   | 'nomercy-media-server'
   | 'nomercy-app-web'
   | 'nomercy-app-android'
-  | 'nomercy-player-kit'
+  | 'nomercy-player-core'
   | 'nomercy-video-player'
   | 'nomercy-music-player'
   | 'nomercy-api';
@@ -46,7 +46,7 @@ const PRODUCTS: Array<{ product: Product; label: string; collection: string; hre
   { product: 'nomercy-media-server',  label: 'Server',    collection: 'nomercy-media-server',  href: '/nomercy-media-server/overview',  order: 1 },
   { product: 'nomercy-app-web',       label: 'Web App',   collection: 'nomercy-app-web',        href: '/nomercy-app-web/overview',        order: 2 },
   { product: 'nomercy-app-android',   label: 'Android',   collection: 'nomercy-app-android',    href: '/nomercy-app-android/overview',    order: 3 },
-  { product: 'nomercy-player-kit',    label: 'Core',      collection: 'nomercy-player-kit',     href: '/nomercy-player-core/overview',    order: 4, urlBase: 'nomercy-player-core' },
+  { product: 'nomercy-player-core',   label: 'Core',      collection: 'nomercy-player-core',    href: '/nomercy-player-core/overview',    order: 4 },
   { product: 'nomercy-video-player',  label: 'Video',     collection: 'nomercy-video-player',   href: '/nomercy-video-player/overview',   order: 5 },
   { product: 'nomercy-music-player',  label: 'Music',     collection: 'nomercy-music-player',   href: '/nomercy-music-player/overview',   order: 6 },
   { product: 'nomercy-api',           label: 'API',       collection: 'nomercy-api',            href: '/nomercy-api/overview',            order: 7 },

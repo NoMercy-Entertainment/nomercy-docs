@@ -101,7 +101,7 @@ test('the same token is fine on its own medium', () => {
 test('core is exempt from the cross-medium token check', () => {
   const violations = checkCrossTokenViolations(
     page({
-      collection: 'nomercy-player-kit',
+      collection: 'nomercy-player-core',
       body: 'This mentions scrobbler and chapter-source in passing.',
     }),
   );

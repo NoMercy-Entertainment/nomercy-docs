@@ -45,10 +45,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.resolve(__dirname, '..');
 const contentDir = path.join(root, 'src', 'content');
 
-// Real directory/collection name is `nomercy-player-kit` (see content.config.ts,
-// nav-structure.ts); it serves at the public URL `/nomercy-player-core`, which is
-// where the package name diverges from the folder name.
-export const CORE_COLLECTION = 'nomercy-player-kit';
+export const CORE_COLLECTION = 'nomercy-player-core';
 export const TRIO_COLLECTIONS = [CORE_COLLECTION, 'nomercy-video-player', 'nomercy-music-player'];
 
 export const WORD_BUDGET = 8000;

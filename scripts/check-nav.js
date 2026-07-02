@@ -21,7 +21,7 @@ const COLLECTIONS = [
   'nomercy-media-server',
   'nomercy-app-web',
   'nomercy-app-android',
-  'nomercy-player-kit',
+  'nomercy-player-core',
   'nomercy-video-player',
   'nomercy-music-player',
   'nomercy-api',
