@@ -57,17 +57,10 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Plugins & Adapters", pages: ['plugins-adapters/audio-graph', 'plugins-adapters/equalizer', 'plugins-adapters/mixer', 'plugins-adapters/canvas', 'plugins-adapters/spectrum', 'plugins-adapters/visualization', 'plugins-adapters/cast-sender', 'plugins-adapters/embed', 'plugins-adapters/key-handler', 'plugins-adapters/media-session', 'plugins-adapters/message', 'plugins-adapters/tab-leader', 'plugins-adapters/adapter-storage', 'plugins-adapters/adapter-platform', 'plugins-adapters/adapter-stream-source', 'plugins-adapters/adapter-url-resolver', 'plugins-adapters/adapter-translator', 'plugins-adapters/adapter-cue-parser', 'plugins-adapters/adapter-preload-strategy', 'plugins-adapters/adapter-transition-strategy', 'plugins-adapters/adapter-shuffle-strategy', 'plugins-adapters/adapter-realtime-channel'] },
     { group: "Reference", pages: ['reference/composition', 'reference/config', 'reference/events', 'reference/types', 'reference/errors', 'reference/utilities'] },
   ],
+  // v2 rebuild (see .rebuild/progress.md) — full 7-stage arc: introduction,
+  // quickstart, tour, build, recipes, plugins-adapters, reference. Stages 1-2 only so far.
   'nomercy-video-player': [
-    { group: "Getting Started", pages: ['overview', 'installation', 'quickstart'] },
-    { group: "Building", pages: ['plugin-development', 'guides/build-ui-overview', 'guides/build-ui-1-shell-and-layout', 'guides/build-ui-2-play-pause', 'guides/build-ui-3-progress-bar', 'guides/build-ui-4-time-and-skip', 'guides/build-ui-5-volume', 'guides/build-ui-6-title-bar', 'guides/build-ui-7-fullscreen-and-speed', 'guides/build-ui-8-selectors', 'guides/build-ui-9-seek-preview', 'guides/build-ui-10-touch-zones'] },
-    { group: "Framework Integration", pages: ['framework-integration', 'framework-vue', 'framework-react', 'framework-svelte', 'framework-angular', 'framework-vanilla'] },
-    { group: "Plugins", pages: ['plugins/desktop-ui', 'plugins/subtitle-overlay', 'plugins/octopus', 'plugins/touch-zones', 'plugins/key-handler', 'plugins/skipper', 'plugins/drm', 'plugins/live-transcoding', 'plugins/cast-sender', 'plugins/media-session', 'plugins/tv-key-handler', 'plugins/tab-leader', 'plugins/message', 'plugins/embed', 'plugins/audio-graph', 'plugins/v1-compat'] },
-    { group: "API Reference", pages: ['configuration', 'api-methods', 'api/factory', 'state-classes', 'api/playback-state', 'api/aspect-ratio', 'api/cycling', 'api/backend', 'api/kit-methods', 'api/utility-functions', 'events', 'types', 'playlist-item'] },
-    { group: "Adapters", pages: ['adapters/video-backend', 'adapters/thumbnail-source', 'adapters/chapter-source', 'adapters/subtitle-style-store'] },
-    { group: "Recipes", pages: ['recipes/overview', 'recipes/subtitles', 'recipes/chapters', 'recipes/quality-selection', 'recipes/playlist-and-queue', 'recipes/keyboard-shortcuts', 'recipes/authentication', 'recipes/lifecycle-and-cleanup', 'recipes/live-transcoding'] },
-    { group: "Advanced", pages: ['hls', 'advanced/server-side-rendering', 'advanced/custom-adapter', 'advanced/embedding', 'advanced/distributed-playback', 'advanced/performance', 'advanced/migration-from-other-players'] },
-    { group: "Troubleshooting", pages: ['troubleshooting', 'faq'] },
-    { group: "Migration", pages: ['migration-v1-v2'] },
+    { group: "Getting Started", pages: ['introduction', 'quickstart'] },
   ],
   'nomercy-music-player': [
     { group: "Getting Started", pages: ['overview', 'installation', 'quickstart'] },

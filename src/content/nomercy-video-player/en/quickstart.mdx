@@ -1,114 +1,59 @@
 ---
 title: 'Quick Start'
-description: 'Install nomercy-video-player and create a working video player with HLS playback and transport controls. Copy-paste runs as-is.'
+description: 'Install nomercy-video-player and play a real HLS video with the baseUrl pattern. Copy-paste that works first try.'
 ---
 
 # Video Player: Quick Start
 
-A working video player in a few lines: mounted in your own element, playing an HLS stream, with the play/pause, seek bar, volume, and fullscreen controls from `DesktopUiPlugin`.
+This gets a real video playing in the preview below: Sintel, streamed over HLS, using the baseUrl pattern every NoMercy player and app is built around. Everything on this page is the same code you would copy into your own project.
 
 ## Install
 
 ```
-npm install @nomercy-entertainment/nomercy-video-player@rc
+npm install @nomercy-entertainment/nomercy-video-player@rc hls.js
 ```
 
-`hls.js` installs automatically with the player — nothing extra for the npm / bundler path. See [Installation](/nomercy-video-player/installation) for the CDN exception.
+`hls.js` is a peer dependency. `nomercy-video-player` dynamically imports it for every browser except Safari, which plays HLS natively; without it installed, HLS playback fails outside Safari.
 
-## Minimal working player
+## Play your first video
+
+:::snippet{file="quickstart"}
+:::
+
+That is a real player, playing a real HLS stream fetched from `baseUrl` at request time. `muted` and `autoPlay` are set here only so the preview above starts without a click; drop both for a normal app and call `player.play()` from your own UI on a user gesture instead.
+
+## The baseUrl pattern
+
+`baseUrl` is the one config field every playlist should set. Item paths (`file` in the snippet above) stay relative, exactly the shape a real media server sends, and the player prepends `baseUrl` as a plain string prefix, keeping the whole base path:
+
+```ts
+baseUrl: 'https://your-server.example.com/api/files',
+playlist: [{ /* ... */ file: '/Movie.(2020)/Movie.(2020).m3u8' }],
+```
+
+Move to a different server, a different environment, a signed-URL CDN, and you change one config value; nothing in your catalogue is hardcoded to today's origin. The server sends the base without a trailing slash and paths with a leading slash, so never pre-join an absolute URL into an item yourself. That is the player's job, and doing it twice breaks the moment the base changes.
+
+## Mounting into your own container
+
+The Sintel player above mounts into a container the example creates for you. In your own app, render a container and call the same factory:
+
+```html
+<div id="player"></div>
+```
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
-import type {
-  VideoPlayerConfig,
-  VideoPlaylistItem,
-} from '@nomercy-entertainment/nomercy-video-player';
 
-const items: VideoPlaylistItem[] = [
-  {
-    id: 'sintel',
-    title: 'Sintel',
-    url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-    image: 'https://image.tmdb.org/t/p/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
-    duration: 888,
-    subtitles: [
-      {
-        id: 'eng',
-        label: 'English',
-        url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
-        language: 'eng',
-      },
-    ],
-    chapters: [
-      { index: 0, start: 0,   end: 196, title: 'Prologue' },
-      { index: 1, start: 196, end: 404, title: 'The Hunt' },
-      { index: 2, start: 404, end: 609, title: 'Dragon Fight' },
-      { index: 3, start: 609, end: 888, title: 'Epilogue' },
-    ],
-  },
-];
-
-const config: VideoPlayerConfig = {
-  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
-  playlist: items,
-};
-
-const player = nmplayer('nomercy-player')
-  .addPlugin(DesktopUiPlugin)
-  .setup(config);
-
-player.on('ready', () => {
-  player.item(0, { autoplay: true });
+const player = nmplayer('player').setup({
+  baseUrl: 'https://your-server.example.com/api/files',
+  playlist: [/* ... */],
 });
+
+await player.ready();
 ```
 
-The `DesktopUiPlugin` mounts the full built-in UI: play/pause, seek bar, volume, fullscreen, subtitle and quality menus. Remove it if you are building a custom UI. The inline `playlist:` array is auto-queued during setup, and `item(0, { autoplay: true })` selects the first item and starts playback.
-
-## Core controls
-
-```ts
-player.play();
-player.pause();
-player.stop();
-player.togglePlayback();
-
-player.next();
-player.previous();
-player.seekToIndex(2); // jump to a playlist item (1-based)
-
-player.time(120);      // seek to 2:00
-player.volume(60);     // 0-100
-player.mute();
-player.unmute();
-player.toggleMute();
-
-player.fullscreen(true);
-player.pip(true);
-```
-
-See [API Methods](/nomercy-video-player/api-methods) for the full surface and the overloaded getter/setter pattern.
-
-## Listening to events
-
-```ts
-player.on('ready', () => { /* setup complete */ });
-player.on('time', ({ time }) => updateProgressBar(time / player.duration()));
-player.on('play', () => { /* started */ });
-player.on('pause', () => { /* paused */ });
-player.on('ended', () => { /* reached the end */ });
-player.on('level-switched', () => { /* HLS quality changed */ });
-```
-
-See [Events](/nomercy-video-player/events) for the full list and payload shapes.
+`nmplayer(id)` either mounts a new player into `document.getElementById(id)` or returns the instance already registered under that id, so calling it twice for the same id is always safe.
 
 ## Next steps
 
-- [Auto-advance, playlists & queue](/nomercy-video-player/recipes/playlist-and-queue)
-- [Subtitles & audio tracks](/nomercy-video-player/recipes/subtitles)
-- [Quality selection](/nomercy-video-player/recipes/quality-selection)
-- [Keyboard shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts)
-- [Auth-protected streams](/nomercy-video-player/recipes/authentication)
-- [Cleanup & disposal](/nomercy-video-player/recipes/lifecycle-and-cleanup)
-- [Build your own UI](/nomercy-video-player/guides/build-ui-overview)
-- [Configuration](/nomercy-video-player/configuration) — every `setup()` option and its default.
+- [What is nomercy-video-player](/nomercy-video-player/introduction): the setup-then-freedom model, and how far the plugin system and your own overlay can take you from here.

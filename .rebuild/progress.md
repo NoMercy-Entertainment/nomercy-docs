@@ -7,9 +7,13 @@ Altitude: core = compose-your-own-player (under the hood); video/music = consume
 ## Status
 - [x] core content: DONE, all 7 arc stages (intro, quickstart, tour, build, recipes,
   plugins-adapters, reference). check-docs no longer reports ARC-SECTION-MISSING for core.
-- [ ] video content
+- [ ] video content: intro+quickstart done (2/7 stages), tour/build/recipes/plugins-adapters/reference remain
 - [ ] music content
 - [ ] final cross-library verify (check-docs + build + nav + a11y)
+checkpoint (uncommitted): video intro+quickstart — reused src/examples/quickstart.ts + media.ts
+(no new example needed) + nav-structure.ts Getting Started group + navigation.ts/index.astro/
+core's introduction.mdx+reference/utilities.mdx cross-link fixes (/overview -> /introduction).
+See .rebuild/video-intro-report.md for full detail.
 checkpoint e69b6e9: core intro+quickstart + baseUrl fix (core republished rc.21, join keeps base path)
 checkpoint (uncommitted): core tour/* (10 pages: lifecycle, event-bus, transport, time-and-state, queue,
 plugin-base, adapters, i18n, cue-parsers, errors) + 11 new src/examples/tour-*.ts + tour-player.ts shared
