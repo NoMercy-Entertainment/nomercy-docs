@@ -1,0 +1,57 @@
+---
+title: 'Reference: Events'
+description: 'VideoEventMap in full: every video-specific event and payload, layered on the kit BaseEventMap. Curated from src/types.ts.'
+---
+
+{/* Source: packages/nomercy-video-player/src/types.ts */}
+
+# Reference: Events
+
+`VideoEventMap<T>` extends the kit's [`BaseEventMap`](/nomercy-player-core/reference/events) (transport, queue, volume, i18n, plugins, and the rest, unchanged for video). This page is only the events that exist because the medium is video, [Playback State & Events](/nomercy-video-player/tour/state-events) is the narrative walkthrough of the same list.
+
+## Playback signals
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `firstFrame` | `void` | The first decoded frame paints. |
+| `waiting` | `void` | Backend buffering started. |
+| `canplay` | `void` | Backend can resume playback. |
+| `stalled` | `void` | Backend stalled fetching data. |
+
+## Quality & tracks
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `quality:requested` | `{ level: number \| 'auto' }` | A `quality()` call was made, before the backend confirms. Video-specific, fires ahead of the kit's own `'level-switched'`. |
+| `levels` | `{ levels: QualityLevel[] }` | HLS manifest parsed, the quality list is populated. May fire after `mediaReady`, subscribe here rather than reading `qualityLevels()` at ready time. |
+| `audioTracks` | `{ tracks: AudioTrack[] }` | Audio-track list is populated. |
+| `subtitleCue` | `SubtitleCueChange` | Every cue change, sidecar VTT or native text track alike, the single channel every subtitle renderer plugin subscribes to. |
+
+## Display state
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `pip` | `{ active: boolean }` | Picture-in-picture toggled and settled. |
+| `theater` | `{ active: boolean }` | Theater mode toggled. |
+| `fullscreen` | `{ active: boolean }` | Fullscreen toggled and settled. |
+| `aspectRatio` | `{ value: Stretching }` | `aspectRatio()` or `cycleAspectRatio()` changed the object-fit mode. |
+| `videoRect` | `{ rect: VideoRect \| null }` | The displayed content rectangle changed, driven by `mediaReady`, `duration`, `fullscreen`, and a `ResizeObserver` on the container and video element. Overlay plugins (subtitles, letterbox borders, click-to-seek layers) align to this instead of maintaining their own observer. |
+
+## Segments
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `segmentBoundary` | `{ startSec: number; endSec: number; onEnd: SegmentEndBehaviour }` | A `playSegment()` window's `endSec` is reached, always fires regardless of `onEnd` mode. |
+
+## OSD & navigation
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `display-message` | `{ text: string; ms?: number }` | An OSD toast is requested. The active UI plugin (`DesktopUiPlugin`, `TvKeyHandlerPlugin`) renders it, the player itself has no OSD chrome. |
+| `remove-message` | `undefined` | Dismiss the active toast before its duration elapses. |
+| `back` | `void` | Navigation intent from a UI plugin's back button. The player has no navigation stack, a consumer listener handles routing. Visible on the UI only when at least one listener is registered. |
+| `close` | `void` | Dismissal intent from a UI plugin's close button. Same visibility rule as `back`. |
+
+## Next steps
+
+- [Reference: Types](/nomercy-video-player/reference/types): `VideoPlaylistItem`, the enums these payloads reference, and every other domain type.

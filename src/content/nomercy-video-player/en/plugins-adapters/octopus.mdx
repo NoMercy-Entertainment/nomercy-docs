@@ -1,0 +1,68 @@
+---
+title: 'Plugin: Octopus (ASS/SSA Subtitles)'
+description: 'OctopusPlugin: libass-based ASS/SSA rendering via the NoMercy nomercy-subtitle-octopus fork, embedded-font support, and graceful degradation when the peer is absent.'
+---
+
+{/* Source: packages/nomercy-video-player/src/plugins/octopus/index.ts */}
+
+# Plugin: Octopus (ASS/SSA Subtitles)
+
+VTT subtitles render out of the box through [`SubtitleOverlayPlugin`](/nomercy-video-player/plugins-adapters/subtitle-overlay). ASS/SSA (the format anime releases and many other fansubs ship, carrying fonts, positioning, and karaoke effects VTT can't express) needs an actual libass renderer. `OctopusPlugin` (id `'octopus'`) is that renderer, a bridge over `@nomercy-entertainment/nomercy-subtitle-octopus`, the NoMercy fork of libass-wasm with auth pre-fetch, cross-origin worker support, and canvas geometry fixes built in.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `workerUrl` | `string` | bundled `public/` URL | Modern (WebAssembly) worker script. |
+| `legacyWorkerUrl` | `string` | — | Fallback for browsers without WebAssembly. Optional, the modern path alone is fine for current browsers. |
+| `fallbackFont` | `string` | — | Font used when a subtitle requests one not in the resolved font set. |
+| `fonts` | `string[]` | `[]` | Plugin-level static font URLs, in addition to whatever the playlist item's own `fonts` field resolves. |
+| `targetFps` | `number` | — | Renderer target FPS. |
+| `renderMode` | `NMOctopusOptions['renderMode']` | `'wasm-blend'` | Rendering strategy passed straight to the underlying renderer. |
+| `lazyFileLoading` | `boolean` | — | Lazy-load subtitle file chunks, useful for very large ASS files. |
+| `prescaleFactor` | `number` | — | Internal scaler ratio. |
+| `renderAhead` | `number` | `10` | Frames the renderer pre-computes ahead of `currentTime`. Higher smooths heavy ASS effects at the cost of memory. |
+| `debug` | `boolean` | — | Toggle debug logging in the upstream worker. |
+
+## Activation flow
+
+The plugin listens to the player's `'subtitle'` event, when a track is selected, it resolves the URL from the current item's `subtitles[idx]` and checks the extension. Non-ASS/SSA URLs tear the renderer down (native `textTracks` or `SubtitleOverlayPlugin` handle those instead), so `OctopusPlugin` and `SubtitleOverlayPlugin` coexist safely, whichever format is actually selected drives the correct one.
+
+```ts
+player.addPlugin(OctopusPlugin, {
+  renderAhead: 15,
+});
+await player.ready();
+await player.subtitle(0); // ASS track: Octopus takes over; VTT track: it stays inert
+```
+
+For an ASS file that isn't part of the playlist item's `subtitles` array at all, call the plugin's own `subtitle(url)` directly:
+
+```ts
+const octopus = player.getPlugin(OctopusPlugin);
+await octopus?.subtitle('https://media.example.com/subs/movie.ass');
+```
+
+## Font resolution
+
+Fonts come from the item's typed `fonts` field, either a `fonts.json` manifest URL or a list of direct font file URLs, see [`FontTrackRef`](/nomercy-video-player/reference/types). Manifest entries and direct entries can both be present; the plugin fetches whichever is there, resolves each through the player's `resolveUrl` pipeline (so `baseUrl` and auth apply), and falls back to the plugin-level static `fonts` option when the item has none.
+
+## Rules & restrictions
+
+- `@nomercy-entertainment/nomercy-subtitle-octopus` is a regular dependency of `nomercy-video-player`, it ships with the package, it is not an optional peer you need to install separately.
+- All network I/O for the subtitle body and font binaries goes through the kit's auth-aware `fetch`, the libass worker itself receives pre-fetched content as blob URLs or inline strings, it never performs authenticated XHR of its own.
+- If the dynamic import of the renderer package fails for any reason, the plugin degrades silently: it logs one warning and every subsequent `subtitle()` / `fonts()` call becomes a no-op instead of throwing.
+- Blob URLs created for font binaries are tracked and revoked automatically when the renderer tears down (item change, track change, plugin dispose), nothing to clean up manually.
+
+## How to extend it
+
+The renderer instance itself is exposed for advanced consumers that need to reach into libass directly, the plugin retains lifecycle ownership either way:
+
+```ts
+const octopus = player.getPlugin(OctopusPlugin);
+const renderer = octopus?.renderer(); // raw SubtitleOctopus instance, or null
+```
+
+## Next steps
+
+- [Plugin: Subtitle Overlay](/nomercy-video-player/plugins-adapters/subtitle-overlay): the VTT-rendering counterpart this plugin coexists with.

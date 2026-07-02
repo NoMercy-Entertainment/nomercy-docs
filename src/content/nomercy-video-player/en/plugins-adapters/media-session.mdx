@@ -1,0 +1,47 @@
+---
+title: 'Plugin: Media Session'
+description: 'MediaSessionPlugin (video): the OS "Now Playing" surface, artist filled from show and album from the season label so series metadata reads correctly.'
+---
+
+{/* Source: packages/nomercy-video-player/src/plugins/media-session/index.ts */}
+
+# Plugin: Media Session
+
+`MediaSessionPlugin` (id `'media-session'`) is a one-method specialization of the kit's [`MediaSessionPlugin`](/nomercy-player-core/plugins-adapters/media-session), which owns the actual `navigator.mediaSession` wiring: action handlers (`play`, `pause`, `seekto`, `nexttrack`, `previoustrack`), position-state sync, and artwork resolution through `resolveUrl(url, 'poster')`. This subclass only overrides `getMetadata()`, how a `VideoPlaylistItem` becomes the OS lock-screen / notification text.
+
+## What the video subclass builds
+
+| MediaSession field | Video source |
+|---|---|
+| `title` | `item.title` |
+| `artist` | `item.show` (empty string when unset, a movie has no show). |
+| `album` | `"Season {n}"` when `item.season` is set, empty string otherwise. |
+
+Artwork comes from the kit base class, `poster` resolved through the same `resolveUrl` pipeline every other image on the item uses, nothing video-specific to configure there.
+
+## Rules & restrictions
+
+- Reads only fields defined on the canonical `VideoPlaylistItem`. Consumers carrying server-specific fields (a `year`, a localized `name`) should subclass and override `getMetadata()` themselves rather than expecting this built-in to read fields it isn't typed against, the kit deliberately avoids casting to a richer intersection type inside its own built-ins.
+- Everything else, browser support detection, action handler wiring, is identical to the kit base, see [Plugin: Media Session (core)](/nomercy-player-core/plugins-adapters/media-session) for options and events.
+
+## How to extend it
+
+```ts
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+class MyMediaSessionPlugin extends MediaSessionPlugin {
+  protected override getMetadata(item) {
+    const base = super.getMetadata(item);
+    return {
+      ...base,
+      album: item.year ? `${base.album} (${item.year})`.trim() : base.album,
+    };
+  }
+}
+
+player.addPlugin(MyMediaSessionPlugin);
+```
+
+## Next steps
+
+- [Plugin: Cast Sender](/nomercy-video-player/plugins-adapters/cast-sender): the same show/season/poster fields feeding a Chromecast receiver instead of the OS lock screen.

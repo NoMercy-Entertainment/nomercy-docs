@@ -1,0 +1,96 @@
+---
+title: 'Plugin: Desktop UI'
+description: 'DesktopUiPlugin: the official prebuilt overlay, full control bar, menus, responsive button collapsing, scrub-preview sprites, still entirely restylable CSS.'
+---
+
+{/* Source: packages/nomercy-video-player/src/plugins/desktop-ui/index.ts */}
+
+# Plugin: Desktop UI
+
+Everything on the [Build a Player](/nomercy-video-player/build/shell) tutorial is code you can write yourself against the typed method surface. `DesktopUiPlugin` (id `'desktop-ui'`) is the alternative: a complete prebuilt overlay, top bar, center play button, bottom bar with scrubber and transport, a settings menu, an auto-hide activity cycle, still built from the same public methods (`play()`, `subtitle()`, `quality()`) and still restylable through plain CSS, not a black box.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `hideTitle` | `boolean` | `false` | Hide the top-bar title text. |
+| `disableClickToPause` | `boolean` | `false` | Stop a click on the video element from toggling playback. |
+| `inactivityMs` | `number` | — | Auto-hide delay for the overlay after the last pointer activity. |
+| `imageBaseUrl` | `string` | — | Base URL for chapter-marker thumbnails, separate from the player's own `baseImageUrl`. |
+| `buttons` | `DesktopUiButtonOptions` | — | Per-button visibility overrides, see below. |
+| `buttonOrder` | `Array<keyof DesktopUiButtonOptions>` | — | Re-anchors named buttons to the end of the bar in the given order; unnamed buttons keep their natural position. |
+| `settingsItems` | `SettingsToggleItem[]` | — | Consumer toggle rows appended to the settings menu (an app's own auto-skip switch, for instance). |
+| `buttonPriority` | `Array<keyof DesktopUiButtonOptions>` | see below | Responsive removal order, buttons at the end are hidden first as the container narrows. |
+| `breakpoints` | `Breakpoint[]` | — | Full custom breakpoint progression. Takes precedence over `collapseStages`. |
+| `collapseStages` | `[number, number, number]` | — | Shorthand for `hideAfterRank` at the sm/md/lg tiers, ignored when `breakpoints` is set. |
+| `volumeSlider` | `'horizontal' \| 'vertical' \| 'auto'` | `'horizontal'` | Slider orientation; `'auto'` switches to vertical under 520px player width. |
+
+## Button visibility
+
+`DesktopUiButtonOptions` controls which control-bar buttons render at all, independent of the responsive priority system below.
+
+Default-on: `play`, `mute`, `volume`, `fullscreen`, `settings`, `chapterPrev`, `chapterNext` (chapter buttons hide automatically when the current item has none). `next` / `previous` show automatically whenever the queue has more than one item.
+
+Default-off (opt in via `buttons: { theater: true }`, etc.): `theater`, `pip`, `speed`, `quality`, `subtitles`, `audio`, `playlist`, `seekBack`, `seekForward`, `aspectRatio`. `seekBack`/`seekForward` default off because ±10s seek is already reachable through touch zones (double-tap) and the keyboard (`ArrowLeft`/`ArrowRight`), the control-bar buttons are a deliberate opt-in for a UI with no keyboard or touch input at all.
+
+```ts
+player.addPlugin(DesktopUiPlugin, {
+  buttons: { theater: true, subtitles: true, audio: true },
+});
+```
+
+## Responsive collapsing
+
+As the player container narrows, buttons at the end of `buttonPriority` (default order: `play` -> `mute` -> `volume` -> `fullscreen` -> `settings` -> `next` -> `previous` -> `chapterPrev` -> `chapterNext` -> `seekBack` -> `seekForward` -> `theater` -> `pip` -> `speed` -> `quality` -> `subtitles` -> `audio` -> `aspectRatio` -> `playlist`) drop off first, so the most essential buttons survive longest. `collapseStages: [2, 4, 6]` is a shorthand for hiding after rank 2/4/6 at the sm/md/lg breakpoints (xs always shows rank 1 only, xl always shows all); `breakpoints` gives full control over both the pixel thresholds and the rank cutoffs when the shorthand doesn't fit:
+
+```ts
+player.addPlugin(DesktopUiPlugin, {
+  breakpoints: [
+    { name: 'xs', maxWidth: 320, hideAfterRank: 1 },
+    { name: 'sm', maxWidth: 480, hideAfterRank: 4 },
+    { name: 'lg', maxWidth: Infinity, hideAfterRank: Infinity },
+  ],
+});
+```
+
+`'layout:breakpoint'` fires on every transition with `{ from, to, visibleButtons, hiddenButtons }`, a consumer building its own overflow menu subscribes here instead of re-deriving visibility from container width itself.
+
+## The overlay() escape hatch
+
+Other plugins mount their own UI onto `DesktopUiPlugin`'s auto-hiding overlay root instead of the player container directly, so their elements inherit the same show/hide lifecycle rather than floating over a hidden chrome:
+
+```ts
+const overlayRoot = player.getPlugin(DesktopUiPlugin)?.overlay(); // HTMLElement | null
+if (overlayRoot) {
+  overlayRoot.appendChild(myCustomBadge);
+}
+```
+
+Returns `null` before `use()` has built the DOM, guard the call rather than assuming it's always populated.
+
+## Rules & restrictions
+
+- Loading `DesktopUiPlugin` alongside native `controls: true` or `TvKeyHandlerPlugin`'s own key bindings without disabling one results in doubled UI or conflicting handlers, pick one control surface per platform.
+- Menu-driven vs. cycle-driven is a deliberate split: quality, subtitles, audio, speed, and aspect ratio open a menu on click (multi-state, needs a list); theater, PiP, and fullscreen are direct binary toggles on click. `cycleAspectRatio()` and friends exist for remote-control / key-bind contexts where the user can't pick from a list, not as the pointer-input default.
+- `disable(reason?)` hides the overlay outright (not just its handlers) and cancels the inactivity timer, the pattern a disc-menu interpreter or another plugin that needs to own the screen uses to take over without doubling chrome. `enable()` restores it and re-arms auto-hide.
+- Built from `composeMixins`, the same primitive [`NMVideoPlayer`](/nomercy-video-player/reference/player-methods) itself is composed from, nine mixin groups (feedback, shortcuts, activity, menus, icon state, transport state, chapters, sprites, DOM) stamped onto one prototype rather than one enormous class body.
+
+## How to extend it
+
+Styling goes through plain CSS against the plugin's own class names, `appendStyles()` loads `styles.css` once per page regardless of player count, override selectors in your own stylesheet rather than forking the plugin. For behavior beyond what options cover, subclass and override the lifecycle hooks or add your own plugin that reads `overlay()`:
+
+```ts
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+player.addPlugin(DesktopUiPlugin, {
+  buttons: { theater: true, quality: true },
+  volumeSlider: 'auto',
+  settingsItems: [
+    { label: 'Auto-skip intros', get: () => autoSkip.value, set: (v) => { autoSkip.value = v; } },
+  ],
+});
+```
+
+## Next steps
+
+- [Plugin: Touch Zones](/nomercy-video-player/plugins-adapters/touch-zones): the touch-input counterpart, coordinated with this plugin's auto-hide cycle through the shared `'activity'` event.

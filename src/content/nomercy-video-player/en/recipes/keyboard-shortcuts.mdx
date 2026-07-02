@@ -1,0 +1,84 @@
+---
+title: 'Recipe: Customizing Keyboard Shortcuts'
+description: 'Add a binding, override a default, disable a group entirely, or replace the whole set: three ways to change what KeyHandlerPlugin does, from least to most invasive.'
+---
+
+{/* Source: packages/nomercy-video-player/src/plugins/key-handler/index.ts, src/plugins/tv-key-handler/index.ts */}
+
+# Recipe: Customizing Keyboard Shortcuts
+
+[Plugin: Key Handler](/nomercy-video-player/plugins-adapters/key-handler) is the full reference for what ships by default. This recipe is the task on top of it: your app wants one more shortcut, a different key for an existing action, or a whole binding set that doesn't look like the default at all. There are three ways in, pick the least invasive one that gets the job done.
+
+## Add one binding at runtime
+
+`bind(combo, fn)` on the live plugin instance adds a binding without touching anything else, the same call every default binding in the plugin is built from internally:
+
+```ts
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+player.addPlugin(KeyHandlerPlugin);
+await player.ready();
+
+const keys = player.getPlugin(KeyHandlerPlugin);
+keys!.bind('l', (p) => { void p.forward(15); }); // custom 15s skip on 'l'
+keys!.unbind('n'); // this app uses 'n' for something else entirely
+```
+
+`bind()` on an already-bound combo overwrites it silently, that's also how `replace(combo, fn)` works, it's just an alias, use whichever name reads better at the call site.
+
+## Override one group in a subclass
+
+The default binding set is built from small `protected` group methods (`addPlaybackKeys`, `addVolumeKeys`, `addFullscreenKeys`, and so on), each one focused on a single concern. Override one to change just that group and inherit everything else unchanged:
+
+```ts
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+class MyKeyHandler extends KeyHandlerPlugin {
+  protected override addFullscreenKeys(): void {
+    this.bind('f', () => { void this.player.toggleFullscreen(); });
+    // 'F11' and 'Escape' from the default binding are intentionally dropped —
+    // this app already binds Escape to closing a modal shell.
+  }
+}
+
+player.addPlugin(MyKeyHandler);
+```
+
+This is the same technique [`TvKeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/tv-key-handler) itself uses: it subclasses the desktop `KeyHandlerPlugin` and overrides only `addNavigationKeys`, `addVolumeKeys`, `addAspectRatioKeys`, and `addHelpKey`, every other group (playback, modifier seeks, chapters, speed) is inherited as-is.
+
+## Disable everything and start clean
+
+Two ways to end up with a genuinely minimal binding set, pick based on whether you still want `KeyHandlerPlugin` involved at all.
+
+Override `addDefaults()` directly when you still want the plugin (its scope handling, cooldown, input-field awareness) but none of the nineteen built-in groups:
+
+```ts
+class MinimalKeyHandler extends KeyHandlerPlugin {
+  protected override addDefaults(): void {
+    this.bind(' ', () => { void this.player.togglePlayback(); });
+    this.bind('f', () => { void this.player.toggleFullscreen(); });
+    // Nothing else — everything the default set adds (seeks, chapters,
+    // speed, subtitle size, aspect ratio) is gone.
+  }
+}
+
+player.addPlugin(MinimalKeyHandler);
+```
+
+Set `disableControls: true` on `VideoPlayerConfig` when you don't want `KeyHandlerPlugin` at all, an app driving playback entirely from its own remote-control protocol, for instance. This is the same flag [`VideoPlayerConfig`](/nomercy-video-player/reference/config) exposes generally for media-control gating; `KeyHandlerPlugin`'s own `addDefaults()` checks it internally and no-ops when set, so leaving the plugin registered but flipping this field is equivalent to never adding it, useful when a shared setup path always calls `addPlugin(KeyHandlerPlugin)` and only some app configurations want it live.
+
+## Scoping bindings to the player, not the page
+
+By default the listener attaches to `document`, so a bound key fires regardless of what else has focus. For a player embedded alongside other interactive UI on the same page, scope it to the container instead:
+
+```ts
+player.addPlugin(KeyHandlerPlugin, {
+  scope: 'container',
+});
+```
+
+Keys are already ignored when the event target is an `<input>`, `<textarea>`, `<select>`, or `contenteditable` element regardless of scope, `scope: 'container'` narrows further, to only firing while the player element itself (or a descendant) has focus.
+
+## Next steps
+
+- [Recipe: Manual Quality Selection](/nomercy-video-player/recipes/quality-selection): a UI-facing task recipe, built on the `'levels'` and `'level-switched'` events instead of key bindings.

@@ -1,0 +1,75 @@
+---
+title: 'Recipe: Persistence & Resume'
+description: 'Save watch position from the progress event, resume from item.progress and autoPlay across sessions, and the WatchProgress shape that drives it.'
+---
+
+{/* Source: packages/nomercy-video-player/src/types.ts, src/player/start-selection.ts, src/player/normalize-item.ts */}
+
+# Recipe: Persistence & Resume
+
+The player never persists watch position on its own, it reads `item.progress` if your data already carries it, and it emits `'progress'` so you can save new values, but the storage round-trip is your app's job. This recipe covers both halves: writing progress out as it plays, and feeding it back in so the next session resumes where the last one left off.
+
+## Saving progress as it plays
+
+`'progress'` fires `{ time, duration, percentage }`, throttled by `progressIntervalMs` (5 seconds by default), cheap enough to persist on every fire without debouncing again in your own code:
+
+```ts
+player.on('progress', ({ time, percentage }) => {
+  void saveProgress(player.item()?.id, {
+    time,
+    percentage,
+    timestamp: Date.now(),
+  });
+});
+```
+
+`'time'` fires far more often (every native `timeupdate`, dozens of times a second) and is the wrong signal for a persistence write, it exists for scrubber UI, not for storage. Always save from `'progress'`.
+
+## The WatchProgress shape
+
+Attach the saved record to the matching field on the item the next time you build a playlist, this is the exact shape `VideoPlaylistItem.progress` expects:
+
+```ts
+interface WatchProgress {
+  timestamp: number;  // Unix epoch ms of the last watch session
+  percentage: number; // 0-100 percent watched
+  time?: number;       // playback position in seconds, to resume from
+}
+```
+
+```ts
+const playlist: VideoPlaylistItem[] = items.map((item) => ({
+  ...item,
+  progress: progressStore.get(item.id), // WatchProgress | undefined
+}));
+
+player.setup({ baseUrl, playlist, autoPlay: true });
+```
+
+## What autoPlay does with it
+
+With `autoPlay: true`, the player's own start-selection logic (the same v1 "continue watching" behavior) picks the start item from `progress` without any extra config: the most recently watched item (`progress.timestamp`) wins, over 90% watched rolls forward to the next item instead of replaying the credits, anything else resumes at `progress.time`. `startAt` rides the load down to the backend, so the stream begins fetching at the offset directly, no play-then-immediately-seek flash.
+
+This means the *feed-in* half of the recipe is just: know the last-watched item and its `WatchProgress` before you call `setup()`. Everything else, picking which item, deciding whether to resume or roll forward, is already built.
+
+## Handling items outside the initial playlist
+
+`autoPlay`'s selection only runs once, over the items present at `setup()`. If your app resumes a title that is not in the queue yet (a deep link, a "continue watching" row loaded separately), skip the config field and drive it directly:
+
+```ts
+const saved = await progressStore.get(itemId);
+const item: VideoPlaylistItem = { ...fetchedItem, progress: saved };
+
+player.item(item, { autoplay: true, startAt: saved?.time });
+```
+
+## See it running
+
+The badge shows the value read from `localStorage` on mount, then updates on every `'progress'` tick. Reload this page (or open it in a new tab) and the badge on mount reflects the position saved by your last visit here, this is the within-session proof of the exact mechanism `autoPlay` automates across a real reload.
+
+:::snippet{file="video-recipe-resume-playback"}
+:::
+
+## Next steps
+
+- [Recipe: Manual Quality Selection](/nomercy-video-player/recipes/quality-selection): another consumer task built on a typed event plus a small UI.

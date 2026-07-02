@@ -1,0 +1,55 @@
+---
+title: 'Plugin: Cast Sender'
+description: 'CastSenderPlugin (video): the shared kit Chromecast bridge specialized for video, video/mp4 content type and TvShowMediaMetadata built from show/season/episode/poster.'
+---
+
+{/* Source: packages/nomercy-video-player/src/plugins/cast-sender/index.ts */}
+
+# Plugin: Cast Sender
+
+`CastSenderPlugin` (id `'cast-sender'`) is a thin, two-method specialization of the kit's [`CastSenderPlugin`](/nomercy-player-core/plugins-adapters/cast-sender), which owns everything medium-agnostic: SDK probing, session lifecycle, `RemotePlayer` event mirroring, resume-on-disconnect. This subclass only supplies the two things that differ between video and music: the default MIME type, and how a `VideoPlaylistItem` becomes Cast metadata.
+
+## Options
+
+Same `CastSenderOptions` the kit plugin defines, `chromecastAppId`, `enableAirPlay`, `customReceiverNamespace`, `resumeLocalOnDisconnect`, `defaultContentType`, `live`, see [Plugin: Cast Sender (core)](/nomercy-player-core/plugins-adapters/cast-sender) for the full table. `defaultContentType` defaults to `'video/mp4'` here (`'audio/mp4'` on the music player's own subclass) unless you override it explicitly.
+
+## Events
+
+Same `CastSenderEvents` as the base: `cast:connected`, `cast:disconnected`, `cast:error`, `cast:remote-state`, `cast:media-changed`, `unsupported`.
+
+## What the video subclass builds
+
+`buildMetadata(item, ctors)` reads only fields already on the canonical `VideoPlaylistItem`:
+
+| Item has... | Metadata built |
+|---|---|
+| `item.show` set | `TvShowMediaMetadata` (falls back to `GenericMediaMetadata` if the SDK build lacks the TV-show constructor), `seriesTitle` from `show`, `season` / `episode` set when present. |
+| `item.show` unset | `GenericMediaMetadata`, with `show` (if present without an episode number) written to `subtitle`. |
+| `item.poster` | Resolved through `resolveUrl(item.poster, 'poster')` (auth-aware, respects `baseImageUrl`) and set as the metadata's `images`. |
+
+## Rules & restrictions
+
+- All the base plugin's restrictions apply unchanged: Chrome/Chromium Web Sender SDK only, requires `cast.framework` / `chrome.cast.media` already loaded on the page, volume forwarded on the SDK's native 0-100 scale.
+- Consumers carrying application-specific fields beyond the canonical `VideoPlaylistItem` (a server-specific `name` or `year`, for instance) should subclass this plugin and override `buildMetadata()` themselves rather than expecting it to read fields it was never typed against.
+
+## How to extend it
+
+```ts
+import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+class MyCastSenderPlugin extends CastSenderPlugin {
+  protected override async buildMetadata(item, ctors) {
+    const meta = await super.buildMetadata(item, ctors);
+    // add app-specific fields on top of the canonical set super() already built
+    return meta;
+  }
+}
+
+player.addPlugin(MyCastSenderPlugin, { chromecastAppId: 'ABCD1234' });
+await player.ready();
+await player.getPlugin(MyCastSenderPlugin)?.connect();
+```
+
+## Next steps
+
+- [Plugin: Media Session](/nomercy-video-player/plugins-adapters/media-session): the OS lock-screen equivalent, built on the same title/show/season metadata fields.

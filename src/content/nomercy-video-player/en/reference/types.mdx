@@ -1,0 +1,131 @@
+---
+title: 'Reference: Types'
+description: 'VideoPlaylistItem, FontTrackRef, WatchProgress, VideoRect + containedRect(), Stretching, HtmlPreloadMode, segment types, and every video-owned enum. Curated from src/types.ts.'
+---
+
+{/* Source: packages/nomercy-video-player/src/types.ts */}
+
+# Reference: Types
+
+The shapes `IVideoPlayer` methods and `VideoEventMap` events read or return. `VideoPlaylistItem` extends the kit's [`BasePlaylistItem`](/nomercy-player-core/reference/types), everything else here extends nothing, it's new to video.
+
+## VideoPlaylistItem
+
+```ts
+interface VideoPlaylistItem extends BasePlaylistItem {
+	title?: string;
+	url?: string;
+	image?: string;      // poster / thumbnail / image are all accepted, read in that order
+	poster?: string;
+	thumbnail?: string;
+	description?: string;
+	duration?: number;
+	subtitles?: SubtitleTrackRef[];
+	chapters?: ChapterRef[];
+	previewSpriteUrl?: string;
+	fonts?: FontTrackRef[];      // ASS/SSA font manifests for OctopusPlugin
+	show?: string;                // series title, drives S/E label + Cast/MediaSession metadata
+	season?: number;
+	episode?: number;
+	progress?: WatchProgress;     // consumer-supplied, see Recipe: Persistence & Resume
+}
+```
+
+`SubtitleTrackRef` / `AudioTrackRef` / `ChapterRef` are re-exports of the kit's `SubtitleTrack` / `AudioTrack` / `Chapter` under domain names, so video consumers never reach into `@nomercy-entertainment/nomercy-player-core` directly for these.
+
+A handful of additional fields (`seasonName`, `uuid`, `logo`, `rating`, `audio`, `playlist_type`, `tmdb_id`, `video_id`, `video_type`, `year`) are declared on the type but not read by the player core, they exist so application code passing a real server response compiles without a cast, not because the player consumes them.
+
+## FontTrackRef
+
+```ts
+interface FontTrackRef {
+	file: string;    // fonts.json manifest URL, or a direct font file URL
+	label?: string;  // debugging label only
+}
+```
+
+See [Plugin: Octopus](/nomercy-video-player/plugins-adapters/octopus) for how the list resolves into an actual loaded font set.
+
+## WatchProgress
+
+```ts
+interface WatchProgress {
+	timestamp: number;  // Unix epoch ms of the last watch session
+	percentage: number;  // 0-100
+	time?: number;        // resume position, seconds
+}
+```
+
+Consumer-supplied and consumer-persisted, the player reads it (for `autoPlay` start selection) but never writes it. See [Recipe: Persistence & Resume](/nomercy-video-player/recipes/resume-playback).
+
+## VideoRect and containedRect()
+
+```ts
+interface VideoRect {
+	x: number; y: number;       // offset of the content area inside the container
+	width: number; height: number;
+	scale: number;                // displayed width / native video width
+}
+
+function containedRect(
+	videoW: number, videoH: number,
+	containerW: number, containerH: number,
+): VideoRect | null;
+```
+
+`containedRect()` is the pure geometry function `videoRect()`, `SubtitleOverlayPlugin`, and any consumer plugin needing the same letterbox math share, exported standalone so a custom overlay never re-derives `object-fit: contain` positioning by hand. Returns `null` when any input dimension is zero.
+
+## Display & geometry unions
+
+```ts
+type Stretching = 'uniform' | 'fill' | 'exactfit' | 'none';
+// uniform = object-fit: contain (default) · fill = stretch · exactfit = cover · none = native size
+
+type HtmlPreloadMode = 'auto' | 'metadata' | 'none'; // maps to <video preload>
+```
+
+## Segment playback
+
+```ts
+type SegmentEndBehaviour = 'loop' | 'hold' | 'advance';
+
+interface SegmentOptions {
+	startSec: number;
+	endSec: number;
+	onEnd: SegmentEndBehaviour;
+}
+
+interface SegmentBoundaryPayload {
+	startSec: number;
+	endSec: number;
+	onEnd: SegmentEndBehaviour;
+}
+```
+
+Consumed by `playSegment()` / `clearSegment()`, see [Reference: Video Player Methods](/nomercy-video-player/reference/player-methods).
+
+## Backend factory
+
+```ts
+type VideoBackendFactory = (
+	kind: VideoBackendKind, // 'html5' | 'mse' | 'webcodecs'
+	config: VideoPlayerConfig<BasePlaylistItem>,
+) => IVideoBackend;
+```
+
+See [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-video-backend).
+
+## Video-owned enums
+
+| Enum | Values | Reader |
+|---|---|---|
+| `FullscreenState` | `OFF` `ON` | `fullscreen()` |
+| `PipState` | `OFF` `ON` | `pip()` |
+| `TheaterState` | `OFF` `ON` | `theater()` |
+| `SubtitleState` | `OFF` `ON` | `subtitleState()` |
+
+`AudioTrackState`, `PlayState`, `QualityState`, `RepeatState`, `ShuffleState`, `VolumeState` are re-exported from the kit unchanged, canonical definitions live in [Core: Reference, Domain Types](/nomercy-player-core/reference/types), import them from `@nomercy-entertainment/nomercy-video-player` either way, no need to reach into the kit package directly.
+
+## Next steps
+
+- [Reference: Video Player Methods](/nomercy-video-player/reference/player-methods): every method that reads or returns the shapes on this page.

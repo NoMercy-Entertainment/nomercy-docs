@@ -1,0 +1,134 @@
+---
+title: 'Recipe: Svelte Integration'
+description: 'A Svelte store wrapping NMVideoPlayer, an action for mounting into the container, and a component subscribed to the store with $ syntax.'
+---
+
+{/* Source: packages/nomercy-video-player/src/index.ts, src/types.ts */}
+
+# Recipe: Svelte Integration
+
+Svelte's stores are a close match for the player's own event emitter, both are "subscribe, get pushed updates" primitives, so the wrapper is a `writable` store fed by the player's events plus the player instance itself for imperative calls. A Svelte action handles mounting, since the container element needs to exist in the DOM before `nmplayer()` can bind to it.
+
+## The store
+
+```ts
+// stores/videoPlayer.ts
+import { writable } from 'svelte/store';
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import type { IVideoPlayer, VideoPlayerConfig, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+export interface VideoPlayerState {
+  player: IVideoPlayer | null;
+  currentItem: VideoPlaylistItem | undefined;
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+}
+
+const initialState: VideoPlayerState = {
+  player: null,
+  currentItem: undefined,
+  isPlaying: false,
+  currentTime: 0,
+  duration: 0,
+};
+
+function createVideoPlayerStore() {
+  const { subscribe, update, set } = writable<VideoPlayerState>(initialState);
+
+  return {
+    subscribe,
+
+    init(containerId: string, config: VideoPlayerConfig) {
+      const player = nmplayer(containerId).setup(config);
+
+      player.on('current', ({ item }) => update((state) => ({ ...state, currentItem: item })));
+      player.on('play', () => update((state) => ({ ...state, isPlaying: true })));
+      player.on('playing', () => update((state) => ({ ...state, isPlaying: true })));
+      player.on('pause', () => update((state) => ({ ...state, isPlaying: false })));
+      player.on('time', ({ time }) => update((state) => ({ ...state, currentTime: time })));
+      player.on('duration', ({ duration }) => update((state) => ({ ...state, duration })));
+
+      update((state) => ({ ...state, player }));
+    },
+
+    dispose() {
+      update((state) => {
+        void state.player?.dispose();
+        return initialState;
+      });
+      set(initialState);
+    },
+  };
+}
+
+export const videoPlayerStore = createVideoPlayerStore();
+```
+
+## A mount action
+
+Svelte's `use:` actions run exactly once the element is attached to the DOM, the right moment to call `nmplayer()`:
+
+```ts
+// actions/mountVideoPlayer.ts
+import type { VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+import { videoPlayerStore } from '../stores/videoPlayer';
+
+export function mountVideoPlayer(node: HTMLElement, config: VideoPlayerConfig) {
+  if (!node.id) node.id = 'svelte-video-player';
+  videoPlayerStore.init(node.id, config);
+
+  return {
+    destroy() {
+      videoPlayerStore.dispose();
+    },
+  };
+}
+```
+
+## Using it in a component
+
+```svelte
+<script lang="ts">
+  import { videoPlayerStore } from '../stores/videoPlayer';
+  import { mountVideoPlayer } from '../actions/mountVideoPlayer';
+
+  export let baseUrl: string;
+  export let playlist;
+
+  $: progress = $videoPlayerStore.duration > 0
+    ? ($videoPlayerStore.currentTime / $videoPlayerStore.duration) * 100
+    : 0;
+
+  function seek(event: MouseEvent) {
+    const bar = event.currentTarget as HTMLElement;
+    const ratio = event.offsetX / bar.clientWidth;
+    void $videoPlayerStore.player?.time(ratio * $videoPlayerStore.duration);
+  }
+</script>
+
+<div use:mountVideoPlayer={{ baseUrl, playlist }} />
+
+<p>{$videoPlayerStore.currentItem?.title ?? 'Nothing playing'}</p>
+
+<div
+  role="slider"
+  aria-valuenow={progress}
+  aria-valuemin={0}
+  aria-valuemax={100}
+  tabindex="0"
+  on:click={seek}
+>
+  <div style="width: {progress}%" />
+</div>
+
+<button type="button" on:click={() => $videoPlayerStore.player?.togglePlayback()}>
+  {$videoPlayerStore.isPlaying ? 'Pause' : 'Play'}
+</button>
+```
+
+`$videoPlayerStore` auto-subscribes and auto-unsubscribes with the component's own lifecycle, the `$:` reactive statement recomputes `progress` on every store update without a manual subscription. The action's `destroy()` fires when the bound element leaves the DOM, disposing the player at exactly the point Svelte itself considers the component gone.
+
+## Next steps
+
+- [Recipe: Vanilla Integration](/nomercy-video-player/recipes/vanilla-integration): the same controller-plus-callback shape with no framework at all.

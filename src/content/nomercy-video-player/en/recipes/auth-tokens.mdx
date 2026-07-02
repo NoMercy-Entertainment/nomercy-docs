@@ -1,0 +1,78 @@
+---
+title: 'Recipe: Auth Tokens via baseUrl + auth'
+description: 'Protect a media server catalogue with a bearer token: the AuthConfig fields, wiring hls.js manifest/segment requests, 401 refresh, and rotating the token mid-session.'
+---
+
+{/* Source: packages/nomercy-player-core/src/types/config.ts, packages/nomercy-video-player/src/index.ts */}
+
+# Recipe: Auth Tokens via baseUrl + auth
+
+[The baseUrl pattern](/nomercy-video-player/quickstart#the-baseurl-pattern) covers the unauthenticated case: one origin, relative item paths. A real media server almost always sits behind auth too, `baseUrl` still supplies the origin, `auth` supplies the credentials every request against it carries, including the ones `nomercy-video-player` issues itself for HLS manifests and segments.
+
+## Wiring bearerToken
+
+`bearerToken` accepts a plain string, a sync getter, or an async getter, so a reactive store's current value is always read fresh instead of captured once at `setup()` time:
+
+```ts
+player.setup({
+  baseUrl: 'https://media.your-domain.com/api/files',
+  auth: {
+    bearerToken: () => authStore.accessToken, // read fresh on every request
+  },
+  playlist,
+});
+```
+
+An async getter works identically, useful when the token itself has to be fetched or decrypted before use:
+
+```ts
+auth: {
+  bearerToken: async () => (await tokenCache.get()) ?? '',
+},
+```
+
+## Reaching the HLS backend
+
+`Authorization: Bearer <token>` is not only for `fetch()`-based calls (subtitles, chapters, thumbnails). `nomercy-video-player`'s HTML5 backend wires the same resolved bearer value into `hls.js`'s own manifest and segment requests automatically, there is nothing extra to configure for adaptive streaming specifically. Set `auth` once and every request path, kit-level `fetch`, `hls.js`, image resolution, uses it.
+
+## Handling a 401
+
+`refreshOnUnauthenticated` runs exactly once per 401 response, never on a 403 (which propagates immediately, on the assumption a 403 means "not allowed", not "token expired"). After it resolves, the original request retries once with freshly-resolved `bearerToken` / `headers`:
+
+```ts
+auth: {
+  bearerToken: () => authStore.accessToken,
+  refreshOnUnauthenticated: async () => {
+    await authStore.refresh(); // updates authStore.accessToken in place
+  },
+  retryAfterRefresh: 1, // default — 0 disables the retry entirely
+},
+```
+
+The getter is what makes this work without extra plumbing: `refreshOnUnauthenticated` mutates the store, and the next `bearerToken()` call (the retry) reads the already-updated value, no manual "pass the new token back" step needed.
+
+## Rotating the token mid-session
+
+For a token that expires on a schedule you already know (a short-lived signed URL scheme, for example), update `auth` directly on the live player instead of waiting for a 401 to trigger the refresh path:
+
+```ts
+player.auth({ bearerToken: newToken }); // merges onto the existing AuthConfig
+```
+
+`auth(config)` replaces the full config; `auth(partial)` merges. Passing just `{ bearerToken }` here only changes that field, `headers`, `credentials`, and the rest of the current config stay intact. `refreshAuth()` re-resolves and re-applies the current config's async fields without changing any of the values themselves, useful after an external token refresh you didn't route through `refreshOnUnauthenticated`.
+
+## Cookie-based auth instead of a bearer token
+
+When the media server relies on a session cookie rather than a header, skip `bearerToken` and set `credentials` instead, every request (`fetch`, and the HLS backend's own requests) includes the cookie automatically:
+
+```ts
+auth: {
+  credentials: 'include',
+},
+```
+
+This only works when `baseUrl` is same-site or the server sends the matching CORS headers (`Access-Control-Allow-Credentials: true` plus an explicit origin, never `*`), the browser enforces that regardless of anything this config does.
+
+## Next steps
+
+- [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-video-backend): how the resolved backend applies `auth` to every manifest and segment request it issues.

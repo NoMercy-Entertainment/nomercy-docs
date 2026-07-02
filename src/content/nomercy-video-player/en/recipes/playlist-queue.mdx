@@ -1,0 +1,72 @@
+---
+title: 'Recipe: Playlist & Queue Panel'
+description: 'Render queue() as an "up next" list that reacts to current and queue events instead of polling, jump with playItem(), and mutate with queueAppend()/queueRemove().'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/queue.ts, packages/nomercy-video-player/src/types.ts */}
+
+# Recipe: Playlist & Queue Panel
+
+[Guided Tour: The Queue & Playlist](/nomercy-video-player/tour/queue) covers the method surface. This recipe is the UI on top of it, a real "up next" panel: list the queue, highlight the active item, let the user jump to any entry, and keep the list live as the queue itself changes underneath it.
+
+## Render on events, not polling
+
+`'current'` fires when the cursor moves, `'queue'` fires when the array itself changes (append, remove, reorder, replace). A panel that re-renders on both never drifts from the real state, and never needs a poll loop:
+
+```ts
+function render() {
+  const activeId = player.item()?.id;
+  renderList(player.queue(), activeId);
+}
+
+player.on('current', render);
+player.on('queue', render);
+render(); // initial paint
+```
+
+## Jump with playItem(), not item()
+
+`queue(items); item(start); play()` races: `item()` fires a fire-and-forget `load()`, and a `play()` called right after can reach the backend before the new source is even set. A click handler in a queue panel calls `play()` implicitly (the user expects clicking an item to start it), so use `playItem(target)` instead of `item(target)`, it routes through `item(target, { autoplay: true })` internally, which only calls `play()` inside the load's own continuation:
+
+```ts
+row.addEventListener('click', () => {
+  player.playItem(item.id);
+});
+```
+
+## Mutating the queue from the panel
+
+Every mutation method fires its own typed event, so a panel that already re-renders on `'queue'` gets append/remove/reorder for free, no extra listener needed:
+
+```ts
+addToQueueButton.addEventListener('click', () => {
+  player.queueAppend(newItem); // fires 'queue' — panel re-renders itself
+});
+
+removeButton.addEventListener('click', () => {
+  player.queueRemove(item.id);
+});
+```
+
+Removing the item before the cursor decrements the cursor automatically, so the "now playing" highlight never jumps to the wrong row after a removal earlier in the list.
+
+## Drag-to-reorder
+
+`queueMove(from, to)` takes the two indexes directly, plug it into whatever drag library the panel uses without translating the drop event yourself:
+
+```ts
+function onDrop(fromIndex: number, toIndex: number) {
+  player.queueMove(fromIndex, toIndex);
+}
+```
+
+## See it running
+
+The panel in the corner below lists all three films in the queue, highlights the one currently playing, and jumps to whichever one you click.
+
+:::snippet{file="video-recipe-playlist-queue"}
+:::
+
+## Next steps
+
+- [Recipe: Auth Tokens via baseUrl + auth](/nomercy-video-player/recipes/auth-tokens): protecting the same catalogue this panel lists behind a bearer token.

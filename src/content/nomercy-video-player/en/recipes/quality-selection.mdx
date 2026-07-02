@@ -1,0 +1,72 @@
+---
+title: 'Recipe: Manual Quality Selection'
+description: "Build a quality picker from qualityLevels(), the levels event, quality(), and level-switched, the same three primitives behind DesktopUiPlugin's own settings menu."
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/abr.ts, packages/nomercy-video-player/src/index.ts */}
+
+# Recipe: Manual Quality Selection
+
+[Guided Tour: Quality Levels](/nomercy-video-player/tour/quality) covers the method surface. This recipe wires it into a real menu: populate options once the manifest is parsed, let the user pick one or hand control back to ABR, and keep the menu in sync when ABR itself changes the rendition without the user touching anything.
+
+## Populate from the levels event
+
+`qualityLevels()` is empty until the HLS manifest is parsed, `'levels'` is the signal, not `mediaReady`, the list may not exist yet at that point:
+
+```ts
+player.on('levels', ({ levels }) => {
+  renderQualityMenu(levels);
+});
+
+// Call once too, in case levels already fired before this listener attached
+// (a menu built lazily, after the user opens a settings panel, for example).
+renderQualityMenu(player.qualityLevels());
+```
+
+## Build the option list
+
+Always include an explicit "Auto" option alongside the manifest's renditions, `quality('auto')` is a real, distinct state from any fixed index, not just the absence of a selection:
+
+```ts
+function renderQualityMenu(levels: QualityLevel[]) {
+  const options = [
+    { value: 'auto', label: 'Auto' },
+    ...levels.map((level) => ({
+      value: String(level.index),
+      label: level.height ? `${level.height}p` : level.label,
+    })),
+  ];
+  // ...render options into your menu component
+}
+```
+
+`qualityLevels({ includeUnsupported: true })` also returns renditions the current device can't decode. Showing those disabled (rather than hiding them) tells the user why a level they expect is missing instead of making it look like the stream doesn't have it at all.
+
+## Wire selection both ways
+
+A click sets the level; `'level-switched'` (not the click handler) is what actually updates the menu's checked state, ABR can change the rendition on its own, and the menu has to reflect that too:
+
+```ts
+menu.addEventListener('change', () => {
+  const value = menu.value;
+  player.quality(value === 'auto' ? 'auto' : Number(value));
+});
+
+player.on('level-switched', () => {
+  const current = player.quality();
+  menu.value = current === 'auto' ? 'auto' : String(current.index);
+});
+```
+
+Setting a level also emits `'quality:requested'` immediately, before the backend confirms the switch. Use it only if you need to reflect the request instantly (a spinner, a disabled state on the menu) while the real confirmation is still `'level-switched'`.
+
+## See it running
+
+`DesktopUiPlugin`'s own settings-menu quality picker (see [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui)) is built from these same three primitives, just with more chrome around them. This example is the bare version: a native `<select>`, no extra styling.
+
+:::snippet{file="video-recipe-quality-selection"}
+:::
+
+## Next steps
+
+- [Recipe: Playlist & Queue Panel](/nomercy-video-player/recipes/playlist-queue): the same render-on-event pattern applied to `queue()` instead of `qualityLevels()`.

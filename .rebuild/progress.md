@@ -7,7 +7,8 @@ Altitude: core = compose-your-own-player (under the hood); video/music = consume
 ## Status
 - [x] core content: DONE, all 7 arc stages (intro, quickstart, tour, build, recipes,
   plugins-adapters, reference). check-docs no longer reports ARC-SECTION-MISSING for core.
-- [ ] video content: intro+quickstart+tour+build done (4/7 stages), recipes/plugins-adapters/reference remain
+- [x] video content: DONE, all 7 arc stages (intro, quickstart, tour, build, recipes,
+  plugins-adapters, reference). check-docs no longer reports ARC-SECTION-MISSING for video.
 - [ ] music content
 - [ ] final cross-library verify (check-docs + build + nav + a11y)
 checkpoint (uncommitted): video intro+quickstart — reused src/examples/quickstart.ts + media.ts
@@ -35,3 +36,15 @@ also register `SubtitleOverlayPlugin` via `configure` so cue text actually paint
 selection state. ARC-SECTION-MISSING for nomercy-video-player now lists only recipes,
 plugins-adapters, reference — the 3 stages still out of scope. See
 .rebuild/video-tour-report.md for full detail.
+checkpoint (uncommitted): video recipes/* (9 pages: vue-integration, react-integration,
+svelte-integration, vanilla-integration, resume-playback, keyboard-shortcuts, quality-selection,
+playlist-queue, auth-tokens) + plugins-adapters/* (15 pages: desktop-ui, tv-key-handler,
+key-handler, cast-sender, subtitle-overlay, octopus, media-session, drm, touch-zones,
+live-transcoding, v1-compat, adapter-video-backend, adapter-chapter-source,
+adapter-thumbnail-source, adapter-subtitle-style-store) + reference/* (4 pages: player-methods,
+config, events, types) + 4 new src/examples/video-recipe-*.ts (vanilla-integration,
+resume-playback, quality-selection, playlist-queue — the framework pages and most task recipes
+stay code-block-only, matching core's plugins-adapters/reference precedent) + nav-structure.ts
+Recipes/Plugins & Adapters/Reference groups for nomercy-video-player + build/fullscreen.mdx
+forward link into recipes. Video arc is now complete end to end (7/7 stages), matching core.
+See .rebuild/video-rest-report.md for full detail.

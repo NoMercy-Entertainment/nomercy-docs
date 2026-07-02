@@ -1,0 +1,68 @@
+---
+title: 'Plugin: V1 Compatibility Shim'
+description: 'V1VideoCompatPlugin: opt-in legacy method surface for v1 consumers migrating to v2, every shim delegates to the real API and logs a deprecation warning.'
+---
+
+{/* Source: packages/nomercy-video-player/src/plugins/v1-compat.ts */}
+
+# Plugin: V1 Compatibility Shim
+
+`V1VideoCompatPlugin` (id `'v1-video-compat'`) attaches the old v1 method names (`seek()`, `speed()`, `playlist()`, `enterFullscreen()`, and around forty more) onto a v2 player instance. Every shim delegates to the real v2 method underneath and logs one deprecation line per call, nothing here is new behavior, it's a compatibility surface over the API this whole collection documents. It is entirely opt-in, a v2 app that never adds this plugin never carries the shim code or the deprecation logging at all.
+
+## Options
+
+None. `V1VideoCompatPlugin` takes no configuration, add it and every shim installs:
+
+```ts
+import { V1VideoCompatPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+player.addPlugin(V1VideoCompatPlugin); // before setup()
+player.setup({ baseUrl, playlist });
+```
+
+## What it shims
+
+Grouped by concern, every entry maps directly to a v2 method already covered elsewhere in this collection:
+
+| v1 method | v2 equivalent |
+|---|---|
+| `seek(seconds)`, `currentTime()` / `currentTime(seconds)` | `time(seconds)` |
+| `speed()` / `speed(rate)`, `speeds()`, `hasSpeeds()` | `playbackRate()`, `playbackRates()` |
+| `muted()` / `muted(state)`, `gain()`, `isPlaying` | `volumeState()`, `mute()`/`unmute()`, `videoElement.volume`, `playState()` |
+| `enterFullscreen()`, `exitFullscreen()`, `hasPIP()`, `setFloatingPlayer(active)` | `fullscreen(state)`, `platform().pip`, `pip(active)` |
+| `aspect()` / `aspect(value)`, `setAspect(value)`, `stretchOptions` | `aspectRatio()` / `aspectRatio(value)` |
+| `subtitleIndex()`, `subtitleIndexBy(lang)`, `hasSubtitles()` | `subtitle()?.index`, a `subtitles()` search, `subtitles().length > 0` |
+| `audioTrackIndex()`, `audioTrackIndexByLanguage(lang)`, `hasAudioTracks()` | the audio-track equivalents of the row above |
+| `hasQualities()` | `qualityLevels().length > 0` |
+| `chapterText(idx?)` | `chapter()?.title` / `chapters()[idx]?.title` |
+| `playlist()` / `playlist(items)`, `playlistItem()`, `playlistIndex()`, `setPlaylist(items)` | `queue()` / `queue(items)`, `item()`, `index()` |
+| `playVideo(target)` | `item(target, { autoplay: true })` |
+| `setEpisode(season, episode)` | find the index in `queue()` by `season`/`episode`, then `item(index)` |
+| `isFirstPlaylistItem()`, `isLastPlaylistItem()`, `hasPlaylists()` | derived from `index()` and `queueLength()` |
+| `seasons()` | grouped from `queue()` by the item's `season` field |
+| `localize(key, vars)`, `addTranslation(key, value)` | `t(key, vars)`, `translation(language(), key, value)` |
+| `registerPlugin(...)`, `usePlugin(...)`, `plugin(id)` | `addPlugin(...)`, `getPluginById(id)` |
+| `displayMessage(text, ms)` | emit `'display-message'` / `'remove-message'` directly |
+
+`setup()` itself is shimmed too: v1 allowed a second `setup({ playlist, autoPlay })` call to swap sources on a live player; v2's real `setup()` throws on re-entry. With this plugin loaded, a repeat call after the first queues the incoming playlist and autoplays it instead of throwing, matching the old behavior.
+
+## What has no v2 equivalent
+
+A handful of v1 methods throw `NotImplementedError` rather than silently no-opping, because there's no v2 data model to translate them into:
+
+- `subtitleFile(url)`, `chapterFile(url)`, `skipFile(url)`, `skip()`: dynamic sidecar/skip-segment ingestion. Add the URL to the playlist item's `subtitles` / `chapters` field instead, or call `time(seconds)` at the boundary directly for skip segments.
+- `skippers()`: always returns an empty array, there is no v2 skip-segment data model yet.
+
+## Rules & restrictions
+
+- Every shim logs `[deprecated] player.<method>() is a v1 compatibility shim` through the player's logger on every call, so grepping logs during a migration surfaces exactly which call sites still need updating.
+- Two events bridge automatically while this plugin is loaded: `'playbackRate'` also emits as `'speed'`, and `'queue'` also emits as `'playlist'`, matching the v1 event names a legacy listener might still be attached to.
+- Must be added before `setup()`, like any plugin, adding it after `ready()` misses the plugin's own `use()` call during the setup pipeline.
+
+## How to remove it
+
+Delete the `player.addPlugin(V1VideoCompatPlugin)` call, then work through the deprecation log output (every remaining call site logs its own replacement method), migrating call sites to the v2 methods in the table above. Once the log is empty, remove the import too, there is nothing else in the codebase that depends on this plugin being present.
+
+## Next steps
+
+- [Reference: Player Methods](/nomercy-video-player/reference/player-methods): the full v2 surface every shim in this plugin delegates to.

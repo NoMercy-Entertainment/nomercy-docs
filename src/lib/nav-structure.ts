@@ -58,11 +58,14 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Reference", pages: ['reference/composition', 'reference/config', 'reference/events', 'reference/types', 'reference/errors', 'reference/utilities'] },
   ],
   // v2 rebuild (see .rebuild/progress.md) — full 7-stage arc: introduction,
-  // quickstart, tour, build, recipes, plugins-adapters, reference. Stages 1-2 only so far.
+  // quickstart, tour, build, recipes, plugins-adapters, reference.
   'nomercy-video-player': [
     { group: "Getting Started", pages: ['introduction', 'quickstart'] },
     { group: "Guided Tour", pages: ['tour/transport', 'tour/volume', 'tour/queue', 'tour/subtitles', 'tour/audio-tracks', 'tour/quality', 'tour/chapters', 'tour/state-events'] },
     { group: "Build a Player", pages: ['build/shell', 'build/scrubber', 'build/volume', 'build/subtitle-menu', 'build/fullscreen'] },
+    { group: "Recipes", pages: ['recipes/vue-integration', 'recipes/react-integration', 'recipes/svelte-integration', 'recipes/vanilla-integration', 'recipes/resume-playback', 'recipes/keyboard-shortcuts', 'recipes/quality-selection', 'recipes/playlist-queue', 'recipes/auth-tokens'] },
+    { group: "Plugins & Adapters", pages: ['plugins-adapters/desktop-ui', 'plugins-adapters/tv-key-handler', 'plugins-adapters/key-handler', 'plugins-adapters/cast-sender', 'plugins-adapters/subtitle-overlay', 'plugins-adapters/octopus', 'plugins-adapters/media-session', 'plugins-adapters/drm', 'plugins-adapters/touch-zones', 'plugins-adapters/live-transcoding', 'plugins-adapters/v1-compat', 'plugins-adapters/adapter-video-backend', 'plugins-adapters/adapter-chapter-source', 'plugins-adapters/adapter-thumbnail-source', 'plugins-adapters/adapter-subtitle-style-store'] },
+    { group: "Reference", pages: ['reference/player-methods', 'reference/config', 'reference/events', 'reference/types'] },
   ],
   'nomercy-music-player': [
     { group: "Getting Started", pages: ['overview', 'installation', 'quickstart'] },

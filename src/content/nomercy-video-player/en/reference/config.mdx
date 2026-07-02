@@ -1,0 +1,68 @@
+---
+title: 'Reference: VideoPlayerConfig'
+description: 'Every field setup() accepts beyond the shared kit BasePlayerConfig: muted/autoPlay/controls, stretching, backendFactory, default track/quality selection, and autoAdvance.'
+---
+
+{/* Source: packages/nomercy-video-player/src/types.ts */}
+
+# Reference: VideoPlayerConfig
+
+`VideoPlayerConfig<T>` extends the kit's [`BasePlayerConfig`](/nomercy-player-core/reference/config) (`baseUrl`, `auth`, `playlist`, `storage`, `platform`, and the rest, shared with the music player). This page covers only the fields video adds.
+
+## Playback
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `muted` | `boolean` | — | Seeded onto the backend before any `play()` call, satisfies the browser's autoplay-with-sound policy. Call `unmute()` after a user gesture. |
+| `autoPlay` | `boolean` | — | Picks a start item once `ready()` resolves and starts playback. Progress-aware, see below. |
+| `controls` | `boolean` | — | Renders the native `<video controls>` bar. Loading `DesktopUiPlugin` or `TvKeyHandlerPlugin` alongside this doubles the UI, pick one. |
+| `playbackRates` | `number[]` | — | Available speeds, read by `playbackRates()` and the speed key bindings. |
+| `preload` | `HtmlPreloadMode` | — | `'auto'` / `'metadata'` / `'none'`, maps directly to the `<video>` element's `preload` attribute. |
+| `disableMediaControls` | `boolean` | `false` | Gates only the hardware `MediaX` key bindings, see [Plugin: Key Handler](/nomercy-video-player/plugins-adapters/key-handler). |
+| `disableControls` | `boolean` | `false` | Short-circuits `KeyHandlerPlugin`'s `addDefaults()` entirely. |
+
+## Display
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `stretching` | `Stretching` | `'uniform'` | Initial `aspectRatio()` value. |
+| `theaterDefault` | `boolean` | — | Starts in theater mode once `setup()` resolves. |
+| `baseImageUrl` | `string` | — | Prefix for relative `image`/`poster`/`thumbnail` paths, useful for a TMDB-style relative path catalogue. Absolute URLs pass through unchanged. |
+
+## Backend
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `backendFactory` | `VideoBackendFactory` | resolves `Html5VideoBackend` | Overrides backend resolution. See [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-video-backend). |
+
+## Track & quality defaults
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `defaultSubtitleLanguage` | `string` | — | Auto-selects a matching subtitle track once tracks are available. Exact tag first, then prefix match (`'en'` matches `'en-US'`). |
+| `defaultAudioLanguage` | `string` | — | Same matching rule, for audio tracks. |
+| `defaultQuality` | `'auto' \| number` | `'auto'` | Applied once, after the first manifest parse. Interactive changes afterward persist across item transitions. |
+
+## Queue behavior
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `autoAdvance` | `boolean` | `true` | Calls `next()` automatically when the current item ends. Set `false` when an external orchestrator (Cast sync, a WebSocket-driven session) drives `next()` itself, to avoid duplicate advances. |
+| `playlist` | `T[] \| string` | — | Same field as `BasePlayerConfig`, retyped here to `T extends VideoPlaylistItem` — the wire-format normalizer (`file`, `tracks[]`, `{time, date}` progress) applies to every item, canonical items pass through unchanged. |
+
+## Transition defaults
+
+Video's `setup()` wrapper injects two defaults `BasePlayerConfig` alone doesn't set, both overridable by passing your own value explicitly:
+
+| Field | Default for video | Notes |
+|---|---|---|
+| `crossfadeEnabled` | `false` | A hard cut between items, unlike music's `true`. Preloading still happens, `preloadLeadSeconds` (kit default `10`) is unaffected. |
+| `transitionStrategy` | `GaplessTransitionStrategy` | Matches the hard-cut default above. |
+
+## What `autoPlay` does with progress
+
+With `autoPlay: true`, the player reads each item's `progress` field ([`WatchProgress`](/nomercy-video-player/reference/types)) to pick the start item: most recently watched wins, over 90% watched rolls forward to the next item, otherwise resumes at the saved `time` (passed as `startAt`, so the backend fetches from the offset directly). See [Recipe: Persistence & Resume](/nomercy-video-player/recipes/resume-playback) for the full pattern, including saving progress in the first place.
+
+## Next steps
+
+- [Reference: Events](/nomercy-video-player/reference/events): `VideoEventMap`, every event these fields eventually produce.

@@ -1,0 +1,117 @@
+---
+title: 'Adapter: Video Backend'
+description: 'IVideoBackend: the port every player-level method reads through for actual media playback. Default Html5VideoBackend, swappable via backendFactory for MSE/WebCodecs/native-shell.'
+---
+
+{/* Source: packages/nomercy-video-player/src/adapters/video-backend/IVideoBackend.ts, src/adapters/video-backend/html5.ts */}
+
+# Adapter: Video Backend
+
+`IVideoBackend` is the one port every video-specific player method (`play()`, `time()`, `subtitles()`, `qualityLevels()`, and the rest) reads and writes through, `NMVideoPlayer` itself never touches `<video>` or `hls.js` directly. The shipped default, `Html5VideoBackend`, passes HLS through natively on Safari and falls back to `hls.js` everywhere else, this is the swap point for MSE, WebCodecs, or a native-shell `<video>` bridge instead.
+
+## The interface
+
+```ts
+interface IVideoBackend {
+	readonly kind: VideoBackendKind; // 'html5' | 'mse' | 'webcodecs'
+	readonly canStartAt?: boolean;
+
+	load(url: string, opts?: { preload?: HtmlPreloadMode; startTime?: number }): Promise<void>;
+	unload(): void;
+	dispose(): void;
+	setAuthHeaderProvider?(provider: () => string | undefined | Promise<string | undefined>): void;
+
+	play(): Promise<void>;
+	pause(): void;
+	stop(): void;
+
+	currentTime(): number;
+	currentTime(seconds: number): void;
+	duration(): number;
+	buffered(): number;
+	bufferedRanges(): TimeRanges;
+	seekable(): TimeRanges;
+	playbackRate(): number;
+	playbackRate(rate: number): void;
+
+	volume(): number;
+	volume(level: number): void;
+	mute(): void;
+	unmute(): void;
+
+	videoWidth(): number;
+	videoHeight(): number;
+	audioTracks(): AudioTrack[];
+	setAudioTrack(idx: number): void;
+	subtitleTracks(): SubtitleTrack[];
+	setSubtitleTrack(idx: number | null): void;
+	qualityLevels(): QualityLevel[];
+	qualityLevels(opts: { includeUnsupported: true }): QualityLevel[];
+	setQuality(idx: number | 'auto'): void;
+	currentLevel(): number;
+
+	state(): BackendState;
+	mediaElement(): HTMLVideoElement;
+	captureStream(): MediaStream;
+
+	setSinkId(deviceId: string): Promise<void>;
+	getSinkId(): string;
+	outputNode?(ctx: AudioContext): AudioNode;
+	analysisNode?(ctx: AudioContext): AudioNode;
+
+	mediaKeys(): MediaKeys | undefined;
+	setMediaKeys(keys: MediaKeys): Promise<void>;
+	outputProtectionState(): 'unrestricted' | 'restricted' | 'unsupported';
+
+	pauseLoader(): void;
+	resumeLoader(): void;
+	loaderState(): BackendLoaderState;
+
+	on<E extends BackendEvent>(event: E, fn: (data?: BackendEventPayload[E]) => void): void;
+	off<E extends BackendEvent>(event: E, fn: (data?: BackendEventPayload[E]) => void): void;
+}
+```
+
+Method conventions mirror the player class itself: stateful values are overloaded functions (`volume()` / `volume(level)`), actions are bare verbs (`play()`, `pause()`, `mute()`), and seeking goes through `currentTime(seconds)`, there is no separate `seek()` method at this layer either.
+
+## The shipped implementation
+
+`Html5VideoBackend` wraps a real `<video>` element. Native HLS on Safari, `hls.js` (dynamically imported, so the bundle cost is zero on Safari) everywhere else, one call surface either way, `player.play()` never branches on browser. It forwards HDR-aware level constraints, ABR bandwidth estimation, and dropped-frame metrics from whichever engine is active, and emits the full `BackendEventPayload` map (`levels`, `level-switched`, `audioTracks`, `stream:error`, `stream:recovering`, `subtitleCue`, and the standard media element events) that `NMVideoPlayer` bridges onto its own public event surface.
+
+`canStartAt` reports whether the backend consumes `startTime` natively, when `true`, the kit skips its own post-load seek fallback, `hls.js` supports this directly (`startPosition`), so a resume-at-offset load fetches the correct segment from the first request instead of downloading and discarding the stream's beginning.
+
+## Auth on manifest and segment requests
+
+`setAuthHeaderProvider(provider)` is how `Authorization: Bearer <token>` reaches `hls.js`'s own manifest and segment requests, not just the kit's `fetch` calls. `NMVideoPlayer.backend()` wires this automatically from `setup({ auth })`, resolving the bearer value fresh (sync or async getter) on every request rather than capturing it once, see [Recipe: Auth Tokens via baseUrl + auth](/nomercy-video-player/recipes/auth-tokens).
+
+## Rules & restrictions
+
+- `backend()` constructs the instance lazily, on first call, and caches it, calling it before `setup()` returns an instance not yet wired to a loaded source.
+- Only one backend is active per player at a time. Swapping backends mid-session (Cast handoff, for instance) is a `transferTo()` / plugin-level concern, not something `IVideoBackend` itself supports.
+- `mediaKeys()` / `setMediaKeys()` / `outputProtectionState()` exist for EME/DRM coordination (see [Plugin: DRM](/nomercy-video-player/plugins-adapters/drm)), a backend that never touches encrypted content can implement them as no-ops.
+- `outputNode` / `analysisNode` are optional, only implement them if the backend wants to support `AudioGraphPlugin`-style Web Audio taps (equalizer, spectrum visualizers, re-exported from the kit); a backend that never builds a Web Audio graph pays zero cost by omitting them.
+
+## How to extend it
+
+Provide a `backendFactory` at `setup()`, it receives the resolved kind and full config, and returns any `IVideoBackend` implementation:
+
+```ts
+import type { VideoBackendFactory } from '@nomercy-entertainment/nomercy-video-player';
+
+const backendFactory: VideoBackendFactory = (kind, config) => {
+  if (kind === 'webcodecs') return new MyWebCodecsBackend(config);
+  return new Html5VideoBackend(container); // fall back to the default for anything else
+};
+
+player.setup({
+  baseUrl,
+  playlist,
+  backendFactory,
+});
+```
+
+`kind` is currently always `'html5'` from the kit's own resolution unless your factory (or a plugin) requests otherwise, `'mse'` and `'webcodecs'` are reserved labels for a custom factory to branch on, not backends this package ships.
+
+## Next steps
+
+- [Adapter: Chapter Source](/nomercy-video-player/plugins-adapters/adapter-chapter-source): a much smaller, optional adapter for chapter lookup outside the built-in `chapters()` surface.

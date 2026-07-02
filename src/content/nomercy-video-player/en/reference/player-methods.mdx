@@ -1,0 +1,73 @@
+---
+title: 'Reference: Video Player Methods'
+description: 'The IVideoPlayer-specific method surface: video element, geometry, fullscreen/PiP/theater, aspect ratio, track selection, segments, and the backend accessor. Curated from src/index.ts.'
+---
+
+{/* Source: packages/nomercy-video-player/src/index.ts, src/types.ts */}
+
+# Reference: Video Player Methods
+
+`NMVideoPlayer<T>` implements `IVideoPlayer<T>`, which extends the kit's `IPlayer<VideoEventMap<T>>`. Everything on `IPlayer` (`play()`, `pause()`, `time()`, `volume()`, `queue()`, `addPlugin()`, and the rest of transport, queue, volume, and plugin management) is unchanged kit surface, documented method by method across the [Guided Tour](/nomercy-video-player/tour/transport) rather than duplicated here. This page is the delta: everything that exists only because the medium is video.
+
+## Video element & geometry
+
+| Method | Signature | Notes |
+|---|---|---|
+| `videoElement` | `readonly HTMLVideoElement \| undefined` | The raw element. `undefined` until the first `backend()` call. |
+| `backend()` | `() => IVideoBackend` | The active backend instance, constructed lazily on first call. See [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-video-backend). |
+| `videoRect()` | `() => VideoRect \| null` | The displayed content rectangle under `object-fit: contain`, `null` before metadata loads. Changes fire `'videoRect'`. |
+
+## Fullscreen, PiP, theater
+
+| Method | Signature | Notes |
+|---|---|---|
+| `fullscreen()` / `fullscreen(state)` | `() => FullscreenState`, `(state: FullscreenState \| boolean) => void` | Throws `core:policy/fullscreenUnsupported` with no platform fullscreen controller configured. |
+| `pip()` / `pip(state)` | `() => PipState`, `(state: PipState \| boolean) => void` | Throws `core:policy/pipUnsupported` with no platform PiP controller. |
+| `theater()` / `theater(state)` | `() => TheaterState`, `(state: TheaterState \| boolean) => void` | Pure UI-layout state, no browser API behind it. |
+| `subtitleState()` | `() => SubtitleState` | Whether any subtitle track is active, checks `subtitle()` first, falls back to scanning native `textTracks`. |
+| `toggleFullscreen()` / `togglePip()` / `toggleTheater()` | `() => void` | Flip the matching state. |
+
+## Aspect ratio
+
+| Method | Signature | Notes |
+|---|---|---|
+| `aspectRatio()` / `aspectRatio(value)` | `() => Stretching`, `(value: Stretching) => void` | `'uniform'` (contain, default) / `'fill'` / `'exactfit'` (cover) / `'none'`. |
+| `cycleAspectRatio()` | `() => void` | Steps through `['uniform', 'fill', 'exactfit', 'none']` in order. |
+
+## Track selection
+
+| Method | Signature | Notes |
+|---|---|---|
+| `subtitles()` | `() => SubtitleTrack[]` | Track list for the active item. |
+| `subtitle()` / `subtitle(idx)` | `() => CurrentSubtitleSelection \| null`, `(idx: number \| null) => Promise<void>` | `null` selects off. |
+| `cycleSubtitles()` | `() => void` | Walks `off -> 0 -> ... -> N-1 -> off`. |
+| `subtitleStyle()` / `subtitleStyle(patch)` | `() => SubtitleStyle`, `(patch: Partial<SubtitleStyle>) => void` | In-memory only, persistence is a consumer concern, see [Adapter: Subtitle Style Store](/nomercy-video-player/plugins-adapters/adapter-subtitle-style-store). |
+| `audioTracks()` | `() => AudioTrack[]` | Embedded audio rendition list. |
+| `audioTrack()` / `audioTrack(idx)` | `() => CurrentAudioTrackSelection \| null`, `(idx: number) => Promise<void>` | |
+| `cycleAudioTracks()` | `() => void` | Wraps around the list. |
+| `qualityLevels()` / `qualityLevels({ includeUnsupported: true })` | `() => QualityLevel[]` | Populated once `'levels'` fires. |
+| `quality()` / `quality(idx)` | `() => CurrentQualitySelection \| 'auto'`, `(idx: number \| 'auto') => void` | Setting a level also emits `'quality:requested'` immediately, before `'level-switched'` confirms. |
+| `chapters()` | `() => Chapter[]` | From the item's typed `chapters` field. |
+| `chapter()` / `chapter(idx)` | `() => Chapter \| null`, `(idx: number) => void` | |
+| `seekToChapter(idx, opts?)` / `nextChapter(opts?)` / `previousChapter(opts?)` | `(idx: number, opts?: ActionOptions) => void` | |
+
+## Segment / window playback
+
+| Method | Signature | Notes |
+|---|---|---|
+| `playSegment(opts)` | `(opts: SegmentOptions) => void` | Seeks to `startSec`, watches for `endSec`, applies `onEnd` (`'loop'` / `'hold'` / `'advance'`). Always emits `'segmentBoundary'` at the boundary. Replaces any previously active window immediately. |
+| `clearSegment()` | `() => void` | Stops watching without seeking or pausing. No-op with nothing active. |
+
+Generic enough for intro loops, chapter-range playback, or a disc-menu's `skipToMark` equivalent, none of which are disc-specific in the primitive itself.
+
+## Playback overrides
+
+`IVideoPlayer` narrows a handful of methods `IPlayer` marks optional (for cross-library compatibility with the music player) to required, since `NMVideoPlayer` always implements them: `time()`, `duration()`, `playbackRate()`, `togglePlayback()`, `toggleMute()`, `rewind()`, `forward()`, `playState()`, `volumeState()`, `volume()`, `buffered()`, `play()`, `pause()`, `stop()`, `next()`, `previous()`, `item()`, `queueLength()`, `index()`, `queue()`, `playbackRates()`. Signatures are unchanged from `IPlayer`, only the optionality is tightened, see the [Guided Tour](/nomercy-video-player/tour/transport) for behavior.
+
+## The v1 compatibility surface
+
+`V1VideoCompatPlugin` attaches roughly forty additional method names (`seek()`, `speed()`, `playlist()`, and the rest) onto the instance at runtime, opt-in only, see [Plugin: V1 Compatibility Shim](/nomercy-video-player/plugins-adapters/v1-compat) for the full mapping. None of those are part of the `IVideoPlayer` type surface documented above.
+
+## Next steps
+
+- [Reference: BasePlayerConfig (video)](/nomercy-video-player/reference/config): the `setup(config)` fields specific to video, on top of the kit's shared config.

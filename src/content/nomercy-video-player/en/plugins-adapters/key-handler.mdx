@@ -1,0 +1,72 @@
+---
+title: 'Plugin: Key Handler'
+description: 'KeyHandlerPlugin (video): the full default binding set for desktop, built as small overridable group methods on top of the kit KeyHandlerPlugin.'
+---
+
+{/* Source: packages/nomercy-video-player/src/plugins/key-handler/index.ts */}
+
+# Plugin: Key Handler
+
+`KeyHandlerPlugin` (id `'video-key-handler'`) is `nomercy-video-player`'s desktop keyboard-binding set, a subclass of the kit's [`KeyHandlerPlugin`](/nomercy-player-core/plugins-adapters/key-handler) (scope resolution, cooldown, input-field awareness, `bind`/`unbind`/`replace`) that adds every video-specific binding as its own small, individually-overridable group method. [`TvKeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/tv-key-handler) subclasses this one for remote-control input; [Recipe: Customizing Keyboard Shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts) covers extending or replacing bindings on either.
+
+## Options
+
+Same `KeyHandlerOptions` the kit plugin accepts, `scope`, `bindings`, `extend`, `when`, `cooldownMs`, `disableMediaControls`, see [Plugin: Key Handler (core)](/nomercy-player-core/plugins-adapters/key-handler) for the full table. This subclass adds no new option fields, only more default groups.
+
+## Default bindings
+
+| Keys | Action |
+|---|---|
+| `Space` | Toggle playback. |
+| `MediaPlay` / `MediaPause` / `MediaPlayPause` / `MediaStop` / `MediaRewind` / `MediaFastForward` | Hardware media keys. Gated by `disableMediaControls` (config field, not the plugin option) via `mediaControlsAllowed()`. |
+| `ArrowLeft` / `ArrowRight` | Rewind / forward one default step. Desktop only, `isTv()` gates this off, see [Plugin: TV Key Handler](/nomercy-video-player/plugins-adapters/tv-key-handler) for the TV equivalent. |
+| `ArrowUp` / `ArrowDown` | Volume up / down. Desktop only (`!isTv() && !isMobile()`). |
+| `m` | Toggle mute. |
+| `Subtitle`, `5`, `v` | Cycle subtitle tracks. |
+| `Audio`, `2`, `b` | Cycle audio tracks. |
+| `shift+ArrowLeft` / `shift+ArrowRight` | Seek ±3s (VLC-style modifier seek). |
+| `alt+ArrowLeft` / `alt+ArrowRight` | Seek ±10s. |
+| `ctrl+ArrowLeft` / `ctrl+ArrowRight` | Seek ±60s. |
+| `1` / `3` / `6` / `9` | Quick-skip forward 120s / 30s / 60s / 90s. |
+| `ColorF0Red` / `ColorF1Green` / `ColorF2Yellow` / `ColorF3Blue` | TV remote color buttons, forward 30s / 60s / 90s / 120s. |
+| `MediaTrackNext` / `MediaTrackPrevious` | Next / previous item. Gated by `disableMediaControls`. |
+| `n` / `p` | Next / previous item. Not gated. |
+| `shift+n` / `shift+p` | Next / previous chapter. |
+| `f` / `F11` | Toggle fullscreen. |
+| `Escape` | Exit fullscreen, only when currently active. |
+| `]` / `[` | Speed up / down one step through `playbackRates()`. |
+| `=` | Reset speed to 1x. |
+| `e` | Frame-advance (~1 frame at 30fps). Only while paused. |
+| `t` | Show current / remaining time as an OSD message. |
+| `+` / `shift++` / `-` | Emit `subtitle-size-up` / `subtitle-size-down` for a UI plugin to apply. |
+| `a` / `BrowserFavorites` | Cycle aspect ratio. |
+| `s` | Stop. |
+| `shift+?` | Emit `plugin:desktop-ui:shortcuts-toggle` (opens the desktop UI shortcuts overlay if mounted). |
+
+## Rules & restrictions
+
+- Every group above is its own `protected` method (`addPlaybackKeys`, `addVolumeKeys`, `addFullscreenKeys`, and so on), called from `addDefaults()`. Overriding one group in a subclass leaves the rest untouched.
+- `disableControls` on `VideoPlayerConfig` short-circuits `addDefaults()` entirely, no group runs, only bindings your own `use()` override adds exist.
+- `disableMediaControls` (also on `VideoPlayerConfig`) only gates the hardware `MediaX` bindings and the `MediaTrackNext`/`Previous` pair, it does not touch `Space`, arrows, or any letter-key binding.
+- `shift+?` is bound as `'shift+?'`, not `'?'`, because on standard keyboards pressing `?` sends `key='?'` with `shiftKey=true`; the kit's combo canonicalizer folds modifier state into the key string, so binding the literal `'?'` would never match the real event.
+
+## How to extend it
+
+```ts
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+class MyKeyHandler extends KeyHandlerPlugin {
+  protected override addFullscreenKeys(): void {
+    this.bind('f', () => { void this.player.toggleFullscreen(); });
+    // F11 and Escape from the default binding intentionally dropped.
+  }
+}
+
+player.addPlugin(MyKeyHandler);
+```
+
+See [Recipe: Customizing Keyboard Shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts) for the full range of options, from one runtime `bind()` call up to overriding `addDefaults()` entirely.
+
+## Next steps
+
+- [Plugin: TV Key Handler](/nomercy-video-player/plugins-adapters/tv-key-handler): the remote-control subclass built on this one.

@@ -1,0 +1,69 @@
+---
+title: 'Plugin: Live Transcoding'
+description: 'LiveTranscodingPlugin: gates load()/seek() on a server-reported transcode write head over WebSocket, best-effort so an offline server never blocks playback.'
+---
+
+{/* Source: packages/nomercy-video-player/src/plugins/live-transcoding/index.ts */}
+
+# Plugin: Live Transcoding
+
+`LiveTranscodingPlugin` (id `'live-transcoding'`) coordinates playback with a server that transcodes video on demand, segment by segment, instead of serving a pre-encoded file. It opens a control channel, tracks how far the server has transcoded, and gates `beforeLoad` / `beforeSeek` until the requested position is actually encoded and available.
+
+## Options
+
+| Option | Type | Purpose |
+|---|---|---|
+| `controlUrl` | `string` | Server endpoint owning the transcoding job lifecycle (typically a WebSocket URL). |
+| `wsUrl` | `string` | Alias of `controlUrl`, either field works. |
+| `pollIntervalMs` | `number` | Optional polling fallback for environments without WebSocket. |
+| `resumeAheadSeconds` | `number` | Buffer (seconds beyond `currentTime`) required before resuming. |
+| `seekTimeoutMs` | `number` | Default `10000`. Max time to wait for the transcoder to reach a seek target before giving up. |
+| `preferredHeight` | `number` | Quality/bitrate preference hint sent to the encoder. |
+
+## Events
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `job:started` | `{ jobId, sourceUrl }` | The server confirms a transcode job began. |
+| `job:progress` | `{ jobId, transcodedSeconds, totalSeconds?, variantsReady }` | The transcoder's write head advances. |
+| `job:ready-to-play` | `{ jobId }` | The server signals enough is encoded to start playback. |
+| `job:error` | `{ jobId, error }` | The control channel errors, or the server reports a job failure. |
+| `job:complete` | `{ jobId }` | The transcode job finishes. |
+
+## How gating works
+
+`Plugin.websocket()` opens the control channel (auto-closed on plugin dispose). `beforeLoad` waits for the server's initial readiness signal before the load proceeds; `beforeSeek` compares the seek target against the plugin's tracked write head (`transcodedTo()`) and waits, up to `seekTimeoutMs`, only when seeking ahead of what's already encoded:
+
+```ts
+player.addPlugin(LiveTranscodingPlugin, {
+  wsUrl: 'wss://transcode.example.com/jobs',
+  seekTimeoutMs: 15_000,
+});
+
+player.on('job:progress', ({ transcodedSeconds, totalSeconds }) => {
+  updateEncodingProgressBar(transcodedSeconds, totalSeconds);
+});
+```
+
+## Rules & restrictions
+
+- Gating is best-effort: without a configured `wsUrl` / `controlUrl` the plugin is entirely inert, and when the server is unreachable, the plugin does not block playback indefinitely, `beforeLoad`'s wait still resolves rather than hanging the player open forever. Consumers that need stricter guarantees (never start playback before the server confirms) should layer their own gating on top.
+- `seekTimeoutMs` bounds how long a seek can wait for the transcoder, past it the seek proceeds regardless of encode progress, better a possible stall than a player that appears frozen on every seek.
+- The plugin tracks exactly one active job at a time (`currentJobId`), keyed from the loaded item's `id`. A server that multiplexes several concurrent jobs per session needs its own routing on top of this plugin, not inside it.
+
+## How to extend it
+
+The server message shape (`type: 'started' | 'progress' | 'ready-to-play' | 'complete'`) is specific to the reference transcode server this plugin was built against. A different server contract is a new plugin against the same `beforeLoad` / `beforeSeek` gating pattern, or a subclass overriding the private message parser is not supported, the parser is internal:
+
+```ts
+import { LiveTranscodingPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+player.addPlugin(LiveTranscodingPlugin, {
+  wsUrl: 'wss://transcode.example.com/jobs',
+  resumeAheadSeconds: 5,
+});
+```
+
+## Next steps
+
+- [Plugin: DRM](/nomercy-video-player/plugins-adapters/drm): another server-coordination plugin gating playback, on a license handshake instead of an encode write head.

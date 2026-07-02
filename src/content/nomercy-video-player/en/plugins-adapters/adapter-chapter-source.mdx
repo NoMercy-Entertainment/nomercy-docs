@@ -1,0 +1,77 @@
+---
+title: 'Adapter: Chapter Source'
+description: 'IChapterSource: load(item), current(time), all(), unload(). A standalone sync-lookup contract for custom UI, not wired into setup() or the built-in chapters() reader.'
+---
+
+{/* Source: packages/nomercy-video-player/src/adapters/chapter-source/IChapterSource.ts, src/adapters/chapter-source/vtt-chapters.ts */}
+
+# Adapter: Chapter Source
+
+`IChapterSource` is a small, standalone contract for chapter lookup: load once per item, then answer "which chapter is active at this time" synchronously, cheap enough to call on every scrubber hover. Unlike [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-video-backend), this is not a `setup()` config field, the player's own `chapters()` / `chapter()` / `seekToChapter()` surface (see [Chapters](/nomercy-video-player/tour/chapters)) reads `item.chapters` directly and never consults this interface. `IChapterSource` exists for custom UI code that wants the same lookup shape without re-deriving it, and as an extension point for chapter data that doesn't already live on the item.
+
+## The interface
+
+```ts
+interface IChapterSource {
+	/** Called after loadedmetadata. Fetch/cache here so current() is synchronous. */
+	load(item: BasePlaylistItem): Promise<Chapter[]>;
+
+	/** Chapter active at timeSeconds, or null outside every chapter's range. Synchronous. */
+	current(timeSeconds: number): Chapter | null;
+
+	/** The complete chapter list for the current item. Synchronous. */
+	all(): Chapter[];
+
+	/** Release cached data. Called on unload/dispose. */
+	unload(): void;
+}
+```
+
+## The shipped implementation
+
+`VttChapterSource` reads chapters straight from `item.chapters`, the typed field `normalizePlaylistItem` already populates from a `kind: 'chapters'` sidecar track at queue-ingest time (see [The Queue & Playlist](/nomercy-video-player/tour/queue)). It does not fetch or parse a file itself, the parsing already happened during normalization, this class's job is only the synchronous `current(time)` lookup on top of whatever list is already there:
+
+```ts
+const source = new VttChapterSource();
+await source.load(player.item()!); // caches item.chapters
+const active = source.current(player.time()); // Chapter | null, no async lookup
+```
+
+## Rules & restrictions
+
+- `load()` returns an empty array for an item with no `chapters` field, this is a legitimate "no chapters" state, not an error.
+- `current()` and `all()` must stay synchronous in any implementation, they're called from hot paths (scrubber hover, `timeupdate`-driven UI) where an `await` would introduce visible lag.
+- Not wired into `DesktopUiPlugin` either, its own chapter-marker rendering (`chapterMethods.ts`) reads `player.chapters()` directly, the same source of truth this adapter's default implementation reads from, just without going through the `IChapterSource` interface.
+
+## How to extend it
+
+Implement the four methods against a source `normalizePlaylistItem` doesn't already cover, a chapters endpoint separate from the item payload, or a format your server doesn't emit as a `kind: 'chapters'` sidecar track:
+
+```ts
+class ApiChapterSource implements IChapterSource {
+  private chapters: Chapter[] = [];
+
+  async load(item: BasePlaylistItem): Promise<Chapter[]> {
+    this.chapters = await fetchChaptersFromApi(item.id);
+    return this.chapters;
+  }
+
+  current(timeSeconds: number): Chapter | null {
+    return this.chapters.find((c) => timeSeconds >= c.start && timeSeconds < c.end) ?? null;
+  }
+
+  all(): Chapter[] {
+    return this.chapters;
+  }
+
+  unload(): void {
+    this.chapters = [];
+  }
+}
+```
+
+Call `load()` yourself from a `'mediaReady'` listener in your own overlay code, there is no automatic hook that invokes it.
+
+## Next steps
+
+- [Adapter: Thumbnail Source](/nomercy-video-player/plugins-adapters/adapter-thumbnail-source): the same standalone, sync-lookup shape applied to scrub-preview thumbnails.

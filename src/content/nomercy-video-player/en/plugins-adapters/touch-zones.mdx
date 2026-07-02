@@ -1,0 +1,52 @@
+---
+title: 'Plugin: Touch Zones'
+description: 'TouchZonesPlugin: a 3x6 tap-zone grid for seek/playback/volume, single-tap vs double-tap dispatch, and cumulative seek-feedback indicators.'
+---
+
+{/* Source: packages/nomercy-video-player/src/plugins/touch-zones/index.ts */}
+
+# Plugin: Touch Zones
+
+`TouchZonesPlugin` (id `'touch-zones'`) renders a transparent tap-zone overlay for touch and mobile input, single-tap to show/hide controls or toggle playback, double-tap to seek or adjust volume, the interaction model most streaming apps train users to expect. It sits at a z-index between the video element and the desktop UI controls overlay, so it intercepts taps meant for the video area without blocking button clicks on a control bar mounted above it.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `doubleTapThreshold` | `number` | `300` | Milliseconds between taps that still counts as a double-tap. |
+| `seekSeconds` | `number` | `10` | Seconds to seek on a double-tap in the left/right zones. |
+| `disableClickToPause` | `boolean` | `false` | Stop the center zone's single-tap from toggling playback. Mirrors `DesktopUiPlugin`'s own `disableClickToPause`, both plugins ship independent click handlers on different DOM layers, so the same override is needed on both when a consumer wants a custom center-tap behavior. |
+
+## Zone layout
+
+A 3-column x 6-row grid. Desktop/tablet touch gets three columns spanning the full height (seek-back, playback+fullscreen, seek-forward); mobile additionally splits two rows off the top and bottom of the center column for volume up/down, detected via `ontouchstart` presence or `navigator.maxTouchPoints`.
+
+| Zone | Single-tap | Double-tap |
+|---|---|---|
+| Left (seek back) | Toggle controls visibility. | Seek back `seekSeconds`. |
+| Center (playback) | Toggle playback (unless `disableClickToPause`). | Toggle fullscreen. |
+| Right (seek forward) | Toggle controls visibility. | Seek forward `seekSeconds`. |
+| Top / bottom of center, mobile only | Toggle controls visibility. | Volume up / down. |
+
+Each seek zone shows a floating circular indicator (chevron icon plus accumulated seconds, e.g. "-30s" after three rapid taps) that lazily mounts on first use and collapses back to zero after roughly a second of no further taps in that direction.
+
+## Rules & restrictions
+
+- Single-tap "toggle controls" reads a snapshot of visibility captured at `pointerdown` in the capture phase, before `DesktopUiPlugin`'s own bubble-phase wake handler can mutate the DOM. Without this, a tap from a hidden state would show controls on `touchstart` and then immediately hide them again when the deferred single-tap handler read the just-added `.active` class, a show-then-hide flicker that makes the tap look like it did nothing.
+- Mobile detection is a one-shot capability check at plugin startup (`ontouchstart` presence or `maxTouchPoints > 0`), not a live pointer-type check, a touch-capable laptop used with a mouse still gets the mobile volume zones.
+- Emits `player.emit('activity', { active })` to coordinate with `DesktopUiPlugin`'s auto-hide timer, this plugin has no visible chrome of its own to hide.
+
+## How to extend it
+
+There's no subclass hook for zone geometry, the grid positions are internal. A different zone layout (a 5-zone grid, a corner-only seek gesture) is a new plugin built against the same player methods (`rewind`, `forward`, `togglePlayback`, `toggleFullscreen`, `volumeUp`, `volumeDown`) rather than a subclass:
+
+```ts
+player.addPlugin(TouchZonesPlugin, {
+  seekSeconds: 15,
+  doubleTapThreshold: 250,
+});
+```
+
+## Next steps
+
+- [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui): the control bar this plugin's `activity` events show and hide.
