@@ -57,7 +57,7 @@ export const LINE_BUDGET = 1500;
 export const ARC_SECTIONS = [
   { name: 'introduction', exact: ['index', 'overview', 'introduction'] },
   { name: 'quickstart', exact: ['quickstart'] },
-  { name: 'tour', exact: ['architecture', 'overview'] },
+  { name: 'tour', exact: ['architecture', 'overview'], prefix: ['tour'] },
   {
     name: 'build',
     exact: [

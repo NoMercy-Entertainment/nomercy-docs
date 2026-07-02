@@ -1,0 +1,33 @@
+---
+title: 'The Queue'
+description: 'MediaList, the cursor-aware ordered list both real players delegate their entire queue surface to instead of maintaining parallel state.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/media-list/default.ts, src/core/mixins/queue.ts, src/core/mixins/play-queue.ts */}
+
+# Core: The Queue
+
+`NMMusicPlayer` and `NMVideoPlayer` don't maintain their own array of playlist items with a separate cursor variable. They delegate to one `MediaList<T>` instance each, and every queue method on the player is a thin wrapper over it.
+
+## MediaList
+
+`MediaList<T extends BasePlaylistItem>` is a cursor-aware ordered list: `get()` / `set(items)` for the whole array, `current()` / `currentIndex()` / `setCurrent(target)` for the cursor, `peekNext()` / `peekPrevious()` to read without moving it, and the mutation set (`append`, `prepend`, `insert`, `remove`, `removeAt`, `move`, `clear`, `shuffle`, `sort`). `setCurrent` accepts an item reference, its `id`, a numeric index, or a predicate, so callers never have to resolve an index by hand first.
+
+Every mutation that shifts item positions shifts the cursor with it, so it keeps pointing at the same logical item: removing the item before the current one decrements the cursor, a shuffle re-finds the playing item's new position and follows it. Every mutation emits a typed event (`change`, `append`, `current`, and so on) that the player mixin re-emits on the public event bus as `queue`, `queue:append`, `item`, and the rest, so a UI never has to poll.
+
+Two lists exist per player: `_queueList` for what's coming, and `_backlogList` for what already played, so `previous()` can look back past the queue head without the primary list growing unbounded in the wrong direction.
+
+## The player-facing surface
+
+`queue()` / `queueAppend()` / `queuePrepend()` / `queueInsert()` / `queueRemove()` / `queueRemoveAt()` / `queueMove()` / `queueClear()` / `queueShuffle()` / `queueSort()` all delegate straight to `_queueList`, wiring its events to the public event bus on first use. `item(target)` moves the cursor and, once the player is past `setup`, kicks off a `load()` for the resolved item; `peekNext()` / `peekPrevious()` / `queueLength()` / `queueIndexOf(id)` / `index()` read without side effects.
+
+`playItem(target)` and `playNow(items, start?)` exist because `queue(items); item(start); play()` races: `item()` fires a fire-and-forget `load()`, and a `play()` called right after it can reach the backend before the source is even set. Both helpers route through `item(target, { autoplay: true })` internally, which only calls `play()` inside the resolved `load()`'s own continuation, never before it.
+
+Every entry ingested by `queue()` / `queueAppend()` / `queuePrepend()` / `queueInsert()` passes through a normalization step first: your player class's optional `normalizePlaylistItem` (for accepting a legacy wire format), then the consumer's `transformPlaylistItem` config callback, then title-token interpolation for any tokens your player registered via `registerTitleTokens()`.
+
+:::snippet{file="tour-queue" live="false"}
+:::
+
+## Next steps
+
+- [The Plugin Base](/nomercy-player-core/tour/plugin-base): the class that lets behavior extend the player without forking it.

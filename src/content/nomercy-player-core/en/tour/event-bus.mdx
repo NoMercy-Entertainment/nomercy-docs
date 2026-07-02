@@ -1,0 +1,35 @@
+---
+title: 'The Event Bus'
+description: 'EventEmitter, the typed pub/sub primitive every kit mixin, plugin, and player class is built on, plus the firehose listener every debugging overlay uses.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/event-bus/default.ts, src/adapters/event-bus/IEventBus.ts */}
+
+# Core: The Event Bus
+
+Every event a player emits, from `play` to a plugin's own custom events, flows through one class: `EventEmitter`.
+
+## What it is
+
+`EventEmitter<E>` is a small, dependency-free pub/sub implementation, generic over an event map `E` that types each event name to its payload shape. Both `NMVideoPlayer` and `NMMusicPlayer` extend it directly, so every player instance already has `on`, `once`, `off`, `emit`, `hasListeners`, and `listenerCount` before a single kit mixin is composed onto it.
+
+It's a plain `Map<event, Set<handler>>` under the hood, not the DOM's `EventTarget`, on purpose: a `Set` lets `off(event, fn)` remove a listener by reference without matching options, and that composes cleanly with `once()` in a way `removeEventListener` doesn't. `emit()` snapshots the listener set before iterating, so a listener that calls `off()` on itself mid-dispatch doesn't corrupt the current pass, and it catches exceptions from individual listeners so one bad handler can't abort the rest of the chain.
+
+## The firehose
+
+`on('all', fn)` registers a listener called for every emit, with `(eventName, data)` as its arguments. This is what `player.on('all', console.log)` and every debug overlay in the trio is built on. `off('all')` with no function removes every listener across every event, which is what `dispose()` calls to guarantee a disposed player leaks nothing.
+
+## Using it in a player library
+
+You won't usually construct an `EventEmitter` yourself when building on the kit: your player class extends it, and its typed event map is whatever interface you declare (the kit's own `BaseEventMap`, extended with your own events, is the normal starting point). The example below builds a standalone bus with a small custom event map, so the mechanics are visible without a full player around them.
+
+:::snippet{file="tour-event-bus" live="false"}
+:::
+
+## The cancellable variant
+
+Plain `emit()` is fire-and-forget: it can't be cancelled, delayed, or mutated by a listener. Every `before*` event (`beforePlay`, `beforeSeek`, `beforeMutation`, and the equivalent on a `Plugin`'s own custom events) runs through a different dispatcher built on top of this same listener registry, one that gives listeners a mutable, preventable payload. That's the subject of the next page.
+
+## Next steps
+
+- [Transport Contract](/nomercy-player-core/tour/transport): the cancellable `before*` dispatch pattern, demonstrated on `play()` / `pause()` / `seek()`.

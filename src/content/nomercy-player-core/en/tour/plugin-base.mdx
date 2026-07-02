@@ -1,0 +1,42 @@
+---
+title: 'The Plugin Base'
+description: 'The Plugin class: scoped logger and storage, auto-cleanup timers and listeners, namespaced i18n and events, and a cancellable dispatchBefore surface for your own actions.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/plugin/base.ts, src/core/mixins/plugin-registration.ts */}
+
+# Core: The Plugin Base
+
+Everything a plugin needs to extend a player without forking it lives on one class: `Plugin<P, O, E>`.
+
+## What you get for free
+
+Subclass `Plugin` and `initialize()` (called by the player, never by you) wires a scoped `logger` (prefixed `[nmplayer][<id>]`) and a namespaced `storage` (keys auto-prefixed `nmplayer-<id>-` so plugins never collide with each other or with player-level keys). From there, every helper on the base class auto-cleans on `dispose()`:
+
+- `on` / `once` / `off` / `hasListeners`: two forms, a string for player events or a plugin class for another plugin's namespaced events (`on(OtherPlugin, 'event', fn)`), both auto-removed on teardown.
+- `listen` / `timeout` / `interval` / `frame` / `abortable`: DOM listeners, timers, an animation-frame loop, and an `AbortController`, all released together.
+- `emit(event, data)`: fire-and-forget, auto-namespaced under `plugin:<id>:`.
+- `dispatchBefore(event, data, opts?)`: the cancellable, mutable, async-aware pattern from [Transport Contract](/nomercy-player-core/tour/transport), available for your own actions.
+- `fetch(url, options?)` / `websocket(url, opts?)`: auth-aware HTTP and an auto-reconnecting realtime channel, both bound to the plugin's lifecycle.
+- `t(key, vars?)`: translation, auto-namespaced under `plugin.<id>.*`.
+- `throw(payload)` / `report(payload)`: structured error escalation, `throw` aborting the current flow, `report` just surfacing a warning.
+- `mount(name)`: a `<div>` on the player container, namespaced `nmplayer-<id>-<name>`, removed on dispose.
+
+Never call `this.player.on` / `.emit` directly, and never use raw `setTimeout` or `addEventListener`: they bypass the scoping and the auto-cleanup, and the kit's lint pack flags both.
+
+## Declaring the contract
+
+Static fields describe the plugin to the registration pipeline: `id` (required), `description`, `version`, `minCoreVersion` (checked against the running kit build), `requires` (class refs, optionally `{ plugin, optional, minVersion }`), `replaces` (opt-in same-id swap), `priority` (event-handler ordering), and `translations` (auto-merged on `use()`, auto-removed on dispose). A missing required dependency throws `core:plugin/missing-dep` at registration; an unmet `minVersion` throws `core:plugin/version-mismatch`.
+
+Override `use()` to wire up (it can return a `Promise`, awaited by the player before `ready` fires, bounded by `pluginInitTimeoutMs`). Override `dispose()` only for resources the lifecycle helpers above don't already track.
+
+## Registering one
+
+`player.addPlugin(PluginClass, opts?)` queues the plugin before `setup()` completes, or registers it inline afterward. `getPlugin(PluginClass)` (class-typed) or `getPluginById(id)` retrieves the live instance later. The example below defines a small plugin that counts `play()` calls and emits a namespaced milestone event.
+
+:::snippet{file="tour-plugin-base" live="false"}
+:::
+
+## Next steps
+
+- [Adapters & Dependency Injection](/nomercy-player-core/tour/adapters): the swappable ports (`IStorage`, `IPlatform`, `IStreamSource`, and the rest) a plugin's own dependencies are built from.

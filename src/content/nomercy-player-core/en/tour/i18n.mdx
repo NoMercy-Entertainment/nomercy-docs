@@ -1,0 +1,33 @@
+---
+title: 'i18n'
+description: 'DefaultTranslator: BCP-47 fallback chains, {var} interpolation, per-plugin translation bundles, and the title-token interpolation engine for tokens like season and episode.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/translator/translator.ts, src/core/mixins/i18n.ts, src/core/title-tokens.ts */}
+
+# Core: i18n
+
+Translation is a swappable adapter like storage or the platform bundle, with a working default: `DefaultTranslator`, seeded with English and Dutch, ready before a single plugin registers.
+
+## Resolving a key
+
+`t(key, vars?)` walks the active language's BCP-47 fallback chain (`pt-BR` → `pt` → the configured `fallbackLanguage`, `'en'` by default) over an in-memory bundle table, and substitutes `{var}` placeholders from `vars`. A key with no value anywhere in the chain falls through to `onMissingTranslation(key, lang)` if you configured one, then to the key itself, so a missing translation degrades to something legible instead of throwing.
+
+`language()` reads the active tag; `language(lang)` dispatches `beforeLanguage` (cancellable and redirectable, same shape as every other `before*` event), switches the translator, and, for a real player with plugins registered, loads every plugin's translation bundle for the new tag and its BCP-47 parent chain before resolving. `addTranslations(bundle)` merges a bundle into the live table directly, last-write-wins per key.
+
+Swap the whole engine via `setup({ translator })` when you need pluralization, gender, or ICU MessageFormat: the kit forwards `translations` / `loadTranslations` / `language` config to whatever engine you supply, same as [Adapters & Dependency Injection](/nomercy-player-core/tour/adapters) describes for every other port.
+
+## Plugin translations
+
+A plugin's static `translations` field is auto-merged on `use()` and auto-removed on `dispose()`, walked up the full prototype chain so a subclass's bundle doesn't shadow its parent's. Keys are namespaced `plugin.<id>.*`, which is exactly what `Plugin.t(key)` prepends automatically, so plugin authors never hand-roll the prefix. Bundles can be eager (pre-resolved per language) or lazy (loaded from `translationsFromGlob`-style function loaders), and lazy bundles only fetch the active language and its parent chain, not every language a plugin ships.
+
+## Title tokens
+
+`registerTitleTokens({ S: 'plugin.desktop-ui.token.season', E: '...' })` maps a single letter to a translation key. Every playlist item's `title` field passes through `interpolateTitleTokens()` on ingest (`queue()`, `queueAppend()`, and the rest), resolving `%S1%E3`-style tokens against the registry. Core ships an empty registry, so this is a zero-cost no-op until a player library opts in.
+
+:::snippet{file="tour-i18n" live="false"}
+:::
+
+## Next steps
+
+- [Cue Parsers](/nomercy-player-core/tour/cue-parsers): the same registry-and-default-implementation shape, applied to subtitle and lyric formats.

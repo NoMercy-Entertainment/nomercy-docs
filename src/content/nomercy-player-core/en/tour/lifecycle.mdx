@@ -1,0 +1,42 @@
+---
+title: 'Lifecycle & Setup'
+description: 'The setup pipeline and phase machine every player built on the kit shares: one strict way in, a fixed sequence of stages, and a cancellable teardown.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/lifecycle.ts, src/core/mixins/player-state.ts */}
+
+# Core: Lifecycle & Setup
+
+`setup()` is the one strict step every player library composed from the kit shares: call it once, and a fixed pipeline runs before anything else can happen.
+
+## The pipeline
+
+`setup(config)` snapshots your config, wires every cross-cutting policy (visibility, network, wake lock, metrics, preload and transition orchestration), then runs an ordered async sequence: `setupStart` → `configResolved` → `pluginsRegistering` → `pluginsRegistered` → `streamsReady` → `authReady` → `playlistReady` → `mediaReady` → `ready`. Each stage emits its own name on success or a matching `<stage>Error` event on failure, and a failure short-circuits the rest of the pipeline and rejects `ready()`.
+
+`ready()` returns a promise that resolves once the pipeline reaches `ready`, or rejects if a stage failed or `dispose()` ran first. It's memoised, so calling it from multiple places in your player library returns the same promise rather than re-running anything.
+
+Call `setup()` a second time, or call it after `dispose()`, and it throws `core:lifecycle/already-setup` or `core:player/disposed` instead of leaving the instance half-configured. There is exactly one way in.
+
+## The phase machine
+
+Underneath the pipeline sits a closed set of phases: `idle` → `setup` → `ready` → `loading` / `starting` / `playing` / `paused` / `buffering` / `seeking` / `ended` / `stopped` → `disposing` → `disposed`. `phase()` reads the current one; the `phase` event fires `{ from, to }` on every transition, so a UI layer or a plugin can drive an overlay off phase changes alone instead of piecing state together from a dozen separate flags.
+
+Two guard methods sit on top of the phase machine, and every transport and queue method calls the first one before doing anything else:
+
+- `_assertReady()`: throws `core:player/not-ready` before `setup()` has run, or `core:player/disposed` after `dispose()`.
+- `setupState()`: a coarser read for UI gating, one of `SetupState.NOT_SETUP`, `SETTING_UP`, `READY`, `DISPOSED`.
+
+## Composing a player-library author sees
+
+Building a player library on the kit means your constructor calls `initPlayerCoreState()` and your prototype gets `lifecycleMethods` (among the rest of `playerCoreMethods`) stamped onto it via `composeMixins`. From that point, `setup()` / `ready()` / `dispose()` and the phase machine work exactly as described above, whether or not a media backend is attached yet. The example below composes the same minimal player from [Quickstart](/nomercy-player-core/quickstart), with no backend at all, and drives the whole lifecycle to prove it's kit behavior, not something a backend has to supply.
+
+:::snippet{file="tour-lifecycle" live="false"}
+:::
+
+## Disposal
+
+`dispose()` is idempotent: a second call is a no-op. It dispatches `beforeDispose` first, and a listener can call `preventDefault()` to keep the player alive (`disposePrevented` fires instead). Otherwise it drains every cleanup callback the `setup()` policy wiring registered, in order, before emitting `dispose` and moving to `disposed`, so a handler observing the transition sees a consistent final state rather than a half-torn-down one.
+
+## Next steps
+
+- [The Event Bus](/nomercy-player-core/tour/event-bus): the typed pub/sub primitive `phase` and every other event rides on.

@@ -1,0 +1,31 @@
+---
+title: 'Typed Errors'
+description: 'The PlayerError hierarchy (AuthError, DrmError, MediaFormatError, NetworkError, StateError, StreamError), severity tiers, and the default retry policy.'
+---
+
+{/* Source: packages/nomercy-player-core/src/errors/player.ts, src/errors/severity.ts, src/errors/code.ts, src/adapters/retry-policy/default.ts */}
+
+# Core: Typed Errors
+
+Every failure the kit or a plugin raises is a `PlayerError`, never a bare thrown string, so a `catch` block can branch on a type instead of parsing a message.
+
+## The hierarchy
+
+`PlayerError` is the base: a stable `code` (`core:auth/forbidden`, `fillz:viz/canvas-init-failed`), a `severity` (`'fatal' | 'error' | 'warning' | 'info'`), a discriminated `scope` (`{ kind: 'core' }`, `{ kind: 'backend'; id }`, `{ kind: 'plugin'; id }`, and the rest), an optional `cause`, `context`, and a user-facing `suggestion`. Subclasses narrow the failure category: `AuthError` (extends `NetworkError`, thrown on 401/403), `DrmError`, `MediaFormatError`, `NetworkError`, `ResourceError`, `StateError` (wrong lifecycle phase), `StreamError`, `PluginError`, and `BrowserPolicyError` (an unsupported browser API like wake lock or fullscreen). `isHttp(century)` checks `context.httpStatus` against a 1xx-5xx range without a manual range comparison at every call site.
+
+Construct one with a factory rather than the raw constructor where the kit provides one: `stateError(code, message, context?)`, `mediaFormatError(...)`, `resourceError(...)`, `pluginError(...)`, `browserPolicyError(...)`. Each stamps the right `scope` and a sensible default `severity` for you.
+
+## Severity tiers and the error event
+
+Four severities map to four event channels: `fatal` (unrecoverable, the player is shutting down), `error` (recoverable, e.g. a sidecar failed to load), `warning` and `info` (observability only). Every one delivers a `PlayerErrorEvent`: the underlying `error`, its `severity` and `scope`, and DOM-style propagation control (`markHandled()`, `stopImmediatePropagation()`, `preventDefault()` to suppress a kit-side default action like auto-retry).
+
+## Retry policy
+
+`DEFAULT_RETRY_POLICY` maps error codes to a `RetryConfig` (`attempts`, `backoff`, `baseMs`, `maxMs`, `refreshFirst`), resolved most-specific-first: exact code, then category prefix, then an HTTP range (`'4xx'` / `'5xx'`), then a `'*'` wildcard. It's the table the kit's own `authFetch` pipeline (and `Plugin.fetch`) consults automatically, a `core:auth/forbidden` never retries, a `core:network/timeout` retries five times with exponential backoff. Pass an entry from this map, or your own `RetryConfig`, as the per-call `retry` option on `Plugin.fetch()` to override the default for one call site.
+
+:::snippet{file="tour-errors" live="false"}
+:::
+
+## Next steps
+
+- [What is nomercy-player-core](/nomercy-player-core/introduction): back to the start, the full "what you get" list this tour walked through one concept at a time.

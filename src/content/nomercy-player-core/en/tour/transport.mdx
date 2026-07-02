@@ -1,0 +1,33 @@
+---
+title: 'Transport Contract'
+description: 'play / pause / stop / seek / next / previous, and the cancellable before* dispatch every transport action runs through before it touches state.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/transport.ts, src/core/dispatch.ts */}
+
+# Core: Transport Contract
+
+Every transport method the kit provides follows the same three-step shape: dispatch a cancellable `before*` event, check whether it was prevented, then act.
+
+## The shape
+
+`play()`, `pause()`, `stop()`, `next()`, and `previous()` each dispatch their matching `beforePlay` / `beforePause` / `beforeStop` / `beforeNext` / `beforePrevious` event first. A listener receives a `BeforeEvent<TData>`: it can read and mutate `event.data`, call `event.preventDefault()` to cancel the action outright, or call `event.delay(promise)` to hold the action until the promise settles. If the action is prevented, the method emits `<action>Prevented` with a `reason` and returns without ever calling the backend. Otherwise it applies the (possibly mutated) data, transitions the phase machine, emits the plain `<action>` event, and calls the backend method.
+
+`rewind(seconds)`, `forward(seconds)`, and `restart()` share the same `beforeSeek` → `seek` → `seeked` cycle that the `time()` setter uses (see [Time & State](/nomercy-player-core/tour/time-and-state)), just computing the target time from a delta instead of an absolute position.
+
+Every action accepts `ActionOptions`: `source` (defaults to `'user'`, stamped onto every emitted event so a remote-sync plugin can filter out its own echoes), `silent` (skip the lifecycle event), and, on `load`-driving actions, `autoplay`.
+
+## Guard first
+
+Every transport method calls `_assertReady()` before doing anything else, so calling `play()` before `setup()` or after `dispose()` throws a typed `StateError` (`core:player/not-ready` or `core:player/disposed`) instead of quietly reaching into missing state. See [Typed Errors](/nomercy-player-core/tour/errors) for the full error hierarchy.
+
+## Building on it
+
+A player-library author gets all of this from `transportMethods` (part of `playerCoreMethods`) without writing a line of dispatch logic. What you add is a backend: `play()` calls `this._resolveBackend()?.play?.()` after the dispatch settles, so wiring a real media element or Web Audio graph is the only piece left to you. The example below runs the full `beforePlay` → `preventDefault()` → `playPrevented` cycle against the same backend-less player from the lifecycle page, since none of it depends on a backend being attached.
+
+:::snippet{file="tour-transport" live="false"}
+:::
+
+## Next steps
+
+- [Time & State](/nomercy-player-core/tour/time-and-state): position, duration, playback rate, and the coarse state readers that back a progress bar.

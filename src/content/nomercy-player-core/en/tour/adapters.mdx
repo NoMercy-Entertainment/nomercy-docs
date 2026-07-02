@@ -1,0 +1,48 @@
+---
+title: 'Adapters & Dependency Injection'
+description: 'Every swappable port the kit ships a default for, and the three composition primitives (composeMixins, resolvePlayerConstructor, initPlayerCoreState) that turn a class into a player.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/compose.ts, src/core/constructor.ts, src/core/state.ts, src/types/config.ts */}
+
+# Core: Adapters & Dependency Injection
+
+Nothing the kit does to a browser API is hardcoded. Every non-lifecycle behavior is a named interface with a working default, swappable at `setup()` with no subclassing.
+
+## The adapter ports
+
+Each of these is a field on `BasePlayerConfig`. Supplying it replaces the kit's default outright; a partial override (`{ ...browserPlatform, wakeLock: myWakeLock }`) composes cleanly for interfaces that bundle several sub-controllers.
+
+| Port | Interface | Default | Swap for |
+|---|---|---|---|
+| Storage | `IStorage` | `LocalStorageBackend` | `IndexedDBBackend`, `MemoryStorageBackend`, a remote store |
+| Platform | `IPlatform` | `browserPlatform` | Capacitor, Tauri, Electron, or a partial override |
+| Stream source | `IStreamSource` / `IStreamFactory` | native + HLS, registered at setup | a DASH or custom-protocol factory via `registerStream()` |
+| URL resolver | `IUrlResolver` | `auth.transformUrl` + structured parse | CDN-specific signing, per-category routing |
+| Translator | `ITranslator` | `DefaultTranslator` | i18next, FormatJS, any pluralization-aware engine |
+| Cue parser | `ICueParser` | VTT, sprite-VTT, LRC | TTML, SRT, a proprietary format |
+| Preload strategy | `IPreloadStrategy` | `DefaultPreloadStrategy` | custom prefetch timing or asset lists |
+| Transition strategy | `ITransitionStrategy` | crossfade (music) / gapless (video) | a custom fade or cut |
+| Shuffle strategy | `IShuffleStrategy` | `FisherYatesShuffle` | cursor-aware or weighted ordering |
+| Realtime channel | `RealtimeFactory` | `nativeWebSocketAdapter` | SignalR, Socket.IO, a custom transport |
+
+The queue's cursor-follow logic, the crossfade timing math, the retry backoff, none of it needs to know which concrete implementation is active. Every mixin reads through the interface, so a swap changes behavior without touching kit code.
+
+## Composing a player from the ports
+
+Three functions turn a plain class into something that behaves like `NMVideoPlayer` or `NMMusicPlayer`, and [Quickstart](/nomercy-player-core/quickstart) shows all three together:
+
+- `resolvePlayerConstructor(id, instances, className)`: the three-form factory resolution (`nmplayer()` / `nmplayer('div-id')` / `nmplayer(2)`) both real players' static constructors use.
+- `initPlayerCoreState(player, opts)`: seeds every internal slot (phase, queue, volume, plugin registry, and the rest) to its canonical starting value.
+- `composeMixins(prototype, ...modules)`: stamps one or more mixin objects onto a prototype via `Object.defineProperty`, preserving getters and setters. `playerCoreMethods` is the full aggregate; later modules in the argument list override earlier ones on key collision.
+
+## Swapping one at setup
+
+The example below replaces `storage` (so nothing touches `localStorage`) and `shuffleStrategy` (with a deterministic strategy, easy to verify) on the same minimal player composed in [Quickstart](/nomercy-player-core/quickstart).
+
+:::snippet{file="tour-adapters" live="false"}
+:::
+
+## Next steps
+
+- [i18n](/nomercy-player-core/tour/i18n): the default translator this same swap mechanism replaces when you need pluralization or ICU MessageFormat.

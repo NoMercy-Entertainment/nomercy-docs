@@ -52,6 +52,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
   // plugins-adapters, reference. Only "Getting Started" exists so far.
   'nomercy-player-core': [
     { group: "Getting Started", pages: ['introduction', 'quickstart'] },
+    { group: "Guided Tour", pages: ['tour/lifecycle', 'tour/event-bus', 'tour/transport', 'tour/time-and-state', 'tour/queue', 'tour/plugin-base', 'tour/adapters', 'tour/i18n', 'tour/cue-parsers', 'tour/errors'] },
   ],
   'nomercy-video-player': [
     { group: "Getting Started", pages: ['overview', 'installation', 'quickstart'] },
