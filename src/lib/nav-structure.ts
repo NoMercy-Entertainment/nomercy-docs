@@ -67,17 +67,10 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Plugins & Adapters", pages: ['plugins-adapters/desktop-ui', 'plugins-adapters/tv-key-handler', 'plugins-adapters/key-handler', 'plugins-adapters/cast-sender', 'plugins-adapters/subtitle-overlay', 'plugins-adapters/octopus', 'plugins-adapters/media-session', 'plugins-adapters/drm', 'plugins-adapters/touch-zones', 'plugins-adapters/live-transcoding', 'plugins-adapters/v1-compat', 'plugins-adapters/adapter-video-backend', 'plugins-adapters/adapter-chapter-source', 'plugins-adapters/adapter-thumbnail-source', 'plugins-adapters/adapter-subtitle-style-store'] },
     { group: "Reference", pages: ['reference/player-methods', 'reference/config', 'reference/events', 'reference/types'] },
   ],
+  // v2 rebuild (see .rebuild/progress.md) — full 7-stage arc: introduction,
+  // quickstart, tour, build, recipes, plugins-adapters, reference.
   'nomercy-music-player': [
-    { group: "Getting Started", pages: ['overview', 'installation', 'quickstart'] },
-    { group: "Foundations", pages: ['architecture'] },
-    { group: "Framework Integration", pages: ['framework-vue', 'framework-react'] },
-    { group: "Plugins", pages: ['plugins/auto-advance', 'plugins/lyrics', 'plugins/cast-sender', 'plugins/media-session', 'plugins/key-handler', 'plugins/music-ui', 'plugins/tab-leader', 'plugins/group-listening', 'plugins/drm', 'plugins/live-transcoding', 'plugins/embed', 'plugins/message', 'plugins/audio-graph', 'lyrics', 'equalizer', 'plugin-development', 'plugins/v1-compat'] },
-    { group: "API Reference", pages: ['configuration', 'api-methods', 'api/factory', 'api/backend', 'api/crossfade', 'api/kit-methods', 'crossfade', 'events', 'types', 'playlist-item'] },
-    { group: "Adapters", pages: ['backends/overview', 'backends/audio-element', 'backends/web-audio', 'backends/backend-interface', 'adapters/lyric-source', 'adapters/scrobbler', 'adapters/now-playing-art', 'adapters/playlist-generator', 'adapters/similarity-engine'] },
-    { group: "Recipes", pages: ['recipes/overview', 'recipes/playlist-and-queue', 'recipes/crossfade-and-gapless', 'recipes/lyrics-and-equalizer', 'recipes/authentication'] },
-    { group: "Advanced", pages: ['advanced/crossfade-tuning', 'advanced/equalizer-customization', 'advanced/lyrics-sync-deep-dive', 'advanced/custom-plugin', 'advanced/writing-an-audio-backend'] },
-    { group: "Troubleshooting", pages: ['troubleshooting', 'faq'] },
-    { group: "Migration", pages: ['migration-v1-v2'] },
+    { group: "Getting Started", pages: ['introduction', 'quickstart'] },
   ],
   'nomercy-api': [
     { group: "Getting Started", pages: ['overview'] },

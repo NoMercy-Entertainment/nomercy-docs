@@ -1,11 +1,11 @@
 ---
 title: 'Quick Start'
-description: 'Install nomercy-music-player and create a working music player with transport, queue, and media controls. Copy-paste runs as-is.'
+description: 'Install nomercy-music-player and play a real song with the baseUrl pattern. Copy-paste that works first try.'
 ---
 
 # Music Player: Quick Start
 
-A working music player in a few lines: it loads your first track, starts playback, and surfaces system media controls (lock screen, notification) with the track metadata.
+This gets a real song playing in the preview below: "Where Dreams Drift" by Ketsa, streamed from the `nomercy-media` fixture catalogue, using the baseUrl pattern every NoMercy player and app is built around. Everything on this page is the same code you would copy into your own project.
 
 ## Install
 
@@ -13,117 +13,59 @@ A working music player in a few lines: it loads your first track, starts playbac
 npm install @nomercy-entertainment/nomercy-music-player@rc
 ```
 
-`hls.js` installs automatically with the player — nothing extra for the npm / bundler path. See [Installation](/nomercy-music-player/installation) for the CDN exception.
+That's the only package you need. `nomercy-player-core` is a regular dependency of `nomercy-music-player`, npm installs it for you, there is no peer dependency to add by hand.
 
-## Minimal working player
+## Play your first song
+
+:::snippet{file="music-quickstart"}
+:::
+
+That is a real player, playing a real audio file fetched from `baseUrl` at request time. The preview mutes the backend and loads the first item with `{ autoplay: true }` only so it starts without a click; drop both for a normal app and call `player.item(0, { autoplay: true })` (or `player.play()` once an item is already loaded) from your own UI on a user gesture instead.
+
+## The baseUrl pattern
+
+`baseUrl` is the one config field every playlist should set. Item paths (`url` in the snippet above) stay relative, exactly the shape a real media server sends, and the player prepends `baseUrl` as a plain string prefix, keeping the whole base path:
 
 ```ts
-import nmMPlayer from '@nomercy-entertainment/nomercy-music-player';
-import {
-  AutoAdvancePlugin,
-  MediaSessionPlugin,
-} from '@nomercy-entertainment/nomercy-music-player/plugins';
-import type {
-  MusicPlayerConfig,
-  MusicPlaylistItem,
-} from '@nomercy-entertainment/nomercy-music-player';
+baseUrl: 'https://your-server.example.com/api/files',
+playlist: [{ /* ... */ url: '/Artist/Album/01 Track.mp3' }],
+```
 
-// Real CC-licensed tracks from nomercy-media. Swap for your own content.
-const items: MusicPlaylistItem[] = [
-  {
-    id: 'bent-wyre-01',
-    name: 'Ants Of The Beat',
-    url: '/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.mp3',
-    cover:
-      '/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.jpg',
-    artist: 'bent wyre',
-  },
-  {
-    id: 'bent-wyre-02',
-    name: 'Beat of Trespass',
-    url: '/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/02%20Beat%20of%20Trespass.mp3',
-    cover:
-      '/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/02%20Beat%20of%20Trespass.jpg',
-    artist: 'bent wyre',
-  },
-];
+Move to a different server, a different environment, a signed-URL CDN, and you change one config value; nothing in your catalogue is hardcoded to today's origin. The server sends the base without a trailing slash and paths with a leading slash, so never pre-join an absolute URL into an item yourself. That is the player's job, and doing it twice breaks the moment the base changes.
 
-const config: MusicPlayerConfig = {
-  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
-  playlist: items,
-};
+## There is no autoPlay config field
 
-const player = nmMPlayer('main')
-  .addPlugin(AutoAdvancePlugin)
-  .addPlugin(MediaSessionPlugin)
-  .setup(config);
+`MusicPlayerConfig` has no `muted` / `autoPlay` config sugar, `setup()` loads the queue but does not start anything on its own. Start playback the same way your own UI would, once `ready()` resolves:
 
-player.on('ready', () => {
-  player.item(0, { autoplay: true });
+```ts
+await player.ready();
+player.item(0, { autoplay: true });
+```
+
+`item(target, opts)` moves the queue cursor (by index, id, or item reference) and loads it; `{ autoplay: true }` plays it as soon as the load resolves. Call `player.mute()` first if you need playback to start without a user gesture, browsers block unmuted autoplay the same way for `<audio>` as they do for `<video>`.
+
+## Mounting into your own container
+
+The player above mounts into a container the example creates for you. In your own app, render a container and call the same factory:
+
+```html
+<div id="player"></div>
+```
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+
+const player = nmplayer('player').setup({
+  baseUrl: 'https://your-server.example.com/api/files',
+  playlist: [/* ... */],
 });
+
+await player.ready();
+player.item(0, { autoplay: true });
 ```
 
-That is a working music player. The inline `playlist:` array is auto-queued during setup. `AutoAdvancePlugin` advances the queue when a track ends, and `MediaSessionPlugin` wires lock screen and notification controls.
-
-## Core controls
-
-```ts
-// Transport — all return Promise<void>
-await player.play();
-await player.pause();
-await player.stop();
-await player.togglePlayback();
-await player.next();
-await player.previous();
-await player.restart();
-
-// Volume (0-100)
-player.volume(80);
-player.mute();
-player.unmute();
-player.volumeUp(5);
-player.volumeDown(5);
-
-// Seeking
-player.time(30);            // seek to 30 seconds
-player.forward(10);
-player.rewind(10);
-player.seekByPercentage(50);
-
-// Queue
-player.queue([track1, track2, track3]); // replace
-player.queueAppend(track4);
-player.queuePrepend(track4);             // play next
-player.queueRemove('4');
-player.item(track2);                     // jump to a track
-
-// Shuffle and repeat
-import { ShuffleState, RepeatState } from '@nomercy-entertainment/nomercy-music-player';
-player.shuffleState(ShuffleState.ON);
-player.repeatState(RepeatState.ALL);
-```
-
-See [API Methods](/nomercy-music-player/api-methods) for the full surface and the overloaded getter/setter pattern.
-
-## Listening to events
-
-```ts
-player.on('current', ({ item, index }) => {
-  console.log('Now playing:', item.name, 'at index', index);
-});
-player.on('time', ({ time }) => updateProgressBar(time / player.duration()));
-player.on('play', () => { /* started */ });
-player.on('pause', () => { /* paused */ });
-player.on('ended', () => { /* track finished */ });
-player.on('ready', () => { /* setup complete */ });
-```
-
-See [Events](/nomercy-music-player/events) for the full list and payload shapes.
+`nmplayer(id)` either mounts a new player into `document.getElementById(id)` or returns the instance already registered under that id, so calling it twice for the same id is always safe.
 
 ## Next steps
 
-- [Queue, shuffle & repeat in depth](/nomercy-music-player/recipes/playlist-and-queue)
-- [Crossfade & gapless](/nomercy-music-player/recipes/crossfade-and-gapless)
-- [Lyrics & equalizer](/nomercy-music-player/recipes/lyrics-and-equalizer)
-- [Auth-protected sources](/nomercy-music-player/recipes/authentication)
-- [Configuration](/nomercy-music-player/configuration) — every `setup()` option and its default.
+- [What is nomercy-music-player](/nomercy-music-player/introduction): the setup-then-freedom model, the swappable audio backend, and how far the plugin system can take you from here.

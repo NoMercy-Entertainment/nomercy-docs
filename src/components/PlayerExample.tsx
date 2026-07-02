@@ -13,10 +13,20 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { t } from '@/lib/i18n';
 
 type VideoPlayer = import('@nomercy-entertainment/nomercy-video-player').IVideoPlayer;
+type MusicPlayer = import('@nomercy-entertainment/nomercy-music-player').IMusicPlayer;
+type AnyPlayer = VideoPlayer | MusicPlayer;
 
 type SnippetModule = {
   mountId?: string;
-  config: import('@nomercy-entertainment/nomercy-video-player').VideoPlayerConfig;
+  /**
+   * Which trio package this snippet mounts and previews live. Defaults to
+   * `'video'` — every pre-existing snippet (none of which set this field)
+   * keeps mounting `nomercy-video-player` exactly as before.
+   */
+  player?: 'video' | 'music';
+  config:
+    | import('@nomercy-entertainment/nomercy-video-player').VideoPlayerConfig
+    | import('@nomercy-entertainment/nomercy-music-player').MusicPlayerConfig;
   /**
    * Optional pre-setup hook — called on the freshly-constructed instance
    * before `setup(config)` runs. The only place `addPlugin()` is valid
@@ -24,7 +34,7 @@ type SnippetModule = {
    * pipeline), so a "Build a Player" step that needs a plugin (e.g.
    * `SubtitleOverlayPlugin`) registers it here.
    */
-  configure?: (player: VideoPlayer) => void;
+  configure?: (player: AnyPlayer) => void;
   /**
    * Optional post-setup hook for "Build a Player" steps that construct a real
    * DOM overlay against the live instance (a button, a scrubber, ...) instead
@@ -34,7 +44,7 @@ type SnippetModule = {
    * whatever it added; every config-only snippet omits this and behaves
    * exactly as before.
    */
-  onReady?: (player: VideoPlayer, container: HTMLElement) => void | (() => void);
+  onReady?: (player: AnyPlayer, container: HTMLElement) => void | (() => void);
 };
 
 type Status = 'loading' | 'ready' | 'error';
@@ -59,18 +69,21 @@ export function PlayerExample({ snippet }: PlayerExampleProps) {
 
   useEffect(() => {
     let cancelled = false;
-    let player: VideoPlayer | null = null;
+    let player: AnyPlayer | null = null;
     let cleanupOnReady: (() => void) | undefined;
 
     async function mount(): Promise<void> {
       try {
-        const [snippetModule, playerModule] = await Promise.all([
-          import(`../examples/${snippet}.ts`),
-          import('@nomercy-entertainment/nomercy-video-player'),
-        ]);
+        // The target package isn't known until the snippet's own config is
+        // read (`player: 'video' | 'music'`), so it can't join the snippet
+        // import in one Promise.all the way the single-package version did.
+        // Net effect is still a bundle-size win over eagerly loading both:
+        // exactly one of the two heavy player packages ships per page.
+        const snippetModule = await import(`../examples/${snippet}.ts`);
         if (cancelled) return;
 
-        const { config, mountId, configure, onReady }: SnippetModule = snippetModule.default;
+        const { config, mountId, configure, onReady, player: playerKind }: SnippetModule = snippetModule.default;
+        const kind = playerKind ?? 'video';
         const el = containerRef.current;
         if (!el) return;
 
@@ -80,28 +93,58 @@ export function PlayerExample({ snippet }: PlayerExampleProps) {
         const targetId = mountId ?? containerId;
         if (el.id !== targetId) el.id = targetId;
 
-        const firstTitle = Array.isArray(config.playlist) ? config.playlist[0]?.title : undefined;
+        // `title` (video) and `name` (music) are each library's canonical
+        // display field. `BasePlaylistItem.title` is optional on both shapes,
+        // so this one fallback chain covers either without branching on `kind`.
+        const firstItem = Array.isArray(config.playlist) ? config.playlist[0] : undefined;
+        const firstTitle = (firstItem as { title?: string; name?: string } | undefined)?.title
+          ?? (firstItem as { title?: string; name?: string } | undefined)?.name;
         setLabel(
           firstTitle
             ? t('player.example.regionLabelNamed', { title: firstTitle })
             : t('player.example.regionLabel'),
         );
 
-        const built = playerModule.default(targetId);
-        configure?.(built);
-        const instance = built.setup(config);
-        player = instance;
-        cleanupOnReady = onReady?.(instance, el) ?? undefined;
+        if (kind === 'music') {
+          const playerModule = await import('@nomercy-entertainment/nomercy-music-player');
+          const built = playerModule.default(targetId);
+          configure?.(built);
+          const instance = built.setup(
+            config as import('@nomercy-entertainment/nomercy-music-player').MusicPlayerConfig,
+          );
+          player = instance;
+          cleanupOnReady = onReady?.(instance, el) ?? undefined;
 
-        // `canplay` (not `ready`) is the proof the media itself loaded —
-        // `ready` fires once the setup pipeline settles, before the first
-        // segment request, so treating it as "ready" here could flip the
-        // flag before the stream is confirmed playable.
-        instance.on('canplay', () => {
-          if (!cancelled) setStatus('ready');
-        });
+          // Music has no consumer-facing `canplay` — that event is video-only
+          // (see `IVideoPlayer`). `firstFrame` is the medium-neutral kit event
+          // both packages emit once the backend can actually play, the true
+          // readiness signal for an audio-only preview.
+          instance.on('firstFrame', () => {
+            if (!cancelled) setStatus('ready');
+          });
+        } else {
+          const playerModule = await import('@nomercy-entertainment/nomercy-video-player');
+          const built = playerModule.default(targetId);
+          configure?.(built);
+          const instance = built.setup(
+            config as import('@nomercy-entertainment/nomercy-video-player').VideoPlayerConfig,
+          );
+          player = instance;
+          cleanupOnReady = onReady?.(instance, el) ?? undefined;
 
-        instance.on('error', (payload) => {
+          // `canplay` (not `ready`) is the proof the media itself loaded —
+          // `ready` fires once the setup pipeline settles, before the first
+          // segment request, so treating it as "ready" here could flip the
+          // flag before the stream is confirmed playable.
+          instance.on('canplay', () => {
+            if (!cancelled) setStatus('ready');
+          });
+        }
+
+        const activeInstance = player;
+        if (!activeInstance) return;
+
+        activeInstance.on('error', (payload) => {
           if (!cancelled) {
             setStatus('error');
             setErrorMessage(payload.error.message);
@@ -109,8 +152,8 @@ export function PlayerExample({ snippet }: PlayerExampleProps) {
         });
 
         if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-          instance.once('playing', () => {
-            void instance.pause();
+          activeInstance.once('playing', () => {
+            void activeInstance.pause();
           });
         }
       } catch (err) {

@@ -22,11 +22,14 @@
  */
 
 import type { FontTrackRef, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 
 export const FILMS_BASE =
   'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films';
 export const ANIME_BASE =
   'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Anime';
+export const MUSIC_BASE =
+  'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
 
 /** One sidecar track entry in the wire `tracks` array — see `WirePlaylistItem`. */
 export interface WireTrack {
@@ -205,3 +208,44 @@ const railWarsItem: WirePlaylistItem = {
 };
 
 export const anime: VideoPlaylistItem[] = [noRinItem, railWarsItem];
+
+/**
+ * Real Free Music Archive tracks from the `nomercy-media` fixture repo, same
+ * source the player testbed uses (`tools/player-testbed/src/data/fmaDefaults.ts`).
+ * `url` carries the baseUrl-relative shape (leading slash, no `MUSIC_BASE`
+ * prefix) that `MusicPlayerConfig.baseUrl` resolves against, exactly like
+ * `films`/`file` above. `cover` is a full URL rather than baseUrl-relative —
+ * cover art resolves through the `'poster'` category (`baseImageUrl`, not
+ * `baseUrl`), and these tracks don't ship a separate image origin.
+ */
+const whereDreamsDrift: MusicPlaylistItem = {
+  id: 'ketsa-01-where-dreams-drift',
+  name: 'Where Dreams Drift',
+  url: '/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/01%20Where%20Dreams%20Drift.mp3',
+  cover: `${MUSIC_BASE}/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/cover.jpg`,
+  artist: 'Ketsa',
+  album: 'CC BY: Free to Use',
+};
+
+/** Single track for snippets that need exactly one playable song. */
+export const firstSong: MusicPlaylistItem = whereDreamsDrift;
+
+export const songs: MusicPlaylistItem[] = [
+  whereDreamsDrift,
+  {
+    id: 'ketsa-02-saviour-above',
+    name: 'Saviour Above',
+    url: '/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/02%20Saviour%20Above.mp3',
+    cover: `${MUSIC_BASE}/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/cover.jpg`,
+    artist: 'Ketsa',
+    album: 'CC BY: Free to Use',
+  },
+  {
+    id: 'bent-wyre-01-ants-of-the-beat',
+    name: 'Ants Of The Beat',
+    url: '/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.mp3',
+    cover: `${MUSIC_BASE}/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/cover.jpg`,
+    artist: 'bent wyre',
+    album: 'If Only Life Was This Easy Vol. 5',
+  },
+];

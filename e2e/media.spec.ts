@@ -8,7 +8,7 @@
 
 import type { WirePlaylistItem } from '../src/examples/media';
 import { expect, test } from '@playwright/test';
-import { ANIME_BASE, anime, FILMS_BASE, films } from '../src/examples/media';
+import { ANIME_BASE, anime, FILMS_BASE, films, MUSIC_BASE, songs } from '../src/examples/media';
 
 for (const item of films) {
   const wireItem = item as WirePlaylistItem;
@@ -51,5 +51,23 @@ for (const item of anime) {
       const response = await request.head(`${ANIME_BASE}${fontEntry.file}`);
       expect(response.status(), `${ANIME_BASE}${fontEntry.file}`).toBe(200);
     }
+  });
+}
+
+for (const item of songs) {
+  test(`song "${item.name}" has a working file URL and required fields`, async ({ request }) => {
+    expect(item.id, 'id must be set').toBeTruthy();
+    expect(item.name, 'name must be set').toBeTruthy();
+    expect(item.url, 'url must be set').toBeTruthy();
+
+    const response = await request.head(`${MUSIC_BASE}${item.url}`);
+    expect(response.status(), `${MUSIC_BASE}${item.url}`).toBe(200);
+  });
+
+  test(`song "${item.name}" has a working cover URL`, async ({ request }) => {
+    expect(item.cover, 'cover must be set').toBeTruthy();
+
+    const response = await request.head(item.cover!);
+    expect(response.status(), item.cover!).toBe(200);
   });
 }

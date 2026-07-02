@@ -9,7 +9,7 @@ Altitude: core = compose-your-own-player (under the hood); video/music = consume
   plugins-adapters, reference). check-docs no longer reports ARC-SECTION-MISSING for core.
 - [x] video content: DONE, all 7 arc stages (intro, quickstart, tour, build, recipes,
   plugins-adapters, reference). check-docs no longer reports ARC-SECTION-MISSING for video.
-- [ ] music content
+- [ ] music content (in progress: intro+quickstart done, see below)
 - [ ] final cross-library verify (check-docs + build + nav + a11y)
 checkpoint (uncommitted): video intro+quickstart — reused src/examples/quickstart.ts + media.ts
 (no new example needed) + nav-structure.ts Getting Started group + navigation.ts/index.astro/
@@ -48,3 +48,20 @@ stay code-block-only, matching core's plugins-adapters/reference precedent) + na
 Recipes/Plugins & Adapters/Reference groups for nomercy-video-player + build/fullscreen.mdx
 forward link into recipes. Video arc is now complete end to end (7/7 stages), matching core.
 See .rebuild/video-rest-report.md for full detail.
+checkpoint (uncommitted): music intro+quickstart (arc stages 1-2, first content since the old
+56-file music collection was wiped) — introduction.mdx (headless audio engine: swappable
+audio-element/web-audio backend, crossfade defaulting true, lyrics plugin, audio-output device
+selection, equalizer via the kit's shared AudioGraphPlugin; zero video mentions) + quickstart.mdx
+(live snippet, real FMA track "Where Dreams Drift" by Ketsa, baseUrl pattern, explains there is
+no music-level autoPlay config — item(0,{autoplay:true}) after ready() is the real pattern) + new
+src/examples/music-quickstart.ts + media.ts gained MUSIC_BASE/firstSong/songs (3 real,
+HEAD-verified FMA tracks, baseUrl-relative `url`) + e2e/media.spec.ts gained matching song HEAD
+tests (15/15 pass) + PlayerExample.tsx extended additively with a `player: 'video' | 'music'`
+snippet field (default 'video', every prior snippet unaffected) — music branch listens for
+`firstFrame` (music has no consumer `canplay`) instead of `canplay`, mounts
+`nomercy-music-player` instead of `nomercy-video-player` + nav-structure.ts nomercy-music-player
+entry replaced (was ~76 phantom slugs from the wiped collection) with the same
+Getting-Started-only pattern used for video/core's first checkpoint + navigation.ts/index.astro/
+core's reference/utilities.mdx cross-link fixes (/overview -> /introduction). check:nav green,
+`npx astro build` exit 0, `npx playwright test e2e/snippets.spec.ts` 2/2 (music island +
+every pre-existing video island reach data-player-ready). See .rebuild/music-intro-report.md.
