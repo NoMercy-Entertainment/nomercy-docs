@@ -1,0 +1,58 @@
+---
+title: 'Transport'
+description: 'play(), pause(), stop(), togglePlayback(), next()/previous(), rewind()/forward()/restart(), and seeking through time(seconds).'
+---
+
+{/* Source: packages/nomercy-video-player/src/index.ts, packages/nomercy-player-core/src/core/mixins/transport.ts, src/core/mixins/time.ts */}
+
+# Transport
+
+`nomercy-video-player` doesn't reimplement transport. Every method below is `nomercy-player-core`'s [Transport Contract](/nomercy-player-core/tour/transport): a cancellable `before*` dispatch, then a call into the video backend. Video adds nothing to the surface here, only a real `<video>` element for it to drive.
+
+## Play, pause, stop
+
+`play()`, `pause()`, `stop()`, and `togglePlayback()` all return a `Promise<void>` that resolves once the backend call settles. `next()` / `previous()` move the queue cursor and load, `restart()` seeks to `0` and resumes.
+
+```ts
+await player.play();
+await player.pause();
+await player.togglePlayback(); // flips based on the current playState()
+await player.stop();
+await player.next();
+await player.previous();
+await player.restart();
+```
+
+Every one of these accepts `ActionOptions`: `{ source, silent }`. `source` defaults to `'user'` and gets stamped onto the emitted event, so a Connect plugin syncing playback across devices can tell its own remote-triggered `play()` apart from a real click.
+
+## Seeking through time()
+
+There's no separate `seek()` method. `time()` reads the current position in seconds; `time(seconds)` seeks to it through the kit's `beforeSeek` → `seek` → `seeked` cycle, same as every other transport action:
+
+```ts
+const currentTime = player.time(); // seconds
+await player.time(120); // jump to 2:00
+```
+
+`rewind(seconds?)` and `forward(seconds?)` compute a relative target from the current position and call `time()` internally; both default to a sane step size when called with no argument. `seekByPercentage(pct)` seeks to a position expressed as `0`–`100` percent of `duration()`, the calculation a progress bar's click handler would otherwise have to do by hand:
+
+```ts
+await player.rewind(10); // -10s
+await player.forward(30); // +30s
+player.seekByPercentage(50); // jump to the halfway point
+```
+
+## Guard first
+
+Every transport method calls the kit's `_assertReady()` guard before doing anything else. Calling `play()` before `setup()` resolves, or after `dispose()`, throws a typed `StateError` instead of silently reaching into missing state — the same contract [Core: Transport Contract](/nomercy-player-core/tour/transport) documents in full, including the `preventDefault()` / `delay()` shape of the `before*` event.
+
+## See it running
+
+`controls: true` below renders the browser's native play/pause button and scrubber. They call exactly the methods on this page, nothing more — your own overlay in [Build a Player](/nomercy-video-player/build/shell) wires the same calls to buttons you draw yourself.
+
+:::snippet{file="video-tour-transport"}
+:::
+
+## Next steps
+
+- [Volume](/nomercy-video-player/tour/volume): volume(), mute()/unmute(), and the volume gain state a slider or mute icon reads.

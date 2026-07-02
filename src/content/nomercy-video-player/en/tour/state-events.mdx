@@ -1,0 +1,72 @@
+---
+title: 'Playback State & Events'
+description: 'playState(), bufferState(), timeData(), and the video-specific events layered on top of the kit event bus: levels, audioTracks, fullscreen, videoRect, and the rest.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/player-state.ts, src/core/mixins/time.ts, packages/nomercy-video-player/src/types.ts */}
+
+# Playback State & Events
+
+A UI reads state two ways: pull a typed reader when you need a value right now, or subscribe once and let the player push updates. Both come from the kit, video only adds the events specific to its own medium on top.
+
+## Typed state readers
+
+These come straight from `nomercy-player-core` (see [Core: Time & State](/nomercy-player-core/tour/time-and-state) for the full contract) and work identically here:
+
+- `playState()`: `PlayState.IDLE` / `LOADING` / `PLAYING` / `PAUSED` / `STOPPED` / `ERROR`.
+- `bufferState()`: `BufferState.IDLE` / `LOADING` / `SEEKING` / `STALLED`.
+- `networkState()`: `NetworkState.ONLINE` / `OFFLINE` / `SLOW`.
+- `volumeState()`: `VolumeState.UNMUTED` / `MUTED` (see [Volume](/nomercy-video-player/tour/volume)).
+- `timeData()`: one `TimeState` snapshot bundling `position`, `duration`, `buffered`, `remaining`, and `percentage`, computed together so the values agree at the moment of the call.
+
+```ts
+import { PlayState } from '@nomercy-entertainment/nomercy-video-player';
+
+if (player.playState() === PlayState.PLAYING) {
+  // ...
+}
+
+const { position, duration, percentage } = player.timeData();
+```
+
+## Video-specific events
+
+Everything below is unique to `VideoEventMap`, layered on top of the kit's `BaseEventMap` (transport, queue, volume, i18n — the events every tour page so far has already covered).
+
+| Event | Payload | Fires when |
+| --- | --- | --- |
+| `firstFrame` | `void` | The first decoded frame paints. |
+| `waiting` / `canplay` / `stalled` | `void` | Backend buffering signals, for a spinner. |
+| `levels` | `{ levels }` | HLS manifest parsed; quality list is now populated. |
+| `level-switched` | `{ level }` | ABR (or a manual `quality()` call) actually switched renditions. |
+| `audioTracks` | `{ tracks }` | Audio-track list is now populated. |
+| `subtitleCue` | `SubtitleCueChange` | Every cue change, sidecar VTT or native text track alike. |
+| `fullscreen` / `pip` / `theater` | `{ active }` | The matching toggle settled. |
+| `aspectRatio` | `{ value }` | `aspectRatio()` or `cycleAspectRatio()` changed the object-fit mode. |
+| `videoRect` | `{ rect }` | The displayed content rectangle changed (resize, fullscreen, metadata). |
+| `segmentBoundary` | `{ startSec, endSec, onEnd }` | A `playSegment()` window's `endSec` was reached (see [Chapters](/nomercy-video-player/tour/chapters)). |
+| `display-message` / `remove-message` | `{ text, ms? }` / `void` | OSD toast request/dismiss — the active UI plugin renders it. |
+| `back` / `close` | `void` | Navigation intent from a UI plugin's back/close button. |
+
+```ts
+player.on('levels', ({ levels }) => {
+  // populate a quality menu now that the manifest is parsed
+});
+
+player.on('fullscreen', ({ active }) => {
+  // sync a fullscreen button's icon
+});
+```
+
+`videoRect()` and its event exist so an overlay plugin (subtitles, a letterbox border, a click-to-seek layer) can align to the actual painted video area under `object-fit: contain`, not the container, which includes the letterbox padding.
+
+## See it running
+
+Every event on this page fires against the player below as it plays.
+
+:::snippet{file="video-tour-state-events"}
+:::
+
+## Next steps
+
+- [Build a Player: The Shell](/nomercy-video-player/build/shell): stop reading the API and start wiring it to real buttons, step by step.

@@ -1,0 +1,54 @@
+---
+title: 'Chapters'
+description: 'chapters(), seekToChapter(), nextChapter()/previousChapter(), and playSegment()/clearSegment() for looping or holding an arbitrary time window.'
+---
+
+{/* Source: packages/nomercy-video-player/src/index.ts (playSegment, clearSegment), packages/nomercy-player-core/src/core/mixins/media-tracks.ts */}
+
+# Chapters
+
+Chapters come from a sidecar VTT (`kind: 'chapters'` in the server's wire `tracks[]`, normalized into `chapters` on ingest, same as subtitles), resolved asynchronously once the active item loads.
+
+## Listing and navigating
+
+`chapters()` returns the resolved list, each entry an `index`, `start`, and `end` in seconds, plus a display title. `seekToChapter(idx)` jumps directly; `nextChapter()` / `previousChapter()` step relative to the current position, not the last chapter you explicitly selected, so they stay correct even after a manual scrub:
+
+```ts
+const list = player.chapters(); // Chapter[]: { index, start, end, title }
+
+player.seekToChapter(2);
+player.nextChapter();
+player.previousChapter();
+```
+
+`chapter()` reads the chapter containing the current playback position, or `null` before the list resolves. `seekToChapter()` and the chapter-boundary crossing both emit `'chapter'` with `{ index, title }`, subscribe to that instead of diffing `chapter()` on every `'time'` tick.
+
+`chapters()` returns `[]`, not a rejected promise, for an item with no chapter sidecar, a chapter-marker UI can render unconditionally and simply show nothing when the list is empty.
+
+## Arbitrary time windows
+
+Chapters are one instance of a more general primitive: `playSegment({ startSec, endSec, onEnd })` seeks to `startSec` and watches every `'time'` event for `endSec`. When the boundary is reached, `'segmentBoundary'` always fires first, then `onEnd` decides what happens:
+
+| `onEnd` | Behavior |
+| --- | --- |
+| `'loop'` | Seek back to `startSec` and keep playing. |
+| `'hold'` | Pause at `endSec`, last frame stays visible. |
+| `'advance'` | Emit the boundary event and let playback continue naturally. |
+
+```ts
+player.playSegment({ startSec: 30, endSec: 45, onEnd: 'loop' }); // a 15s preview loop
+player.clearSegment(); // stop watching, no seek or pause
+```
+
+This isn't chapter-specific, it's the same primitive an intro-skip loop, a disc-menu state window, or a highlight-reel scrubber would use. Any previously active segment window is replaced immediately when you call `playSegment()` again; `clearSegment()` stops watching without moving playback.
+
+## See it running
+
+`sintel` carries a chapters sidecar; the player below resolves it on load.
+
+:::snippet{file="video-tour-chapters"}
+:::
+
+## Next steps
+
+- [Playback State & Events](/nomercy-video-player/tour/state-events): playState(), bufferState(), and the full event surface a UI subscribes to.

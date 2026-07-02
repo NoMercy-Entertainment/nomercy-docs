@@ -1,0 +1,68 @@
+---
+title: 'Build a Player: The Shell'
+description: 'Step 1 of 5: turn off the native controls and build a real overlay bar with one play/pause button, wired to togglePlayback() and playState().'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/dom-mixin.ts, packages/nomercy-video-player/src/index.ts */}
+
+# Build a Player: The Shell
+
+This is a five-step tutorial that builds a real overlay UI against a live player: a shell with play/pause, a scrubber, volume, a subtitle menu, fullscreen. Each step's live player below shows exactly that step's result, nothing from later steps. By the end you have one complete, self-contained overlay file.
+
+## Turning off the native bar
+
+Every example on the Guided Tour set `controls: true` and let the browser draw the bar. Set it to `false` and you get a bare `<video>` with nothing on top, the starting point for building your own:
+
+```ts
+const config: VideoPlayerConfig = {
+  baseUrl,
+  playlist: [item],
+  controls: false, // no native bar — you draw everything from here
+};
+```
+
+## The DOM helpers
+
+`nomercy-player-core` exposes the same DOM construction helpers the desktop UI plugin itself is built from, `createElement`, `createButton`, `createSVG`, `addClasses`, `removeClasses`, so building an overlay doesn't require a component framework or a CSS toolkit. `createElement(type, id)` returns a fluent builder; `createButton(id, label, onClick)` returns an accessible `<button>` with `aria-label`, `title`, and the click handler already wired:
+
+```ts
+const bar = player.createElement('div', 'my-controls')
+  .appendTo(player.container)
+  .get();
+
+const playPause = player.createButton('my-play-pause', 'Play', () => {
+  void player.togglePlayback();
+});
+bar.appendChild(playPause);
+```
+
+`player.container` is the real mounted `<div>`, the same element `setup()` received. Position it `relative` so an absolutely-positioned bar anchors to the video instead of the page.
+
+## Wiring the button to state
+
+A play/pause button needs to reflect state it didn't cause, another tab's play, a Connect sync, the item ending. Read `playState()` and subscribe to `'play'`/`'pause'`/`'playing'` (see [Playback State & Events](/nomercy-video-player/tour/state-events)) instead of tracking a local boolean toggled only by the click handler:
+
+```ts
+import { PlayState } from '@nomercy-entertainment/nomercy-video-player';
+
+const sync = () => {
+  const playing = player.playState() === PlayState.PLAYING;
+  playPause.textContent = playing ? '⏸' : '▶';
+  playPause.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+};
+player.on('play', sync);
+player.on('pause', sync);
+player.on('playing', sync);
+sync(); // set the initial label
+```
+
+## See it running
+
+`onReady()` in the snippet below runs once, synchronously, right after `setup()`, the same moment your own app has a live player instance to build against. It returns a cleanup function that removes the listeners and the bar, called when the example unmounts.
+
+:::snippet{file="video-build-1-shell"}
+:::
+
+## Next steps
+
+- [Step 2: The Scrubber](/nomercy-video-player/build/scrubber): a progress bar driven by the `'time'` and `'duration'` events, seeking through `time()`.

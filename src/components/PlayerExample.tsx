@@ -12,12 +12,30 @@ import { useEffect, useId, useRef, useState } from 'react';
 
 import { t } from '@/lib/i18n';
 
+type VideoPlayer = import('@nomercy-entertainment/nomercy-video-player').IVideoPlayer;
+
 type SnippetModule = {
   mountId?: string;
   config: import('@nomercy-entertainment/nomercy-video-player').VideoPlayerConfig;
+  /**
+   * Optional pre-setup hook — called on the freshly-constructed instance
+   * before `setup(config)` runs. The only place `addPlugin()` is valid
+   * (registering after `setup()` misses the plugin's `use()` call during the
+   * pipeline), so a "Build a Player" step that needs a plugin (e.g.
+   * `SubtitleOverlayPlugin`) registers it here.
+   */
+  configure?: (player: VideoPlayer) => void;
+  /**
+   * Optional post-setup hook for "Build a Player" steps that construct a real
+   * DOM overlay against the live instance (a button, a scrubber, ...) instead
+   * of just supplying a config. Called once, synchronously, right after
+   * `setup()` — the same moment a consumer's own app would start building UI
+   * against the returned player. Return a cleanup function to tear down
+   * whatever it added; every config-only snippet omits this and behaves
+   * exactly as before.
+   */
+  onReady?: (player: VideoPlayer, container: HTMLElement) => void | (() => void);
 };
-
-type VideoPlayer = import('@nomercy-entertainment/nomercy-video-player').IVideoPlayer;
 
 type Status = 'loading' | 'ready' | 'error';
 
@@ -42,6 +60,7 @@ export function PlayerExample({ snippet }: PlayerExampleProps) {
   useEffect(() => {
     let cancelled = false;
     let player: VideoPlayer | null = null;
+    let cleanupOnReady: (() => void) | undefined;
 
     async function mount(): Promise<void> {
       try {
@@ -51,7 +70,7 @@ export function PlayerExample({ snippet }: PlayerExampleProps) {
         ]);
         if (cancelled) return;
 
-        const { config, mountId }: SnippetModule = snippetModule.default;
+        const { config, mountId, configure, onReady }: SnippetModule = snippetModule.default;
         const el = containerRef.current;
         if (!el) return;
 
@@ -68,8 +87,11 @@ export function PlayerExample({ snippet }: PlayerExampleProps) {
             : t('player.example.regionLabel'),
         );
 
-        const instance = playerModule.default(targetId).setup(config);
+        const built = playerModule.default(targetId);
+        configure?.(built);
+        const instance = built.setup(config);
         player = instance;
+        cleanupOnReady = onReady?.(instance, el) ?? undefined;
 
         // `canplay` (not `ready`) is the proof the media itself loaded —
         // `ready` fires once the setup pipeline settles, before the first
@@ -103,6 +125,7 @@ export function PlayerExample({ snippet }: PlayerExampleProps) {
 
     return () => {
       cancelled = true;
+      cleanupOnReady?.();
       player?.dispose();
     };
   }, [snippet, containerId]);

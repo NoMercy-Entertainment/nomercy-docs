@@ -61,6 +61,8 @@ export const navStructure: Record<string, NavGroupDef[]> = {
   // quickstart, tour, build, recipes, plugins-adapters, reference. Stages 1-2 only so far.
   'nomercy-video-player': [
     { group: "Getting Started", pages: ['introduction', 'quickstart'] },
+    { group: "Guided Tour", pages: ['tour/transport', 'tour/volume', 'tour/queue', 'tour/subtitles', 'tour/audio-tracks', 'tour/quality', 'tour/chapters', 'tour/state-events'] },
+    { group: "Build a Player", pages: ['build/shell', 'build/scrubber', 'build/volume', 'build/subtitle-menu', 'build/fullscreen'] },
   ],
   'nomercy-music-player': [
     { group: "Getting Started", pages: ['overview', 'installation', 'quickstart'] },

@@ -1,0 +1,45 @@
+---
+title: 'Build a Player: Fullscreen'
+description: 'Step 5 of 5: a fullscreen button driven by toggleFullscreen() and the settled fullscreen event, completing the overlay this tutorial built.'
+---
+
+{/* Source: packages/nomercy-video-player/src/index.ts (fullscreen, toggleFullscreen) */}
+
+# Build a Player: Fullscreen
+
+[Step 4](/nomercy-video-player/build/subtitle-menu) added the subtitle menu. This is the last step: a fullscreen button, completing the overlay this tutorial has been building since [The Shell](/nomercy-video-player/build/shell).
+
+## Request, then confirm
+
+`toggleFullscreen()` flips `fullscreen()` through the platform's `FullscreenController` (`setup({ platform })`, defaulting to `browserPlatform`, the browser's own Fullscreen API underneath). Same pattern as every other button in this tutorial: the click only requests the change, the `'fullscreen'` event confirms it settled:
+
+```ts
+const fullscreenButton = player.createButton('my-fullscreen', 'Fullscreen', () => {
+  player.toggleFullscreen();
+});
+
+const syncFullscreen = () => {
+  const active = player.fullscreen() === FullscreenState.ON;
+  fullscreenButton.textContent = active ? '⤢' : '⛶';
+  fullscreenButton.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Fullscreen');
+};
+player.on('fullscreen', syncFullscreen);
+syncFullscreen();
+```
+
+Requesting fullscreen requires an actual user gesture, browsers reject a programmatic call outside a click handler, so nothing in `onReady()` calls it automatically; only the button's own click does.
+
+## What you built
+
+Five steps, one overlay: a shell with play/pause, a scrubber that doesn't fight the user's drag, live volume with a mute button that can't drift, a subtitle menu backed by a real rendering plugin, and fullscreen. Every method behind every button is documented in full on the [Guided Tour](/nomercy-video-player/tour/transport), this tutorial only wired them to DOM you control instead of the browser's native bar.
+
+## See it running
+
+The complete overlay, all five steps at once.
+
+:::snippet{file="video-build-5-fullscreen"}
+:::
+
+## Next steps
+
+- [Guided Tour: Transport](/nomercy-video-player/tour/transport): review the full method surface behind every button this tutorial built.

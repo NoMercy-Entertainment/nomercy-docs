@@ -1,0 +1,59 @@
+---
+title: 'Build a Player: The Subtitle Menu'
+description: "Step 4 of 5: a track-list menu built from subtitles(), calling subtitle(idx), plus SubtitleOverlayPlugin — the plugin that actually paints the cue text."
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/media-tracks.ts, packages/nomercy-video-player/src/plugins/subtitle-overlay/index.ts */}
+
+# Build a Player: The Subtitle Menu
+
+[Step 3](/nomercy-video-player/build/volume) added volume. This step adds a subtitle menu, and for the first time in this tutorial, a plugin.
+
+## Selection needs a renderer
+
+[Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles) makes the point directly: `subtitle(idx)` only changes selection state. Painting the cue text is `SubtitleOverlayPlugin`'s job, shipped as its own subpath so a player that never shows subtitles doesn't pay for it:
+
+```ts
+import { SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/subtitle-overlay';
+```
+
+## Plugins register before setup()
+
+Every plugin in this trio registers with `addPlugin()` *before* `setup()` runs, registering after misses the plugin's own `use()` call during the setup pipeline (the same rule [Core: Add a Plugin](/nomercy-player-core/build/add-a-plugin) walks through). In your own app that's just ordering two calls:
+
+```ts
+const player = nmplayer('my-container');
+player.addPlugin(SubtitleOverlayPlugin);
+player.setup(config);
+await player.ready();
+```
+
+## Building the menu
+
+Rather than guess when the track list becomes available, build the menu from `subtitles()` fresh on every open, by the time a real user clicks a "CC" button, the tracks have almost always resolved, and if they haven't yet, the menu is simply empty until the next open:
+
+```ts
+function renderMenu() {
+  menu.replaceChildren();
+  const tracks = player.subtitles();
+  const current = player.subtitle(); // { index, track } | null
+
+  addOption('Off', current === null, () => player.subtitle(null));
+  tracks.forEach((track, index) => {
+    addOption(track.label, current?.index === index, () => player.subtitle(index));
+  });
+}
+```
+
+Each option button is built with `createButton`, the same accessible helper Step 1's play/pause used, so every entry gets a real `aria-label` for free.
+
+## See it running
+
+Click **CC** on the player below, sintel's four language tracks list, and the active one (English, from `defaultSubtitleLanguage`) is highlighted. `SubtitleOverlayPlugin` is what makes the cue text visible over the video.
+
+:::snippet{file="video-build-4-subtitle-menu"}
+:::
+
+## Next steps
+
+- [Step 5: Fullscreen](/nomercy-video-player/build/fullscreen): the last piece, completing the overlay this tutorial has been building.

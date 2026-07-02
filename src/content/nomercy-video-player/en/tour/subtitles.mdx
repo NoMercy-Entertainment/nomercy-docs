@@ -1,0 +1,59 @@
+---
+title: 'Subtitles & Text Tracks'
+description: 'subtitles(), subtitle(), subtitleStyle(), cycleSubtitles(), defaultSubtitleLanguage, and where the cue text actually gets painted.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/media-tracks.ts, packages/nomercy-video-player/src/plugins/subtitle-overlay/index.ts */}
+
+# Subtitles & Text Tracks
+
+Subtitle *selection* and subtitle *rendering* are two separate concerns. Everything on this page, listing tracks, picking one, styling the text, is kit surface (`nomercy-player-core`'s `mediaTracksMethods`) that reads/writes state. Painting the cue text on screen is a plugin's job: [`SubtitleOverlayPlugin`](/nomercy-video-player/build/subtitle-menu) for VTT, `OctopusPlugin` for embedded-font ASS/SSA. Neither is loaded by default, so selecting a track with no renderer registered changes state correctly but paints nothing.
+
+## Listing and selecting tracks
+
+`subtitles()` returns the track list for the active item; `subtitle()` reads the current selection as `{ index, track }` or `null` when off. `subtitle(idx)` selects by index, `subtitle(null)` turns subtitles off:
+
+```ts
+const tracks = player.subtitles(); // SubtitleTrack[]: { id, language?, label }
+const current = player.subtitle(); // { index, track } | null
+
+await player.subtitle(0); // select the first track
+await player.subtitle(null); // off
+```
+
+`cycleSubtitles()` walks `off → 0 → 1 → ... → N-1 → off` in one call, the binding a keyboard shortcut or remote's "CC" button uses instead of resolving the next index by hand. `subtitleState()` (defined on the video player, not the kit) returns `SubtitleState.ON`/`OFF` for a UI that only needs to know whether *any* track is active, without caring which one.
+
+## Auto-selecting a language
+
+`defaultSubtitleLanguage` on `VideoPlayerConfig` auto-selects a track once the manifest resolves, matching an exact BCP-47 tag first, then a prefix (`'en'` matches a track tagged `'en-US'`):
+
+```ts
+player.setup({
+  baseUrl,
+  playlist: [sintelItem],
+  defaultSubtitleLanguage: 'eng',
+});
+```
+
+No match leaves subtitles off, silently, no error and no fallback track forced on.
+
+## Styling
+
+`subtitleStyle()` reads the current `SubtitleStyle`; `subtitleStyle(patch)` merges a partial patch onto it and emits `subtitleStyle` with the merged result, the event `SubtitleOverlayPlugin` listens for to repaint every active cue immediately:
+
+```ts
+player.subtitleStyle({ fontSize: 120, edgeStyle: 'dropShadow' });
+```
+
+The kit only owns the in-memory value and the event, persisting a user's choice across sessions is your app's job (or a preference plugin's).
+
+## See it running
+
+`sintel` carries four VTT subtitle tracks; `defaultSubtitleLanguage: 'eng'` below auto-selects English the moment the manifest resolves, and `SubtitleOverlayPlugin` paints the cue text you'll see over the video.
+
+:::snippet{file="video-tour-subtitles"}
+:::
+
+## Next steps
+
+- [Audio Tracks](/nomercy-video-player/tour/audio-tracks): audioTracks(), audioTrack(), and the same selection shape applied to embedded audio renditions.

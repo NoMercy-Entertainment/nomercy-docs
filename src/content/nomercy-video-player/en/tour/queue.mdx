@@ -1,0 +1,76 @@
+---
+title: 'The Queue & Playlist'
+description: 'queue(), item(), queueAppend()/queueRemove()/queueMove()/queueShuffle(), and the baseUrl + relative-path shape every playlist item carries.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/media-list/default.ts, src/core/mixins/queue.ts, packages/nomercy-video-player/src/types.ts */}
+
+# The Queue & Playlist
+
+Behind `queue()` is one cursor-aware `MediaList<T>` instance, the same structure [Core: The Queue](/nomercy-player-core/tour/queue) documents. `nomercy-video-player` adds the item shape (`VideoPlaylistItem`) and a normalizer that accepts the server's wire format directly, everything else, the queue mechanics, is unchanged kit code.
+
+## Setting the playlist
+
+`playlist` on `VideoPlayerConfig` accepts an array of items inline (or a URL string, fetched and parsed at setup). Every item's media path stays relative and `baseUrl` supplies the origin, the pattern [Quick Start](/nomercy-video-player/quickstart#the-baseurl-pattern) introduces:
+
+```ts
+player.setup({
+  baseUrl: 'https://your-server.example.com/api/files',
+  playlist: [
+    { id: 'sintel', title: 'Sintel', file: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8' },
+    { id: 'big-buck-bunny', title: 'Big Buck Bunny', file: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8' },
+  ],
+});
+```
+
+`file` (not `url`) is accepted here because `normalizePlaylistItem` reshapes the v1/server wire format into the canonical `VideoPlaylistItem` on ingest, the same normalization the real media server's response goes through. Pass canonical items (`url` instead of `file`) directly and they pass through unchanged.
+
+## Reading and moving the cursor
+
+`queue()` returns the current items as a readonly array; `item()` reads the active item, `item(target)` moves the cursor and loads it. `index()` reads the cursor's position, `queueLength()` its size:
+
+```ts
+const items = player.queue(); // ReadonlyArray<VideoPlaylistItem>
+const current = player.item();
+player.item('big-buck-bunny'); // by id
+player.item(1); // by index
+```
+
+`peekNext()` / `peekPrevious()` read what `next()` / `previous()` (see [Transport](/nomercy-video-player/tour/transport)) would load, without moving the cursor or triggering a load, useful for a "coming up next" thumbnail.
+
+## Mutating the queue
+
+Every mutation method below fires a typed event (`queue:append`, `queue:move`, ...) that a reactive playlist UI subscribes to instead of re-reading `queue()` after every call.
+
+| Method | What it does |
+| --- | --- |
+| `queueAppend(item)` | Add to the end. |
+| `queuePrepend(item)` | Add to the front. |
+| `queueInsert(item, index)` | Add at a specific position. |
+| `queueRemove(id)` / `queueRemoveAt(index)` | Remove by id or position. |
+| `queueMove(from, to)` | Reorder in place. |
+| `queueClear()` | Empty the queue. |
+| `queueShuffle()` | Randomize order; the cursor follows the currently-playing item to its new position. |
+| `queueSort(compare)` | Sort with your own comparator. |
+
+Removing the item before the cursor decrements the cursor automatically, so it keeps pointing at the same logical item, none of these ever silently jump playback to the wrong entry.
+
+## playItem() and playNow()
+
+`queue(items); item(start); play()` races: `item()` fires a fire-and-forget `load()`, and a `play()` called immediately after can reach the backend before the source is even set. `playItem(target)` and `playNow(items, start?)` exist to close that race, both route through `item(target, { autoplay: true })` internally, which only calls `play()` inside the resolved `load()`'s own continuation.
+
+```ts
+player.playNow(films, 'big-buck-bunny'); // replace the queue and start playing this item
+player.playItem('sintel'); // jump to an item already in the queue and play it
+```
+
+## See it running
+
+The player below mounts with a real three-item queue over one shared `baseUrl`.
+
+:::snippet{file="video-tour-queue"}
+:::
+
+## Next steps
+
+- [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles): subtitles(), subtitle(), and defaultSubtitleLanguage.

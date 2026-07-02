@@ -1,0 +1,48 @@
+---
+title: 'Audio Tracks'
+description: 'audioTracks(), audioTrack(), audioTrackMode(), and cycleAudioTracks() — the same selection shape as subtitles, applied to embedded audio renditions.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/media-tracks.ts */}
+
+# Audio Tracks
+
+An HLS manifest can carry more than one audio rendition per item, alternate languages, a commentary track, a stereo/5.1 pair. `audioTracks()` and `audioTrack()` mirror the subtitle surface from [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles) exactly: same index-based selection, same `Current*Selection` shape, same auto-select config field.
+
+## Listing and selecting
+
+```ts
+const tracks = player.audioTracks(); // AudioTrack[]: { id, language?, label }
+const current = player.audioTrack(); // { index, track } | null
+
+await player.audioTrack(1); // switch to the second rendition
+```
+
+Unlike subtitles, audio tracks have no "off" state, one is always active once the manifest resolves. `cycleAudioTracks()` walks the list and wraps around at the end instead of stopping, since there's no off position to land on.
+
+## Default language
+
+`defaultAudioLanguage` on `VideoPlayerConfig` auto-selects a track once the manifest parses, same BCP-47 exact-then-prefix matching `defaultSubtitleLanguage` uses:
+
+```ts
+player.setup({
+  baseUrl,
+  playlist: [item],
+  defaultAudioLanguage: 'jpn',
+});
+```
+
+## Reading the selection mode
+
+`audioTrackMode()` returns `AudioTrackState.DEFAULT` when no explicit choice has been made yet (the backend's own default rendition is active) or `AudioTrackState.MANUAL` once a consumer or preference plugin has picked one, the state a "reset to default" menu item reads before deciding whether to show itself.
+
+## See it running
+
+Sintel's manifest carries a single embedded audio rendition, so `audioTracks()` below returns one entry instead of a language list to switch between. The API is unchanged either way, a multi-language dub only changes how many entries the same list holds.
+
+:::snippet{file="video-tour-audio-tracks"}
+:::
+
+## Next steps
+
+- [Quality Levels](/nomercy-video-player/tour/quality): qualityLevels(), quality(), and the 'levels' event a bitrate selector waits for.

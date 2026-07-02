@@ -1,0 +1,57 @@
+---
+title: 'Quality Levels'
+description: 'qualityLevels(), quality(), defaultQuality, the levels/level-switched events, and bandwidth()/canPlay() for building your own bitrate selector.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/media-tracks.ts, src/core/mixins/abr.ts */}
+
+# Quality Levels
+
+Adaptive bitrate is on by default, `hls.js` (or Safari's native HLS) keeps switching renditions to match bandwidth without you doing anything. This page is for when you want a manual quality menu on top of that.
+
+## Listing levels
+
+`qualityLevels()` returns the manifest's bitrate renditions once the `'levels'` event has fired, each with `bitrate`, and `height`/`width` when the manifest provides them. `qualityLevels({ includeUnsupported: true })` also returns renditions the current device can't decode, useful for showing them disabled in a menu rather than hiding them entirely:
+
+```ts
+const levels = player.qualityLevels(); // QualityLevel[]
+const withUnsupported = player.qualityLevels({ includeUnsupported: true });
+```
+
+## Reading and setting the selection
+
+`quality()` returns `{ index, track }` for a manually-picked level, or the string `'auto'` while ABR is driving. `quality(idx)` locks a specific level; `quality('auto')` hands control back to the backend:
+
+```ts
+await player.quality(0); // lock the first (usually lowest) rendition
+player.quality('auto'); // back to adaptive
+```
+
+Setting a level emits `'quality:requested'` immediately (video-specific, fired before the backend confirms the switch) and `'level-switched'` once the backend actually applies it, subscribe to the latter for a "now playing at 1080p" toast, the former if you need to reflect the request instantly in a UI without waiting on the network.
+
+## Default quality
+
+`defaultQuality` on `VideoPlayerConfig` applies once after the first manifest parse, either `'auto'` (the kit's own default, so setting it explicitly is only useful for readability) or a fixed level index:
+
+```ts
+player.setup({
+  baseUrl,
+  playlist: [item],
+  defaultQuality: 'auto',
+});
+```
+
+## Bandwidth and capability checks
+
+`bandwidth()` reads the backend's current bandwidth estimate in bits per second, the number ABR is deciding against; `bandwidthEstimator(fn)` overrides the estimator with your own (a shared measurement across multiple players on the same page, for example). `canPlay(profile)` asks the platform's `MediaCapabilities` whether a given content profile (`contentType`, resolution, bitrate, framerate) is decodable before you offer it in a menu at all.
+
+## See it running
+
+`defaultQuality: 'auto'` below is the same value the kit applies with no config at all, set explicitly here so the field this page describes is visible in the sample.
+
+:::snippet{file="video-tour-quality"}
+:::
+
+## Next steps
+
+- [Chapters](/nomercy-video-player/tour/chapters): chapters(), seekToChapter(), and playSegment() for arbitrary time windows.
