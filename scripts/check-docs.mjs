@@ -55,7 +55,7 @@ export const LINE_BUDGET = 1500;
 // order. Real pages rarely carry these exact slugs, so each stage is matched by the
 // existing page(s) that already serve that role rather than by literal renaming.
 export const ARC_SECTIONS = [
-  { name: 'introduction', exact: ['index', 'overview'] },
+  { name: 'introduction', exact: ['index', 'overview', 'introduction'] },
   { name: 'quickstart', exact: ['quickstart'] },
   { name: 'tour', exact: ['architecture', 'overview'] },
   {

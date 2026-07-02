@@ -1,11 +1,11 @@
 ---
 title: 'Quick Start'
-description: 'Compose a player from the nomercy-player-core mixins and drive it with transport, queue, and events. Copy-paste runs as-is.'
+description: 'Compose a minimal player straight from nomercy-player-core: extend EventEmitter, resolve the three-form constructor, and stamp the shared mixins onto the prototype.'
 ---
 
-# Player Core: Quick Start
+# Core: Quick Start
 
-For library authors and plugin developers working directly against `nomercy-player-core`, the base library beneath the video and music players. If you are building a video or music player, use the [Video Quick Start](/nomercy-video-player/quickstart) or [Music Quick Start](/nomercy-music-player/quickstart) instead — both packages include everything here.
+This is the shortest path to composing a player from the kit: no media backend, no UI, just the same three ingredients `nomercy-video-player` and `nomercy-music-player` are built from. Everything below is real, published code, not pseudocode.
 
 ## Install
 
@@ -13,81 +13,41 @@ For library authors and plugin developers working directly against `nomercy-play
 npm install @nomercy-entertainment/nomercy-player-core@rc
 ```
 
-`hls.js` ships with the core as the default HLS stream factory. See [Installation](/nomercy-player-core/installation) for details.
+You will not normally install this package directly. `nomercy-video-player` and `nomercy-music-player` already depend on it and re-export everything you need day to day. Install it yourself only when you're composing your own player, as below.
 
-## Minimal working player
+## Compose a minimal player
 
-The core is the player engine. Compose its method mixins onto a class and you have a working player: the queue, transport, time, volume, the typed event bus, and the plugin system are all there.
+Three ingredients, in order: extend `EventEmitter` so `.on()` / `.emit()` work, resolve the three-form constructor (`resolvePlayerConstructor` plus `initPlayerCoreState`) so an id, an index, or `undefined` all do the right thing, then stamp every shared mixin onto the prototype in one `composeMixins` call.
 
-```ts
-import {
-  composeMixins,
-  initPlayerCoreState,
-  lifecycleMethods,
-  playerCoreMethods,
-  queueMethods,
-  timeMethods,
-  transportMethods,
-  volumeMethods,
-} from '@nomercy-entertainment/nomercy-player-core';
+:::snippet{file="minimal-player" live="false"}
+:::
 
-class MyPlayer {
-  constructor(id: string) {
-    initPlayerCoreState(this, { className: 'MyPlayer' });
-    this.setup({ playlist: [{ id, url: '/path/to/media.m3u8' }] });
-  }
-}
+`playerCoreMethods` is not a cut-down subset picked for this example: it's the same aggregate `NMVideoPlayer` and `NMMusicPlayer` compose onto their own prototypes. `MinimalPlayer` is missing exactly one thing they have, a media backend. Everything else (`setup()`, `ready()`, `dispose()`, the phase machine, the queue, volume, i18n, plugin registration, auth) is the identical code running underneath both real players.
 
-composeMixins(
-  MyPlayer.prototype,
-  playerCoreMethods,
-  lifecycleMethods,
-  queueMethods,
-  transportMethods,
-  timeMethods,
-  volumeMethods,
-);
+## Mounting it
 
-const player = new MyPlayer('intro');
+The constructor's three-form resolution is what `nmplayer(id)` and `nmMPlayer(id)` do in the real libraries: pass a string id and it either returns an existing instance registered under that id, or resolves `document.getElementById(id)` and requires it to be a `<div>`.
 
-player.on('ready', () => player.play());
+```html
+<div id="player-container"></div>
 ```
 
-That class drives the full core surface. The only thing it does not do on its own is render a medium — which is what `nomercy-video-player` and `nomercy-music-player` add on top.
-
-## Core controls
-
 ```ts
-player.play();
-player.pause();
-player.stop();
-player.next();
-player.previous();
+const player = minimalPlayer('player-container');
 
-player.time(30);   // seek to 30 seconds
-player.volume(80); // 0-100
-player.mute();
+player.setup({ logLevel: 'info' });
+await player.ready();
 
-player.queue();    // read the queue
+console.log(player.phase()); // 'ready'
+player.dispose();
 ```
 
-See [Playback Control](/nomercy-player-core/transport) for the full transport, time, and volume surface.
+`setup()` runs the same fixed pipeline described in [What is nomercy-player-core](/nomercy-player-core/introduction#the-setup-then-freedom-model). With no media backend attached, `MinimalPlayer` reaches `ready` without ever loading or playing anything. That's exactly the point: everything up to and including `ready()` is kit behavior, proven independently of any specific medium.
 
-## Listening to events
+## Want a player that actually plays something?
 
-```ts
-player.on('ready', () => { /* setup complete */ });
-player.on('current', ({ item, index }) => { /* active item changed */ });
-player.on('time', ({ time }) => { /* position update */ });
-player.on('play', () => { /* started */ });
-player.on('pause', () => { /* paused */ });
-```
-
-See [Event System](/nomercy-player-core/event-system) for typed events and cross-plugin listening.
+`nomercy-video-player` and `nomercy-music-player` compose this same kit and add a real media backend on top. Their own quickstarts get you a working player in a few lines: [Video Player: Quick Start](/nomercy-video-player/quickstart) or [Music Player: Quick Start](/nomercy-music-player/quickstart).
 
 ## Next steps
 
-- [Writing a core-level plugin](/nomercy-player-core/recipes/writing-a-core-plugin) — build, register, and test a plugin that works on any player.
-- [Plugin Authoring](/nomercy-player-core/plugin-authoring) — the complete plugin contract.
-- [Adapter Ports](/nomercy-player-core/adapters) — every cross-cutting port and its default.
-- [Architecture](/nomercy-player-core/architecture) — the five-layer model and how the player is composed.
+- [What is nomercy-player-core](/nomercy-player-core/introduction): the extensibility model and the full list of what the kit provides.

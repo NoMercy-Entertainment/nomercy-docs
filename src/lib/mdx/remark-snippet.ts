@@ -31,6 +31,17 @@ const DIRECTIVE_NODE_TYPES = ['containerDirective', 'leafDirective'] as const;
  * deletion of the example file fails the build instead of silently going
  * stale.
  *
+ * `<PlayerExample>` always mounts the real `@nomercy-entertainment/nomercy-video-player`
+ * factory — it has no generic "render whatever this snippet composed" path.
+ * That's the right default for video/music pages, but `nomercy-player-core`
+ * examples (composing the kit directly, no media backend) have nothing for it
+ * to render; forcing the island there would either mount an unrelated video
+ * player on a core page or sit permanently in an error state — either way a
+ * faked result. `:::snippet{file="..." live="false"}` opts a directive out of
+ * the island and emits only the code block. Omitting `live` (or any value
+ * other than the literal string `"false"`) keeps the original always-live
+ * behavior, so every existing video/music usage is unaffected.
+ *
  * Parsed by `remark-directive` (registered in `remark.ts`), which claims
  * `:::name{attrs}` syntax at the micromark level before MDX's own
  * curly-brace expression tokenizer can misread `{file="quickstart"}` as a
@@ -68,6 +79,8 @@ export function remarkSnippet() {
           );
         }
 
+        const live = node.attributes?.live !== 'false';
+
         const source = readFileSync(path.join(examplesDir, `${file}.ts`), 'utf8');
         // A fenced code block's content never includes the file's own trailing
         // EOF newline (the closing fence itself delimits the block) — strip
@@ -76,6 +89,11 @@ export function remarkSnippet() {
         const codeValue = source.endsWith('\n') ? source.slice(0, -1) : source;
 
         const codeNode: any = { type: 'code', lang: 'ts', value: codeValue };
+        if (!live) {
+          replacements.push({ parent, index, nodes: [codeNode] });
+          return;
+        }
+
         const playerElement: any = {
           type: 'mdxJsxFlowElement',
           name: 'PlayerExample',

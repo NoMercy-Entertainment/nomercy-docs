@@ -52,6 +52,14 @@ Example data (media URLs, playlist shapes) comes from one shared module,
 catalogue. Snippets import from it instead of inlining their own URLs, so there's exactly
 one place a stale link can hide.
 
+### baseUrl is mandatory
+
+Every playlist example sets `baseUrl` on the config and leaves item media paths relative,
+exactly as the media server sends them (a leading slash on the path, no trailing slash on
+the base). The player prepends `baseUrl` as a string prefix and keeps its base path, so one
+config value moves the whole catalogue between environments. Never pre-join an absolute URL
+into an item. This is the player's intended best practice and every example teaches it.
+
 `check:docs` type-checks and executes every snippet headlessly against the local trio
 build (the Playwright gate, `e2e/snippets.spec.ts`). A snippet that throws fails the docs
 build. No example ships that doesn't run first try.

@@ -1,0 +1,52 @@
+---
+title: 'What is nomercy-player-core'
+description: 'The shared kit nomercy-video-player and nomercy-music-player are built on: lifecycle, plugins, queue, adapters, i18n, and auth, ready to compose into your own player.'
+---
+
+{/* Source: packages/nomercy-player-core/src/index.ts */}
+
+# What is nomercy-player-core
+
+`nomercy-player-core` is not a player. It is the kit both NoMercy players are built from: the lifecycle machine, the plugin runtime, the queue, the event bus, i18n, auth, and every swappable adapter port a media player needs before it can play a single frame. `nomercy-video-player` and `nomercy-music-player` each add one thing on top: a media backend and a handful of domain-typed methods for their own medium. Everything else, they get from here.
+
+This page is written for the level below "how do I play a video." If you are building a NoMercy video or music player for end users, you want [`nomercy-video-player`](/nomercy-video-player/introduction) or [`nomercy-music-player`](/nomercy-music-player/introduction) instead, both of which already do this work for you. This page, and the rest of this collection, is for someone building a *third* player library on the kit, or extending one of ours deeply enough to need to know what's actually underneath.
+
+## Who it's for
+
+Composing a player from `nomercy-player-core` makes sense when you're building a headless media player for a format the trio doesn't cover (a podcast player, a live radio player, a custom streaming protocol) and want the lifecycle, queue, plugin, and auth machinery already solved and already tested, instead of writing it a third time. It's the same reason `nomercy-video-player` and `nomercy-music-player` don't duplicate that machinery between each other: one implementation, shared by every consumer, fixed once for all of them when a bug turns up.
+
+## Why it exists
+
+Video and music playback share almost everything except the last mile: how a frame gets decoded and how a UI reacts to it. Queueing up the next track, tracking playback phase, running plugins, resolving auth headers, switching languages, all of it is identical whether the media is a movie or a song. Before this kit existed, that logic lived twice, in two libraries that could quietly drift apart. Now it lives once, and `nomercy-video-player` and `nomercy-music-player` compose it onto their own prototypes instead of reimplementing it. A fix or a new capability that lands here reaches both libraries in the same release.
+
+## The setup, then freedom, model
+
+The kit borrows a shape familiar from players like JWPlayer: `setup()` is strict, everything after it is yours. Call `setup(config)` once and the kit walks a fixed, non-negotiable pipeline: it snapshots your config, wires cross-cutting policies (visibility, network, wake-lock, metrics), then runs through `pluginsRegistering` → `streamsReady` → `authReady` → `playlistReady` → `mediaReady` before settling the `ready()` promise. Call `setup()` twice, or call it after `dispose()`, and it throws instead of leaving your instance in an ambiguous half-configured state. There is exactly one way in.
+
+What happens on top of that is not prescribed at all. The kit ships no UI, no DOM beyond a container element, and no opinion about what your `play` button looks like. Every non-lifecycle behavior, from the media backend to the storage layer to how subtitles get parsed, is a named interface with a default implementation you can override wholesale: `IStorage`, `IPlatform`, `IStreamSource`, `IUrlResolver`, `ITranslator`, `ICueParser`, `IPreloadStrategy`, `ITransitionStrategy`, `IShuffleStrategy`, `RealtimeFactory`. Plugins extend behavior without forking core at all, through a `Plugin` base class and a cancellable `before*` event pipeline that lets a plugin veto, delay, or rewrite a mutation before it lands.
+
+## What you get
+
+- **Lifecycle**: `setup()` / `ready()` / `dispose()` and a phase machine (`idle` → `setup` → `ready` → `playing`/`paused` → `disposed`) that every mixin and plugin can trust.
+- **Shared playback primitives**: transport, time, volume, queue, and backlog methods, composed once and reused by both real players instead of hand-copied.
+- **Plugin runtime**: a `Plugin` base class, typed registration, and a cancellable `before*` dispatch pipeline (`preventDefault()`, `delay(promise)`) for behavior that shouldn't require forking the player.
+- **Adapter ports**: swappable interfaces for the media backend, stream source, storage, event bus, cue parsing, translation, platform capabilities (wake lock, network, visibility, fullscreen, pip), realtime channel, preload strategy, transition strategy, and shuffle strategy, each with a working default.
+- **Auth-aware fetch**: one `authFetch` pipeline (401 refresh-and-retry, 403 propagates, never conflated) used by every kit-internal request and available to plugins via `Plugin.fetch`.
+- **i18n engine**: a translator with English and Dutch bundles built in, async-loadable bundles, and a title-token interpolation system for per-library tokens like season/episode.
+- **Cue parsing**: built-in VTT, sprite-VTT, and LRC parsers behind a registry you can add your own formats to.
+- **Typed errors**: a `PlayerError` hierarchy (`AuthError`, `DrmError`, `MediaFormatError`, `NetworkError`, `StateError`, `StreamError`, ...) with severity, scope, and a retry policy, instead of raw thrown strings.
+- **Composition primitives**: `composeMixins`, `resolvePlayerConstructor`, and `initPlayerCoreState`, the exact three functions `NMVideoPlayer` and `NMMusicPlayer` use to become players. [Quickstart](/nomercy-player-core/quickstart) shows them composing a real, minimal one.
+
+## Where it sits
+
+<LayerStack layers={[
+  { n: 2, name: 'Your player library', pkg: 'e.g. a podcast or live-radio player', knows: 'Its own domain methods, events, and a media backend.' },
+  { n: 2, name: 'nomercy-video-player / nomercy-music-player', pkg: 'Reference implementations', knows: 'Video- or music-specific methods and events on top of the same kit.' },
+  { n: 1, name: 'nomercy-player-core', pkg: 'You are here', knows: 'Lifecycle, transport, queue, time, volume, plugins, i18n, auth, adapter ports.' },
+]} />
+
+Both rows at layer 2 sit on the same foundation and never talk to each other. `nomercy-video-player` and `nomercy-music-player` don't share code because one imports the other; they share it because both are composed from this kit.
+
+## Next steps
+
+- [Quickstart](/nomercy-player-core/quickstart): compose a minimal player from the kit and mount it, in real, typechecked code.
