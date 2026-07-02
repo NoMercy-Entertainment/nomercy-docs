@@ -39,6 +39,12 @@ const DIRECTIVE_NODE_TYPES = ['containerDirective', 'leafDirective'] as const;
  * children) — but mid-document it would silently swallow every following
  * block as this directive's children, so a non-empty `children` array is
  * treated as a build error instead of being dropped.
+ *
+ * `PlayerExample` needs `client:load` to ever hydrate (see
+ * `rehypeSnippetPlayerImport` in `rehype.ts`, which supplies the real
+ * import that directive requires) — this plugin only emits the marker
+ * attribute; the import itself has to be added once the tree is HAST, not
+ * here, or Astro's MDX compiler can't trace it back to a module.
  */
 export function remarkSnippet() {
   return (tree: Root) => {
@@ -73,7 +79,10 @@ export function remarkSnippet() {
         const playerElement: any = {
           type: 'mdxJsxFlowElement',
           name: 'PlayerExample',
-          attributes: [{ type: 'mdxJsxAttribute', name: 'snippet', value: file }],
+          attributes: [
+            { type: 'mdxJsxAttribute', name: 'snippet', value: file },
+            { type: 'mdxJsxAttribute', name: 'client:load', value: null },
+          ],
           children: [],
         };
 

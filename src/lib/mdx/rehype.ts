@@ -396,6 +396,52 @@ function rehypeAddMDXExports(getExports: (tree: any) => Record<string, string>) 
   }
 }
 
+const PLAYER_EXAMPLE_IMPORT = "import { PlayerExample } from '@/components/PlayerExample';"
+
+// `remarkSnippet` (remark-snippet.ts) emits `<PlayerExample client:load>` for
+// every `:::snippet` directive, but `client:load` only hydrates a component
+// Astro's MDX compiler can trace to a real module — `PlayerExample` is
+// normally reached only through the `components={mdxComponents}` prop on
+// `<Content>` (see `src/components/protocol/index.tsx`), which isn't
+// statically resolvable and fails the build ("No matching import has been
+// found for `PlayerExample`"). That resolution check runs at the HAST stage
+// (`rehypeAnalyzeAstroMetadata`, registered by @astrojs/mdx after this
+// site's own rehype plugins), so the import has to be injected here, as a
+// real `mdxjsEsm` node — a plain remark-stage insert doesn't survive far
+// enough. A local import binding also takes precedence over the
+// `components` prop for this one tag, so this doesn't create two competing
+// definitions of `PlayerExample`.
+function rehypeSnippetPlayerImport() {
+  return (tree: any) => {
+    let usesPlayerExample = false
+    visit(tree, (node: any) => {
+      if (
+        (node.type === 'mdxJsxFlowElement' || node.type === 'mdxJsxTextElement') &&
+        node.name === 'PlayerExample'
+      ) {
+        usesPlayerExample = true
+      }
+    })
+    if (!usesPlayerExample) return
+
+    const alreadyImported = tree.children.some(
+      (node: any) => node.type === 'mdxjsEsm' && node.value === PLAYER_EXAMPLE_IMPORT,
+    )
+    if (alreadyImported) return
+
+    tree.children.unshift({
+      type: 'mdxjsEsm',
+      value: PLAYER_EXAMPLE_IMPORT,
+      data: {
+        estree: acorn.parse(PLAYER_EXAMPLE_IMPORT, {
+          sourceType: 'module',
+          ecmaVersion: 'latest',
+        }),
+      },
+    })
+  }
+}
+
 // rehypeWrapCodeBlocks owns the code-block chrome (rounded/ringed container,
 // optional title header, and the copy button wired by CodeHighlighter via
 // `data-code`). It runs at HAST level so the chrome is static HTML and works
@@ -410,6 +456,7 @@ export const rehypePlugins = [
   rehypeWrapCodeBlocks,
   rehypeTableLabels,
   rehypeSlugify,
+  rehypeSnippetPlayerImport,
   [
     rehypeAddMDXExports,
     (tree: any) => ({
