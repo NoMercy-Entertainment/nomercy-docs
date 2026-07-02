@@ -1,0 +1,48 @@
+---
+title: 'Plugin: Audio Graph'
+description: 'AudioGraphPlugin owns the Web Audio signal chain — AudioContext, the media element source node, and insertEffect() — every other audio plugin builds on it.'
+---
+
+{/* Source: packages/nomercy-player-core/src/plugins/audio-graph/index.ts */}
+
+# Plugin: Audio Graph
+
+`AudioGraphPlugin` (id `'audio-graph'`) owns the Web Audio signal chain: it creates or reuses the player's `AudioContext`, mounts a `MediaElementAudioSourceNode` from the backend, and wires `source → destination`. Every other audio-processing plugin in the kit (equalizer, mixer, spectrum, visualization) inserts itself into this same chain instead of building its own.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `latencyHint` | `AudioContextLatencyCategory` | `'playback'` | Forwarded to the `AudioContext` constructor. |
+| `fftSize` | `256 \| 512 \| ... \| 16384` | `2048` | Analyser node size for plugins that read frequency/waveform data. |
+| `smoothing` | `number` (0-1) | `0.8` | Analyser smoothing time constant. |
+
+## Events
+
+`context:ready` (`{ sampleRate }`), `context:closed`, `chain:rebuilt`, `unsupported` (`{ reason }`).
+
+## Rules & restrictions
+
+- Register this plugin first. Every other audio plugin declares `static requires = [AudioGraphPlugin]` and throws `core:plugin/missing-dep` at registration if it isn't present.
+- Browser autoplay policy: the `AudioContext` starts `'suspended'` and is resumed only on the first `play` event, so it must fire during or right after a user gesture. There's no workaround, the browser enforces this regardless of what the kit does.
+- Throws a `BrowserPolicyError` and emits `unsupported` when `AudioContext` is unavailable in the runtime (rare, but true for some embedded WebViews).
+- `outputNode()` throws a `PluginError` if called before `use()` has run.
+
+## How to extend it
+
+Effects insert themselves via `insertEffect(node, position?)` (or the `pre(node)` / `post(node)` shorthands): the plugin owns node ordering so two independent effect plugins don't have to coordinate insertion points with each other.
+
+```ts
+import { AudioGraphPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+player.addPlugin(AudioGraphPlugin, { fftSize: 4096 });
+await player.ready();
+
+const graph = player.getPlugin(AudioGraphPlugin);
+const gain = graph!.context().createGain();
+graph!.insertEffect(gain, 'post'); // spliced in after the source, before destination
+```
+
+## Next steps
+
+- [Plugin: Equalizer](/nomercy-player-core/plugins-adapters/equalizer): the first of the chain's built-in effects.

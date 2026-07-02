@@ -1,0 +1,54 @@
+---
+title: 'Plugin: Equalizer'
+description: 'EqualizerPlugin: a 10-band parametric Web Audio equalizer with pre-gain, presets, and storage-backed persistence, inserted into the AudioGraphPlugin chain.'
+---
+
+{/* Source: packages/nomercy-player-core/src/plugins/equalizer/index.ts, src/plugins/equalizer/presets.ts */}
+
+# Plugin: Equalizer
+
+`EqualizerPlugin` (id `'equalizer'`) is a 10-band parametric equalizer plus a pre-gain stage, built from `BiquadFilterNode`s inserted into [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph)'s chain.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `bands` | `EqBand[]` | `DEFAULT_BANDS` | 10 frequency bands. Element 0 must be the `{ frequency: 'Pre', gain }` pseudo-band. |
+| `preset` | `string` | — | Preset name to apply on `use()`. |
+| `presets` | `EqPreset[]` | — | Additional presets beyond the built-ins. |
+| `sliderValues` | `EqSliderValues` | `DEFAULT_SLIDER_VALUES` | Min/max/step/default per slider, for a UI to read directly. |
+| `persistKey` | `string` | — | Storage key. Omit to disable persistence. |
+| `autoLoad` / `autoSave` | `boolean` | `true` / `true` when `persistKey` set | Load/save automatically through `this.storage`. |
+| `smoothingTimeConstantSeconds` | `number` | `0.05` | Ramp time for gain changes, avoids audible clicks. |
+
+`EqBand` is `{ frequency: number | 'Pre'; gain: number; q?: number; type?: BiquadFilterType }`.
+
+## Events
+
+`ready`, `band:changed` (`{ band }`), `preset:changed` (`{ name }`), `change` (`{ bands, selectedPreset }`), `saved`.
+
+## Rules & restrictions
+
+- `static requires = [AudioGraphPlugin]` — register Audio Graph first, the equalizer throws `core:plugin/missing-dep` otherwise.
+- `bands[0]` is a fixed contract: it must be the `'Pre'` pseudo-band, not a real frequency.
+- Persistence goes through `this.storage`, the plugin's own scoped, namespaced storage, never raw `localStorage`. Swapping the [storage adapter](/nomercy-player-core/plugins-adapters/adapter-storage) moves equalizer persistence with it, same as everything else that uses `this.storage`.
+- Pre-gain has a sticky-zero snap: values within ±0.05 of zero round to exactly zero, so a UI slider settles cleanly at the middle instead of hovering at 0.0003.
+
+## How to extend it
+
+```ts
+import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+player.addPlugin(AudioGraphPlugin);
+player.addPlugin(EqualizerPlugin, { persistKey: 'my-app-eq' });
+await player.ready();
+
+const eq = player.getPlugin(EqualizerPlugin);
+eq!.band(1000, 4); // +4 dB at 1 kHz
+eq!.preset('Rock');
+eq!.save();
+```
+
+## Next steps
+
+- [Plugin: Mixer](/nomercy-player-core/plugins-adapters/mixer): the master gain and pan stage at the tail of the same chain.

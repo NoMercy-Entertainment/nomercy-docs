@@ -1,0 +1,109 @@
+---
+title: 'Reference: Domain Types'
+description: 'BasePlaylistItem, TimeState, track/quality metadata, every state enum, Chapter, DeviceCapabilities, PlaybackMetrics, and the plugin-declaration types. Curated from src/types/.'
+---
+
+{/* Source: packages/nomercy-player-core/src/types/playlist.ts, playback.ts, tracks.ts, state.ts, chapter.ts, device.ts, metrics.ts, experimental.ts, translations.ts, plugin.ts, player.ts */}
+
+# Reference: Domain Types
+
+The shapes every method in this collection reads or returns, independent of medium. `nomercy-video-player` and `nomercy-music-player` extend the item and event types with their own domain fields, everything below is what they extend.
+
+## Playlist item
+
+```ts
+interface BasePlaylistItem {
+	id: string | number;
+	title?: string; // cross-library canonical display name
+	image?: string; // cross-library canonical cover art / poster
+	url?: string;   // cross-library canonical media source, resolved through auth on load()
+}
+```
+
+Music adds `name: string` (required, aliases `title`) and `cover?: string` (aliases `image`); video adds `poster?` and `thumbnail?` (both alias `image`). Code targeting both libraries should populate `title` / `image` / `url`.
+
+## Time & tracks
+
+| Type | Shape |
+|---|---|
+| `TimeState` | `{ position, duration, buffered, remaining, percentage }` — seconds except `percentage` (0-100). Returned by `timeData()`. |
+| `CanPlayResult` | `{ supported, smooth, powerEfficient }` — maps `MediaCapabilities.decodingInfo()`. |
+| `QualityLevel` | `{ bitrate, height?, width?, label, index, supported?, dynamicRange? }` — `dynamicRange` is `'sdr' \| 'hdr'`. |
+| `AudioTrack` | `{ id, language?, label, channels?, default? }` |
+| `SubtitleTrack` | `{ id, language?, label, kind?, url, default?, type? }` — `kind` is `'subtitles' \| 'captions' \| 'descriptions'`. |
+| `CurrentSubtitleSelection` / `CurrentAudioTrackSelection` / `CurrentQualitySelection` | `{ index, track }` — `null` when nothing is selected (or `'auto'` for quality). |
+| `SubtitleStyle` | `{ fontSize, fontFamily, textColor, textOpacity, backgroundColor, backgroundOpacity, edgeStyle, areaColor, windowOpacity }` |
+| `Chapter` | `{ index, start, end, title }` |
+
+## Action & transport types
+
+```ts
+type PlayerPhase =
+	| 'idle' | 'setup' | 'ready' | 'loading' | 'starting' | 'playing'
+	| 'paused' | 'buffering' | 'seeking' | 'ended' | 'stopped'
+	| 'disposing' | 'disposed';
+
+type PreventedReason = 'listener-prevented' | 'delay-rejected' | 'delay-timeout';
+
+interface ActionOptions {
+	source?: ActionSource; // defaults to 'user'
+	silent?: boolean;       // skip the lifecycle event + before* guard
+	autoplay?: boolean;     // on load-driving actions, play() once load resolves
+}
+
+type ActionSource = 'user' | 'remote' | 'plugin' | (string & {});
+```
+
+## State enums
+
+Every one of these is a real TypeScript `enum` (not a string union), returned by the matching reader method.
+
+| Enum | Values | Reader |
+|---|---|---|
+| `SetupState` | `NOT_SETUP` `SETTING_UP` `READY` `DISPOSED` | `setupState()` |
+| `BufferState` | `IDLE` `LOADING` `SEEKING` `STALLED` | `bufferState()` |
+| `NetworkState` | `ONLINE` `OFFLINE` `SLOW` | `networkState()` |
+| `VisibilityState` | `VISIBLE` `HIDDEN` | `visibilityState()` |
+| `QualityState` | `AUTO` `MANUAL` | `qualityMode()` |
+| `AudioTrackState` | `DEFAULT` `MANUAL` | `audioTrackMode()` |
+| `RepeatState` | `OFF` `ALL` `ONE` | `repeatState()` |
+| `ShuffleState` | `OFF` `ON` | `shuffleState()` |
+| `PlayState` | `IDLE` `LOADING` `PLAYING` `PAUSED` `STOPPED` `ERROR` | `playState()` |
+| `VolumeState` | `UNMUTED` `MUTED` | `volumeState()` |
+| `CastState` | `UNAVAILABLE` `AVAILABLE` `CONNECTING` `CONNECTED` `DISCONNECTED` | `castState()` |
+
+## Device & metrics
+
+`DeviceCapabilities` (returned by `player.device()`): `isTv` / `isMobile` / `isDesktop` (mutually exclusive environment flags), `pipSupported` / `fullscreenSupported` / `webLocksSupported` (API availability), `autoplayAllowed` (`boolean | 'unknown'`), `preferred` (`'smooth' | 'powerEfficient'`, a decode-preference hint).
+
+`PlaybackMetrics` (returned by `player.metrics()`, emitted periodically as `playback:metrics`): `ttfb` and `avgBitrate` and `decoderStalls` are `number | null` (`null` means the active backend structurally can't report the counter, always guard before using), `ttff` / `rebufferRatio` / `joinTime` / `sessionDurationMs` are always `number`. An index signature `[customMetric: string]: number | null` lets plugins publish their own namespaced counters onto the same object.
+
+## i18n & plugin declaration types
+
+```ts
+type Translations = Record<string, Record<string, string>>; // lang tag -> key -> value
+type TranslationLoader = (lang: string) => Promise<Record<string, string> | undefined>;
+
+type PluginCtorWithId = (new (...args: never[]) => unknown) & {
+	readonly id: string;
+	readonly version?: string;
+	readonly requires?: ReadonlyArray<RequireSpec>;
+	readonly replaces?: string;
+	readonly priority?: number;
+	readonly advisories?: ReadonlyArray<PluginAdvisory>;
+	readonly translations?: Translations;
+	// + description, minCoreVersion, onError
+};
+
+type RequireSpec = PluginCtorWithId | { plugin: PluginCtorWithId; optional?: boolean; minVersion?: string };
+```
+
+`PluginAdvisory` (`static advisories` on a `Plugin` class) declares an invariant without handler code: `{ method, duringPhase?, duringEvent?, severity, reason, message }`. At registration every plugin's advisories merge into one lookup; a matching mutation auto-fires the declared severity event, `duringPhase` gates on `player.phase()`, `duringEvent` gates on the currently-dispatching event name (including another plugin's own custom `before*` event).
+
+## Tier-4 escape hatch
+
+`PlayerExperimental` (`player.experimental`): `override(method, fn)` monkey-patches a method with auto-restore when the calling plugin disposes, `restore(method)` reverts manually, `overrides()` lists every active override for devtools. The `nmplayer/no-experimental` lint rule flags any call from inside plugin code, consumer app code is unrestricted.
+
+## Next steps
+
+- [Reference: Errors](/nomercy-player-core/reference/errors): the `PlayerError` hierarchy, codes, and the default retry policy table.

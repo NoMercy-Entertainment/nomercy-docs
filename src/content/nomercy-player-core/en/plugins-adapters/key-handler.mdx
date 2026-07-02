@@ -1,0 +1,46 @@
+---
+title: 'Plugin: Key Handler'
+description: 'KeyHandlerPlugin: a single keydown listener routing combo strings to player callbacks, with sane defaults and input-field awareness. Subpath-only import.'
+---
+
+{/* Source: packages/nomercy-player-core/src/plugins/key-handler/index.ts */}
+
+# Plugin: Key Handler
+
+`KeyHandlerPlugin` (id `'key-handler'`) is a keyboard-binding router: one `keydown` listener that dispatches combo strings (`'Space'`, `'ArrowLeft'`, `'m'`) to callbacks. It isn't re-exported from the package's main entry, import it from the `plugins/key-handler` subpath.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `scope` | `'document' \| 'container' \| HTMLElement` | `'document'` | Where the listener attaches. |
+| `bindings` | `Record<string, (player) => void>` | — | Your own combo-to-callback map. |
+| `extend` | `boolean` | `true` | Merge `bindings` with the defaults instead of replacing them. |
+| `when` | `(event: KeyboardEvent) => boolean` | — | Extra gate, return `false` to suppress handling entirely. |
+| `cooldownMs` | `number` | `300` | Throttle window. `0` disables throttling. |
+| `disableMediaControls` | `boolean` | `false` | Turn off the hardware `MediaX` key bindings specifically. |
+
+## Rules & restrictions
+
+- Default bindings: `Space` toggles playback, `ArrowLeft`/`ArrowRight` seek ±5s, `ArrowUp`/`ArrowDown` adjust volume, `m` toggles mute, plus the eight W3C hardware media keys (`MediaPlay`, `MediaPause`, and the rest).
+- Keys are silently ignored when the event target is an `<input>`, `<textarea>`, `<select>`, or any `contenteditable` element, so the player never steals keystrokes from a form on the same page.
+- `disableMediaControls` gates every `MediaX` binding individually, it doesn't touch the non-hardware defaults (`Space`, arrows, `m`).
+
+## How to extend it
+
+```ts
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/key-handler';
+
+player.addPlugin(KeyHandlerPlugin, {
+	bindings: { 'l': player => player.forward(10) }, // your own combo, merged with defaults
+});
+await player.ready();
+
+const keys = player.getPlugin(KeyHandlerPlugin);
+keys!.bind('k', p => p.pause());
+keys!.unbind('m'); // remove just the mute default
+```
+
+## Next steps
+
+- [Plugin: Media Session](/nomercy-player-core/plugins-adapters/media-session): the OS-level equivalent, hardware media keys and lock-screen controls.

@@ -1,0 +1,52 @@
+---
+title: 'Adapter: Transition Strategy'
+description: 'ITransitionStrategy: how the boundary between outgoing and incoming items is handled. CrossfadeTransitionStrategy (music default) and GaplessTransitionStrategy (video default) ship built in.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/preload/default.ts */}
+
+# Adapter: Transition Strategy
+
+Where [Preload Strategy](/nomercy-player-core/plugins-adapters/adapter-preload-strategy) decides *when* and *what* to prefetch, `ITransitionStrategy` decides *how* the player crosses from the outgoing item to the incoming one.
+
+## The interface
+
+```ts
+interface ITransitionStrategy {
+	shouldTransition(context: PreloadContext): boolean;
+	tick(context: TransitionContext, backend: ITransitionBackend | null): void;
+	start(outgoing: BasePlaylistItem, incoming: BasePlaylistItem, backend: ITransitionBackend | null): void;
+	complete(from: BasePlaylistItem, to: BasePlaylistItem): void;
+	cancel(reason: string): void;
+}
+```
+
+`start()` fires once when `shouldTransition` first returns `true`, `tick()` runs every animation frame during the transition window (apply volume ramps or curves here, keep it fast and non-blocking), `complete()` fires once the incoming item is fully primary, and `cancel(reason)` fires if the transition is aborted early (a manual `next()`, a dispose).
+
+`ITransitionBackend` is the narrow five-method surface (`supportsCrossfade`, `loadSecondary`, `primeSecondary`, `crossfade`, `disposeSecondary`, `secondaryGain`) a backend needs to host dual-playback, deliberately smaller than the full backend contract so the transition engine works across audio and video without importing per-library types.
+
+## Shipped implementations
+
+| Class | Default for | Behavior |
+|---|---|---|
+| `CrossfadeTransitionStrategy` | Music | Linear or equal-power volume fade over `leadSeconds` (default 3s) before end + `tailSeconds` (default 3s) after the incoming item starts. `curve: 'equal-power'` avoids the perceptual volume dip a linear fade has at the midpoint. |
+| `GaplessTransitionStrategy` | Video | Hard-cut at the natural end, no overlap. The incoming item is already warm from preloading, so buffering is near-zero. |
+
+## Rules & restrictions
+
+- Audio crossfade on a video player is technically possible (duck outgoing, raise incoming) but needs two simultaneously active `<video>` elements, which browsers handle inconsistently. Opt in explicitly with `CrossfadeTransitionStrategy` if you want it, it isn't the video default for that reason.
+- `tick()` receiving `backend === null` means no `ITransitionBackend`-capable backend is registered, implementations should no-op rather than throw.
+
+## How to extend it
+
+```ts
+import { CrossfadeTransitionStrategy } from '@nomercy-entertainment/nomercy-player-core';
+
+player.setup({
+	transitionStrategy: new CrossfadeTransitionStrategy({ leadSeconds: 5, curve: 'equal-power' }),
+});
+```
+
+## Next steps
+
+- [Adapter: Shuffle Strategy](/nomercy-player-core/plugins-adapters/adapter-shuffle-strategy): the permutation the queue applies when shuffled.

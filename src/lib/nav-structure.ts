@@ -47,12 +47,15 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Notifications & Background", pages: ['notifications', 'foreground-service'] },
     { group: "Troubleshooting", pages: ['troubleshooting'] },
   ],
-  // v2 rebuild in progress (see .rebuild/progress.md) — groups land one arc
-  // stage at a time: introduction, quickstart, tour, build, recipes,
-  // plugins-adapters, reference. Only "Getting Started" exists so far.
+  // v2 rebuild (see .rebuild/progress.md) — full 7-stage arc: introduction,
+  // quickstart, tour, build, recipes, plugins-adapters, reference.
   'nomercy-player-core': [
     { group: "Getting Started", pages: ['introduction', 'quickstart'] },
     { group: "Guided Tour", pages: ['tour/lifecycle', 'tour/event-bus', 'tour/transport', 'tour/time-and-state', 'tour/queue', 'tour/plugin-base', 'tour/adapters', 'tour/i18n', 'tour/cue-parsers', 'tour/errors'] },
+    { group: "Build a Player", pages: ['build/compose-methods', 'build/backend-contract', 'build/add-a-plugin', 'build/add-i18n'] },
+    { group: "Recipes", pages: ['recipes/swap-an-adapter', 'recipes/custom-cue-parser', 'recipes/auth-fetch', 'recipes/custom-url-resolver'] },
+    { group: "Plugins & Adapters", pages: ['plugins-adapters/audio-graph', 'plugins-adapters/equalizer', 'plugins-adapters/mixer', 'plugins-adapters/canvas', 'plugins-adapters/spectrum', 'plugins-adapters/visualization', 'plugins-adapters/cast-sender', 'plugins-adapters/embed', 'plugins-adapters/key-handler', 'plugins-adapters/media-session', 'plugins-adapters/message', 'plugins-adapters/tab-leader', 'plugins-adapters/adapter-storage', 'plugins-adapters/adapter-platform', 'plugins-adapters/adapter-stream-source', 'plugins-adapters/adapter-url-resolver', 'plugins-adapters/adapter-translator', 'plugins-adapters/adapter-cue-parser', 'plugins-adapters/adapter-preload-strategy', 'plugins-adapters/adapter-transition-strategy', 'plugins-adapters/adapter-shuffle-strategy', 'plugins-adapters/adapter-realtime-channel'] },
+    { group: "Reference", pages: ['reference/composition', 'reference/config', 'reference/events', 'reference/types', 'reference/errors', 'reference/utilities'] },
   ],
   'nomercy-video-player': [
     { group: "Getting Started", pages: ['overview', 'installation', 'quickstart'] },

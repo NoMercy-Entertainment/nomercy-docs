@@ -1,0 +1,29 @@
+---
+title: 'Build a Player: Add i18n'
+description: 'Step 4 of 4: pass language and translations straight into setup(), the same config object that carries logLevel and everything else, to finish the player this tutorial builds.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/i18n.ts, src/types/config.ts */}
+
+# Build a Player: Add i18n
+
+The last step. Step 3 left a player with a real backend and a registered plugin. This step adds translations, and the class that comes out the other end is the complete one this tutorial was building toward.
+
+## Config, not a separate call
+
+[i18n](/nomercy-player-core/tour/i18n) showed `addTranslations()` merging a bundle into an already-running player. That's the right tool for translations that arrive after setup, loaded from a network bundle or registered by a plugin. Here, the translations are known upfront, so they go straight into `setup()` alongside `logLevel` and everything else: `language` and `translations` are ordinary `BasePlayerConfig` fields. The kit's built-in English bundle is always merged underneath whatever you pass, so a key missing from your `nl` bundle falls back to English instead of rendering blank.
+
+## Adding it
+
+Nothing about `KitPlayer` from Step 3 changes structurally, one `declare` for `t()` and `language()`, and two config fields at the `setup()` call site.
+
+:::snippet{file="build-4-add-i18n" live="false"}
+:::
+
+## What you built
+
+Four steps, one class: `composeMixins` gives it every shared method, `backend()` gives transport and volume something to drive, `addPlugin` layers behavior on top without touching the class, and `translations` in `setup()` finishes the config. Every piece is the same code `nomercy-video-player` and `nomercy-music-player` run, this tutorial just built it up one capability at a time instead of getting it all from a single import.
+
+## Next steps
+
+- [Recipes](/nomercy-player-core/recipes/swap-an-adapter): task-sized walkthroughs for real kit jobs, swapping an adapter, registering a cue parser, calling `authFetch`, and providing a custom URL resolver.

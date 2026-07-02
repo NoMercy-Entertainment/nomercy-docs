@@ -1,0 +1,55 @@
+---
+title: 'Plugin: Cast Sender'
+description: 'CastSenderPlugin: the Chromecast Web Sender SDK bridge, meant to be subclassed per medium — override defaultContentType() and buildMetadata().'
+---
+
+{/* Source: packages/nomercy-player-core/src/plugins/cast-sender/index.ts */}
+
+# Plugin: Cast Sender
+
+`CastSenderPlugin` (id `'cast-sender'`) bridges player transport state to and from an active Chromecast session via the Cast Web Sender SDK. It's written as a shared base class: `nomercy-video-player` and `nomercy-music-player` each subclass it, overriding the two methods that differ per medium.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `chromecastAppId` | `string` | — | Your registered Cast receiver app id. |
+| `enableAirPlay` | `boolean` | — | Also surface an AirPlay control path. |
+| `customReceiverNamespace` | `string` | — | Custom message namespace for a non-default receiver. |
+| `resumeLocalOnDisconnect` | `boolean` | `true` | Resume local playback when the Cast session ends. |
+| `defaultContentType` | `string` | subclass's `defaultContentType()` | MIME type hint sent to the receiver. |
+| `live` | `boolean` | `false` | Marks the content as a live stream for the receiver UI. |
+
+## Events
+
+`cast:connected` (`{ deviceName }`), `cast:disconnected`, `cast:error` (`{ error }`), `cast:remote-state` (`{ time, state }`), `cast:media-changed` (`{ contentId }`), `unsupported` (`{ reason }`).
+
+## Rules & restrictions
+
+- Chrome/Chromium Web Sender SDK only. In Firefox, Safari, or a non-Chromium browser, `connect()` emits `unsupported` and throws a `BrowserPolicyError` (`core:policy/castUnavailable`), everything else stays a harmless no-op rather than crashing.
+- Requires the global `cast.framework` / `chrome.cast.media` SDK to already be loaded on the page, the plugin doesn't load the script for you.
+- Volume is forwarded to the SDK on its native 0-100 scale, divided to 0-1, matching the receiver's expectation, not the kit's own `volume()` scale directly.
+
+## How to extend it
+
+Subclass it and override the two per-medium methods. This is exactly what `nomercy-video-player` and `nomercy-music-player` do, neither reimplements the session/connection handling.
+
+```ts
+import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+class MyCastSenderPlugin extends CastSenderPlugin {
+	protected override defaultContentType(): string {
+		return 'application/x-mpegURL';
+	}
+	// override buildMetadata(item, ctors) for your own item shape
+}
+
+player.addPlugin(MyCastSenderPlugin, { chromecastAppId: 'ABCD1234' });
+await player.ready();
+
+await player.getPlugin(MyCastSenderPlugin)?.connect();
+```
+
+## Next steps
+
+- [Plugin: Embed](/nomercy-player-core/plugins-adapters/embed): the cross-origin `postMessage` bridge for a player running in an iframe.

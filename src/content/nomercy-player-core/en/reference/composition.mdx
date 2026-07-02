@@ -1,0 +1,73 @@
+---
+title: 'Reference: Composition Primitives'
+description: 'composeMixins, resolvePlayerConstructor, initPlayerCoreState, the playerCoreMethods aggregate, and every individually-exported mixin group. Curated from src/index.ts.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/compose.ts, src/core/constructor.ts, src/core/state.ts, src/core/index.ts, src/core/kit-version.ts */}
+
+# Reference: Composition Primitives
+
+The three functions [Build a Player](/nomercy-player-core/build/compose-methods) and [Quickstart](/nomercy-player-core/quickstart) use to turn a plain class into something that behaves like `NMVideoPlayer` or `NMMusicPlayer`.
+
+## composeMixins
+
+```ts
+function composeMixins<T extends object>(prototype: T, ...modules: object[]): void;
+```
+
+Stamps one or more mixin objects onto a prototype via `Object.getOwnPropertyDescriptors` + `Object.defineProperty`, so getters/setters land as accessors instead of being triggered during the copy. Collision order is left-to-right: a later module in the argument list overrides an earlier one on the same key, list more specific modules after more general ones. Idempotent, calling it twice with the same module just overwrites identical descriptors.
+
+## resolvePlayerConstructor
+
+```ts
+function resolvePlayerConstructor<C>(
+	id: string | number | undefined,
+	instances: Map<string, C>,
+	className: string,
+): PlayerCtorResolution<C>;
+
+type PlayerCtorResolution<C> =
+	| { kind: 'existing'; instance: C }
+	| { kind: 'mount'; id: string; div: HTMLDivElement };
+```
+
+The three-form factory resolution `nmplayer()` / `nmplayer('div-id')` / `nmplayer(2)` use. `id === undefined` returns the first registered instance (throws `core:player/no-element` if the registry is empty). A numeric `id` indexes the registry's insertion order (throws `core:player/not-found` out of range). A string `id` checks the registry first; if not found, resolves `document.getElementById(id)` and requires it to be a `<div>` (throws `core:player/element-missing` or `core:player/element-not-div`). SSR-safe, the `document` call is guarded.
+
+## initPlayerCoreState
+
+```ts
+function initPlayerCoreState(player: object, opts: { className: string }): void;
+```
+
+Seeds every internal slot (phase `'idle'`, dispatch stack, cue parser registry, play/volume/repeat/shuffle state, volume `100`, playback rate `1`, and the rest) to its canonical starting value. Call this once in your constructor, before the instance is usable.
+
+## KIT_VERSION
+
+```ts
+const KIT_VERSION: string; // derived from package.json at compile time
+```
+
+Compared against a plugin's `static readonly minCoreVersion` at `addPlugin()` time, mismatches throw `core:plugin/incompatible-core-version`.
+
+## playerCoreMethods and the individually-exported mixin groups
+
+`playerCoreMethods` is the full `as const` tuple of every shared mixin, the exact aggregate `NMVideoPlayer` and `NMMusicPlayer` compose. It bundles 25 mixin groups internally, but only 16 are individually importable from the package's public entry, the other 9 (stream registration, media tracks, device detection, audio output, cast state, ABR, metrics, and generic DOM helpers) are internal building blocks meant to be consumed only as part of the full aggregate, not recomposed piecemeal.
+
+Individually exported, for composing a narrower surface than the full aggregate:
+
+`lifecycleMethods` · `transportMethods` · `timeMethods` · `volumeMethods` · `queueMethods` · `playQueueMethods` · `stateMethods` · `playerStateMethods` · `pluginRegistrationMethods` · `authMethods` · `i18nMethods` · `cueParserMethods` · `baseUrlAudioContextMethods` · `containerClassEmitMethods` · `preloadStrategyMethods` · `experimentalDescriptor`
+
+```ts
+import { composeMixins, lifecycleMethods, transportMethods } from '@nomercy-entertainment/nomercy-player-core';
+
+// A narrower composition than playerCoreMethods — only lifecycle + transport,
+// for a consumer building something that genuinely doesn't need the queue,
+// i18n, or plugin surface at all.
+composeMixins(MyPlayer.prototype, lifecycleMethods, transportMethods);
+```
+
+Most consumers want the full `playerCoreMethods` aggregate, as every page in [Build a Player](/nomercy-player-core/build/compose-methods) does, composing a subset is an advanced move for a genuinely minimal use case.
+
+## Next steps
+
+- [Reference: BasePlayerConfig](/nomercy-player-core/reference/config): every field the `setup()` call composed above accepts.

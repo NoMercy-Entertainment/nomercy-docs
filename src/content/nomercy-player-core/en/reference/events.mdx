@@ -1,0 +1,186 @@
+---
+title: 'Reference: Events'
+description: 'BaseEventMap in full — every event name, payload shape, and which ones are cancellable BeforeEvent dispatches. Grouped by concern, curated from src/types/events.ts.'
+---
+
+{/* Source: packages/nomercy-player-core/src/types/events.ts */}
+
+# Reference: Events
+
+`BaseEventMap` is the complete event map every player built on the kit emits. Subscribe with `player.on(name, handler)`, the payload type is inferred from the name. Library-specific maps (`VideoEventMap`, `MusicEventMap`) extend this with domain-only events on top.
+
+Every `before*` row below carries a `BeforeEvent<TData>` payload: `data` (mutable), `preventDefault()`, `isDefaultPrevented()`, `stopImmediatePropagation()`, `isPropagationStopped()`, `delay(promise)`, `isDelayed()`. See [Transport Contract](/nomercy-player-core/tour/transport) for the full cancel/mutate/delay walkthrough.
+
+## Setup lifecycle
+
+Fires once, in order, during `setup()`. Each stage has a paired `<stage>Error` event.
+
+| Event | Payload |
+|---|---|
+| `beforeSetup` | `void` |
+| `setupStart` | `{ container: HTMLElement }` |
+| `configResolved` | `{ config: BasePlayerConfig }` |
+| `pluginsRegistering` / `pluginsRegistered` | `void` |
+| `streamsReady` | `void` |
+| `authReady` | `void` |
+| `playlistResolving` | `{ url: string }` |
+| `playlistReady` | `{ length: number }` |
+| `playlistError` | `{ url, error, code }` |
+| `mediaReady` | `void` |
+| `ready` | `void` |
+| `setupStartError` / `configResolvedError` / `pluginsRegisteringError` / `pluginsRegisteredError` / `streamsReadyError` / `authReadyError` / `playlistResolveError` / `mediaReadyError` | `PlayerErrorEvent` |
+
+## Play-path lifecycle
+
+| Event | Payload |
+|---|---|
+| `beforePlay` / `beforePause` / `beforeStop` / `beforeNext` / `beforePrevious` | `BeforeEvent<ActionOptions>` |
+| `playPrevented` / `pausePrevented` / `stopPrevented` / `nextPrevented` / `previousPrevented` / `loadPrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `firstFrame` | `void` |
+| `playing` | `void` — fires when the backend confirms active rendering, after buffering resolves. |
+| `beforeSeek` | `BeforeEvent<{ time: number; source?: ActionSource }>` |
+| `seekPrevented` | `{ reason, cause? }` |
+| `beforeLoad` | `BeforeEvent<{ item: I; source?: ActionSource }>` |
+
+## Mutation contract & phase
+
+| Event | Payload |
+|---|---|
+| `beforeMutation` | `BeforeEvent<{ method: string; args: ReadonlyArray<unknown>; phase: PlayerPhase; dispatchStack: ReadonlyArray<string> }>` |
+| `mutationPrevented` | `{ method, reason, cause? }` |
+| `phase` | `{ from: PlayerPhase; to: PlayerPhase }` |
+
+## Standard transport
+
+| Event | Payload |
+|---|---|
+| `play` / `pause` / `stop` / `next` / `previous` | `ActionOptions` |
+| `ended` | `void` |
+| `seek` | `{ time: number; source?: ActionSource }` — fires at dispatch time, before the backend moves. |
+| `seeked` | `{ time: number }` — fires after the backend confirms. |
+| `progress` | `{ time, duration, percentage }` — throttled by `progressIntervalMs`, prefer over `time` for watch-position saves. |
+| `time` | `{ time: number }` — unthrottled, per-frame. |
+| `dispose` | `void` |
+| `beforeDispose` | `BeforeEvent<void>` |
+| `disposePrevented` | `{ reason, cause? }` |
+
+## Language, volume, mode state
+
+| Event | Payload |
+|---|---|
+| `language` | `{ lang: string }` |
+| `beforeLanguage` / `languagePrevented` | `BeforeEvent<{ lang }>` / `{ reason, cause? }` |
+| `volume` | `{ level: number }` |
+| `beforeVolume` / `volumePrevented` | `BeforeEvent<{ level }>` / `{ reason, cause? }` — fires unconditionally, independent of `mutationGuards`. |
+| `mute` | `{ muted: boolean }` |
+| `beforeMute` / `mutePrevented` | `BeforeEvent<{ muted }>` / `{ reason, cause? }` |
+| `repeat` | `{ state: RepeatState }` |
+| `beforeRepeat` / `repeatPrevented` | `BeforeEvent<{ state }>` / `{ reason, cause? }` |
+| `shuffle` | `{ state: ShuffleState }` |
+| `beforeShuffle` / `shufflePrevented` | `BeforeEvent<{ state }>` / `{ reason, cause? }` |
+| `playbackRate` | `{ rate: number }` |
+| `beforePlaybackRate` / `playbackRatePrevented` | `BeforeEvent<{ rate }>` (already clamped `[0.25, 2]`) / `{ reason, cause? }` — fires unconditionally. |
+
+## Error severity tiers
+
+| Event | Payload |
+|---|---|
+| `fatal` / `error` / `warning` / `info` | `PlayerErrorEvent` — see [Reference: Errors](/nomercy-player-core/reference/errors). |
+
+## Queue, backlog, item
+
+| Event | Payload |
+|---|---|
+| `item` | `{ item: I \| undefined; index: number }` |
+| `queue` | `I[]` |
+| `queue:append` | `{ items: I[]; from: number }` |
+| `queue:prepend` | `{ items: I[] }` |
+| `queue:insert` | `{ items: I[]; index: number }` |
+| `queue:remove` | `{ id, index, item }` |
+| `queue:move` | `{ from: number; to: number }` |
+| `queue:clear` | `{ previousLength: number }` |
+| `queue:shuffle` / `queue:sort` | `void` |
+| `queue:exhausted` | `void` — last item of a non-repeating queue ended naturally. |
+| `backlog` | `I[]` |
+| `backlog:append` | `{ items: I[] }` |
+| `backlog:remove` | `{ id, index, item }` |
+| `backlog:clear` | `{ previousLength: number }` |
+| `itemEndingSoon` | `{ remaining: number; item: I }` — fires once per item at `itemEndingSoonThreshold`. |
+| `duration` | `{ duration: number }` |
+
+## Backend, auth, stream
+
+| Event | Payload |
+|---|---|
+| `backend:changed` | `{ kind: string }` |
+| `backend:loading` | `{ url, kind }` |
+| `backend:loaded` | `{ url, kind, duration }` |
+| `backend:error` | `{ error, kind }` |
+| `backend:stalled` | `{ time: number }` |
+| `backend:ratechange` | `{ rate: number }` |
+| `backend:waiting` | `void` |
+| `auth:refreshed` | `{ tokenAcquiredAt: number }` |
+| `auth:failed` | `{ error }` |
+| `stream:manifest-loaded` | `{ url: string }` |
+| `stream:level-switched` | `{ level, label }` |
+| `stream:fragment-loaded` | `{ url, durationMs }` |
+| `stream:level-considered` | `{ candidate, decided, reason }` |
+| `stream:error` | `{ details, fatal }` |
+| `stream:encrypted` | `{ initData, initDataType }` |
+
+## Cues, subtitles, audio track, chapters, cast
+
+| Event | Payload |
+|---|---|
+| `cue:enter` / `cue:exit` | `CueEventPayload` |
+| `subtitleCue` | `SubtitleCueChange` — unified across sidecar VTT and native text tracks. |
+| `subtitleStyle` | `SubtitleStyle` |
+| `subtitle` | `{ track: number \| null }` |
+| `beforeSubtitle` / `subtitlePrevented` | `BeforeEvent<{ track }>` / `{ reason, cause? }` |
+| `audioTrack` | `{ id: number \| null }` |
+| `beforeAudioTrack` / `audioTrackPrevented` | `BeforeEvent<{ id }>` / `{ reason, cause? }` |
+| `chapter` | `{ index: number; title: string }` |
+| `chapters` | `{ chapters: ReadonlyArray<Chapter> }` |
+| `castState` | `{ state: CastState }` |
+| `beforeTransfer` / `transferPrevented` | `BeforeEvent<{ target: CastTarget }>` / `{ reason, cause? }` |
+| `qualityState` | `{ state: 'auto' \| 'manual' }` |
+| `audioTrackState` | `{ state: 'default' \| 'manual' }` |
+| `level-switched` | `{ level: number }` — HLS adaptive level switch. |
+
+## Plugins, network, metrics, activity
+
+| Event | Payload |
+|---|---|
+| `plugin:installed` | `{ id, version }` |
+| `plugin:enabled` | `{ id }` |
+| `plugin:disabled` | `{ id, reason? }` |
+| `plugin:opts:changed` | `{ id, opts }` |
+| `plugin:disposed` | `{ id }` |
+| `plugin:failed` | `{ id, error }` |
+| `plugin:error` / `plugin:warning` | `PlayerErrorEvent` |
+| `network:online` / `network:offline` | `void` |
+| `network:slow` | `{ rttMs: number \| undefined }` — only fires on the not-slow → slow transition. |
+| `visibility:visible` / `visibility:hidden` | `void` |
+| `playback:metrics` | `PlaybackMetrics` |
+| `fetch:start` | `{ url, pluginId? }` |
+| `fetch:retry` | `{ url, attempt, reason, delayMs, pluginId? }` |
+| `fetch:complete` | `{ url, ok, status?, durationMs, pluginId? }` |
+| `activity` | `{ active: boolean }` |
+| `listeners-changed` | `{ name: string; count: number }` |
+
+## Preload & transition
+
+| Event | Payload |
+|---|---|
+| `preloadStart` | `{ item, assets }` |
+| `preloadProgress` | `{ item, loaded, total }` |
+| `preloadComplete` | `{ item }` |
+| `preloadError` | `{ item, error }` |
+| `transitionStart` | `{ outgoing, incoming }` |
+| `transitionProgress` | `{ outgoing, incoming, fraction }` — `fraction` is `[0, 1]`. |
+| `transitionComplete` | `{ from, to }` |
+| `transitionCancelled` | `{ reason: string }` |
+
+## Next steps
+
+- [Reference: Types](/nomercy-player-core/reference/types): the domain types and enums referenced throughout the tables above.

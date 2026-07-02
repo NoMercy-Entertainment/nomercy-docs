@@ -1,0 +1,46 @@
+---
+title: 'Plugin: Spectrum'
+description: 'SpectrumPlugin: FFT analysis on top of AudioGraphPlugin, producing a per-frame VisualizationFrame consumed by Visualization and any custom renderer.'
+---
+
+{/* Source: packages/nomercy-player-core/src/plugins/spectrum/index.ts */}
+
+# Plugin: Spectrum
+
+`SpectrumPlugin` (id `'spectrum'`) reads [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph)'s analyser node once per animation frame and produces a `VisualizationFrame`: frequency and waveform buffers (both byte and float), per-band energy (`bass` / `mid` / `treble`), and beat/BPM fields when a beat provider is registered. [Visualization](/nomercy-player-core/plugins-adapters/visualization) is the primary consumer, but any plugin can read frames directly.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `fftSize` | `512 \| 1024 \| 2048 \| 4096` | inherits Audio Graph's analyser | Analysis resolution. |
+| `smoothingTimeConstant` | `number` | inherits Audio Graph's analyser | Analyser smoothing. |
+| `stereo` | `boolean` | `false` | Allocate separate left/right analysers instead of one summed channel. |
+| `frameRate` | `number` | — | Reserved, currently unused. |
+
+## Events
+
+`frame` (`{ frame: VisualizationFrame; energy: { bass, mid, treble } }`), `opts:changed`.
+
+## Rules & restrictions
+
+- `static requires = [AudioGraphPlugin]` — throws `core:plugin/missing-dep` without it.
+- `stereo: true` allocates two extra `AnalyserNode`s and four extra typed-array buffers per frame, only turn it on when a consumer actually needs per-channel data.
+- Synthetic mode (`syntheticMode(true)` + `pushFrame(frame)`) exists for passive NoMercy Connect receivers that have no local audio stream to analyse: it bypasses the `AnalyserNode` entirely and re-emits the last pushed frame verbatim. `time`/`deltaMs` on a synthetic frame are **not** overridden by the canvas RAF clock the way a real-analysis frame's are.
+
+## How to extend it
+
+```ts
+import { AudioGraphPlugin, SpectrumPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+player.addPlugin(AudioGraphPlugin);
+player.addPlugin(SpectrumPlugin, { stereo: false });
+await player.ready();
+
+const spectrum = player.getPlugin(SpectrumPlugin);
+console.log(spectrum!.bandEnergy(20, 250)); // energy in the bass range, right now
+```
+
+## Next steps
+
+- [Plugin: Visualization](/nomercy-player-core/plugins-adapters/visualization): the base class that turns these frames into pixels.

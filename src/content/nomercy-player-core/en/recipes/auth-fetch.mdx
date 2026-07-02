@@ -1,0 +1,27 @@
+---
+title: 'Recipe: Use authFetch'
+description: 'Call the kit auth-aware fetch pipeline directly from data-layer code, with the same 401-refresh-and-retry and 403-propagates behavior Plugin.fetch wraps.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/auth-fetch/index.ts, src/core/auth-fetch/types.ts */}
+
+# Recipe: Use authFetch
+
+[The Plugin Base](/nomercy-player-core/tour/plugin-base) covers `Plugin.fetch()`, the auth-aware HTTP helper every plugin gets bound to its own lifecycle. `authFetch` is the same pipeline underneath, exported standalone for code that isn't a plugin, a data layer, a prefetch routine, anything that needs the kit's auth handling without a player around it.
+
+## What it does that a raw `fetch` doesn't
+
+`auth.transformUrl(url)` runs first, then `Authorization: Bearer <token>` is set from a resolved `bearerToken` (string, sync getter, or async getter, so a Vue ref or reactive store works directly), then `auth.headers` merges in. A 401 response triggers `auth.refreshOnUnauthenticated()` exactly once, then retries the original request with freshly resolved credentials, a 403 propagates immediately and is never retried or refreshed. 5xx and network failures retry per `RetryConfig` (see [Typed Errors](/nomercy-player-core/tour/errors) for the default policy table).
+
+`signal` is required, not optional: every call site owns its own `AbortController` and cancellation is explicit, there's no implicit "cancel when some object is garbage collected" behavior to reason about.
+
+:::snippet{file="recipe-auth-fetch" live="false"}
+:::
+
+## Response typing
+
+`responseType` discriminates how the body decodes: `'text'` (default, with an optional `parser` callback), `'json'` (throws `core:network/parse-failed` on invalid JSON), or `'arrayBuffer'` for binary payloads. `isAuthError()` and `isNetworkError()` are the same type guards `Plugin.fetch()` callers use to branch a `catch` block without an `instanceof` import.
+
+## Next steps
+
+- [Recipe: Provide a Custom URL Resolver](/nomercy-player-core/recipes/custom-url-resolver): for URLs handed to something that isn't `fetch` at all, a `<video>.src`, a Cast receiver, a Worker.

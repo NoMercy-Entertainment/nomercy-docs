@@ -1,0 +1,27 @@
+---
+title: 'Build a Player: Add a Plugin'
+description: 'Step 3 of 4: register a Plugin subclass before setup() and react to the events the backend wiring from step 2 now actually fires.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/plugin/base.ts, src/core/mixins/plugin-registration.ts */}
+
+# Build a Player: Add a Plugin
+
+Step 2 gave the player something real to drive. This step adds behavior on top of it, without touching `KitPlayer` itself: a plugin.
+
+## Why the player class doesn't change
+
+A plugin extends the player from the outside. `addPlugin(PluginClass, opts)` queues the plugin before `setup()` runs (registering after `setup()` misses the plugin's `use()` call during the pipeline), and the plugin gets a scoped logger, namespaced storage, and auto-cleaned listeners for free, the full list is in [The Plugin Base](/nomercy-player-core/tour/plugin-base). Nothing about `KitPlayer`'s composition from steps 1-2 has to anticipate this: `addPlugin`/`getPlugin` are already part of `playerCoreMethods`, stamped onto every kit composition whether or not you ever call them.
+
+## Adding one
+
+`PlayCounterPlugin` listens for the same `play` event Step 2's backend wiring now actually triggers, and emits a namespaced milestone every N plays. The `KitPlayer` class below is identical to Step 2's, plus the two `declare`d methods a plugin-registering consumer needs (`addPlugin`, `getPlugin`) and the plugin registration call itself.
+
+:::snippet{file="build-3-add-a-plugin" live="false"}
+:::
+
+`player.backend().calls` at the end still shows the transport calls from Step 2 (`['play', 'pause', 'play']`), proving the plugin is additive: it observes the same event stream, it doesn't intercept or replace the backend wiring underneath it.
+
+## Next steps
+
+- [Step 4: Add i18n](/nomercy-player-core/build/add-i18n): the last step, translations wired in at `setup()` time.

@@ -1,0 +1,78 @@
+---
+title: 'Reference: Utility Functions'
+description: 'Pure, dependency-free helpers exported from the package root: authFetch, format/escape/clamp helpers, the perceptual volume curve, title-token interpolation, URL building, and DOM element helpers.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/format.ts, src/core/volume-curve.ts, src/core/title-tokens.ts, src/core/resolved-url.ts, src/core/append-auth-token-param.ts, src/core/auth-fetch/, src/adapters/element-factory/ */}
+
+# Reference: Utility Functions
+
+Standalone functions exported from the package root, no player instance required. Most are pure.
+
+## Auth & URLs
+
+```ts
+function authFetch<T>(opts: AuthFetchOptions<T>): Promise<T>; // see Recipe: Use authFetch
+function isAuthError(err: unknown): err is AuthError;
+function isNetworkError(err: unknown): err is NetworkError;
+
+function buildResolvedUrl(raw: string, transformed: string, baseUrl?: string): ResolvedUrl;
+// Never throws. Tries absolute parse, then base-relative, then a manual
+// string parse for a bare relative URL with no base (sets relative: true).
+
+function appendAuthTokenParam(url: string, headerValue: string | undefined): string;
+// Appends `access_token=<rawJwt>` to a URL query string, stripping any
+// "Bearer " prefix. For <audio>/<video> src paths that can't carry a header
+// (non-HLS, native-HLS-fallback). Returns the URL unchanged if headerValue
+// is undefined.
+```
+
+## Formatting & escaping
+
+```ts
+function formatSeconds(seconds: number): string;
+// "M:SS" or "H:MM:SS". Returns "0:00" for negative or non-finite input.
+
+function formatDuration(duration: number | string | undefined): string;
+// Display-layer wrapper over formatSeconds — also accepts a pre-formatted
+// wire string (strips a leading "00:") and nullish input (returns "").
+
+function clampVolume(value: number): number;
+// Clamps to [0, 100] and rounds to the nearest integer.
+
+function escapeHtml(str: string): string;
+// Escapes &, <, >, ", ' for safe insertion into HTML text/attributes.
+```
+
+## Perceptual volume curve
+
+```ts
+function perceptualGain(position01: number): number;
+```
+
+Maps a linear 0..1 slider position to a linear 0..1 gain amplitude using a standard −60dB…0dB broadcast taper (`gain = 10^(3 × (position − 1))`), so equal slider increments sound like equal loudness increments instead of compressing all the audible range into the bottom third of the slider. Below 1% position snaps to exact silence. Called only at the point a backend writes a gain value (`GainNode.gain`, `element.volume`), the player's own `volume()` always stores and returns the raw 0-100 position, never a gain value.
+
+## Title-token interpolation
+
+```ts
+type TokenRegistry = Readonly<Record<string, string>>;
+function interpolateTitleTokens(text: string, translator: ITranslator | undefined, registry: TokenRegistry): string;
+```
+
+Replaces every `%<LETTER><digits>` token (e.g. `%S1%E3`) whose letter is a key in `registry` with `translator.t(registryKey, { number: digits })`. Idempotent (already-resolved text has no tokens left to match), no-throw (an empty registry or missing translator is a guaranteed no-op), core ships an empty registry by default. See [i18n](/nomercy-player-core/tour/i18n#title-tokens) for `registerTitleTokens()`, the player-facing setter.
+
+## DOM element helpers
+
+```ts
+function createElement<K extends keyof HTMLElementTagNameMap>(type: K, id: string, unique?: boolean): AddClasses<HTMLElementTagNameMap[K]>;
+function addClasses<T extends Element>(el: T, names: string[]): AddClasses<T>;
+function removeClasses<T extends Element>(el: T, names: string[]): T;
+function createSVG(id: string, viewBox: string): SVGSVGElement;
+function createButton(id: string, label: string, onClick: (event: Event) => void): HTMLButtonElement;
+```
+
+The fluent builder chain a plugin's UI code uses instead of raw `document.createElement`, `createElement` returns a chainable wrapper (`.addClasses([...]).appendTo(parent).get()`) so element construction reads top-to-bottom. `Plugin.mount(name)` (see [The Plugin Base](/nomercy-player-core/tour/plugin-base)) is the higher-level entry point most plugin code actually calls, these are the primitives underneath it.
+
+## Next steps
+
+That's the full reference: composition primitives, config, events, domain types, errors, and these utilities are everything `nomercy-video-player` and `nomercy-music-player` build on. If you're building a player for end users rather than composing the kit directly, start there instead: [Video Player](/nomercy-video-player/overview) or [Music Player](/nomercy-music-player/overview).

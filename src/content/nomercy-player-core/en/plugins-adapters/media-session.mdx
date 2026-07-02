@@ -1,0 +1,39 @@
+---
+title: 'Plugin: Media Session'
+description: 'MediaSessionPlugin: bridges transport state to navigator.mediaSession for lock-screen controls, hardware keys, and Bluetooth remotes. Subpath-only import.'
+---
+
+{/* Source: packages/nomercy-player-core/src/plugins/media-session/index.ts */}
+
+# Plugin: Media Session
+
+`MediaSessionPlugin` (id `'media-session'`) bridges player transport state to the browser's `navigator.mediaSession` API, lock-screen media controls, hardware media keys, Bluetooth remotes, and OS "Now Playing" widgets. Not re-exported from the main entry, import it from the `plugins/media-session` subpath.
+
+## Options
+
+Currently empty (`MediaSessionOptions = {}`), reserved for future options.
+
+## Rules & restrictions
+
+- Silently no-ops entirely when `navigator.mediaSession` is absent (Node, JSDOM, some older WebViews), every method is guarded at the top, nothing throws.
+- Position reporting is skipped when duration is zero, `NaN`, or `Infinity`, some browsers throw on an invalid `setPositionState` call.
+- `setActionHandler('stop')` isn't supported in every browser, the resulting `TypeError` is caught rather than propagated.
+- Safari specifically requires the `autoplay` attribute on the host `<iframe>` (when embedded) for MediaSession to activate at all, see the note on the [Embed](/nomercy-player-core/plugins-adapters/embed) plugin.
+
+## How to extend it
+
+To target a native shell (Capacitor, Electron) instead of the browser API, subclass with the same `static id` and override the platform touchpoints:
+
+```ts
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session';
+
+player.addPlugin(MediaSessionPlugin);
+await player.ready();
+
+const session = player.getPlugin(MediaSessionPlugin);
+session!.metadata({ title: 'Sintel', artist: 'Blender Foundation' });
+```
+
+## Next steps
+
+- [Plugin: Message](/nomercy-player-core/plugins-adapters/message): the in-player toast surface, for feedback the OS chrome doesn't cover.

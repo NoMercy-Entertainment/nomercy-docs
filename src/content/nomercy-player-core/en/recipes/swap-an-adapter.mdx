@@ -1,0 +1,27 @@
+---
+title: 'Recipe: Swap an Adapter'
+description: 'Swap the storage port for IndexedDBBackend at setup() and prove a plugin storage read persists through it, without changing a single call site.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/storage/IStorage.ts, src/adapters/storage/indexed-db.ts */}
+
+# Recipe: Swap an Adapter
+
+[Adapters & Dependency Injection](/nomercy-player-core/tour/adapters) covers the mechanism: every non-lifecycle behavior is a named interface with a working default, swapped by naming the field in `setup()`. This recipe is a real task built on that mechanism: the default `LocalStorageBackend` is synchronous and capped around 5-10 MB per origin, which is a real ceiling for cached metadata or an offline queue.
+
+## The swap
+
+`IndexedDBBackend` implements the same five-method `IStorage` interface as the default, so nothing that already calls `this.storage` (inside a plugin) or reads through the port needs to change. Only the `setup()` call does.
+
+:::snippet{file="recipe-swap-an-adapter" live="false"}
+:::
+
+`RecentlyPlayedPlugin` never checks which backend is active. It calls `this.storage.getJSON()` / `setJSON()` exactly as it would against the default, the swap happens once, at the boundary, and every consumer downstream is unaffected.
+
+## Other ports swap the same way
+
+Every port in the [adapter table](/nomercy-player-core/tour/adapters#the-adapter-ports) takes the identical shape: name the field, pass an instance. `platform` additionally supports a partial override (`{ ...browserPlatform, wakeLock: myWakeLock }`) for interfaces that bundle several sub-controllers, everything else is a full replace.
+
+## Next steps
+
+- [Recipe: Register a Custom Cue Parser](/nomercy-player-core/recipes/custom-cue-parser): the same "swap at setup" shape, applied to a registry instead of a single interface.

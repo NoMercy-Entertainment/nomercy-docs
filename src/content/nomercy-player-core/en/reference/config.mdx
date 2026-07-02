@@ -1,0 +1,80 @@
+---
+title: 'Reference: BasePlayerConfig'
+description: 'Every field setup() accepts, curated from BasePlayerConfig and the interfaces it embeds (AuthConfig, CastConfig). Names, types, and defaults only.'
+---
+
+{/* Source: packages/nomercy-player-core/src/types/config.ts */}
+
+# Reference: BasePlayerConfig
+
+The object passed to `setup(config)`. `nomercy-video-player` and `nomercy-music-player` each extend this with their own domain fields (video adds `octopus`, music adds nothing beyond what's already here), everything below is shared by both.
+
+## Core
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `logLevel` | `LogLevel` | — | Verbosity for the player and every registered plugin. |
+| `logger` | `ILogger` | kit `Logger` | Any `ILogger` implementation (Pino, Winston, custom). |
+| `baseUrl` | `string` | — | Prepended to relative playlist item URLs. Absolute URLs pass through unchanged. Mandatory for any playlist example, see [Quickstart](/nomercy-player-core/quickstart). |
+| `baseImageUrl` | `string` | — | Same idea, for relative `image`/`poster`/`thumbnail`/`cover` paths. |
+| `defaultVolume` | `number` | `100` | Initial volume, 0-100 scale. |
+| `playlist` | `BasePlaylistItem[] \| string` | — | Initial items, or a URL the player fetches. |
+| `transformPlaylistItem` | `(item) => item` | — | Reshape every item as it enters the queue, after built-in normalization. Keep it synchronous. |
+| `expose` | `boolean` | `false` | Attach the instance to `window.player` (and the factory to `window.nmplayer`) for console debugging. |
+| `clockSource` | `() => number` | `Date.now` | Timestamp source for distributed-sync plugins. |
+
+## Auth
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `auth` | `AuthConfig` | — | `bearerToken`, `headers`, `credentials`, `transformUrl`, `signRequest`, `refreshOnUnauthenticated`, `retryAfterRefresh`. See [Recipe: Use authFetch](/nomercy-player-core/recipes/auth-fetch). |
+| `urlResolver` | `IUrlResolver` | built-in `auth.transformUrl` + parse | See [Adapter: URL Resolver](/nomercy-player-core/plugins-adapters/adapter-url-resolver). |
+
+## i18n
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `language` | `string` | `navigator.language` | BCP-47 tag. |
+| `translations` | `Translations` | — | Bundles by language tag. The kit's English bundle always merges underneath. |
+| `loadTranslations` | `TranslationLoader` | — | Async loader invoked when a tag's bundle isn't loaded yet. |
+| `onMissingTranslation` | `(key, lang) => string` | returns `key` | Fallback for an unresolved key. |
+| `translator` | `ITranslator` | `DefaultTranslator` | See [Adapter: Translator](/nomercy-player-core/plugins-adapters/adapter-translator). |
+
+## Adapters
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `storage` | `IStorage` | `LocalStorageBackend` | See [Adapter: Storage](/nomercy-player-core/plugins-adapters/adapter-storage). |
+| `platform` | `IPlatform` | `browserPlatform` | See [Adapter: Platform](/nomercy-player-core/plugins-adapters/adapter-platform). |
+| `websocketFactory` | `RealtimeFactory` | `nativeWebSocketAdapter` | See [Adapter: Realtime Channel](/nomercy-player-core/plugins-adapters/adapter-realtime-channel). |
+| `cueParsers` | `ReadonlyArray<ICueParser>` | `[]` | Registered alongside VTT/LRC/sprite-VTT, not instead of them. |
+| `shuffleStrategy` | `IShuffleStrategy` | `FisherYatesShuffle` | See [Adapter: Shuffle Strategy](/nomercy-player-core/plugins-adapters/adapter-shuffle-strategy). |
+| `preloadStrategy` | `IPreloadStrategy` | `DefaultPreloadStrategy` | See [Adapter: Preload Strategy](/nomercy-player-core/plugins-adapters/adapter-preload-strategy). |
+| `transitionStrategy` | `ITransitionStrategy` | per-library (`CrossfadeTransitionStrategy` music / `GaplessTransitionStrategy` video) | See [Adapter: Transition Strategy](/nomercy-player-core/plugins-adapters/adapter-transition-strategy). |
+
+## Timing & thresholds
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `metricsIntervalMs` | `number` | `10000` | `playback:metrics` emit interval. `0` disables. |
+| `progressIntervalMs` | `number` | `5000` | Throttled `progress` emit interval, prefer over `time` for watch-position saves. |
+| `itemEndingSoonThreshold` | `number` | `10` | Seconds before natural end that `itemEndingSoon` fires. |
+| `preloadLeadSeconds` | `number` | `10` | Seconds before end that prefetch begins. `0` disables preloading. |
+| `crossfadeLeadSeconds` / `crossfadeTailSeconds` | `number` | `3` / `3` | Overlap window, only used when `crossfadeEnabled: true`. |
+| `crossfadeEnabled` | `boolean` | `false` video / `true` music | Overlap transition vs. hard-cut gapless. |
+| `pluginInitTimeoutMs` | `number` | `30000` | Cap on a plugin's `use()` promise before it's marked failed. |
+| `beforeEventTimeoutMs` | `number` | `10000` | Cap on `BeforeEvent.delay(promise)`; timeout is treated as `preventDefault`. |
+
+## Runtime behavior
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `pauseWhenHidden` | `boolean` | `false` | Pause when the document goes hidden. |
+| `onOffline` | `'pause' \| 'continue-buffered' \| 'ignore'` | `'continue-buffered'` | Behavior on `network:offline`. |
+| `wakeLock` | `'auto' \| 'always' \| 'never'` | `'auto'` video / `'never'` music | Wake-lock policy. |
+| `cast` | `CastConfig` | — | `autoLoad`, `receiverApplicationId`, `autoJoinPolicy`, `resumeSavedSession`, `scriptUrl`, `loadTimeoutMs`. |
+| `mutationGuards` | `false \| 'all' \| ReadonlyArray<string>` | guards normal mutations only | Controls which mutating methods fire `beforeMutation` + plugin advisories. |
+
+## Next steps
+
+- [Reference: Events](/nomercy-player-core/reference/events): `BaseEventMap`, every event name and payload the fields above eventually produce.

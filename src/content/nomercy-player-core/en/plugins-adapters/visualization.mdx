@@ -1,0 +1,56 @@
+---
+title: 'Plugin: Visualization'
+description: 'VisualizationPlugin: the abstract base for canvas-based visualizers, layering Canvas (RAF + mount) and Spectrum (frame data) — subclass and implement render().'
+---
+
+{/* Source: packages/nomercy-player-core/src/plugins/visualization/index.ts */}
+
+# Plugin: Visualization
+
+`VisualizationPlugin` (default id `'visualization'`, subclasses must set their own) is an **abstract base class**, not something you register directly. It exists to give every canvas-based visualizer the same two dependencies wired up: [Canvas](/nomercy-player-core/plugins-adapters/canvas) for the mount and RAF loop, [Spectrum](/nomercy-player-core/plugins-adapters/spectrum) for frequency/waveform data, so a visualizer author writes only the drawing code.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `clearBeforeRender` | `boolean` | `false` | Clear the canvas before each `render()` call. |
+| `tick` | `'frame' \| 'time'` | `'frame'` | Reserved, only `'frame'` is currently active. |
+
+## Events
+
+`unsupported` (`{ reason }`), `rendered` (`{ frame: VisualizationFrame }`).
+
+## Rules & restrictions
+
+- `static requires = [CanvasPlugin, SpectrumPlugin]` — the player refuses to register a visualizer without both already present.
+- Cannot be registered directly, it's `abstract`. `addPlugin()` needs a concrete subclass.
+- Degrades gracefully rather than throwing: if the dependencies are missing or spectrum analysis is unavailable, it emits `unsupported` and returns early, the rest of the player keeps running.
+- Kit rule for extension authors: bridges to p5.js, three.js, or shader-based rendering belong in a separate optional package built **on top of** this class. They should never reach into kit internals; override only `render(ctx, frame)`. `CanvasPlugin` owns clearing/compositing and `SpectrumPlugin` owns frame data, a visualizer subclass owns neither.
+
+## How to extend it
+
+Subclass it and implement the one abstract method. The kit ships a reference implementation, `WaveformVisualization` (id `'fillz:waveform'`, importable from the `plugins/visualization` subpath), worth reading as a real example of the pattern below.
+
+```ts
+import { CanvasPlugin, SpectrumPlugin, VisualizationPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+class BarsVisualization extends VisualizationPlugin {
+	static override readonly id = 'my-app:bars';
+
+	protected override render(ctx: CanvasRenderingContext2D, frame: VisualizationFrame): void {
+		const { width, height } = ctx.canvas;
+		const barWidth = width / frame.frequency.length;
+		frame.frequency.forEach((value, i) => {
+			ctx.fillRect(i * barWidth, height - value, barWidth - 1, value);
+		});
+	}
+}
+
+player.addPlugin(CanvasPlugin);
+player.addPlugin(SpectrumPlugin);
+player.addPlugin(BarsVisualization);
+```
+
+## Next steps
+
+- [Plugin: Cast Sender](/nomercy-player-core/plugins-adapters/cast-sender): outside the audio-graph chain, the kit's Chromecast bridge.

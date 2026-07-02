@@ -1,0 +1,91 @@
+---
+title: 'Reference: Errors'
+description: 'The PlayerError hierarchy, factory functions, the 8-digit numeric code schema, severity constants, and the DEFAULT_RETRY_POLICY table in full.'
+---
+
+{/* Source: packages/nomercy-player-core/src/errors/*.ts, src/adapters/retry-policy/default.ts */}
+
+# Reference: Errors
+
+[Typed Errors](/nomercy-player-core/tour/errors) explains the hierarchy narratively. This page is the signature reference.
+
+## PlayerError
+
+```ts
+class PlayerError extends Error {
+	readonly name: string;
+	readonly code: string;       // e.g. 'core:auth/forbidden', 'fillz:viz/canvas-init-failed'
+	readonly id?: number;        // optional numeric id from the registry
+	readonly severity: Severity; // 'fatal' | 'error' | 'warning' | 'info'
+	readonly scope: ErrorScope;  // discriminated union, see below
+	readonly cause?: unknown;
+	readonly context?: Record<string, unknown>;
+	readonly suggestion?: string; // present-tense, actionable, user-facing hint
+
+	isHttp(century: 1 | 2 | 3 | 4 | 5): boolean; // true if context.httpStatus falls in that century
+}
+```
+
+```ts
+type ErrorScope =
+	| { kind: 'core' }
+	| { kind: 'backend'; id: 'audio-element' | 'webaudio' | 'video' | 'html5' | 'mse' | 'webcodecs' }
+	| { kind: 'stream'; id: 'native' | 'hls' | 'dash' }
+	| { kind: 'cue'; id: 'lrc' | 'vtt' | 'sprite-vtt' | 'ttml' }
+	| { kind: 'network' }
+	| { kind: 'auth' }
+	| { kind: 'plugin'; id: string };
+```
+
+## Subclasses & factories
+
+| Class | Extends | Factory | Typical cause |
+|---|---|---|---|
+| `StateError` | `PlayerError` | `stateError(code, message, context?)` | Wrong lifecycle phase — `play()` before `setup()`, after `dispose()`. |
+| `AuthError` | `NetworkError` | — | 401/403 responses. |
+| `NetworkError` | `PlayerError` | — | Fetch failure, timeout, 5xx. |
+| `DrmError` | `PlayerError` | — | EME key system / license failure. |
+| `MediaFormatError` | `PlayerError` | `mediaFormatError(...)` | Unsupported codec/container. |
+| `StreamError` | `PlayerError` | — | Manifest parse failure, fatal hls.js error. |
+| `ResourceError` | `PlayerError` | `resourceError(...)` | A sidecar (subtitle, sprite, chapter file) failed to load. |
+| `PluginError` | `PlayerError` | `pluginError(...)` | Missing dependency, version mismatch, `use()` rejection. |
+| `BrowserPolicyError` | `PlayerError` | `browserPolicyError(...)` | An unsupported browser API (wake lock, fullscreen, PiP, canvas 2D, IndexedDB, Web Locks, Cast). |
+| `NotImplementedError` | `PlayerError` | — | A capability the active backend doesn't expose. |
+
+Prefer the factory function over the raw constructor wherever one exists, it stamps the right `scope` and a sensible default `severity` for you.
+
+## Severity & the numeric code schema
+
+```ts
+const SEVERITY = { FATAL: 'fatal', ERROR: 'error', WARNING: 'warning', INFO: 'info' } as const;
+type Severity = typeof SEVERITY[keyof typeof SEVERITY];
+const SEVERITY_LEVEL: Record<Severity, 1 | 2 | 3 | 4> = { info: 1, warning: 2, error: 3, fatal: 4 };
+```
+
+String codes (`'core:auth/forbidden'`) are what you match against in application code. An optional 8-digit numeric form exists alongside it for compact log storage: `VVV S CC EE` (vendor 000-999, severity 1-4, category 00-99, event 00-99). `makeCode(fields)` builds one, `parseCode(code)` decomposes it, `formatCode(code)` zero-pads it to 8 characters for logs. `VENDOR` reserves `KIT: 1`, `MUSIC: 2`, `VIDEO: 3`, third-party plugin authors register a vendor block via PR to the kit's registry, or skip registration entirely and live on string codes only.
+
+## Default retry policy
+
+`DEFAULT_RETRY_POLICY: IRetryPolicy` is a `Record<string, RetryConfig>`, resolved most-specific-first (exact code → category prefix → HTTP century `'4xx'`/`'5xx'` → `'*'` wildcard). This is the table `authFetch` (and `Plugin.fetch`) consult automatically.
+
+| Code | Attempts | Backoff | Notes |
+|---|---|---|---|
+| `core:network/timeout` | 5 | exponential, 500ms-30s | |
+| `core:network/server-error` | 3 | exponential, 500ms-10s | |
+| `core:stream/fragment-failed` | 5 | linear, 200ms-5s | |
+| `core:auth/unauthenticated` | 1 | — | `refreshFirst: true` — refresh before the retry, not after. |
+| `core:auth/forbidden` | 0 | — | Never retried. |
+| `core:media/codec-unsupported` | 0 | — | Never retried. |
+| `media/aborted` | 0 | — | |
+| `media/network` | 3 | exponential, 1s-8s | |
+| `media/decode-fatal-variant` / `media/decode-fatal-all` | 0 | — | |
+| `core:state/queue-empty` | 0 | — | |
+| `4xx` (fallback) | 0 | — | Client errors don't retry by default. |
+| `5xx` (fallback) | 3 | exponential, 500ms-10s | |
+| `*` (final fallback) | 0 | — | Unknown codes fail fast rather than retry blindly. |
+
+Pass an entry from this map, or your own `RetryConfig`, as the per-call `retry` option on `Plugin.fetch()` to override the default for one call site.
+
+## Next steps
+
+- [Reference: Utility Functions](/nomercy-player-core/reference/utilities): the standalone helpers, including `authFetch`, the source of every `AuthError` and `NetworkError` above.

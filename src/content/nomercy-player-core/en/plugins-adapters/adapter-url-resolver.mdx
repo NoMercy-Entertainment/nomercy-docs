@@ -1,0 +1,37 @@
+---
+title: 'Adapter: URL Resolver'
+description: 'IUrlResolver: turns a raw URL into a ResolvedUrl for consumers that cannot attach an Authorization header, a <video>.src, a Cast receiver, a Worker, CSS.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/url-resolver/IUrlResolver.ts */}
+
+# Adapter: URL Resolver
+
+[Recipe: Provide a Custom URL Resolver](/nomercy-player-core/recipes/custom-url-resolver) walks through a full worked example. This page is the reference for the port itself.
+
+## The interface
+
+```ts
+interface IUrlResolver {
+	(url: string, ctx: UrlResolverContext): Promise<ResolvedUrl> | ResolvedUrl;
+}
+```
+
+`UrlResolverContext` carries `auth`, `baseUrl`, a `category` hint (`'media'`, `'subtitle'`, `'font'`, `'poster'`, `'sprite'`, `'lyrics'`, `'cast'`, `'license'`, or any custom string a plugin passes), and `defaultResolve(url)`, the built-in behavior, so a custom resolver can delegate for categories it doesn't need to touch instead of reimplementing the default from scratch.
+
+## ResolvedUrl
+
+The return shape: `href` (final string, pass to a `<video>.src` / Worker / Cast receiver), `raw` (unparsed input), `scheme` / `origin` / `pathname` / `search` / `hash`, `searchParams` (query accessor), `ext` (lowercase extension, no leading dot, use this to gate on file type instead of splitting on `.`, which breaks on query strings), and `relative` (`true` when the input was relative and no `baseUrl` was available to absolutize against).
+
+## Rules & restrictions
+
+- The default implementation is `auth.transformUrl(url)` followed by structured parsing, that's what `ctx.defaultResolve` calls. A custom resolver that replaces the field wholesale still has that behavior one call away.
+- This port is for URLs handed to something that isn't `fetch()`. If you're calling `fetch` yourself, use [authFetch](/nomercy-player-core/recipes/auth-fetch) instead, it handles the `Authorization` header directly rather than encoding credentials into the URL.
+
+## How to extend it
+
+Swap it at `setup({ urlResolver })`, or at runtime via `player.urlResolver(fn)` / `player.urlResolver(undefined)` to revert. See the [recipe](/nomercy-player-core/recipes/custom-url-resolver) for a complete category-branching example.
+
+## Next steps
+
+- [Adapter: Translator](/nomercy-player-core/plugins-adapters/adapter-translator): the i18n engine port, same swap-at-setup shape.

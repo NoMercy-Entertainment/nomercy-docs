@@ -1,0 +1,53 @@
+---
+title: 'Plugin: Canvas'
+description: 'CanvasPlugin: a shared <canvas> mount and requestAnimationFrame render loop host every visualizer plugin builds on — zero rendering cost when not registered.'
+---
+
+{/* Source: packages/nomercy-player-core/src/plugins/canvas/index.ts */}
+
+# Plugin: Canvas
+
+`CanvasPlugin` (id `'canvas'`) mounts a `<canvas>` on the player container and runs a shared `requestAnimationFrame` loop that every renderer registered with `addRenderer()` draws into on the same frame, instead of each visualizer running its own RAF loop.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `mount` | `string \| HTMLElement` | player container | Where the canvas is appended. |
+| `width` / `height` | `number` | auto | Omit both to track the mount element via `ResizeObserver`. |
+| `fps` | `number` | `60` | Render loop target rate. |
+| `pixelRatio` | `number` | `devicePixelRatio` (or `1`) | Backing-store scale for crisp output on high-DPI screens. |
+| `compositeMode` | `'clear' \| 'composite'` | `'clear'` | Whether the canvas clears before each frame or accumulates. |
+| `pointerEvents` | `'none' \| 'auto'` | `'none'` | Whether the canvas intercepts pointer events. |
+
+## Events
+
+`mounted` (`{ width, height }`), `resized` (`{ width, height }`), `frame` (`{ deltaMs, time }`).
+
+## Rules & restrictions
+
+- Opt-in by design: without this plugin registered, no canvas is created and no animation frame is ever requested, a player that doesn't use visualization pays zero rendering cost.
+- `canvas()` throws a `StateError` (`plugin:canvas/not-mounted`) if called before `use()` has run.
+- `context()` throws a `BrowserPolicyError` (`core:policy/canvas2dUnsupported`) if the environment can't produce a 2D context.
+
+## How to extend it
+
+Register a renderer directly for a one-off effect, or build on [Visualization](/nomercy-player-core/plugins-adapters/visualization) for anything that needs frequency/waveform data too.
+
+```ts
+import { CanvasPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+player.addPlugin(CanvasPlugin, { fps: 30 });
+await player.ready();
+
+const canvas = player.getPlugin(CanvasPlugin);
+const stop = canvas!.addRenderer((ctx, deltaMs) => {
+	ctx.fillStyle = 'red';
+	ctx.fillRect(0, 0, 10, 10);
+});
+// stop() unregisters this renderer without touching the shared loop.
+```
+
+## Next steps
+
+- [Plugin: Visualization](/nomercy-player-core/plugins-adapters/visualization): the base class that layers canvas rendering on top of spectrum data.

@@ -1,0 +1,29 @@
+---
+title: 'Recipe: Provide a Custom URL Resolver'
+description: 'Replace IUrlResolver at setup() to sign media URLs per category while delegating everything else to ctx.defaultResolve, then swap it again at runtime.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/url-resolver/IUrlResolver.ts */}
+
+# Recipe: Provide a Custom URL Resolver
+
+`authFetch` (previous recipe) covers URLs your own code fetches. Not every URL goes through `fetch`: a `<video>.src`, a Cast receiver, a Worker, and CSS `url()` all need a final string handed to them directly, with no chance to attach an `Authorization` header. `IUrlResolver` is the extension point for that case.
+
+## The task
+
+A CDN needs a signed `token` query parameter on media URLs specifically, poster images and subtitles are served unsigned from the same host. `setup({ urlResolver })` replaces the resolver wholesale; `ctx.category` tells the custom function which kind of URL it's looking at, and `ctx.defaultResolve` is the built-in behavior (`auth.transformUrl` + structured parse) for the categories the custom logic doesn't touch.
+
+:::snippet{file="recipe-custom-url-resolver" live="false"}
+:::
+
+## Reading the result
+
+`player.resolveUrl(url, category)` is what a plugin or your own UI code calls to get a `ResolvedUrl`: `href` for the final string, `searchParams` for query inspection, `ext` for gating on file type (prefer it over splitting on `.`, it survives query strings and fragments). `relative` is `true` when the input was relative and no `baseUrl` was configured to absolutize against, useful for catching a missing `baseUrl` in a test rather than shipping a broken relative URL to production.
+
+## Swapping again later
+
+`urlResolver()` reads the active custom resolver back (`undefined` when the built-in pipeline is active); `urlResolver(fn)` replaces it, and `urlResolver(undefined)` reverts to the default. This is the runtime escape hatch for CDN credentials that rotate without a full `setup()` re-run.
+
+## Next steps
+
+- [Plugins & Adapters](/nomercy-player-core/plugins-adapters/audio-graph): purpose, options, and restrictions for every shared plugin and adapter port the kit ships.

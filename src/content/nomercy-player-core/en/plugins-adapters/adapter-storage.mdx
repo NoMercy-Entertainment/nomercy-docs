@@ -1,0 +1,45 @@
+---
+title: 'Adapter: Storage'
+description: 'IStorage: get/set/remove plus JSON helpers, sync or async either way. Default LocalStorageBackend, with MemoryStorageBackend and IndexedDBBackend shipped alongside it.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/storage/IStorage.ts, src/adapters/storage/local-storage.ts, src/adapters/storage/memory.ts, src/adapters/storage/indexed-db.ts */}
+
+# Adapter: Storage
+
+`IStorage` is the port every persisted read/write in the kit goes through, volume, quality preference, equalizer settings, and anything a plugin persists via `this.storage`. [Swap an Adapter](/nomercy-player-core/recipes/swap-an-adapter) walks through replacing it end to end; this page is the reference for the port itself.
+
+## The interface
+
+```ts
+interface IStorage {
+	get(key: string): string | null | Promise<string | null>;
+	set(key: string, value: string): void | Promise<void>;
+	remove(key: string): void | Promise<void>;
+	getJSON<T>(key: string): T | null | Promise<T | null>;
+	setJSON<T>(key: string, value: T): void | Promise<void>;
+}
+```
+
+Every method may return its value directly or as a `Promise`, so a synchronous backend and an asynchronous one satisfy the same interface. Plugin code always `await`s regardless of which is active.
+
+## Shipped implementations
+
+| Class | Behavior |
+|---|---|
+| `LocalStorageBackend` | Default. Synchronous, backed by `localStorage`. Falls back to an in-memory map silently when storage is blocked (private browsing, quota exceeded). |
+| `MemoryStorageBackend` | Nothing persists past the page session. For tests and SSR. |
+| `IndexedDBBackend` | Fully async, comfortable with much larger values than `localStorage`'s cap. Constructor takes `{ dbName?, storeName?, version? }`. |
+
+## Rules & restrictions
+
+- `IndexedDBBackend` opens its database lazily on first method call, not at construction, so instantiating it in an environment without `indexedDB` (Node, SSR) doesn't crash. Method calls reject with a `BrowserPolicyError` in that environment instead.
+- A remote/API-backed store for cross-device persistence is a legitimate consumer-supplied implementation, the interface doesn't assume local-only storage.
+
+## How to extend it
+
+Implement the five methods against any backing store, swap it in at `setup({ storage })`. See [Swap an Adapter](/nomercy-player-core/recipes/swap-an-adapter) for a complete example including a plugin that reads/writes through it.
+
+## Next steps
+
+- [Adapter: Platform](/nomercy-player-core/plugins-adapters/adapter-platform): wake lock, network, visibility, and fullscreen/PiP, bundled for native-shell portability.

@@ -1,0 +1,50 @@
+---
+title: 'Adapter: Shuffle Strategy'
+description: 'IShuffleStrategy: a single order() method returning a permutation of the queue. MediaList owns cursor-follow, so a strategy only writes the ordering.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/shuffle-strategy/IShuffleStrategy.ts */}
+
+# Adapter: Shuffle Strategy
+
+`IShuffleStrategy` controls the permutation `queueShuffle()` applies to the queue. The contract is deliberately minimal.
+
+## The interface
+
+```ts
+interface IShuffleStrategy {
+	order<T extends BasePlaylistItem>(items: ReadonlyArray<T>, currentIndex: number): T[];
+}
+```
+
+`items` is the current queue, read-only. `currentIndex` is the zero-based index of the playing item, or `-1` when nothing is active. `order()` returns a permutation, same items, no drops, no duplicates.
+
+## Rules & restrictions
+
+- Cursor-follow is not your responsibility. Finding the playing item's new position after the permutation and updating the queue pointer is owned by `MediaList`, so it works correctly for any implementation, a strategy author writes only the reordering logic.
+- `currentIndex` is there so a strategy *can* pin the currently-playing item (return it first, or leave it untouched, and shuffle only the rest), but nothing forces that behavior, a strategy that ignores `currentIndex` entirely and reorders everything is equally valid.
+
+## Default implementation
+
+`FisherYatesShuffle` (function form: `fisherYatesShuffle`) is an unbiased uniform-random permutation, ignores `currentIndex`, the whole queue reshuffles including the playing item's position.
+
+## How to extend it
+
+```ts
+import type { IShuffleStrategy } from '@nomercy-entertainment/nomercy-player-core';
+
+const pinCurrentFirst: IShuffleStrategy = {
+	order: (items, currentIndex) => {
+		if (currentIndex < 0) return [...items].sort(() => Math.random() - 0.5);
+		const current = items[currentIndex];
+		const rest = items.filter((_, i) => i !== currentIndex).sort(() => Math.random() - 0.5);
+		return [current, ...rest];
+	},
+};
+
+player.setup({ shuffleStrategy: pinCurrentFirst });
+```
+
+## Next steps
+
+- [Adapter: Realtime Channel](/nomercy-player-core/plugins-adapters/adapter-realtime-channel): the transport port behind `Plugin.websocket()`.

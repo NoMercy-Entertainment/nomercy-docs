@@ -1,0 +1,49 @@
+---
+title: 'Adapter: Stream Source'
+description: 'IStreamSource / IStreamFactory: the protocol-agnostic handle for a playing media source. Native and HLS ship built in; register a DASH or custom-protocol factory the same way.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/stream/IStreamSource.ts */}
+
+# Adapter: Stream Source
+
+`IStreamSource` is one active instance per playback item, native, HLS, or DASH, so backend code never branches on protocol. `IStreamFactory` is what decides which kind gets created for a given URL, and what a consumer registers to add a new protocol.
+
+## The factory contract
+
+```ts
+interface IStreamFactory {
+	readonly id: string;
+	canPlay(url: string, contentType?: string, capabilities?: StreamCapabilities): boolean;
+	create(opts: StreamFactoryOptions): IStreamSource;
+}
+```
+
+`canPlay` is called for every URL the player resolves, only return `true` when your factory can actually handle it. `capabilities` lets a factory decline a URL it could technically parse but this device can't decode smoothly. `create` is called at most once per resolution.
+
+## The source contract
+
+`IStreamSource` exposes `attach(element)` / `detach()` / `destroy()` for lifecycle, `state()` for the current `StreamSourceState`, and an optional ABR surface (`getLevels()`, `setLevel(idx)`, `getCurrentLevel()`, `setLevelStrategy(fn)`) for adaptive formats, fixed-bitrate sources simply omit those. Events (`manifest-loaded`, `level-switched`, `level-considered`, `fragment-loaded`, `encrypted`, `error`) flow through `on()` / `off()`.
+
+## Rules & restrictions
+
+- `create()` receives a `registry` field automatically, injected by `StreamRegistry.resolve()`, so the created source can pipe fetches through `runInterceptors()`. Consumers never set it themselves.
+- `StreamInterceptor` functions installed via `StreamRegistry.intercept()` compose in registration order, each receives the previous one's output, useful for rewriting manifest URLs or injecting auth into segment requests without forking the factory.
+
+## How to extend it
+
+```ts
+import type { IStreamFactory } from '@nomercy-entertainment/nomercy-player-core';
+
+const dashFactory: IStreamFactory = {
+	id: 'dash',
+	canPlay: url => url.endsWith('.mpd'),
+	create: opts => myDashSourceFrom(opts),
+};
+
+player.registerStream(dashFactory);
+```
+
+## Next steps
+
+- [Adapter: URL Resolver](/nomercy-player-core/plugins-adapters/adapter-url-resolver): for URLs handed to something that isn't `fetch` at all.

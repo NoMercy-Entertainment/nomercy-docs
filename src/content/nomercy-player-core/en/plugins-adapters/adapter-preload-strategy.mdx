@@ -1,0 +1,47 @@
+---
+title: 'Adapter: Preload Strategy'
+description: 'IPreloadStrategy: shouldPreload() and assetsToPreload() decide when and what to prefetch before the outgoing item ends. Stateless, snapshot-driven, swappable per instance.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/preload/default.ts */}
+
+# Adapter: Preload Strategy
+
+`IPreloadStrategy` controls when the player starts fetching assets for the next queue item, and which assets those are.
+
+## The interface
+
+```ts
+interface IPreloadStrategy {
+	shouldPreload(context: PreloadContext): boolean;
+	assetsToPreload(item: BasePlaylistItem): PreloadAsset[];
+	cancel(): void;
+}
+```
+
+`PreloadContext` is a stateless snapshot (`currentTime`, `duration`, `nextItem`), so the strategy never reaches into private player state. `PreloadAsset` is `{ url, category, mode? }`, `category` mirrors `UrlCategory` (`'media'`, `'poster'`, `'subtitle'`, `'sprite'`, `'lyrics'`, or a custom string) so the auth pipeline attaches the right headers per asset, and `mode` is `'metadata'` (headers only, the default, right for manifests and sidecars) or `'auto'` (full fetch, right for small images or short intros).
+
+## Rules & restrictions
+
+- `shouldPreload` is called on every `time` event while a next item is queued, once it returns `true` the player suppresses repeated calls until the cursor moves to a new item, implementations don't need their own debounce.
+- `cancel()` is called when the cursor jumps unexpectedly (a shuffle, a manual `item()` call, an explicit `next()` before the natural end), it must abort any in-flight prefetch this strategy started, not leave it running against a now-irrelevant item.
+
+## Default implementation
+
+`DefaultPreloadStrategy` fires at `duration - preloadLeadSeconds` (10s lead by default) and returns a generic asset list. Music and video players layer domain-specific asset lists on top by providing their own `assetsToPreload`.
+
+## How to extend it
+
+```ts
+player.setup({
+	preloadStrategy: {
+		shouldPreload: ctx => ctx.duration - ctx.currentTime <= 5,
+		assetsToPreload: item => [{ url: item.image ?? '', category: 'poster', mode: 'auto' }],
+		cancel: () => {},
+	},
+});
+```
+
+## Next steps
+
+- [Adapter: Transition Strategy](/nomercy-player-core/plugins-adapters/adapter-transition-strategy): how the boundary between outgoing and incoming items is handled.

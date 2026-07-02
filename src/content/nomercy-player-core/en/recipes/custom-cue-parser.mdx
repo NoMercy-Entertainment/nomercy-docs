@@ -1,0 +1,25 @@
+---
+title: 'Recipe: Register a Custom Cue Parser'
+description: 'Wire an ICueParser into a real player via setup({ cueParsers }) alongside the built-in VTT/LRC/sprite-VTT parsers, then resolve it end to end.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/cue-parser/registry.ts, src/adapters/cue-parser/ICueParser.ts, src/core/mixins/cue-parser.ts */}
+
+# Recipe: Register a Custom Cue Parser
+
+[Cue Parsers](/nomercy-player-core/tour/cue-parsers) demonstrated the `ICueParser` shape against a bare, empty `CueParserRegistry`, to show the extension point in isolation. This recipe is the same format wired into an actual player, alongside the built-ins a real player pre-seeds, not instead of them.
+
+## The task
+
+A media server sends chapter markers in a small proprietary text format instead of a WebVTT chapter track. `setup({ cueParsers: [...] })` registers the format for the whole player lifetime, and `player.resolveCueParser(url)` proves it resolves without disturbing `.vtt` resolution.
+
+:::snippet{file="recipe-custom-cue-parser" live="false"}
+:::
+
+## Registering later instead of at setup
+
+Not every format is known upfront. `player.registerCueParser(parser, prepend?)` does the same registration at runtime, for a parser loaded from a plugin bundle or negotiated after the server responds. `prepend: true` puts it ahead of everything already registered, since the registry resolves most-recently-registered first; omit it to register behind the current set. `unregisterCueParser(id)` reverses either path.
+
+## Next steps
+
+- [Recipe: Use authFetch](/nomercy-player-core/recipes/auth-fetch): the kit's auth-aware fetch pipeline, standalone, for data-layer code that isn't a plugin.

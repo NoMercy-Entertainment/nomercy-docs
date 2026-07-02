@@ -5,7 +5,8 @@ Arc per library (identical order): 1 introduction, 2 quickstart, 3 tour/*, 4 bui
 Altitude: core = compose-your-own-player (under the hood); video/music = consumer.
 
 ## Status
-- [~] core content: intro+quickstart+tour DONE (baseUrl mandate, core rc.21). Pending: build, recipes, plugins-adapters, reference
+- [x] core content: DONE, all 7 arc stages (intro, quickstart, tour, build, recipes,
+  plugins-adapters, reference). check-docs no longer reports ARC-SECTION-MISSING for core.
 - [ ] video content
 - [ ] music content
 - [ ] final cross-library verify (check-docs + build + nav + a11y)
@@ -13,3 +14,8 @@ checkpoint e69b6e9: core intro+quickstart + baseUrl fix (core republished rc.21,
 checkpoint (uncommitted): core tour/* (10 pages: lifecycle, event-bus, transport, time-and-state, queue,
 plugin-base, adapters, i18n, cue-parsers, errors) + 11 new src/examples/tour-*.ts + tour-player.ts shared
 scaffold + nav-structure.ts Guided Tour group + check-docs.mjs ARC_SECTIONS 'tour' prefix fix
+checkpoint (uncommitted): core build/recipes/plugins-adapters/reference — 36 pages, 7 new
+src/examples/*.ts (build-2/3/4, 4x recipe-*) + tour-player.ts declare-block extension (cue-parser +
+url-resolver methods, reused by recipes) + nav-structure.ts 4 new groups + check-docs.mjs
+ARC_SECTIONS 'build'/'reference' prefix fixes + 2 pre-existing broken links fixed in intro.mdx.
+See .rebuild/core-rest-report.md for full detail. Core arc is now complete end to end.

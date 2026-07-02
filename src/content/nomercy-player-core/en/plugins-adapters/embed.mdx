@@ -1,0 +1,43 @@
+---
+title: 'Plugin: Embed'
+description: 'EmbedPlugin: a cross-origin postMessage bridge between a host page and a player running inside an <iframe>, with an explicit inbound-origin allowlist.'
+---
+
+{/* Source: packages/nomercy-player-core/src/plugins/embed/index.ts */}
+
+# Plugin: Embed
+
+`EmbedPlugin` (id `'embed'`) bridges a player running inside an `<iframe>` to the host page via `postMessage`: it forwards player events out (`ready`, `play`, `pause`, and more) and accepts a small transport command set in (`play`, `pause`, `seek`, `volume`, and more).
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `allowedOrigins` | `string \| string[]` | none | Inbound origins accepted. Empty means no inbound commands are accepted at all, outbound events still forward. |
+| `forwardEvents` | `EmbedEventMessage['name'][]` | `['ready','play','pause','ended','time','volume','mute']` | Which player events forward to the host. |
+| `applyIframeTweaks` | `boolean` | result of an in-iframe check | Apply embed-specific layout/behavior tweaks automatically. |
+
+## Rules & restrictions
+
+- Security default is closed, not open: with no `allowedOrigins` configured, zero inbound origins are trusted. You opt in explicitly.
+- Outbound `postMessage` targeting: with exactly one origin in `allowedOrigins`, outbound messages are pinned to it. With multiple origins (or `'*'`), outbound falls back to `'*'`, the plugin's own docs recommend pinning to one origin in production rather than relying on the multi-origin fallback.
+- The host `<iframe>` needs `allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope; web-share; clipboard-write"`, `allowfullscreen`, and `loading="lazy"` for full functionality. The `autoplay` permission specifically is load-bearing, without it the browser's MediaSession integration never activates inside the frame.
+- [Media Session](/nomercy-player-core/plugins-adapters/media-session) already works correctly inside an iframe on its own, this plugin doesn't need to bridge it.
+
+## How to extend it
+
+```ts
+import { EmbedPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+player.addPlugin(EmbedPlugin, {
+	allowedOrigins: 'https://host.example.com',
+	forwardEvents: ['ready', 'play', 'pause', 'time'],
+});
+await player.ready();
+```
+
+On the host page, listen for `message` events with `event.data.type === 'nm:event'` and post commands shaped like `EmbedCommand` (`{ type: 'play' }`, `{ type: 'seek', time: 30 }`) to the iframe's `contentWindow`.
+
+## Next steps
+
+- [Plugin: Key Handler](/nomercy-player-core/plugins-adapters/key-handler): keyboard shortcuts, the other common "host page integration" surface.

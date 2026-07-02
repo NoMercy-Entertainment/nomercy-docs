@@ -1,0 +1,49 @@
+---
+title: 'Adapter: Cue Parser'
+description: 'ICueParser: id, canParse, parse, resolved by CueParserRegistry newest-first. VTT, sprite-VTT, and LRC ship built in; add your own via setup() or at runtime.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/cue-parser/ICueParser.ts, src/adapters/cue-parser/registry.ts */}
+
+# Adapter: Cue Parser
+
+[Cue Parsers](/nomercy-player-core/tour/cue-parsers) and [Recipe: Register a Custom Cue Parser](/nomercy-player-core/recipes/custom-cue-parser) cover this port in depth. This page is the terse reference.
+
+## The interface
+
+```ts
+interface ICueParser<T = unknown> {
+	readonly id: string;
+	canParse(url: string, contentType?: string): boolean;
+	parse(raw: string, opts?: { baseUrl?: string }): CueList<T>;
+}
+```
+
+## Shipped implementations
+
+`vttSubtitleParser` (`.vtt`, inline `<b>`/`<i>`/`<u>` preserved, cue-setting alignment), `spriteVttParser` (sprite-sheet crops via `#xywh=` fragments, gated to URLs that hint at sprites), `lrcParser` (`.lrc`, plain or word-level enhanced LRC).
+
+## Rules & restrictions
+
+- `CueParserRegistry.resolve(url, contentType?)` walks parsers most-recently-registered first and returns the first match. Registering a custom parser for an extension a built-in already claims wins resolution without disabling the built-in for other URLs.
+- Returning `true` from `canParse` is a commitment, the registry doesn't fall through to the next parser if `parse()` then throws.
+
+## How to extend it
+
+```ts
+import type { ICueParser } from '@nomercy-entertainment/nomercy-player-core';
+import { createCueList } from '@nomercy-entertainment/nomercy-player-core';
+
+const srtParser: ICueParser<{ text: string }> = {
+	id: 'srt',
+	canParse: url => url.endsWith('.srt'),
+	parse: raw => createCueList(parseSrtBlocks(raw)),
+};
+
+player.setup({ cueParsers: [srtParser] }); // registered alongside the built-ins
+// or at runtime: player.registerCueParser(srtParser, /* prepend */ true);
+```
+
+## Next steps
+
+- [Adapter: Preload Strategy](/nomercy-player-core/plugins-adapters/adapter-preload-strategy): when and what to prefetch before the outgoing item ends.

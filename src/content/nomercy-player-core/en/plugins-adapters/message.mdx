@@ -1,0 +1,41 @@
+---
+title: 'Plugin: Message'
+description: 'MessagePlugin: an accessible toast/overlay surface with transient (auto-hide) and persistent (manually-cleared) display modes. Subpath-only import.'
+---
+
+{/* Source: packages/nomercy-player-core/src/plugins/message/index.ts */}
+
+# Plugin: Message
+
+`MessagePlugin` (id `'message'`) is a toast/overlay message surface mounted on the player container, for feedback like "quality switched to 1080p" or "reconnecting...". Not re-exported from the main entry, import it from the `plugins/message` subpath.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `durationMs` | `number` | `3000` | Default auto-hide delay for transient messages. |
+| `mountSelector` | `string` | player container | Where the toast surface mounts. |
+
+## Rules & restrictions
+
+- Accessibility is built in, not optional: the toast surface carries `role="status"` and `aria-live="polite"`, and persistent messages carry the same attributes. Nothing to wire up separately.
+- Persistent messages (`displayPersistent(text, id)`) are time-independent: they stay until `removePersistent(id)` is called explicitly with the same `id`, there's no timeout fallback.
+
+## How to extend it
+
+```ts
+import { MessagePlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/message';
+
+player.addPlugin(MessagePlugin, { durationMs: 4000 });
+await player.ready();
+
+const toast = player.getPlugin(MessagePlugin);
+toast!.show('Quality switched to 1080p');
+toast!.displayPersistent('Reconnecting…', 'reconnect-banner');
+// later:
+toast!.removePersistent('reconnect-banner');
+```
+
+## Next steps
+
+- [Plugin: Tab Leader](/nomercy-player-core/plugins-adapters/tab-leader): single-tab playback enforcement across multiple open tabs.

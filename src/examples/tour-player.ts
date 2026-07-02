@@ -14,7 +14,8 @@
  * aggregate onto the prototype at runtime; `declare` merely tells TypeScript
  * what is already there. The guided tour exercises more of the kit than the
  * quickstart's narrower setup/ready/phase/dispose demo, so this file declares
- * a wider slice of the same real surface.
+ * a wider slice of the same real surface. The recipes collection reuses this
+ * same scaffold and its `declare`d surface for the same reason.
  */
 
 import type {
@@ -23,11 +24,15 @@ import type {
 	BasePlayerConfig,
 	BasePlaylistItem,
 	BufferState,
+	ICueParser,
+	IUrlResolver,
 	NetworkState,
 	Plugin,
 	PluginCtorWithId,
+	ResolvedUrl,
 	TimeState,
 	Translations,
+	UrlCategory,
 } from '@nomercy-entertainment/nomercy-player-core';
 import {
 	composeMixins,
@@ -84,6 +89,13 @@ class TourPlayer extends EventEmitter<BaseEventMap> {
 	declare t: (key: string, vars?: Record<string, string>) => string;
 	declare language: { (): string; (lang: string): Promise<void> };
 	declare addTranslations: (bundle: Translations) => void;
+
+	declare registerCueParser: (parser: ICueParser, prepend?: boolean) => void;
+	declare unregisterCueParser: (id: string) => void;
+	declare resolveCueParser: (url: string) => ICueParser | undefined;
+
+	declare resolveUrl: (url: string, category?: UrlCategory) => Promise<ResolvedUrl>;
+	declare urlResolver: { (): IUrlResolver | undefined; (resolver: IUrlResolver | undefined): void };
 
 	constructor(id?: string | number) {
 		super();

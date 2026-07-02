@@ -1,0 +1,53 @@
+---
+title: 'Adapter: Realtime Channel'
+description: 'IRealtimeChannel / RealtimeFactory: protocol-agnostic realtime transport behind Plugin.websocket(). Default nativeWebSocketAdapter; swap for SignalR, Socket.IO, or a custom transport.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/realtime/IRealtimeChannel.ts */}
+
+# Adapter: Realtime Channel
+
+`IRealtimeChannel` is a protocol-agnostic realtime connection handle. `RealtimeFactory` is the function shape that creates one, swappable globally or per call.
+
+## The interfaces
+
+```ts
+interface IRealtimeChannel {
+	send(data: string | ArrayBuffer | Blob): void;
+	close(code?: number, reason?: string): void;
+	on(event: 'open' | 'message' | 'close' | 'error', fn: (data?: unknown) => void): void;
+	off(event: 'open' | 'message' | 'close' | 'error', fn: (data?: unknown) => void): void;
+	readonly readyState: 'connecting' | 'open' | 'closing' | 'closed';
+}
+
+type RealtimeFactory = (url: string, opts?: RealtimeFactoryOptions) => IRealtimeChannel;
+```
+
+`RealtimeFactoryOptions`: `protocols` (WebSocket sub-protocol strings), `reconnect` (auto-reconnect on unexpected close), `baseDelayMs` / `maxDelayMs` (back-off window, default 1000/30000), and `factory` (a per-call override, one connection using a different transport without changing the global default).
+
+## Rules & restrictions
+
+- `send()` should only be called when `readyState === 'open'`, the underlying transport throws otherwise, the port doesn't buffer or queue for you.
+- Resolution order for which factory actually runs: a per-call `opts.factory` first, then the player's configured `websocketFactory`, then the built-in `nativeWebSocketAdapter` as the final fallback.
+
+## Default implementation
+
+`nativeWebSocketAdapter` wraps the browser's native `WebSocket`, with the reconnect/back-off behavior described above layered on top.
+
+## How to extend it
+
+Global swap, for every realtime connection the player opens:
+
+```ts
+player.setup({ websocketFactory: signalRFactory });
+```
+
+Per-call override, inside a plugin, for one connection using a different transport:
+
+```ts
+this.websocket(url, { factory: socketIoFactory });
+```
+
+## Next steps
+
+- [Reference](/nomercy-player-core/reference/composition): full signatures and types for the composition primitives, config, events, and errors this tour and these reference pages have been building on.

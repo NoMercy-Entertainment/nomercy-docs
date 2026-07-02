@@ -73,11 +73,11 @@ export const ARC_SECTIONS = [
       'framework-vanilla',
       'plugin-development',
     ],
-    prefix: ['guides/build'],
+    prefix: ['guides/build', 'build'],
   },
   { name: 'recipes', prefix: ['recipes'] },
   { name: 'plugins-adapters', prefix: ['plugins', 'plugin-', 'adapters', 'backends'] },
-  { name: 'reference', exact: ['events', 'errors', 'faq', 'changelog'], prefix: ['api', 'types'] },
+  { name: 'reference', exact: ['events', 'errors', 'faq', 'changelog'], prefix: ['api', 'types', 'reference'] },
 ];
 
 // Verified zero-occurrence on the opposite collection as of the last audit pass —

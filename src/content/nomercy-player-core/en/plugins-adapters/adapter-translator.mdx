@@ -1,0 +1,48 @@
+---
+title: 'Adapter: Translator'
+description: 'ITranslator: t()/language()/addTranslations() and more. Default DefaultTranslator ships English and Dutch; swap for i18next, FormatJS, or ICU MessageFormat.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/translator/ITranslator.ts, src/adapters/translator/translator.ts */}
+
+# Adapter: Translator
+
+[i18n](/nomercy-player-core/tour/i18n) covers how translation resolution works day to day. This page is the reference for the port a whole engine swap replaces.
+
+## The interface
+
+```ts
+interface ITranslator {
+	t(key: string, vars?: Record<string, string>): string;
+	language(): string;
+	language(lang: string): Promise<void>;
+	addTranslations(bundle: Translations): void;
+	translation(lang: string, key: string): string | undefined;
+	translation(lang: string, key: string, value: string): void;
+	removeTranslations(prefix: string, lang?: string): void;
+	dispose(): void;
+}
+```
+
+## Default implementation
+
+`DefaultTranslator` is a key + `{var}` interpolation lookup over a merged bundle table, seeded with English and Dutch. Constructor options (`DefaultTranslatorOptions`): `language` (initial tag, default `'en'`), `translations` (initial bundles), `loadTranslations` (async loader for a tag not yet fetched), `onMissingTranslation` (custom fallback for an unresolved key), and `fallbackLanguage` (final-fallback tag, default `'en'`, pass `null` to disable and rely solely on the BCP-47 parent chain).
+
+## Rules & restrictions
+
+- `removeTranslations(prefix, lang?)` is what the kit calls automatically on plugin dispose for `plugin.<id>.` prefixed keys, a custom engine needs to implement this correctly for plugin translation cleanup to actually work.
+- `language(lang)` returns a `Promise<void>` because a real engine may need to await an async loader before the new language's bundle is ready, callers should `await` it rather than assuming the switch is synchronous.
+
+## How to extend it
+
+Swap the whole engine when you need pluralization, gender, or ICU MessageFormat, the kit forwards `translations` / `loadTranslations` / `language` config to whatever engine you supply:
+
+```ts
+player.setup({ translator: myI18nextAdapter });
+```
+
+Adapters for i18next and FormatJS are meant to live as separate packages outside the kit (`@nomercy/translator-i18next`, `@nomercy/translator-formatjs`), consumers pull only the engine they want.
+
+## Next steps
+
+- [Adapter: Cue Parser](/nomercy-player-core/plugins-adapters/adapter-cue-parser): the same registry-and-default shape, applied to subtitle and lyric formats.

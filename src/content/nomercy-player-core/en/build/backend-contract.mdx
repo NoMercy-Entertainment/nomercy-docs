@@ -1,0 +1,27 @@
+---
+title: 'Build a Player: Wire a Backend Contract'
+description: 'Step 2 of 4: add a backend() method, the exact integration point NMVideoPlayer and NMMusicPlayer use, so play/pause/seek/volume have something to drive.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/player-state.ts, src/core/mixins/transport.ts, src/core/mixins/time.ts, src/core/mixins/volume.ts, src/types/player.ts */}
+
+# Build a Player: Wire a Backend Contract
+
+Step 1 composed a player with every kit capability except one: something for transport, time, and volume to actually drive. This step adds it.
+
+## What the kit is looking for
+
+Every transport, time, and volume mixin reaches for the active backend through optional chaining, never a hard dependency: `this._resolveBackend()?.play?.()`, `?.currentTime?.(seconds)`, `?.volume?.(level)`, and so on. When no backend exists, every one of those calls is a safe no-op, which is exactly the state [Step 1](/nomercy-player-core/build/compose-methods)'s player was in. The kit finds your backend by calling a `backend()` method on your player instance, the same optional field `IPlayer` declares and the same method `NMVideoPlayer` implements for its `<video>` element. There's no config option or factory to register it through: you add the method, the kit calls it.
+
+## Adding it
+
+`FakeBackend` below isn't a mock of a real backend, it's the same minimal shape a real one satisfies (`play`, `pause`, `currentTime`, `volume`), with an in-memory call log standing in for "a frame decoded" or "a gain node changed" so the wiring is provable without a DOM. `KitPlayer` gains one new private field and one new method; nothing about the composition from Step 1 changes.
+
+:::snippet{file="build-2-backend-contract" live="false"}
+:::
+
+Once `backend()` returns something, `play()`, `time(seconds)`, and `volume(level)` stop being no-ops: each dispatches its cancellable `before*` event exactly as it always did (see [Transport Contract](/nomercy-player-core/tour/transport)), then forwards the result to whatever `backend()` returns. The public API surface a consumer calls is unchanged, this step only fills in what happens after the dispatch.
+
+## Next steps
+
+- [Step 3: Add a Plugin](/nomercy-player-core/build/add-a-plugin): register a `Plugin` subclass that reacts to the events this backend wiring now actually fires.

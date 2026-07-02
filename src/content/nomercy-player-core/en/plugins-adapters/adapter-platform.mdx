@@ -1,0 +1,45 @@
+---
+title: 'Adapter: Platform'
+description: 'IPlatform: wake lock, network, visibility, capabilities, and video-only fullscreen/PiP, bundled so a native-shell consumer swaps every browser API in one field.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/platform/IPlatform.ts, src/adapters/platform/browser.ts */}
+
+# Adapter: Platform
+
+`IPlatform` bundles every primitive the kit would otherwise hardcode against a browser API, so a native-shell consumer (Capacitor, Tauri, Electron) injects native equivalents in one swap instead of patching five call sites.
+
+## The interface
+
+| Field | Interface | Purpose |
+|---|---|---|
+| `wakeLock` | `IWakeLock` | Keep the display awake during playback. `acquire()` / `release()` / `isHeld()`. |
+| `network` | `INetworkMonitor` | Online/offline + connection type. `isOnline()` / `type()` / `downlinkMbps()` / `subscribe()`. |
+| `visibility` | `IVisibilityMonitor` | Tab visibility. `isVisible()` / `subscribe()`. |
+| `capabilities` | `ICapabilitiesProbe` | Hardware decode capability, feeds ABR. `canDecode(profile)`. |
+| `fullscreen` | `IFullscreenController` (optional) | Video only. |
+| `pip` | `IPipController` (optional) | Video only. |
+
+## Rules & restrictions
+
+- `fullscreen` and `pip` are video-only fields. The audio player never touches them; the video player throws a descriptive `BrowserPolicyError` if either is invoked when the field wasn't supplied.
+- `IWakeLock.acquire()` throws `BrowserPolicyError('core:policy/wakeLockUnsupported')` when the Screen Wake Lock API is unavailable, check `isSupported()` first if you need to gate the feature instead of catching.
+- `downlinkMbps()` and `rttMs()` return `undefined` on browsers without the Network Information API (Firefox, Safari as of this writing), not a fabricated number.
+
+## How to extend it
+
+Partial overrides compose cleanly, spread the default and replace only the controller you need:
+
+```ts
+import { browserPlatform } from '@nomercy-entertainment/nomercy-player-core';
+
+player.setup({
+	platform: { ...browserPlatform, wakeLock: myCapacitorWakeLock },
+});
+```
+
+Full native-shell adapters (`@nomercy/platform-capacitor`, `@nomercy/platform-tauri`, `@nomercy/platform-electron`) live outside the kit and replace the whole `IPlatform` object.
+
+## Next steps
+
+- [Adapter: Stream Source](/nomercy-player-core/plugins-adapters/adapter-stream-source): the protocol-agnostic handle for a playing or pending media source.

@@ -1,0 +1,49 @@
+---
+title: 'Plugin: Mixer'
+description: 'MixerPlugin: master gain (dB) and stereo pan, inserted as the last effect in the AudioGraphPlugin chain, with optional storage-backed persistence.'
+---
+
+{/* Source: packages/nomercy-player-core/src/plugins/mixer/index.ts */}
+
+# Plugin: Mixer
+
+`MixerPlugin` (id `'mixer'`) is a master gain and stereo-pan stage, inserted as the *last* effect in [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph)'s chain, gain then panner then destination, so it always acts on the fully-processed signal from every other effect.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `gain` | `number` (dB) | `0` | Initial master gain. |
+| `pan` | `number` (-1..1) | `0` | Initial stereo pan. |
+| `persistKey` | `string` | — | Storage key. Omit to disable persistence. |
+| `maxGainDb` | `number` | `24` | Clamp ceiling (and floor, negated) for `gain()`. |
+| `smoothingTimeConstantSeconds` | `number` | `0.02` | Ramp time for gain/pan changes. |
+
+## Events
+
+`gain:changed` (`{ gain }`), `pan:changed` (`{ pan }`), `mute:changed` (`{ muted }`), `saved`.
+
+## Rules & restrictions
+
+- `static requires = [AudioGraphPlugin]` — same missing-dep guard as every other effect in the chain.
+- `gain()` clamps to `±maxGainDb`; `pan()` clamps to `[-1, 1]`. Out-of-range calls don't throw, they saturate.
+- Ordering is fixed: this plugin is meant to be the last effect. Inserting your own effect after it defeats the "acts on the final mix" guarantee the plugin is built around.
+
+## How to extend it
+
+```ts
+import { AudioGraphPlugin, MixerPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+player.addPlugin(AudioGraphPlugin);
+player.addPlugin(MixerPlugin, { persistKey: 'my-app-mix' });
+await player.ready();
+
+const mixer = player.getPlugin(MixerPlugin);
+mixer!.gain(-3); // -3 dB
+mixer!.pan(-0.2); // slightly left
+mixer!.muted(true);
+```
+
+## Next steps
+
+- [Plugin: Spectrum](/nomercy-player-core/plugins-adapters/spectrum): FFT analysis, feeding [Visualization](/nomercy-player-core/plugins-adapters/visualization) instead of the audio path.
