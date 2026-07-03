@@ -6,7 +6,7 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { visit } from 'unist-util-visit';
@@ -57,6 +57,24 @@ const DIRECTIVE_NODE_TYPES = ['containerDirective', 'leafDirective'] as const;
  * attribute; the import itself has to be added once the tree is HAST, not
  * here, or Astro's MDX compiler can't trace it back to a module.
  */
+/**
+ * Resolve `<file>.ts` or `<file>.tsx` under `examplesDir`, in that order.
+ * `.tsx` exists for framework-recipe examples that contain real JSX (React
+ * hooks/components/providers) — TypeScript requires the `.tsx` extension for
+ * JSX syntax, `.ts` can't parse it. Throws with both attempted paths listed
+ * so a typo'd `file` attribute fails loudly instead of an opaque ENOENT deep
+ * in the MDX/rollup pipeline.
+ */
+function resolveExampleFile(file: string): { path: string; lang: 'ts' | 'tsx' } {
+  const tsPath = path.join(examplesDir, `${file}.ts`);
+  if (existsSync(tsPath)) return { path: tsPath, lang: 'ts' };
+  const tsxPath = path.join(examplesDir, `${file}.tsx`);
+  if (existsSync(tsxPath)) return { path: tsxPath, lang: 'tsx' };
+  throw new Error(
+    `:::snippet{file="${file}"} — no example file found at either "${tsPath}" or "${tsxPath}".`,
+  );
+}
+
 /** Strip a leading SPDX/Copyright license comment block and the blank lines after it. */
 function stripLicenseHeader(source: string): string {
   const lines = source.split('\n');
@@ -151,10 +169,11 @@ export function remarkSnippet() {
         // it and show their exact source.
         const runnable = node.attributes?.runnable !== undefined && node.attributes?.runnable !== 'false';
 
-        const source = readFileSync(path.join(examplesDir, `${file}.ts`), 'utf8');
+        const resolved = resolveExampleFile(file);
+        const source = readFileSync(resolved.path, 'utf8');
         const codeValue = toDisplaySource(source, runnable);
 
-        const codeNode: any = { type: 'code', lang: 'ts', value: codeValue };
+        const codeNode: any = { type: 'code', lang: resolved.lang, value: codeValue };
         if (!live) {
           replacements.push({ parent, index, nodes: [codeNode] });
           return;

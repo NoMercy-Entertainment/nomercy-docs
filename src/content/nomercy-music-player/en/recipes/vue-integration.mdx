@@ -27,7 +27,7 @@ export function useMusicPlayer(containerId: string, config: MusicPlayerConfig) {
 
   const player = nmplayer(containerId).setup(config);
 
-  player.on('current', ({ item }) => {
+  player.on('item', ({ item }) => {
     currentTrack.value = item;
   });
 
@@ -108,6 +108,7 @@ import nmplayer from '@nomercy-entertainment/nomercy-music-player';
 
 export const MusicPlayerKey = Symbol('MusicPlayer');
 
+const baseUrl = 'https://your-server.example.com/api/files';
 const app = createApp(App);
 const player = nmplayer('global-player').setup({ baseUrl, playlist: [] });
 app.provide(MusicPlayerKey, player);
@@ -153,7 +154,7 @@ export const useMusicPlayerStore = defineStore('musicPlayer', {
     init(baseUrl: string) {
       const player = nmplayer('global-player').setup({ baseUrl, playlist: [] });
 
-      player.on('current', ({ item }) => { this.currentTrack = item ?? null; });
+      player.on('item', ({ item }) => { this.currentTrack = item ?? null; });
       player.on('play', () => { this.isPlaying = true; });
       player.on('playing', () => { this.isPlaying = true; });
       player.on('pause', () => { this.isPlaying = false; });

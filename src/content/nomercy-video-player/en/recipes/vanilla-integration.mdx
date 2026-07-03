@@ -12,6 +12,9 @@ No framework needed at all: a single function that owns the player instance, wir
 ## The controller pattern
 
 ```ts
+import type { IVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+import { PlayState } from '@nomercy-entertainment/nomercy-video-player';
+
 interface PlayerSnapshot {
   playing: boolean;
   title: string;
@@ -31,14 +34,14 @@ function createPlayerController(
   player.on('play', emit);
   player.on('pause', emit);
   player.on('playing', emit);
-  player.on('current', emit);
+  player.on('item', emit);
   emit(); // initial snapshot
 
   return () => {
     player.off('play', emit);
     player.off('pause', emit);
     player.off('playing', emit);
-    player.off('current', emit);
+    player.off('item', emit);
   };
 }
 ```

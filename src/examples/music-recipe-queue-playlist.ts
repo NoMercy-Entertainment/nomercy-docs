@@ -8,7 +8,7 @@
 
 /**
  * Recipe: Queue / "Up Next" Panel. Renders `queue()` as a clickable list,
- * highlights the active item from `item()`, and re-renders on `'current'`
+ * highlights the active item from `item()`, and re-renders on `'item'`
  * (cursor moved) and `'queue'` (items changed) instead of polling. Jumping
  * uses `playItem(id)`, which closes the `item(); play()` race described in
  * The Queue — a plain `item(id)` here would risk `play()` reaching the
@@ -50,7 +50,7 @@ function onReady(player: IMusicPlayer, container: HTMLElement): () => void {
 		});
 	};
 
-	player.on('current', render);
+	player.on('item', render);
 	player.on('queue', render);
 	render();
 
@@ -58,7 +58,7 @@ function onReady(player: IMusicPlayer, container: HTMLElement): () => void {
 	player.item(0, { autoplay: true });
 
 	return () => {
-		player.off('current', render);
+		player.off('item', render);
 		player.off('queue', render);
 		panel.remove();
 	};

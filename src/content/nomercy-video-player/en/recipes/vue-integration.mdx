@@ -27,7 +27,7 @@ export function useVideoPlayer(containerId: string, config: VideoPlayerConfig) {
 
   const player = nmplayer(containerId).setup(config);
 
-  player.on('current', ({ item }) => {
+  player.on('item', ({ item }) => {
     currentItem.value = item;
   });
 
@@ -108,6 +108,7 @@ import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 
 export const VideoPlayerKey = Symbol('VideoPlayer');
 
+const baseUrl = 'https://your-server.example.com/api/files';
 const app = createApp(App);
 const player = nmplayer('global-player').setup({ baseUrl, playlist: [] });
 app.provide(VideoPlayerKey, player);
@@ -153,7 +154,7 @@ export const useVideoPlayerStore = defineStore('videoPlayer', {
     init(baseUrl: string) {
       const player = nmplayer('global-player').setup({ baseUrl, playlist: [] });
 
-      player.on('current', ({ item }) => { this.currentItem = item ?? null; });
+      player.on('item', ({ item }) => { this.currentItem = item ?? null; });
       player.on('play', () => { this.isPlaying = true; });
       player.on('playing', () => { this.isPlaying = true; });
       player.on('pause', () => { this.isPlaying = false; });

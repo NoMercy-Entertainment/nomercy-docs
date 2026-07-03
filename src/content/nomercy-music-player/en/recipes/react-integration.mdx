@@ -9,137 +9,27 @@ description: 'A useMusicPlayer hook: instance creation in an effect, event subsc
 
 React does not own the player instance, `nomercy-music-player` mutates an `<audio>` element (or a Web Audio graph) directly and pushes updates through its own event emitter, neither of which is a React concern. The hook below creates the instance once (inside `useEffect`, after the container exists), mirrors the events it cares about into `useState`, and disposes on unmount. Everything imperative (`play()`, `crossfadeTo()`) goes through the player instance itself, not through React state.
 
-## The hook
-
-```tsx
-// hooks/useMusicPlayer.ts
-import { useEffect, useRef, useState } from 'react';
-import nmplayer from '@nomercy-entertainment/nomercy-music-player';
-import { PlayState } from '@nomercy-entertainment/nomercy-music-player';
-import type { IMusicPlayer, MusicPlayerConfig, MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
-
-export function useMusicPlayer(containerId: string, config: MusicPlayerConfig) {
-  const playerRef = useRef<IMusicPlayer | null>(null);
-  const [currentTrack, setCurrentTrack] = useState<MusicPlaylistItem | undefined>(undefined);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-
-  useEffect(() => {
-    const player = nmplayer(containerId).setup(config);
-    playerRef.current = player;
-
-    const onCurrent = ({ item }: { item: MusicPlaylistItem | undefined }) => setCurrentTrack(item);
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
-    const onTime = ({ time }: { time: number }) => setCurrentTime(time);
-    const onDuration = ({ duration: total }: { duration: number }) => setDuration(total);
-
-    player.on('current', onCurrent);
-    player.on('play', onPlay);
-    player.on('playing', onPlay);
-    player.on('pause', onPause);
-    player.on('ended', onPause);
-    player.on('time', onTime);
-    player.on('duration', onDuration);
-
-    return () => {
-      void player.dispose();
-      playerRef.current = null;
-    };
-    // config is intentionally captured once — see "Config identity" below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [containerId]);
-
-  return {
-    player: playerRef,
-    currentTrack,
-    isPlaying,
-    currentTime,
-    duration,
-    playState: () => playerRef.current?.playState() === PlayState.PLAYING,
-  };
-}
-```
-
-## Config identity
-
-`config` is deliberately left out of the effect's dependency array. `MusicPlayerConfig` objects are rarely stable across renders (an inline `{ baseUrl, playlist }` literal is a new object every render), and re-running `setup()` on every render is both wrong (it throws once the player is already set up) and wasteful. Memoize the config with `useMemo` at the call site instead of fighting the hook:
-
-```tsx
-const config = useMemo<MusicPlayerConfig>(
-  () => ({ baseUrl: 'https://your-server.example.com/api/files', playlist }),
-  [playlist],
-);
-const { player, currentTrack, isPlaying, currentTime, duration } = useMusicPlayer('player', config);
-```
-
-## Using it in a component
-
-```tsx
-export function MusicPlayerView({ playlist }: { playlist: MusicPlaylistItem[] }) {
-  const config = useMemo<MusicPlayerConfig>(() => ({ baseUrl, playlist }), [playlist]);
-  const { player, currentTrack, isPlaying, currentTime, duration } = useMusicPlayer('player', config);
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-
-  function seek(event: React.MouseEvent<HTMLDivElement>) {
-    const bar = event.currentTarget;
-    const ratio = event.nativeEvent.offsetX / bar.clientWidth;
-    void player.current?.time(ratio * duration);
-  }
-
-  return (
-    <div>
-      <div id="player" />
-      <p>{currentTrack?.name ?? 'Nothing playing'}{currentTrack?.artist ? ` — ${currentTrack.artist}` : ''}</p>
-      <div role="slider" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} tabIndex={0} onClick={seek}>
-        <div style={{ width: `${progress}%` }} />
-      </div>
-      <button type="button" onClick={() => void player.current?.togglePlayback()}>
-        {isPlaying ? 'Pause' : 'Play'}
-      </button>
-    </div>
-  );
-}
-```
+## The hook and a component using it
 
 `<div id="player" />` renders in the same component's JSX above the hook's effect. React commits the DOM before running effects, so `nmplayer('player')` always finds the element, no separate mount step needed.
 
+:::snippet{file="music-recipe-react-integration" live="false"}
+:::
+
+## Config identity
+
+`config` is deliberately left out of the effect's dependency array. `MusicPlayerConfig` objects are rarely stable across renders (an inline `{ baseUrl, playlist }` literal is a new object every render), and re-running `setup()` on every render is both wrong (it throws once the player is already set up) and wasteful. `MusicPlayerView` above memoizes it with `useMemo`, keyed on `playlist`, instead of fighting the hook.
+
+## StrictMode
+
+`useMusicPlayer` guards `setup()` with `setupState() === SetupState.NOT_SETUP`. React 18 StrictMode double-invokes effects in development — mount, cleanup, mount, synchronously, before the cleanup's fire-and-forget `dispose()` has actually resolved (a synchronous cleanup can't `await` it). Without the guard, the second mount's `nmplayer(containerId)` call resolves the same still-registered instance and calling `setup()` on it again throws `core:lifecycle/already-setup`. The guard fixes that crash; it does not eliminate every StrictMode-only edge case (a brief listener gap is still possible in dev between the first mount's deferred `dispose()` clearing listeners and the second mount's own subscriptions), but that window is dev-only double-invoke behavior, stripped entirely from production builds.
+
 ## Context provider for a shared instance
 
-For a layout where a persistent mini-player and a full queue view share one instance, wrap the hook in a context instead of calling it twice:
+For a layout where a persistent mini-player and a queue sidebar share one instance, wrap the hook in a context instead of calling it twice. Creation happens in the render body (the sanctioned lazy-`useRef`-init pattern), disposal in the effect's cleanup — checking `setupState() === SetupState.DISPOSED` on every render recovers from a StrictMode dev double-invoke disposing the shared instance out from under a still-mounted provider:
 
-```tsx
-// providers/MusicPlayerProvider.tsx
-import { createContext, useContext, useEffect, useRef } from 'react';
-import nmplayer from '@nomercy-entertainment/nomercy-music-player';
-import type { IMusicPlayer, MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';
-
-const MusicPlayerContext = createContext<IMusicPlayer | null>(null);
-
-export function MusicPlayerProvider({ config, children }: { config: MusicPlayerConfig; children: React.ReactNode }) {
-  const playerRef = useRef<IMusicPlayer | null>(null);
-  if (!playerRef.current) {
-    playerRef.current = nmplayer('global-player').setup(config);
-  }
-
-  useEffect(() => () => { void playerRef.current?.dispose(); }, []);
-
-  return (
-    <MusicPlayerContext.Provider value={playerRef.current}>
-      {children}
-    </MusicPlayerContext.Provider>
-  );
-}
-
-export function useMusicPlayerContext(): IMusicPlayer {
-  const player = useContext(MusicPlayerContext);
-  if (!player) throw new Error('useMusicPlayerContext must be used inside MusicPlayerProvider');
-  return player;
-}
-```
-
-The lazy `if (!playerRef.current)` initializer runs `setup()` exactly once even under React 18 Strict Mode's double-invoke of function bodies in development, `useRef` itself is stable across that double-invoke, only the disposal in `useEffect`'s cleanup needs the same double-invoke guard React already gives every effect.
+:::snippet{file="music-recipe-react-provider" live="false"}
+:::
 
 ## Next steps
 

@@ -19,7 +19,10 @@ import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomerc
 const player = nmplayer('player-container');
 player.addPlugin(AudioGraphPlugin);
 player.addPlugin(EqualizerPlugin, { persistKey: 'my-app-eq' });
-player.setup({ baseUrl, playlist });
+player.setup({
+  baseUrl: 'https://your-server.example.com/api/files',
+  playlist: [/* ... */],
+});
 ```
 
 Both plugins register *before* `setup()`, registering after misses the plugin's own `use()` call during the setup pipeline, the same rule every plugin in the trio follows. `AudioElementBackend` (the default backend) lazily creates the Web Audio source node the first time `AudioGraphPlugin` requests it, so registering the equalizer doesn't force `WebAudioBackend` or cost anything on a player that never taps the graph.

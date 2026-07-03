@@ -48,14 +48,14 @@ function createPlayerController(player: IMusicPlayer, onChange: (snapshot: Playe
 	player.on('play', emit);
 	player.on('pause', emit);
 	player.on('playing', emit);
-	player.on('current', emit);
+	player.on('item', emit);
 	emit();
 
 	return () => {
 		player.off('play', emit);
 		player.off('pause', emit);
 		player.off('playing', emit);
-		player.off('current', emit);
+		player.off('item', emit);
 	};
 }
 
