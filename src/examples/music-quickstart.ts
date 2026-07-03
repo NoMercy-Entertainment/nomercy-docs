@@ -6,7 +6,7 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import type { IMusicPlayer, MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';
+import type { IMusicPlayer, MusicPlayerConfig, MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 
 const config: MusicPlayerConfig = {
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
@@ -24,10 +24,22 @@ const config: MusicPlayerConfig = {
   ],
 };
 
-// Docs-preview only (stripped from the rendered snippet): load the first track
-// so the native control bar has something to play. `controls: true` in the
-// config renders the bar itself.
-function onReady(player: IMusicPlayer): void {
+// The music player is headless with no video frame, so the preview paints the
+// track cover as a full-bleed backdrop (the audio equivalent of a video
+// poster) behind the native control bar. `controls: true` renders the bar
+// itself, but native <audio controls> never shows album art — `image` only
+// reaches the OS MediaSession — so without this the on-page cover is blank.
+// Docs-preview only (stripped from the rendered snippet): reads `image` first,
+// falling back to the deprecated `cover`, mirroring the package's own artwork
+// resolution (MusicPreloadStrategy.assetsToPreload / CastSenderPlugin).
+function onReady(player: IMusicPlayer, container: HTMLElement): void {
+  const first = Array.isArray(config.playlist) ? (config.playlist[0] as MusicPlaylistItem) : undefined;
+  const cover = first?.image ?? first?.cover;
+  if (cover) {
+    container.style.backgroundImage = `url("${cover}")`;
+    container.style.backgroundSize = 'cover';
+    container.style.backgroundPosition = 'center';
+  }
   void player.item(0);
 }
 
