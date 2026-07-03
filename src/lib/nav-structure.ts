@@ -73,6 +73,9 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Getting Started", pages: ['introduction', 'quickstart'] },
     { group: "Guided Tour", pages: ['tour/transport', 'tour/time', 'tour/volume', 'tour/queue', 'tour/crossfade', 'tour/equalizer', 'tour/audio-output', 'tour/lyrics', 'tour/state-events'] },
     { group: "Build a Player", pages: ['build/shell', 'build/scrubber', 'build/volume', 'build/track-list', 'build/now-playing'] },
+    { group: "Recipes", pages: ['recipes/vue-integration', 'recipes/react-integration', 'recipes/svelte-integration', 'recipes/vanilla-integration', 'recipes/crossfade-gapless', 'recipes/lyrics-sync', 'recipes/equalizer-presets', 'recipes/scrobbling', 'recipes/queue-playlist', 'recipes/audio-output-switching'] },
+    { group: "Plugins & Adapters", pages: ['plugins-adapters/scrobble', 'plugins-adapters/auto-advance', 'plugins-adapters/lyrics', 'plugins-adapters/media-session', 'plugins-adapters/key-handler', 'plugins-adapters/cast-sender', 'plugins-adapters/v1-compat', 'plugins-adapters/adapter-audio-backend', 'plugins-adapters/adapter-similarity-engine'] },
+    { group: "Reference", pages: ['reference/player-methods', 'reference/config', 'reference/events', 'reference/types'] },
   ],
   'nomercy-api': [
     { group: "Getting Started", pages: ['overview'] },

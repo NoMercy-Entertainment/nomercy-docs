@@ -1,0 +1,146 @@
+---
+title: 'Recipe: React Integration'
+description: 'A useMusicPlayer hook: instance creation in an effect, event subscriptions into state, and a stable player ref for imperative calls from the JSX below it.'
+---
+
+{/* Source: packages/nomercy-music-player/src/index.ts, src/types.ts */}
+
+# Recipe: React Integration
+
+React does not own the player instance, `nomercy-music-player` mutates an `<audio>` element (or a Web Audio graph) directly and pushes updates through its own event emitter, neither of which is a React concern. The hook below creates the instance once (inside `useEffect`, after the container exists), mirrors the events it cares about into `useState`, and disposes on unmount. Everything imperative (`play()`, `crossfadeTo()`) goes through the player instance itself, not through React state.
+
+## The hook
+
+```tsx
+// hooks/useMusicPlayer.ts
+import { useEffect, useRef, useState } from 'react';
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+import { PlayState } from '@nomercy-entertainment/nomercy-music-player';
+import type { IMusicPlayer, MusicPlayerConfig, MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+export function useMusicPlayer(containerId: string, config: MusicPlayerConfig) {
+  const playerRef = useRef<IMusicPlayer | null>(null);
+  const [currentTrack, setCurrentTrack] = useState<MusicPlaylistItem | undefined>(undefined);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    const player = nmplayer(containerId).setup(config);
+    playerRef.current = player;
+
+    const onCurrent = ({ item }: { item: MusicPlaylistItem | undefined }) => setCurrentTrack(item);
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onTime = ({ time }: { time: number }) => setCurrentTime(time);
+    const onDuration = ({ duration: total }: { duration: number }) => setDuration(total);
+
+    player.on('current', onCurrent);
+    player.on('play', onPlay);
+    player.on('playing', onPlay);
+    player.on('pause', onPause);
+    player.on('ended', onPause);
+    player.on('time', onTime);
+    player.on('duration', onDuration);
+
+    return () => {
+      void player.dispose();
+      playerRef.current = null;
+    };
+    // config is intentionally captured once — see "Config identity" below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containerId]);
+
+  return {
+    player: playerRef,
+    currentTrack,
+    isPlaying,
+    currentTime,
+    duration,
+    playState: () => playerRef.current?.playState() === PlayState.PLAYING,
+  };
+}
+```
+
+## Config identity
+
+`config` is deliberately left out of the effect's dependency array. `MusicPlayerConfig` objects are rarely stable across renders (an inline `{ baseUrl, playlist }` literal is a new object every render), and re-running `setup()` on every render is both wrong (it throws once the player is already set up) and wasteful. Memoize the config with `useMemo` at the call site instead of fighting the hook:
+
+```tsx
+const config = useMemo<MusicPlayerConfig>(
+  () => ({ baseUrl: 'https://your-server.example.com/api/files', playlist }),
+  [playlist],
+);
+const { player, currentTrack, isPlaying, currentTime, duration } = useMusicPlayer('player', config);
+```
+
+## Using it in a component
+
+```tsx
+export function MusicPlayerView({ playlist }: { playlist: MusicPlaylistItem[] }) {
+  const config = useMemo<MusicPlayerConfig>(() => ({ baseUrl, playlist }), [playlist]);
+  const { player, currentTrack, isPlaying, currentTime, duration } = useMusicPlayer('player', config);
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  function seek(event: React.MouseEvent<HTMLDivElement>) {
+    const bar = event.currentTarget;
+    const ratio = event.nativeEvent.offsetX / bar.clientWidth;
+    void player.current?.time(ratio * duration);
+  }
+
+  return (
+    <div>
+      <div id="player" />
+      <p>{currentTrack?.name ?? 'Nothing playing'}{currentTrack?.artist ? ` — ${currentTrack.artist}` : ''}</p>
+      <div role="slider" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} tabIndex={0} onClick={seek}>
+        <div style={{ width: `${progress}%` }} />
+      </div>
+      <button type="button" onClick={() => void player.current?.togglePlayback()}>
+        {isPlaying ? 'Pause' : 'Play'}
+      </button>
+    </div>
+  );
+}
+```
+
+`<div id="player" />` renders in the same component's JSX above the hook's effect. React commits the DOM before running effects, so `nmplayer('player')` always finds the element, no separate mount step needed.
+
+## Context provider for a shared instance
+
+For a layout where a persistent mini-player and a full queue view share one instance, wrap the hook in a context instead of calling it twice:
+
+```tsx
+// providers/MusicPlayerProvider.tsx
+import { createContext, useContext, useEffect, useRef } from 'react';
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+import type { IMusicPlayer, MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';
+
+const MusicPlayerContext = createContext<IMusicPlayer | null>(null);
+
+export function MusicPlayerProvider({ config, children }: { config: MusicPlayerConfig; children: React.ReactNode }) {
+  const playerRef = useRef<IMusicPlayer | null>(null);
+  if (!playerRef.current) {
+    playerRef.current = nmplayer('global-player').setup(config);
+  }
+
+  useEffect(() => () => { void playerRef.current?.dispose(); }, []);
+
+  return (
+    <MusicPlayerContext.Provider value={playerRef.current}>
+      {children}
+    </MusicPlayerContext.Provider>
+  );
+}
+
+export function useMusicPlayerContext(): IMusicPlayer {
+  const player = useContext(MusicPlayerContext);
+  if (!player) throw new Error('useMusicPlayerContext must be used inside MusicPlayerProvider');
+  return player;
+}
+```
+
+The lazy `if (!playerRef.current)` initializer runs `setup()` exactly once even under React 18 Strict Mode's double-invoke of function bodies in development, `useRef` itself is stable across that double-invoke, only the disposal in `useEffect`'s cleanup needs the same double-invoke guard React already gives every effect.
+
+## Next steps
+
+- [Recipe: Svelte Integration](/nomercy-music-player/recipes/svelte-integration): the same events-into-state pattern as a Svelte store.

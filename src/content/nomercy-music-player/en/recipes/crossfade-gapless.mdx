@@ -1,0 +1,82 @@
+---
+title: 'Recipe: Crossfade & Gapless Playback'
+description: 'Choosing between an overlapping crossfade and a true hard-cut gapless boundary, switching modes at runtime, and firing a manual crossfadeTo() independent of either.'
+---
+
+{/* Source: packages/nomercy-music-player/src/index.ts, packages/nomercy-player-core/src/adapters/preload/default.ts */}
+
+# Recipe: Crossfade & Gapless Playback
+
+[Crossfade](/nomercy-music-player/tour/crossfade) covers `crossfadeTo()` and the config fields that shape the fade. This recipe is the task on top of it: picking the right automatic boundary behavior for your catalogue, and switching it at runtime instead of only at `setup()`.
+
+## Two boundary strategies, one interface
+
+The automatic transition between queue items, the behavior that fires with no method call at all when a track ends, is owned by an `ITransitionStrategy` from `nomercy-player-core`. Two ship in the kit:
+
+| Strategy | Behavior | Default for |
+|---|---|---|
+| `CrossfadeTransitionStrategy` | Overlapping fade, `leadSeconds` before the outgoing track ends through `tailSeconds` into the incoming one. | Music |
+| `GaplessTransitionStrategy` | Hard cut at the natural end, no overlap. The incoming item is already warm from preloading, so the cut has no buffering pause either. | Video |
+
+Both are medium-neutral, nothing about `GaplessTransitionStrategy` is video-specific, it's simply not the music default. Reach for it when your catalogue is a continuous mix, a live recording, or a gapless album where the tracks are mastered to touch exactly, cases where an audible overlap would sound wrong rather than smooth.
+
+```ts
+import { CrossfadeTransitionStrategy, GaplessTransitionStrategy } from '@nomercy-entertainment/nomercy-player-core';
+
+// Overlapping fade (the music default, equivalent to what setup() already applies):
+player.setup({
+  baseUrl,
+  playlist: tracks,
+  transitionStrategy: new CrossfadeTransitionStrategy({ leadSeconds: 3, tailSeconds: 3, curve: 'equal-power' }),
+});
+
+// True gapless hard cut instead:
+player.setup({
+  baseUrl,
+  playlist: tracks,
+  crossfadeEnabled: false,
+  transitionStrategy: new GaplessTransitionStrategy(),
+});
+```
+
+`crossfadeEnabled: false` is worth setting alongside `GaplessTransitionStrategy` even though the strategy itself already reports `shouldTransition() => false`, it also gates the `beforeCrossfade` dispatch path other plugins may be listening for, so a plugin written against "crossfade is on" doesn't fire for a catalogue that never crossfades.
+
+## Switching modes at runtime
+
+`setTransitionStrategy()` swaps the active strategy on a live player, useful for a per-playlist or per-genre setting instead of a fixed `setup()`-time choice:
+
+```ts
+import { GaplessTransitionStrategy } from '@nomercy-entertainment/nomercy-player-core';
+
+function useGaplessMode(enabled: boolean): void {
+  player.setTransitionStrategy(
+    enabled
+      ? new GaplessTransitionStrategy()
+      : new CrossfadeTransitionStrategy({ leadSeconds: 3, tailSeconds: 3, curve: 'equal-power' }),
+  );
+}
+```
+
+The swap takes effect on the next boundary the preload pipeline evaluates, it does not retroactively change a transition already in flight.
+
+## Manual crossfadeTo() either way
+
+`crossfadeTo()` is independent of whichever automatic strategy is active, it's a direct call, not something the transition strategy gates. A gapless-configured player can still fade into a specific track on a user action (a "blend into this" button, a DJ-style manual mix point):
+
+```ts
+const upNext = player.peekNext();
+if (upNext) {
+  await player.crossfadeTo(upNext, { duration: 4, curve: 'equal-power' });
+}
+```
+
+## See it running
+
+The toggle below flips `setTransitionStrategy()` between the two modes; "Crossfade now" fires a manual `crossfadeTo()` regardless of which mode is active.
+
+:::snippet{file="music-recipe-crossfade-gapless"}
+:::
+
+## Next steps
+
+- [Recipe: Synced Lyrics UI](/nomercy-music-player/recipes/lyrics-sync): building a full scrolling lyrics panel on top of `LyricsPlugin`.

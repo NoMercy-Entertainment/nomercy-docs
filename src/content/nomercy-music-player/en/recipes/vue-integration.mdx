@@ -1,0 +1,183 @@
+---
+title: 'Recipe: Vue Integration'
+description: 'A Vue 3 composable wrapping NMMusicPlayer: reactive state from event subscriptions, a template bound to it, and cleanup on unmount.'
+---
+
+{/* Source: packages/nomercy-music-player/src/index.ts, src/types.ts */}
+
+# Recipe: Vue Integration
+
+`nomercy-music-player` is not a Vue library and never will be, it ships one factory function and a typed method surface, nothing that knows what a component is. Vue owns nothing about the player; the player owns nothing about Vue. A composable is the seam between them: it subscribes to player events, writes the values into `ref`s, and returns both the reactive state and the player instance itself so a template can call methods directly.
+
+## The composable
+
+```ts
+// composables/useMusicPlayer.ts
+import { ref, onUnmounted } from 'vue';
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+import { PlayState } from '@nomercy-entertainment/nomercy-music-player';
+import type { MusicPlayerConfig, MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+export function useMusicPlayer(containerId: string, config: MusicPlayerConfig) {
+  const currentTrack = ref<MusicPlaylistItem | undefined>(undefined);
+  const isPlaying = ref(false);
+  const currentTime = ref(0);
+  const duration = ref(0);
+  const volume = ref(100);
+
+  const player = nmplayer(containerId).setup(config);
+
+  player.on('current', ({ item }) => {
+    currentTrack.value = item;
+  });
+
+  player.on('play', () => { isPlaying.value = true; });
+  player.on('playing', () => { isPlaying.value = true; });
+  player.on('pause', () => { isPlaying.value = false; });
+  player.on('ended', () => { isPlaying.value = false; });
+
+  player.on('time', ({ time }) => { currentTime.value = time; });
+  player.on('duration', ({ duration: total }) => { duration.value = total; });
+  player.on('volume', ({ level }) => { volume.value = level; });
+
+  onUnmounted(() => {
+    void player.dispose();
+  });
+
+  return {
+    player,
+    currentTrack,
+    isPlaying,
+    currentTime,
+    duration,
+    volume,
+    playState: () => player.playState() === PlayState.PLAYING,
+  };
+}
+```
+
+The composable calls `setup()` immediately, on the assumption it runs inside `<script setup>` after the container element already exists in the DOM (Vue's own `onMounted` timing, not the composable's). If your container is conditionally rendered, guard the call with `onMounted` instead and return a `mount()` function the template calls once the `<div>` exists.
+
+## Using it in a component
+
+```vue
+<script setup lang="ts">
+import { computed } from 'vue';
+import { useMusicPlayer } from '@/composables/useMusicPlayer';
+
+const { player, currentTrack, isPlaying, currentTime, duration } = useMusicPlayer('player', {
+  baseUrl: 'https://your-server.example.com/api/files',
+  playlist: [/* ... */],
+});
+
+const progress = computed(() =>
+  duration.value > 0 ? (currentTime.value / duration.value) * 100 : 0,
+);
+
+function seek(event: MouseEvent) {
+  const bar = event.currentTarget as HTMLElement;
+  const ratio = event.offsetX / bar.clientWidth;
+  void player.time(ratio * duration.value);
+}
+</script>
+
+<template>
+  <div id="player" class="player" />
+  <p>{{ currentTrack?.name ?? 'Nothing playing' }} <span v-if="currentTrack?.artist">— {{ currentTrack.artist }}</span></p>
+
+  <div class="progress" role="slider" :aria-valuenow="progress" aria-valuemin="0" aria-valuemax="100" tabindex="0" @click="seek">
+    <div class="fill" :style="{ width: `${progress}%` }" />
+  </div>
+
+  <button type="button" @click="player.togglePlayback()">
+    {{ isPlaying ? 'Pause' : 'Play' }}
+  </button>
+</template>
+```
+
+The `id="player"` element must already be in the DOM when `useMusicPlayer` calls `nmplayer('player')`, `<script setup>` runs during the component's setup phase, before the template mounts. In practice this composable is called from a parent that already rendered the container, or from inside `onMounted` in the composable itself. The example above works because Vue resolves template refs and DOM insertion before a child composable's top-level code would observe a missing element, but if you see a `core:player/element-missing` error, move the `nmplayer()` call into `onMounted`.
+
+## Providing the player globally
+
+For an app where multiple components (a mini-player, a queue sidebar, a lyrics panel) need the same instance, provide it once at the root instead of re-deriving state per component:
+
+```ts
+// main.ts
+import { createApp } from 'vue';
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+
+export const MusicPlayerKey = Symbol('MusicPlayer');
+
+const app = createApp(App);
+const player = nmplayer('global-player').setup({ baseUrl, playlist: [] });
+app.provide(MusicPlayerKey, player);
+app.mount('#app');
+```
+
+```ts
+// any component
+import { inject } from 'vue';
+import type { IMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
+import { MusicPlayerKey } from '@/main';
+
+const player = inject<IMusicPlayer>(MusicPlayerKey)!;
+```
+
+A typed `Symbol` key avoids the string-collision risk a bare `'player'` provide key carries in a larger app. Wrap the injected instance in its own local composable (subscribing to the events that component actually cares about) rather than passing raw player state through more `provide`/`inject` layers.
+
+## Pinia store pattern
+
+When several unrelated components need the same reactive state, not just the same instance, a Pinia store centralizes it once instead of every component re-subscribing to the same events:
+
+```ts
+// stores/musicPlayer.ts
+import { defineStore } from 'pinia';
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+import { PlayState } from '@nomercy-entertainment/nomercy-music-player';
+import type { NMMusicPlayer, MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+export const useMusicPlayerStore = defineStore('musicPlayer', {
+  state: () => ({
+    player: null as NMMusicPlayer | null,
+    isPlaying: false,
+    currentTrack: null as MusicPlaylistItem | null,
+    currentTime: 0,
+    duration: 0,
+  }),
+
+  getters: {
+    progress: (state) => (state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0),
+  },
+
+  actions: {
+    init(baseUrl: string) {
+      const player = nmplayer('global-player').setup({ baseUrl, playlist: [] });
+
+      player.on('current', ({ item }) => { this.currentTrack = item ?? null; });
+      player.on('play', () => { this.isPlaying = true; });
+      player.on('playing', () => { this.isPlaying = true; });
+      player.on('pause', () => { this.isPlaying = false; });
+      player.on('time', ({ time }) => { this.currentTime = time; });
+      player.on('duration', ({ duration }) => { this.duration = duration; });
+
+      this.player = player;
+    },
+
+    togglePlayback() {
+      void this.player?.togglePlayback();
+    },
+
+    dispose() {
+      void this.player?.dispose();
+      this.player = null;
+      this.$reset();
+    },
+  },
+});
+```
+
+Call `init()` once, after Pinia is installed, and `dispose()` once when the app genuinely tears down the player, not on every component unmount, that would kill playback every time the user navigates away from the view that happened to call `init()` first.
+
+## Next steps
+
+- [Recipe: React Integration](/nomercy-music-player/recipes/react-integration): the same wrapping pattern as a `useMusicPlayer` hook.

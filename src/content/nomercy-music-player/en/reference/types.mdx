@@ -1,0 +1,90 @@
+---
+title: 'Reference: Types'
+description: 'MusicPlaylistItem, CrossfadeOptions, AudioBackendFactory, IMusicPlayer, and every music-owned enum. Curated from src/types.ts.'
+---
+
+{/* Source: packages/nomercy-music-player/src/types.ts */}
+
+# Reference: Types
+
+The shapes `IMusicPlayer` methods and `MusicEventMap` events read or return. `MusicPlaylistItem` extends the kit's [`BasePlaylistItem`](/nomercy-player-core/reference/types), everything else here extends nothing, it's new to music.
+
+## MusicPlaylistItem
+
+```ts
+interface MusicPlaylistItem extends BasePlaylistItem {
+	name: string;
+	cover?: string | null;   // null accepted as a "no art" sentinel for nullable DB columns
+	artist?: string;         // plain name string — join or pick the primary yourself for linked-entity data
+	album?: string;          // plain name string, same rule as artist
+	url?: string;
+	lyricsUrl?: string;      // fetched as-is, NOT resolved against baseUrl — see Plugin: Lyrics
+	duration?: number | string; // also accepts a human-readable string like '3:42'
+}
+```
+
+`name` is the canonical display field, `title` (inherited from `BasePlaylistItem`) also compiles but nothing in this library reads it, see [The Queue](/nomercy-music-player/tour/queue#the-track-shape). Unlike `VideoPlaylistItem`, there's no wire-format normalization on ingest, a track is already in its canonical shape the moment it enters the queue.
+
+## CrossfadeOptions and CrossfadeCurve
+
+```ts
+interface CrossfadeOptions {
+	duration: number;      // seconds
+	curve?: CrossfadeCurve; // 'linear' | 'equal-power', re-exported from the kit
+	startAt?: number;      // start position of the incoming item, milliseconds
+}
+```
+
+Passed as the second argument to `crossfadeTo(item, opts)`, see [Reference: Music Player Methods](/nomercy-music-player/reference/player-methods#backend--crossfade). `CrossfadeCurve` itself is defined once, in `nomercy-player-core`, and re-exported here so consumers never need to import from the kit package directly for this type.
+
+## AudioBackendFactory
+
+```ts
+type AudioBackendFactory = (
+	kind: AudioBackendKind, // 'audio-element' | 'webaudio'
+	config: MusicPlayerConfig<BasePlaylistItem>,
+) => IAudioBackend;
+```
+
+See [Adapter: Audio Backend](/nomercy-music-player/plugins-adapters/adapter-audio-backend).
+
+## IMusicPlayer
+
+```ts
+interface IMusicPlayer<T extends MusicPlaylistItem = MusicPlaylistItem>
+	extends IPlayer<MusicEventMap<T>> {
+	backend(): IAudioBackend;
+	backend(kind: AudioBackendKind): Promise<void>;
+	crossfadeTo(item: T, opts?: CrossfadeOptions & ActionOptions): Promise<void>;
+	isTransitioning(): boolean;
+}
+```
+
+The full music-specific method contract, `NMMusicPlayer` implements this on top of everything `IPlayer` already provides. Consumers that accept either a music or video player but need music-specific methods should type their parameter as `IMusicPlayer` rather than the more general `IPlayer<MusicEventMap>`.
+
+## MusicPlayerConfig
+
+```ts
+interface MusicPlayerConfig<T extends BasePlaylistItem = MusicPlaylistItem> extends BasePlayerConfig {
+	backend?: AudioBackendKind;
+	backendFactory?: AudioBackendFactory;
+	crossfadeDefaults?: { duration: number; curve?: CrossfadeCurve };
+	playlist?: T[] | string;
+}
+```
+
+Full field-by-field breakdown, including what `setup()` defaults automatically, on [Reference: MusicPlayerConfig](/nomercy-music-player/reference/config).
+
+## Music-owned enums
+
+None. Every enum `NMMusicPlayer` reads (`AudioTrackState`, `PlayState`, `QualityState`, `RepeatState`, `ShuffleState`, `VolumeState`) is re-exported from the kit unchanged, canonical definitions live in [Core: Reference, Domain Types](/nomercy-player-core/reference/types). Import them from `@nomercy-entertainment/nomercy-music-player` either way, no need to reach into the kit package directly:
+
+```ts
+import { PlayState, RepeatState, ShuffleState } from '@nomercy-entertainment/nomercy-music-player';
+```
+
+`TimeState` (the aggregated shape `timeData()` returns) is likewise a kit type, re-exported here unchanged.
+
+## Next steps
+
+- [Reference: Music Player Methods](/nomercy-music-player/reference/player-methods): every method that reads or returns the shapes on this page.

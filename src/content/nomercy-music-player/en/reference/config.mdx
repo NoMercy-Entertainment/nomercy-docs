@@ -1,0 +1,52 @@
+---
+title: 'Reference: MusicPlayerConfig'
+description: 'Every field setup() accepts beyond the shared kit BasePlayerConfig: backend/backendFactory, crossfadeDefaults, and the crossfade + preload defaults setup() injects automatically.'
+---
+
+{/* Source: packages/nomercy-music-player/src/types.ts, src/index.ts */}
+
+# Reference: MusicPlayerConfig
+
+`MusicPlayerConfig<T>` extends the kit's [`BasePlayerConfig`](/nomercy-player-core/reference/config) (`baseUrl`, `auth`, `playlist`, `storage`, `platform`, and the rest, shared with the video player). This page covers only the fields music adds, and the defaults `setup()` injects that `BasePlayerConfig` alone doesn't set.
+
+## Backend
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `backend` | `AudioBackendKind` | `'audio-element'` | Initial backend selection (`'audio-element'` / `'webaudio'`). Change at runtime with `player.backend(kind)`. |
+| `backendFactory` | `AudioBackendFactory` | resolves `AudioElementBackend` / `WebAudioBackend` from `backend` | Overrides backend resolution entirely. See [Adapter: Audio Backend](/nomercy-music-player/plugins-adapters/adapter-audio-backend). |
+
+## Crossfade
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `crossfadeDefaults` | `{ duration: number; curve?: CrossfadeCurve }` | — | Applied to every `crossfadeTo()` call that doesn't pass its own `opts`. |
+| `crossfadeEnabled` | `boolean` | `true` | Music's `setup()` wrapper defaults this **on**, unlike video's hard-cut default. Set `false` (paired with a `GaplessTransitionStrategy`) for a true no-overlap boundary, see [Recipe: Crossfade & Gapless Playback](/nomercy-music-player/recipes/crossfade-gapless). |
+| `crossfadeLeadSeconds` | `number` | `3` | Kit-level field, see [Core: Reference, Config](/nomercy-player-core/reference/config). How many seconds before a track's natural end the automatic boundary transition starts. |
+| `crossfadeTailSeconds` | `number` | `3` | Kit-level field. How many seconds into the incoming track the transition continues. |
+
+## Queue behavior
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `playlist` | `T[] \| string` | — | Same field as `BasePlayerConfig`, retyped here to `T extends MusicPlaylistItem`. Unlike video, there is no wire-format normalization step, a track is already in its canonical shape the moment it enters the queue, see [The Queue](/nomercy-music-player/tour/queue). |
+| `preloadLeadSeconds` | `number` | `10` | Kit-level field, see [Core: Reference, Config](/nomercy-player-core/reference/config). Music's `setup()` wrapper reads its resolved value and constructs a [`MusicPreloadStrategy`](/nomercy-music-player/plugins-adapters/adapter-audio-backend) from it unless you supply your own `preloadStrategy`. |
+| `itemEndingSoonThreshold` | `number` | `10` (kit default) | Kit-level field, passed through unchanged when set. Controls when `itemEndingSoon` fires relative to the end of the current item, the signal both the automatic crossfade and [`AutoAdvancePlugin`](/nomercy-music-player/plugins-adapters/auto-advance)'s preload path key off. |
+
+## What there is no config field for
+
+Unlike `VideoPlayerConfig`, `MusicPlayerConfig` has no `muted` / `autoPlay` sugar. `setup()` loads the queue but never starts playback on its own, start it the same way your own UI would once `ready()` resolves, see [Quick Start: There is no autoPlay config field](/nomercy-music-player/quickstart#there-is-no-autoplay-config-field).
+
+## What setup() injects by default
+
+Music's `setup()` wrapper (not the kit's own `setup()`, which knows nothing about crossfade) applies these defaults on top of whatever `BasePlayerConfig` alone would produce, every one is overridable by passing your own value explicitly:
+
+| Field | Default for music | Notes |
+|---|---|---|
+| `crossfadeEnabled` | `true` | Overlapping fade at every queue boundary, unlike video's hard cut. |
+| `preloadStrategy` | `new MusicPreloadStrategy(preloadLeadSeconds)` | Extends the kit's `DefaultPreloadStrategy` to also preload cover art and a lyrics sidecar, not just the media itself. |
+| `transitionStrategy` | `new CrossfadeTransitionStrategy({ leadSeconds: crossfadeLeadSeconds, tailSeconds: crossfadeTailSeconds, curve: crossfadeDefaults?.curve ?? 'equal-power' })` | The medium-neutral kit primitive driving the automatic boundary fade. |
+
+## Next steps
+
+- [Reference: Events](/nomercy-music-player/reference/events): `MusicEventMap`, every event these fields eventually produce.

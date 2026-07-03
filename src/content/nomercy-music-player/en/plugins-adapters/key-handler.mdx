@@ -1,0 +1,50 @@
+---
+title: 'Plugin: Key Handler'
+description: 'KeyHandlerPlugin (music): the kit default bindings (space, arrows, m) plus n/p/r/s for next, previous, repeat cycling, and shuffle toggling.'
+---
+
+{/* Source: packages/nomercy-music-player/src/plugins/key-handler/index.ts */}
+
+# Plugin: Key Handler
+
+`KeyHandlerPlugin` (id `'key-handler'`) is `nomercy-music-player`'s keyboard-binding set, a thin subclass of the kit's [`KeyHandlerPlugin`](/nomercy-player-core/plugins-adapters/key-handler) (scope resolution, cooldown, input-field awareness, `bind`/`unbind`/`replace`). It inherits every kit default unchanged and overrides only `addMediaKeys()` to add four listening-specific bindings.
+
+## Options
+
+Same `KeyHandlerOptions` the kit plugin accepts, `scope`, `bindings`, `extend`, `when`, `cooldownMs`, `disableMediaControls`, see [Plugin: Key Handler (core)](/nomercy-player-core/plugins-adapters/key-handler) for the full table. This subclass adds no new option fields.
+
+## Bindings
+
+Inherited from the kit unchanged: `Space` (toggle playback), arrow keys (seek / volume, platform-gated), `m` (toggle mute), and the hardware `MediaX` keys. Added by this subclass:
+
+| Keys | Action |
+|---|---|
+| `n` | Next item. |
+| `p` | Previous item. |
+| `r` | Cycle repeat state: off → all → one → off. |
+| `s` | Toggle shuffle on/off. |
+
+## Rules & restrictions
+
+- `addMediaKeys()` calls `super.addMediaKeys()` first, then adds the four bindings above, overriding it in a further subclass without calling `super` drops the kit's own media-key bindings too, not just these four.
+- `disableControls` on `MusicPlayerConfig` (inherited from `BasePlayerConfig`) short-circuits `addDefaults()` entirely, the same rule the kit plugin documents, no group runs, only bindings your own `use()` override adds exist.
+- `r` and `s` call `repeatState()` / `shuffleState()` directly, they reflect and mutate the same state a UI-driven repeat/shuffle button would, there's no separate "key handler state" to keep in sync.
+
+## How to extend it
+
+```ts
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-music-player';
+
+class MyKeyHandler extends KeyHandlerPlugin {
+  protected override addMediaKeys(): void {
+    super.addMediaKeys(); // keep n/p/r/s and the kit defaults
+    this.bind('l', () => { void this.player.forward(15); }); // custom 15s skip
+  }
+}
+
+player.addPlugin(MyKeyHandler);
+```
+
+## Next steps
+
+- [Plugin: Cast Sender](/nomercy-music-player/plugins-adapters/cast-sender): the Chromecast bridge, another kit plugin specialized here only for the music item shape.

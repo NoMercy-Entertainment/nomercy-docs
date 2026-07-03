@@ -1,0 +1,47 @@
+---
+title: 'Adapter: Similarity Engine'
+description: 'ISimilarityEngine: a reserved "find similar tracks" port with no default implementation and no current consumer, not re-exported from the package entry points.'
+---
+
+{/* Source: packages/nomercy-music-player/src/adapters/similarity-engine/ISimilarityEngine.ts */}
+
+# Adapter: Similarity Engine
+
+`ISimilarityEngine` is a reserved port for "find items similar to this seed", for a future radio-mode or "more like this" feature, and for [`SmartShuffleGenerator`](/nomercy-music-player/plugins-adapters/auto-advance) when its local tag-based scoring (genre/decade overlap) isn't enough. It exists today as a defined contract with **no shipped implementation and no plugin wiring it in**, documented here so it's visible rather than silently absent, not because there's a feature to configure yet.
+
+## Current status: reserved, not wired
+
+- No default adapter ships. Unlike [Audio Backend](/nomercy-music-player/plugins-adapters/adapter-audio-backend), which always has `AudioElementBackend` behind it, there is no `NoopSimilarityEngine` or equivalent.
+- No plugin in this package calls `findSimilar()`. `AutoAdvancePlugin`'s `SmartShuffleGenerator` does its own local scoring today and does not depend on this interface, see [Plugin: Auto-Advance](/nomercy-music-player/plugins-adapters/auto-advance).
+- **Not re-exported from either public entry point.** `src/adapters/index.ts` (the package's `./adapters` subpath) re-exports only the audio-backend module, `ISimilarityEngine` has no `./adapters/similarity-engine` subpath export in `package.json` either. Importing it today means reaching into the package's internal file path, which is not a supported import, define your own matching local interface instead of importing the internal one if you need this shape now.
+
+## The interface, for reference
+
+```ts
+interface ISimilarityEngine<T extends BasePlaylistItem = BasePlaylistItem> {
+  readonly id: string;
+  findSimilar(seed: T, opts?: SimilarityQueryOptions): Promise<T[]>;
+}
+
+interface SimilarityQueryOptions {
+  limit?: number;                          // max results, implementation-defined default
+  excludeIds?: ReadonlyArray<string | number>; // exclude items already in the queue
+  minScore?: number;                       // minimum similarity score, implementation-defined scale [0, 1]
+}
+```
+
+`findSimilar()` returns results ordered by descending similarity, most similar first. The scale behind `minScore` is deliberately implementation-defined, a tag-based engine and an ML-embedding engine don't score similarity on comparable numbers, callers should treat it as relative within one engine, not as a portable threshold across implementations.
+
+## Where a real implementation would plug in
+
+Once wired, an implementation would come from one of:
+
+- **Server-driven** — the NoMercy media server's own recommendation endpoint.
+- **Audio-feature-based** — BPM / key / energy similarity computed from the audio itself.
+- **Tag-based** — genre / decade / mood overlap, a generalized version of what `SmartShuffleGenerator` already does locally.
+- **ML embedding** — vector proximity over a precomputed embedding space.
+- **External service** — Last.fm similar-tracks, or an equivalent third-party API.
+
+## Next steps
+
+- [Reference: Music Player Types](/nomercy-music-player/reference/types): every other music-owned type, including the ones that are actually wired.

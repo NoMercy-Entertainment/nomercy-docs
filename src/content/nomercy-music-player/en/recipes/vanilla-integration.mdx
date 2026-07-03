@@ -1,0 +1,106 @@
+---
+title: 'Recipe: Vanilla Integration'
+description: 'The controller-plus-callback pattern every framework wrapper in this section is built on: one function that owns the player and its listeners, one destroy() that unwinds them.'
+---
+
+{/* Source: packages/nomercy-music-player/src/index.ts */}
+
+# Recipe: Vanilla Integration
+
+No framework needed at all: a single function that owns the player instance, wires whatever listeners it needs, and returns one `destroy()` that unwinds every one of them. [Vue](/nomercy-music-player/recipes/vue-integration), [React](/nomercy-music-player/recipes/react-integration), and [Svelte](/nomercy-music-player/recipes/svelte-integration) all wrap a version of exactly this pattern behind their own reactivity primitive; this page is the pattern itself, for a plain script tag, a Web Component, or any app that doesn't reach for a framework.
+
+## The controller pattern
+
+```ts
+interface PlayerSnapshot {
+  playing: boolean;
+  name: string;
+}
+
+function createPlayerController(
+  player: IMusicPlayer,
+  onChange: (snapshot: PlayerSnapshot) => void,
+): () => void {
+  const emit = () => {
+    onChange({
+      playing: player.playState() === PlayState.PLAYING,
+      name: player.item()?.name ?? '',
+    });
+  };
+
+  player.on('play', emit);
+  player.on('pause', emit);
+  player.on('playing', emit);
+  player.on('current', emit);
+  emit(); // initial snapshot
+
+  return () => {
+    player.off('play', emit);
+    player.off('pause', emit);
+    player.off('playing', emit);
+    player.off('current', emit);
+  };
+}
+```
+
+One function in, one cleanup function out, no class, no subscription object to manage by hand. This is also the shape [The Shell](/nomercy-music-player/build/shell) and every other Build a Player step already use for wiring a single button, `createPlayerController` is just that pattern generalized to a whole snapshot of state instead of one value.
+
+## Wiring it to real DOM
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+import type { MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';
+
+const config: MusicPlayerConfig = {
+  baseUrl: 'https://your-server.example.com/api/files',
+  playlist: [/* ... */],
+};
+
+const player = nmplayer('player').setup(config);
+const badge = document.querySelector<HTMLElement>('#now-playing')!;
+
+const destroy = createPlayerController(player, (snapshot) => {
+  badge.textContent = `${snapshot.playing ? 'Playing' : 'Paused'} - ${snapshot.name}`;
+});
+
+// Later, when the player genuinely goes away (route change, modal close):
+destroy();
+void player.dispose();
+```
+
+`destroy()` only removes the listeners `createPlayerController` added, it does not dispose the player itself, the two are separate concerns on purpose. A page that mounts several independent controllers against the same player (a status badge, a queue panel, a volume indicator) can tear any one of them down without touching the others or the player instance they all share.
+
+## Wrapping it in a Web Component
+
+The same controller works unchanged inside a custom element, connectedCallback / disconnectedCallback are the vanilla-DOM equivalent of a framework's mount/unmount hooks:
+
+```ts
+class MusicPlayerStatus extends HTMLElement {
+  #destroy: (() => void) | null = null;
+
+  connectedCallback() {
+    const player = nmplayer(this.getAttribute('for')!) as IMusicPlayer;
+    this.#destroy = createPlayerController(player, (snapshot) => {
+      this.textContent = snapshot.playing ? 'Playing' : 'Paused';
+    });
+  }
+
+  disconnectedCallback() {
+    this.#destroy?.();
+    this.#destroy = null;
+  }
+}
+
+customElements.define('music-player-status', MusicPlayerStatus);
+```
+
+## See it running
+
+The badge in the corner below is `createPlayerController` wired to the live player, exactly the code on this page, nothing added for the preview.
+
+:::snippet{file="music-recipe-vanilla-integration"}
+:::
+
+## Next steps
+
+- [Recipe: Crossfade & Gapless Playback](/nomercy-music-player/recipes/crossfade-gapless): a task recipe built on the same event-driven shape.

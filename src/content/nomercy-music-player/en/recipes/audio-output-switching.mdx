@@ -1,0 +1,79 @@
+---
+title: 'Recipe: Audio Output Switching'
+description: 'A <select> device switcher pre-selected to the active output, wired to audioOutputs()/audioOutput(), plus the native browser picker as a fallback entry point.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/audio-output.ts */}
+
+# Recipe: Audio Output Switching
+
+[Audio Output Devices](/nomercy-music-player/tour/audio-output) covers `audioOutputs()`, `selectAudioOutput()`, and `audioOutput()` individually. This recipe assembles them into the UI most apps actually ship: a persistent device switcher rather than a picker that only opens on demand.
+
+## A select pre-selected to the active device
+
+`audioOutputs()` enumerates devices without a permission prompt; `audioOutput()` (no argument) reads the currently-selected device id, `null` for the system default. Reading both together lets the dropdown open already showing the right selection instead of defaulting to the first entry:
+
+```ts
+async function renderDeviceSelect(player: IMusicPlayer, select: HTMLSelectElement): Promise<void> {
+  const [devices, current] = await Promise.all([player.audioOutputs(), player.audioOutput()]);
+  select.replaceChildren();
+
+  devices.forEach((device, index) => {
+    const option = document.createElement('option');
+    option.value = device.deviceId;
+    option.textContent = device.label || `Output ${index + 1}`;
+    if (device.deviceId === current) option.selected = true;
+    select.appendChild(option);
+  });
+}
+
+select.addEventListener('change', () => {
+  void player.audioOutput(select.value);
+});
+```
+
+## Labels need a permission grant first
+
+Browsers gate device *labels* (not the device list itself) behind a permission grant, before one, `audioOutputs()` still resolves with the right number of entries, just with an empty `label` on some or all of them. A device switcher that wants readable names on first render should trigger a microphone permission prompt through `getUserMedia` (or reuse a grant the app already has for another reason) before calling `renderDeviceSelect`, then call it again once the permission resolves:
+
+```ts
+async function ensureDeviceLabels(): Promise<void> {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop()); // release immediately, only needed for the permission grant
+  }
+  catch {
+    // Permission denied — fall back to unlabeled entries, the switcher still works.
+  }
+}
+```
+
+Don't request this permission just to populate a device list, only do it if your app already needs microphone access for another reason (voice search, a companion recording feature), otherwise the unlabeled `audioOutputs()` result plus the native picker below covers device switching without an extra prompt.
+
+## The native picker as a fallback entry point
+
+`selectAudioOutput()` opens the browser's own device picker, useful as an always-available "choose a device" button regardless of whether labels are populated, since the native picker doesn't have the label-gating restriction the enumeration API does:
+
+```ts
+pickerButton.addEventListener('click', () => {
+  void player.selectAudioOutput().then(async (device) => {
+    if (device) {
+      await player.audioOutput(device.deviceId);
+      await renderDeviceSelect(player, select); // resync the <select> to the new choice
+    }
+  });
+});
+```
+
+`selectAudioOutput()` is Chrome ≥105 only, everything else throws a structured `BrowserPolicyError`, wrap the click handler's call in a check (or a try/catch) and hide the button on unsupported browsers rather than surfacing a raw rejection.
+
+## See it running
+
+The dropdown below is pre-selected to the active output; the browser-picker button beside it opens the native chooser and resyncs the dropdown to whatever was picked.
+
+:::snippet{file="music-recipe-audio-output-switching"}
+:::
+
+## Next steps
+
+- [Reference: Music Player Methods](/nomercy-music-player/reference/player-methods): the full `backend()`, `crossfadeTo()`, and audio-output signatures this recipe and the tour pages both build on.

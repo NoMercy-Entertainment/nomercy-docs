@@ -1,0 +1,61 @@
+---
+title: 'Plugin: Lyrics'
+description: 'LyricsPlugin: fetches item.lyricsUrl on every cursor change, parses it through the kit cue parser registry, and attaches a CueTracker for line-enter/line-exit events.'
+---
+
+{/* Source: packages/nomercy-music-player/src/plugins/lyrics/index.ts */}
+
+# Plugin: Lyrics
+
+`LyricsPlugin` (id `'lyrics'`) wires a track's synced lyrics to the kit's generic cue machinery: on every `item` change it resolves a lyrics URL, fetches it through the kit's auth-aware fetch, parses it via `resolveCueParser(url)`, and attaches a `CueTracker` that fires as playback crosses each line's timing window. See [Lyrics](/nomercy-music-player/tour/lyrics) for the narrative walkthrough and [Recipe: Synced Lyrics UI](/nomercy-music-player/recipes/lyrics-sync) for a full scrolling-panel build.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `getLyricsUrl` | `(item: MusicPlaylistItem) => string \| undefined` | reads `item.lyricsUrl` | Custom resolver, for a catalogue that derives the lyrics URL rather than storing it directly on the item. |
+| `autoFetch` | `boolean` | `true` | Auto-fetch on the `item` event. Set `false` to drive fetching entirely through the explicit `fetchLyrics(url)` method instead. |
+
+## Events
+
+Namespaced onto the player's own bus as `plugin:lyrics:<event>`:
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `loaded` | `{ count }` | The cue list is fetched, parsed, and the tracker is attached. `count` is the number of lines. |
+| `line` | `{ text, ...rest }` | Same payload and timing as `lineEnter`, kept as an alias for a listener that doesn't need the enter/exit distinction. |
+| `lineEnter` | `{ text, ...rest }` | A line's timing window starts. |
+| `lineExit` | `{ text, ...rest }` | A line's timing window ends. |
+
+## Methods
+
+| Method | Signature | Purpose |
+|---|---|---|
+| `current()` | `() => LyricPayload \| undefined` | The active line's payload, `undefined` between lines. |
+| `all()` | `() => ReadonlyArray<Cue<LyricPayload>>` | Every parsed cue for the current track, empty if none loaded. |
+| `clear()` | `() => void` | Tear down the active tracker without disposing the plugin. |
+| `fetchLyrics(url)` | `(url: string) => Promise<CueList<LyricPayload> \| undefined>` | Explicit fetch, takes precedence over auto-fetch, resolves once attached. |
+
+## Rules & restrictions
+
+- `item.lyricsUrl` is fetched exactly as given, it is **not** resolved against `baseUrl` the way `item.url` is. Store a fully-qualified URL, or resolve it yourself in a `getLyricsUrl` override, see [Lyrics: lyricsUrl isn't resolved against baseUrl](/nomercy-music-player/tour/lyrics#lyricsurl-isnt-resolved-against-baseurl).
+- A missing `item.lyricsUrl` (and no `getLyricsUrl` resolver returning one) clears plugin state silently, no fetch attempt, no error. A fetch or parse failure reports through the plugin's error channel (`plugin:lyrics/no-parser`, `plugin:lyrics/fetch-failed`) instead of throwing, a bad lyrics file never interrupts playback.
+- Parsing depends entirely on a cue parser being registered for the URL's format, a `.lrc` file resolves to the kit's built-in parser automatically; a custom format needs its own `ICueParser` registered via `player.registerCueParser()` first, see [Core: Cue Parsers](/nomercy-player-core/tour/cue-parsers).
+- Must be added before `setup()`, like any plugin, registering after `ready()` misses the plugin's own `use()` call during the setup pipeline.
+
+## How to extend it
+
+`LyricsPlugin` isn't designed for subclassing, its surface is small enough that most customization goes through `opts.getLyricsUrl` (routing to a different sidecar location or format) or by registering an additional `ICueParser` for a lyrics format the kit doesn't parse out of the box:
+
+```ts
+import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/lyrics';
+
+player.addPlugin(LyricsPlugin, {
+  getLyricsUrl: item => item.lyricsUrl ?? `https://lyrics.example.com/${item.id}.lrc`,
+});
+player.setup({ baseUrl, playlist });
+```
+
+## Next steps
+
+- [Plugin: Media Session](/nomercy-music-player/plugins-adapters/media-session): the OS "Now Playing" surface, built from the same track metadata this plugin reads for its own display.

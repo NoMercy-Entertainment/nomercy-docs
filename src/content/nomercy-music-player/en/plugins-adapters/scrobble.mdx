@@ -1,0 +1,76 @@
+---
+title: 'Plugin: Scrobble'
+description: 'ScrobblePlugin: threshold-based listen reporting (Last.fm 50%-or-4-minute rule by default) to any IScrobbler backend, no-op until you wire one in.'
+---
+
+{/* Source: packages/nomercy-music-player/src/plugins/scrobble/index.ts, src/plugins/scrobble/IScrobbler.ts */}
+
+# Plugin: Scrobble
+
+`ScrobblePlugin` (id `'scrobble'`) tracks listened time per track against the player's own `item`, `time`, and `ended` events, and reports it to a configured {`IScrobbler`} backend: `nowPlaying(item)` once per item on cursor change, `scrobble(item, context)` once the accumulated listened time crosses a threshold. Ships with a no-op scrobbler by default, so the plugin is inert, tracked but never reported, until a real backend is wired in. See [Recipe: Scrobbling](/nomercy-music-player/recipes/scrobbling) for implementing one.
+
+## Options
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `scrobbler` | `IScrobbler<MusicPlaylistItem>` | `NoopScrobbler` | The reporting backend. |
+| `thresholdRatio` | `number` | `0.5` | Fraction of the track's duration counted as "listened enough" — Last.fm's 50% rule. |
+| `thresholdSeconds` | `number` | `240` | Absolute listened-seconds ceiling. Whichever of this or `thresholdRatio` is reached first wins — Last.fm's 4-minute rule. |
+| `minDurationSeconds` | `number` | `30` | Tracks shorter than this are never scrobbled. |
+
+## Events
+
+Namespaced onto the player's own bus as `plugin:scrobble:<event>`:
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `nowPlaying` | `{ item }` | Right after `IScrobbler.nowPlaying()` resolves, once per item. |
+| `scrobbled` | `{ item, listenedSeconds }` | Right after `IScrobbler.scrobble()` resolves, once per item, the first time the threshold is crossed. |
+
+## The IScrobbler port
+
+```ts
+interface IScrobbler<T extends BasePlaylistItem = BasePlaylistItem> {
+  readonly id: string;
+  scrobble(item: T, context: ScrobbleContext): Promise<void>;
+  nowPlaying?(item: T): Promise<void>;
+}
+
+interface ScrobbleContext {
+  startedAt: number;        // Unix timestamp (seconds) playback started
+  listenedSeconds: number;  // total seconds actually listened, seeks excluded
+  durationSeconds: number;  // total item duration
+  source: 'user' | 'auto' | 'radio';
+}
+```
+
+`nowPlaying` is optional, a backend with no "currently listening" concept can omit it. `NoopScrobbler`, the shipped default, implements both as immediately-resolving no-ops.
+
+## How listened time is tracked
+
+A normal playback tick advances the `time` event by well under a second; anything ≥2 seconds between ticks is treated as a seek or a track change and doesn't count toward listened time. This means scrubbing back and forth through a track doesn't inflate the listened total the way naively summing every `time` delta would.
+
+## Rules & restrictions
+
+- A failed `scrobble()` or `nowPlaying()` call never interrupts playback, the plugin catches the rejection and reports it through its own error channel (`plugin:scrobble/scrobble-failed`, `plugin:scrobble/now-playing-failed`) instead of throwing.
+- Once a track is scrobbled, it's scrobbled, `isScrobbled()` latches `true` for the rest of that item's playback, a second threshold crossing (replaying the same track without advancing) doesn't scrobble again.
+- Tracking resets fully on every `item` change, including a scrobble mid-track from a manual `crossfadeTo()`, there's no cross-track carryover of listened time.
+
+## How to extend it
+
+Implement `IScrobbler` against a real service and pass it as `opts.scrobbler`:
+
+```ts
+import { ScrobblePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/scrobble';
+
+player.addPlugin(ScrobblePlugin, {
+  scrobbler: new MyLastFmScrobbler(sessionKey),
+});
+player.setup({ baseUrl, playlist });
+```
+
+See [Recipe: Scrobbling](/nomercy-music-player/recipes/scrobbling) for a full `IScrobbler` implementation and the in-progress `listened()` / `isScrobbled()` read surface.
+
+## Next steps
+
+- [Plugin: Auto-Advance](/nomercy-music-player/plugins-adapters/auto-advance): the other queue-driving plugin, deciding what plays next rather than reporting what already played.

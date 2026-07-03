@@ -1,0 +1,47 @@
+---
+title: 'Plugin: Media Session'
+description: 'MediaSessionPlugin (music): the OS "Now Playing" surface, title/artist/album filled from the canonical MusicPlaylistItem fields.'
+---
+
+{/* Source: packages/nomercy-music-player/src/plugins/media-session/index.ts */}
+
+# Plugin: Media Session
+
+`MediaSessionPlugin` (id `'media-session'`) is a one-method specialization of the kit's [`MediaSessionPlugin`](/nomercy-player-core/plugins-adapters/media-session), which owns the actual `navigator.mediaSession` wiring: action handlers (`play`, `pause`, `seekto`, `nexttrack`, `previoustrack`), position-state sync, and artwork resolution through `resolveUrl(url, 'poster')`. This subclass only overrides `getMetadata()`, how a `MusicPlaylistItem` becomes the OS lock-screen / notification text.
+
+## What the music subclass builds
+
+| MediaSession field | Music source |
+|---|---|
+| `title` | `item.name` (empty string when unset). |
+| `artist` | `item.artist` (empty string when unset). |
+| `album` | `item.album` (empty string when unset). |
+
+Artwork comes from the kit base class, `item.cover` resolved through the same `resolveUrl` pipeline every other image on the item uses, nothing music-specific to configure there.
+
+## Rules & restrictions
+
+- Reads only fields defined on the canonical `MusicPlaylistItem`. Consumers carrying server-specific fields (linked artist/album entities instead of plain strings, for instance) should subclass and override `getMetadata()` themselves rather than expecting this built-in to read fields it isn't typed against, the kit deliberately avoids casting to a richer intersection type inside its own built-ins.
+- Everything else, browser support detection, action handler wiring, position-state sync, is identical to the kit base, see [Plugin: Media Session (core)](/nomercy-player-core/plugins-adapters/media-session) for options and events.
+
+## How to extend it
+
+```ts
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player';
+
+class MyMediaSessionPlugin extends MediaSessionPlugin {
+  protected override getMetadata(item) {
+    const base = super.getMetadata(item);
+    return {
+      ...base,
+      artist: item.featuredArtists?.length ? `${base.artist} feat. ${item.featuredArtists.join(', ')}` : base.artist,
+    };
+  }
+}
+
+player.addPlugin(MyMediaSessionPlugin);
+```
+
+## Next steps
+
+- [Plugin: Cast Sender](/nomercy-music-player/plugins-adapters/cast-sender): the same name/artist/album/cover fields feeding a Chromecast receiver instead of the OS lock screen.

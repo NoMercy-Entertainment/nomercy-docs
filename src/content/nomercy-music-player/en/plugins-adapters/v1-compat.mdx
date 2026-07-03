@@ -1,0 +1,72 @@
+---
+title: 'Plugin: V1 Compatibility Shim'
+description: 'V1MusicCompatPlugin: opt-in legacy method surface for v1 consumers migrating to v2, every shim delegates to the real API and logs a deprecation warning.'
+---
+
+{/* Source: packages/nomercy-music-player/src/plugins/v1-compat.ts */}
+
+# Plugin: V1 Compatibility Shim
+
+`V1MusicCompatPlugin` (id `'v1-music-compat'`) attaches the old v1 method names (`seek()`, `speed()`, `playlist()`, `currentTrack()`, and the rest) onto a v2 player instance. Every shim delegates to the real v2 method underneath and logs one deprecation line per call, nothing here is new behavior, it's a compatibility surface over the API this whole collection documents. It is entirely opt-in, a v2 app that never adds this plugin never carries the shim code or the deprecation logging at all.
+
+There is no v1 e2e contract for the music player the way there is for video, this surface is derived directly from the v1/JWPlayer-style audio API convention mapped onto the real v2 `NMMusicPlayer` surface, verified against `src/index.ts`, not guessed.
+
+## Options
+
+None. `V1MusicCompatPlugin` takes no configuration, add it and every shim installs:
+
+```ts
+import { V1MusicCompatPlugin } from '@nomercy-entertainment/nomercy-music-player';
+
+player.addPlugin(V1MusicCompatPlugin); // before setup()
+player.setup({ baseUrl, playlist });
+```
+
+## What it shims
+
+Grouped by concern, every entry maps directly to a v2 method already covered elsewhere in this collection:
+
+| v1 method | v2 equivalent |
+|---|---|
+| `seek(seconds)`, `currentTime()` / `currentTime(seconds)` | `time(seconds)` |
+| `speed()` / `speed(rate)`, `speeds()`, `hasSpeeds()` | `playbackRate()`, `playbackRates()` |
+| `muted()` / `muted(state)`, `gain()`, `isPlaying` | `volumeState()`, `mute()`/`unmute()`, `backend().mediaElement().volume`, `playState()` |
+| `state()` | `playState()` |
+| `currentTrack()` | `item()` |
+| `trackList()` | `queue()` |
+| `nextTrack(opts)` / `previousTrack(opts)` | `next(opts)` / `previous(opts)` |
+| `playTrack(target, opts)` | `item(target, { ...opts, autoplay: true })` |
+| `playlist()` / `playlist(items, opts)`, `setPlaylist(items, opts)` | `queue()` / `queue(items, opts)` |
+| `playlistItem()` | `item()` |
+| `playlistIndex()` | `index()` |
+| `load(items[])` | `queue(items)` — the array overload only, a single-item `load(item, opts)` call still delegates to the real v2 `load()`. |
+| `isFirstPlaylistItem()`, `isLastPlaylistItem()`, `hasPlaylists()` | derived from `index()` and `queueLength()` |
+| `localize(key, vars)` | `t(key, vars)` |
+| `addTranslation(key, value)` | `translation(language(), key, value)` |
+| `addTranslations(bundle)` / `addTranslations(entries[])` | `addTranslations(bundle)` — the entry-list overload loops `translation(language(), key, value)` per entry instead. |
+| `setTitle(title)` | no v2 equivalent, writes `document.title` directly. |
+| `registerPlugin(...)`, `usePlugin(...)` | `addPlugin(...)` |
+| `plugin(id)` | `getPluginById(id)` |
+
+## Event bridges
+
+Two events bridge automatically while this plugin is loaded, matching the v1 event names a legacy listener might still be attached to:
+
+| v2 event | Also emits |
+|---|---|
+| `playbackRate` | `speed` |
+| `queue` | `playlist` |
+
+## Rules & restrictions
+
+- Every shim logs `[deprecated] player.<method>() is a v1 compatibility shim` through the player's logger on every call, so grepping logs during a migration surfaces exactly which call sites still need updating.
+- Must be added before `setup()`, like any plugin, adding it after `ready()` misses the plugin's own `use()` call during the setup pipeline.
+- Unlike the video player's v1 shim, every method here has a direct v2 equivalent, none of the shims throw `NotImplementedError`, there's no legacy audio-specific feature (subtitles, chapters-as-skip-segments) with no v2 data model to translate.
+
+## How to remove it
+
+Delete the `player.addPlugin(V1MusicCompatPlugin)` call, then work through the deprecation log output (every remaining call site logs its own replacement method), migrating call sites to the v2 methods in the table above. Once the log is empty, remove the import too, there is nothing else in the codebase that depends on this plugin being present.
+
+## Next steps
+
+- [Reference: Music Player Methods](/nomercy-music-player/reference/player-methods): the full v2 surface every shim in this plugin delegates to.

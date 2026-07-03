@@ -1,0 +1,134 @@
+---
+title: 'Adapter: Audio Backend'
+description: 'IAudioBackend: the port every player-level method reads through for actual playback, including the dual-buffer crossfade primitives. Two shipped implementations, swappable via backendFactory.'
+---
+
+{/* Source: packages/nomercy-music-player/src/adapters/audio-backend/IAudioBackend.ts, src/adapters/audio-backend/html5-audio.ts, src/adapters/audio-backend/web-audio.ts */}
+
+# Adapter: Audio Backend
+
+`IAudioBackend` is the one port every music-specific player method (`play()`, `time()`, `crossfadeTo()`, `audioOutput()`, and the rest) reads and writes through, `NMMusicPlayer` itself never touches an `<audio>` element or the Web Audio API directly. Two implementations ship: `AudioElementBackend` (the default) and `WebAudioBackend`. This is the swap point for a custom backend, WebCodecs, a native-shell `<audio>` bridge, a test double.
+
+## The interface
+
+```ts
+interface IAudioBackend {
+	readonly kind: AudioBackendKind; // 'audio-element' | 'webaudio'
+
+	load(url: string, opts?: { preload: 'auto' | 'metadata' | 'none' }): Promise<void>;
+	unload(): void;
+	dispose(): void;
+	setAuthHeaderProvider?(provider: () => string | undefined | Promise<string | undefined>): void;
+
+	play(): Promise<void>;
+	pause(): void;
+	stop(): void;
+
+	currentTime(): number;
+	currentTime(seconds: number): void;
+	duration(): number;
+	buffered(): number;
+	bufferedRanges(): TimeRanges;
+	seekable(): TimeRanges;
+	playbackRate(): number;
+	playbackRate(rate: number): void;
+
+	volume(): number;
+	volume(level: number): void;
+	mute(): void;
+	unmute(): void;
+
+	state(): BackendState;
+	outputNode(ctx: AudioContext): AudioNode;
+	analyserSource(ctx: AudioContext): AudioNode;
+	analysisNode?(ctx: AudioContext): AudioNode;
+	audioContext?(): AudioContext;
+
+	mediaElement(): HTMLMediaElement;
+	captureStream(): MediaStream;
+
+	setSinkId(deviceId: string): Promise<void>;
+	getSinkId(): string;
+
+	mediaKeys(): MediaKeys | undefined;
+	setMediaKeys(keys: MediaKeys): Promise<void>;
+	outputProtectionState(): 'unrestricted' | 'restricted' | 'unsupported';
+
+	pauseLoader(): void;
+	resumeLoader(): void;
+	loaderState(): BackendLoaderState;
+
+	on<E extends BackendEvent>(event: E, fn: (data?: BackendEventPayload[E]) => void): void;
+	off<E extends BackendEvent>(event: E, fn: (data?: BackendEventPayload[E]) => void): void;
+
+	// Crossfade
+	supportsCrossfade(): boolean;
+	loadSecondary(url: string): Promise<void>;
+	disposeSecondary(): void;
+	primeSecondary(seekMs?: number): Promise<void>;
+	crossfade(durationMs: number): Promise<void>;
+	secondaryGain(): number;
+	secondaryGain(value: number): void;
+}
+```
+
+Method conventions mirror the player class itself: stateful values are overloaded functions (`volume()` / `volume(level)`), actions are bare verbs (`play()`, `pause()`, `mute()`), and seeking goes through `currentTime(seconds)`, there is no separate `seek()` method at this layer either.
+
+## The two shipped implementations
+
+| Backend | `kind` | Signal path | Use for |
+|---|---|---|---|
+| `AudioElementBackend` | `'audio-element'` | Plain `HTMLAudioElement`. Lazily creates a `MediaElementAudioSourceNode` only the first time a plugin requests the analyser graph, so a consumer without an equalizer or spectrum plugin pays zero Web Audio cost. | The default, the safe fallback for environments where Web Audio is restricted or undesired. |
+| `WebAudioBackend` | `'webaudio'` | `<audio>` → `MediaElementAudioSourceNode` → `AnalyserNode` → destination, routed through a real `AudioContext`. Throws `BrowserPolicyError` immediately at construction if `AudioContext` is unavailable, it never silently degrades to a no-op graph. | Sample-accurate crossfades, or when a plugin needs full Web Audio graph access. |
+
+Switch at `setup()` via `backend: 'webaudio'`, or at runtime:
+
+```ts
+await player.backend('webaudio');
+```
+
+Both back the identical `IAudioBackend` surface, so every player-level method, `crossfadeTo()` included, reads the same either way.
+
+## Crossfade: the dual-buffer contract
+
+`crossfadeTo()` on the player delegates the actual dual-buffer work to whichever backend is active: `loadSecondary(url)` allocates and loads a second playback handle without touching primary playback, `primeSecondary(seekMs)` pre-rolls it to a start position and waits for it to be ready, `crossfade(durationMs)` ramps both gains over the window and swaps the secondary in as primary, disposing the old one. `secondaryGain()` / `secondaryGain(value)` exist for test introspection and advanced callers inspecting mid-crossfade state.
+
+Precision differs by backend: `AudioElementBackend` drives the fade with a `requestAnimationFrame` loop at roughly 50fps, not sample-accurate, expect sub-frame-length seams at track boundaries. `WebAudioBackend` allocates a fresh `<audio>` element + `MediaElementAudioSourceNode` pair per crossfade (`createMediaElementSource()` permanently binds an element to a context, so the same element can't be reattached to a different source node) and ramps through real `AudioParam` automation for a sample-accurate transition.
+
+`supportsCrossfade()` reports whether a backend can allocate a second playback handle at all, both built-in backends return `true`. A custom backend that returns `false` causes `crossfadeTo()` to throw `PlayerError('core:crossfade/unsupported')` rather than attempting the transition.
+
+## Auth on manifest and segment requests
+
+`setAuthHeaderProvider(provider)` is how `Authorization: Bearer <token>` reaches `hls.js`'s own manifest and segment requests on an HLS audio stream, not just the kit's `fetch` calls. `NMMusicPlayer.backend()` wires this automatically from `setup({ auth })`, resolving the bearer value fresh (sync or async getter) on every request rather than capturing it once.
+
+## Rules & restrictions
+
+- `backend()` constructs the instance lazily, on first call, and caches it, calling it before `setup()` returns an instance not yet wired to a loaded source.
+- Only one backend is active per player at a time. Swapping mid-session (`backend('webaudio')`) disposes the previous backend and emits `backend:changed`, it is not itself a crossfade, whatever was playing stops and reloads on the new backend.
+- `mediaKeys()` / `setMediaKeys()` / `outputProtectionState()` exist for EME/DRM coordination on protected audio streams, a backend that never touches encrypted content can implement them as no-ops.
+- `outputNode` / `analysisNode` are the tap points the kit's `AudioGraphPlugin` chain (equalizer, spectrum, visualizers) needs, see [Equalizer](/nomercy-music-player/tour/equalizer). `analysisNode` is optional, backends that don't maintain a separate pre-volume source node omit it and `AudioGraphPlugin` falls back to `outputNode`.
+
+## How to extend it
+
+Provide a `backendFactory` at `setup()`, it receives the resolved kind and full config, and returns any `IAudioBackend` implementation:
+
+```ts
+import type { AudioBackendFactory } from '@nomercy-entertainment/nomercy-music-player';
+
+const backendFactory: AudioBackendFactory = (kind, config) => {
+  if (kind === 'webaudio') return new MyCustomWebAudioBackend(container);
+  return new AudioElementBackend(container); // fall back to the default for anything else
+};
+
+player.setup({
+  baseUrl,
+  playlist,
+  backendFactory,
+});
+```
+
+A custom backend implementing the full `IAudioBackend` contract, crossfade methods included, works with every player-level method unchanged, `crossfadeTo()` never branches on which backend is active.
+
+## Next steps
+
+- [Adapter: Similarity Engine](/nomercy-music-player/plugins-adapters/adapter-similarity-engine): a reserved port with no default implementation, for a future "find similar tracks" feature.

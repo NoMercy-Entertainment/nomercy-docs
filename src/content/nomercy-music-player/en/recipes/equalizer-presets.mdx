@@ -1,0 +1,75 @@
+---
+title: 'Recipe: Equalizer Presets'
+description: 'A preset-picker dropdown driven by EqualizerPlugin.presets(), staying in sync via preset:changed, plus saving a custom band tweak as a named preset of your own.'
+---
+
+{/* Source: packages/nomercy-player-core/src/plugins/equalizer/index.ts, src/plugins/equalizer/presets.ts */}
+
+# Recipe: Equalizer Presets
+
+[Equalizer](/nomercy-music-player/tour/equalizer) covers registering `AudioGraphPlugin` + `EqualizerPlugin` and driving a single band or preset directly. This recipe builds the picker UI most listening apps put in front of it: a dropdown listing every available preset, kept in sync with whatever changed the equalizer, plus saving the user's own band tweaks as a preset of their own.
+
+## Listing every preset
+
+`presets()` returns the full catalogue, built-ins first, then anything registered through `addCustomPreset()` or `EqualizerOptions.presets`, deduplicated by name:
+
+```ts
+import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+player.addPlugin(AudioGraphPlugin);
+player.addPlugin(EqualizerPlugin, { persistKey: 'my-app-eq' });
+player.setup({ baseUrl, playlist });
+
+const eq = player.getPlugin(EqualizerPlugin)!;
+
+function renderPresetOptions(select: HTMLSelectElement): void {
+  select.replaceChildren();
+  for (const preset of eq.presets()) {
+    const option = document.createElement('option');
+    option.value = preset.name;
+    option.textContent = preset.name;
+    if (preset.name === eq.preset()) option.selected = true;
+    select.appendChild(option);
+  }
+}
+```
+
+## Wiring the dropdown both ways
+
+Applying a preset from the dropdown is a direct `preset(name)` call. The reverse direction matters too, a preset selected from elsewhere (a keyboard shortcut, a synced setting from another tab through the storage adapter) should update the dropdown without a page reload, `preset:changed` is the event for that:
+
+```ts
+select.addEventListener('change', () => {
+  eq.preset(select.value);
+});
+
+player.on('plugin:equalizer:preset:changed', ({ name }: { name: string | undefined }) => {
+  select.value = name ?? '';
+});
+```
+
+Plugin events are namespaced onto the player's own bus as `plugin:<id>:<event>`, the same pattern [Lyrics](/nomercy-music-player/tour/lyrics#reading-the-active-line) documents, `'equalizer'` is `EqualizerPlugin`'s id. `name` is `undefined` after `reset()`, clear the dropdown's selection in that case rather than leaving a stale preset name highlighted.
+
+## Saving a custom preset
+
+A user who nudges individual bands away from any built-in preset has, in effect, built their own. `addCustomPreset()` adds it to the catalogue `presets()` already returns, `save()` persists it (and the currently active bands) through whatever [storage adapter](/nomercy-player-core/plugins-adapters/adapter-storage) the player is configured with:
+
+```ts
+function saveCurrentAsPreset(name: string): void {
+  eq.addCustomPreset({ name, values: eq.bands() });
+  eq.preset(name); // select it as the active preset
+  eq.save();
+}
+```
+
+`bands()` returns the full current band array, pre-gain pseudo-band included, exactly the shape `EqPreset.values` expects, there's no separate conversion step between "current state" and "preset payload."
+
+## Rules & restrictions
+
+- `presets()` clones every entry it returns, mutating the returned array or its objects has no effect on the plugin's own catalogue, always go through `addCustomPreset()` / `removePreset()`.
+- A dropdown driven by `presets()` should re-render after `addCustomPreset()`, the new entry doesn't appear until the list is rebuilt.
+- Persistence is opt-in via `persistKey`, without one, `save()` and `autoLoad`/`autoSave` are no-ops and custom presets don't survive a reload, see [Plugin: Equalizer](/nomercy-player-core/plugins-adapters/equalizer) for the full options table.
+
+## Next steps
+
+- [Recipe: Scrobbling](/nomercy-music-player/recipes/scrobbling): wiring a real `IScrobbler` backend to `ScrobblePlugin`.

@@ -9,9 +9,12 @@ Altitude: core = compose-your-own-player (under the hood); video/music = consume
   plugins-adapters, reference). check-docs no longer reports ARC-SECTION-MISSING for core.
 - [x] video content: DONE, all 7 arc stages (intro, quickstart, tour, build, recipes,
   plugins-adapters, reference). check-docs no longer reports ARC-SECTION-MISSING for video.
-- [ ] music content (in progress: intro+quickstart+tour+build done, see below; recipes,
-  plugins-adapters, reference still open)
-- [ ] final cross-library verify (check-docs + build + nav + a11y)
+- [x] music content: DONE, all 7 arc stages (intro, quickstart, tour, build, recipes,
+  plugins-adapters, reference). check-docs no longer reports ARC-SECTION-MISSING for music.
+- [x] final cross-library verify: `npm run check:docs` reports "Contract OK — 3 trio
+  collection(s) checked" (core + video + music, zero ARC-SECTION-MISSING / CROSS-MEDIUM-TOKEN /
+  MISSING-TITLE / MISSING-ORDER / OVER-BUDGET anywhere), `check:nav` and `check:links` both
+  green, `npx astro build` exit 0 (378 pages), Playwright snippet gate 2/2. Trio rebuild complete.
 checkpoint (uncommitted): video intro+quickstart — reused src/examples/quickstart.ts + media.ts
 (no new example needed) + nav-structure.ts Getting Started group + navigation.ts/index.astro/
 core's introduction.mdx+reference/utilities.mdx cross-link fixes (/overview -> /introduction).
@@ -79,3 +82,21 @@ matching lyricsUrl HEAD check (18/18 pass). check:nav green, `npx astro build` e
 check:docs reports only the expected ARC-SECTION-MISSING (recipes/plugins-adapters/reference, out
 of scope), `npx playwright test e2e/snippets.spec.ts` 2/2 (every music + video island reaches
 data-player-ready). See .rebuild/music-tour-report.md.
+checkpoint (uncommitted): music recipes/* (10 pages: vue-integration, react-integration,
+svelte-integration, vanilla-integration, crossfade-gapless, lyrics-sync, equalizer-presets,
+scrobbling, queue-playlist, audio-output-switching) + plugins-adapters/* (9 pages: scrobble,
+auto-advance, lyrics, media-session, key-handler, cast-sender, v1-compat, adapter-audio-backend,
+adapter-similarity-engine — similarity-engine documented as reserved/not-wired, no default
+adapter, no consumer, not re-exported from either package entry point) + reference/* (4 pages:
+player-methods, config, events, types) + 6 new src/examples/music-recipe-*.ts (vanilla-integration,
+crossfade-gapless, lyrics-sync, queue-playlist, audio-output-switching — the framework pages,
+equalizer-presets, and scrobbling stay code-block-only, matching core/video's plugins-adapters/
+reference precedent) + nav-structure.ts Recipes/Plugins & Adapters/Reference groups for
+nomercy-music-player. crossfade-gapless recipe introduces `GaplessTransitionStrategy` (core,
+video's default) as music's opt-in true-hard-cut alternative to the default `CrossfadeTransitionStrategy`,
+switchable at runtime via `setTransitionStrategy()`. Fixed one pre-existing broken link
+(`/nomercy-music-player/overview` -> `/introduction`) in core's introduction.mdx, dangling since
+the music collection was wiped, this stage's new pages also retroactively resolved the ~40 other
+pre-existing dangling forward-links from music's stage 1-4 content (recipes/plugins-adapters/
+reference now exist). Music arc is now complete end to end (7/7 stages), matching core and video —
+**the full player trio doc rebuild is complete.** See .rebuild/music-rest-report.md for full detail.

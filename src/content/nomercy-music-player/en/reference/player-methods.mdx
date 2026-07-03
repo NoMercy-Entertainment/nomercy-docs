@@ -1,0 +1,68 @@
+---
+title: 'Reference: Music Player Methods'
+description: 'The IMusicPlayer-specific method surface: backend access, crossfade, audio output, and the track/quality/chapter methods as they apply to audio. Curated from src/index.ts.'
+---
+
+{/* Source: packages/nomercy-music-player/src/index.ts, src/types.ts */}
+
+# Reference: Music Player Methods
+
+`NMMusicPlayer<T>` implements `IMusicPlayer<T>`, which extends the kit's `IPlayer<MusicEventMap<T>>`. Everything on `IPlayer` (`play()`, `pause()`, `time()`, `volume()`, `queue()`, `addPlugin()`, and the rest of transport, queue, volume, and plugin management) is unchanged kit surface, documented method by method across the [Guided Tour](/nomercy-music-player/tour/transport) rather than duplicated here. This page is the delta: everything that exists, or behaves differently, because the medium is listening.
+
+## Backend & crossfade
+
+| Method | Signature | Notes |
+|---|---|---|
+| `backend()` | `() => IAudioBackend` | The active backend instance, constructed lazily on first call. See [Adapter: Audio Backend](/nomercy-music-player/plugins-adapters/adapter-audio-backend). |
+| `backend(kind)` | `(kind: AudioBackendKind) => Promise<void>` | Swaps backends at runtime (`'audio-element'` / `'webaudio'`), disposing the previous one and emitting `'backend:changed'`. |
+| `crossfadeTo(item, opts?)` | `(item: T, opts?: CrossfadeOptions & ActionOptions) => Promise<void>` | Fades the current track out while `item` fades in. Ignored (no-op) while another crossfade is already in flight. See [Crossfade](/nomercy-music-player/tour/crossfade). |
+| `isTransitioning()` | `() => boolean` | Whether a `crossfadeTo()` is currently in flight. |
+
+These four methods are the entire music-owned surface, not inherited or shared with `nomercy-video-player`.
+
+## Audio output
+
+| Method | Signature | Notes |
+|---|---|---|
+| `audioOutputs()` | `() => Promise<MediaDeviceInfo[]>` | Enumerates output devices, no permission prompt. Labels may be empty without a prior permission grant. |
+| `selectAudioOutput()` | `() => Promise<MediaDeviceInfo \| null>` | Opens the browser's native output picker. Chrome ≥105 only, throws `BrowserPolicyError` elsewhere. `null` if the user cancels. |
+| `audioOutput()` / `audioOutput(deviceId)` | `() => Promise<string \| null>`, `(deviceId: string) => Promise<void>` | Reads the current device id (`null` = system default) / routes playback to `deviceId` via `setSinkId()`. |
+
+See [Audio Output Devices](/nomercy-music-player/tour/audio-output) and [Recipe: Audio Output Switching](/nomercy-music-player/recipes/audio-output-switching).
+
+## Track, quality & chapter selection
+
+Shared kit mixin surface, narrowed to the required, audio-relevant shape here (embedded audio tracks in a multi-track file, adaptive-bitrate quality levels for an HLS audio stream, and chapters for an audiobook or podcast all apply to listening just as they do to watching):
+
+| Method | Signature | Notes |
+|---|---|---|
+| `audioTracks()` | `() => AudioTrack[]` | Embedded audio rendition list (alternate language commentary, for instance). |
+| `audioTrack()` / `audioTrack(idx)` | `() => CurrentAudioTrackSelection \| null`, `(idx: number) => Promise<void>` | |
+| `qualityLevels()` / `qualityLevels({ includeUnsupported: true })` | `() => QualityLevel[]` | Populated once the stream's manifest is parsed, for an adaptive-bitrate audio source. |
+| `quality()` / `quality(idx)` | `() => CurrentQualitySelection \| 'auto'`, `(idx: number \| 'auto') => void` | |
+| `chapters()` | `() => Chapter[]` | From the item's typed `chapters` field, an audiobook or podcast episode's chapter marks. |
+| `chapter()` / `chapter(idx)` | `() => Chapter \| null`, `(idx: number) => void` | |
+| `seekToChapter(idx, opts?)` / `nextChapter(opts?)` / `previousChapter(opts?)` | `(idx: number, opts?: ActionOptions) => void` | |
+
+## Subtitles: not supported
+
+`subtitles()`, `subtitle()`, and `subtitleStyle()` are declared on `IPlayer` as optional, cross-library surface. `NMMusicPlayer` overrides all three to throw `NotImplementedError` rather than silently returning an empty list:
+
+```ts
+player.subtitles(); // throws NotImplementedError:
+// "Music backends don't expose subtitle tracks. Use a video player for subtitle support."
+```
+
+This is deliberate: an empty array is indistinguishable from "no subtitles on this track" and "this player can't have subtitles at all", the thrown error makes the structural limit visible immediately instead of a UI silently rendering nothing. Reach for `nomercy-video-player` for subtitle support.
+
+## Playback overrides
+
+`IMusicPlayer` narrows a handful of methods `IPlayer` marks optional (for cross-library compatibility with the video player) to required, since `NMMusicPlayer` always implements them: `time()`, `duration()`, `playbackRate()`, `togglePlayback()`, `toggleMute()`, `rewind()`, `forward()`, `playState()`, `volumeState()`, `volume()`, `buffered()`, `play()`, `pause()`, `stop()`, `next()`, `previous()`, `item()`, `queueLength()`, `index()`, `queue()`, `playbackRates()`. Signatures are unchanged from `IPlayer`, only the optionality is tightened, see the [Guided Tour](/nomercy-music-player/tour/transport) for behavior.
+
+## The v1 compatibility surface
+
+`V1MusicCompatPlugin` attaches around twenty additional method names (`seek()`, `speed()`, `currentTrack()`, `playlist()`, and the rest) onto the instance at runtime, opt-in only, see [Plugin: V1 Compatibility Shim](/nomercy-music-player/plugins-adapters/v1-compat) for the full mapping. None of those are part of the `IMusicPlayer` type surface documented above.
+
+## Next steps
+
+- [Reference: MusicPlayerConfig](/nomercy-music-player/reference/config): the `setup(config)` fields specific to music, on top of the kit's shared config.

@@ -1,0 +1,50 @@
+---
+title: 'Reference: Events'
+description: 'MusicEventMap in full: every music-specific event and payload, layered on the kit BaseEventMap. Curated from src/types.ts.'
+---
+
+{/* Source: packages/nomercy-music-player/src/types.ts */}
+
+# Reference: Events
+
+`MusicEventMap<T>` extends the kit's [`BaseEventMap`](/nomercy-player-core/reference/events) (transport, queue, volume, i18n, plugins, and the rest, unchanged for music). This page is only the events that exist, or carry a richer payload, because the medium is listening.
+
+## Backend
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `backend:changed` | `{ kind: AudioBackendKind }` | `backend(kind)` finished swapping to a new backend. |
+
+## Crossfade
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `beforeCrossfade` | `BeforeEvent<{ from: T \| null; to: T; duration: number }>` | Right before `crossfadeTo()` starts the dual-buffer fade. Cancellable, a listener's `preventDefault()` stops the crossfade before any buffer is touched and fires `crossfadePrevented` instead. |
+| `crossfadePrevented` | `{ reason: PreventedReason; cause?: unknown }` | A listener cancelled `beforeCrossfade`. |
+| `crossfadeStart` | `{ from: T \| null; to: T; duration: number }` | The fade begins, after `beforeCrossfade` resolves without being prevented. |
+| `crossfadeComplete` | `{ item: T }` | The fade finished and the incoming item is now primary. |
+
+See [Crossfade](/nomercy-music-player/tour/crossfade) for the full sequence and [Recipe: Crossfade & Gapless Playback](/nomercy-music-player/recipes/crossfade-gapless) for choosing between this and a hard cut.
+
+## Time
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `time` | `{ time: number; percentage: number; position: number; duration: number; remaining: number }` | Every backend timeupdate tick. Extends the kit's `BaseEventMap['time']` with `percentage` (0–100 of total duration), `position` (alias for `time`, in seconds), `duration`, and `remaining` seconds, so a scrubber or "time remaining" label doesn't need to derive them from `duration()` itself on every tick. |
+
+## Plugin-namespaced events
+
+Every opt-in plugin's own events are namespaced onto this same bus as `plugin:<id>:<event>`, not declared in `MusicEventMap` itself since they only exist once the plugin is registered:
+
+| Plugin | Events |
+|---|---|
+| [Scrobble](/nomercy-music-player/plugins-adapters/scrobble) | `plugin:scrobble:nowPlaying`, `plugin:scrobble:scrobbled` |
+| [Lyrics](/nomercy-music-player/plugins-adapters/lyrics) | `plugin:lyrics:loaded`, `plugin:lyrics:line`, `plugin:lyrics:lineEnter`, `plugin:lyrics:lineExit` |
+| [Equalizer](/nomercy-player-core/plugins-adapters/equalizer) (core) | `plugin:equalizer:ready`, `plugin:equalizer:band:changed`, `plugin:equalizer:preset:changed`, `plugin:equalizer:change`, `plugin:equalizer:saved` |
+| [Cast Sender](/nomercy-music-player/plugins-adapters/cast-sender) | `plugin:cast-sender:cast:connected`, `plugin:cast-sender:cast:disconnected`, `plugin:cast-sender:cast:error`, `plugin:cast-sender:cast:remote-state`, `plugin:cast-sender:cast:media-changed`, `plugin:cast-sender:unsupported` |
+
+`on(event, fn)` accepts any string, TypeScript can't narrow a plugin-namespaced key against `MusicEventMap`, type the handler's parameter explicitly the way each plugin's own reference page shows.
+
+## Next steps
+
+- [Reference: Types](/nomercy-music-player/reference/types): `MusicPlaylistItem`, `CrossfadeOptions`, and every other music-owned type these payloads reference.

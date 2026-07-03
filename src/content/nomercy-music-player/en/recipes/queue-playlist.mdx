@@ -1,0 +1,64 @@
+---
+title: 'Recipe: Queue & Playlist Panel'
+description: 'Rendering queue() as a clickable "up next" list, highlighting the active track from item(), and jumping through playItem() to avoid the item()/play() race.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/queue.ts, packages/nomercy-music-player/src/index.ts */}
+
+# Recipe: Queue & Playlist Panel
+
+[The Queue](/nomercy-music-player/tour/queue) covers the full mutation surface, `queueAppend`, `queueMove`, `queueShuffle`, and the rest. This recipe is the task most apps actually reach for first: a panel that shows the queue, highlights what's playing, and lets the user jump to any track in it.
+
+## Rendering the list
+
+Rebuild the panel from `queue()` fresh on every render rather than mutating DOM nodes in place, it stays correct after a shuffle or a removal without tracking index deltas by hand:
+
+```ts
+function renderQueue(player: IMusicPlayer, panel: HTMLElement): void {
+  panel.replaceChildren();
+  const activeId = player.item()?.id;
+
+  player.queue().forEach((item, index) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.textContent = `${index + 1}. ${item.name}${item.artist ? ` — ${item.artist}` : ''}`;
+    row.setAttribute('aria-current', item.id === activeId ? 'true' : 'false');
+    row.addEventListener('click', () => player.playItem(item.id));
+    panel.appendChild(row);
+  });
+}
+```
+
+## Re-rendering on the right events
+
+Two events cover every way the panel's content can go stale: `'current'` (the cursor moved, a different row is now active) and `'queue'` (items were added, removed, reordered, or replaced):
+
+```ts
+player.on('current', () => renderQueue(player, panel));
+player.on('queue', () => renderQueue(player, panel));
+renderQueue(player, panel); // initial paint
+```
+
+Subscribing to both instead of polling means the panel updates immediately on a shuffle, a crossfade-driven advance, or another client's Connect-synced queue change, not just a local click.
+
+## playItem() closes the item()/play() race
+
+A naive click handler, `player.item(item.id); player.play();`, races: `item()` fires a fire-and-forget `load()`, and a `play()` called right after can reach the backend before the new source is even set. `playItem(target)` (and `playNow(items, start?)` for replacing the whole queue) exist specifically to close that race, both route through `item(target, { autoplay: true })` internally, which only calls `play()` inside the resolved `load()`'s own continuation:
+
+```ts
+player.playItem(item.id);            // jump to a track already in the queue and play it
+player.playNow(album, 'track-2');    // replace the queue and start playing this track
+```
+
+Use `playItem`/`playNow` for anything the user clicks; reserve a plain `item(target)` for cases where you deliberately don't want autoplay, restoring a paused session at the last position, for instance.
+
+## See it running
+
+The panel below mounts with a real three-track queue over one shared `baseUrl`, click any row to jump to it.
+
+:::snippet{file="music-recipe-queue-playlist"}
+:::
+
+## Next steps
+
+- [Recipe: Audio Output Switching](/nomercy-music-player/recipes/audio-output-switching): a device-picker `<select>` built on `audioOutputs()` and `audioOutput()`.

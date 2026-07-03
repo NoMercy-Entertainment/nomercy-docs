@@ -1,0 +1,94 @@
+---
+title: 'Recipe: Scrobbling'
+description: 'Implementing IScrobbler against a real listening-history service, wiring it into ScrobblePlugin, and reading in-progress listened time for a "scrobbling in..." indicator.'
+---
+
+{/* Source: packages/nomercy-music-player/src/plugins/scrobble/index.ts, src/plugins/scrobble/IScrobbler.ts */}
+
+# Recipe: Scrobbling
+
+[Plugin: Scrobble](/nomercy-music-player/plugins-adapters/scrobble) covers the threshold rules and the default no-op backend. This recipe is the other half: implementing a real `IScrobbler` so listens actually go somewhere, Last.fm, ListenBrainz, or your own server's activity log.
+
+## Implementing IScrobbler
+
+Two methods, both `Promise`-returning so the plugin can await network calls without blocking playback on their result:
+
+```ts
+import type { IScrobbler, ScrobbleContext } from '@nomercy-entertainment/nomercy-music-player/plugins/scrobble';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+class MyScrobbler implements IScrobbler<MusicPlaylistItem> {
+  readonly id = 'my-backend';
+
+  constructor(private readonly authToken: () => string) {}
+
+  async nowPlaying(item: MusicPlaylistItem): Promise<void> {
+    await fetch('/api/scrobble/now-playing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.authToken()}` },
+      body: JSON.stringify({ track: item.name, artist: item.artist, album: item.album }),
+    });
+  }
+
+  async scrobble(item: MusicPlaylistItem, context: ScrobbleContext): Promise<void> {
+    await fetch('/api/scrobble', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.authToken()}` },
+      body: JSON.stringify({
+        track: item.name,
+        artist: item.artist,
+        album: item.album,
+        startedAt: context.startedAt,
+        listenedSeconds: context.listenedSeconds,
+        source: context.source,
+      }),
+    });
+  }
+}
+```
+
+`nowPlaying()` is optional on the interface, a backend with no "currently listening to" concept can omit it entirely, `ScrobblePlugin` only calls it when present.
+
+## Wiring it in
+
+```ts
+import { ScrobblePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/scrobble';
+
+player.addPlugin(ScrobblePlugin, {
+  scrobbler: new MyScrobbler(() => authStore.accessToken),
+  thresholdRatio: 0.5,      // Last.fm's 50% rule, the default
+  thresholdSeconds: 240,    // Last.fm's 4-minute cap, the default
+  minDurationSeconds: 30,   // never scrobble anything shorter than this
+});
+player.setup({ baseUrl, playlist });
+```
+
+Both thresholds default to the real Last.fm rule already, whichever is reached first wins, override them only when your service's own rules differ.
+
+## Handling backend failures without breaking playback
+
+A failed `scrobble()` or `nowPlaying()` call never throws back into playback, the plugin catches it and reports through its own error channel instead:
+
+```ts
+player.on('plugin:scrobble:scrobbled', ({ item, listenedSeconds }) => {
+  console.log(`Scrobbled "${item.name}" after ${listenedSeconds}s`);
+});
+
+// Reported errors surface through the player's own error/report channel,
+// tagged with codes like `plugin:scrobble/scrobble-failed` — a bad network
+// call never interrupts the track that's actually playing.
+```
+
+## Reading in-progress state
+
+`listened()` and `isScrobbled()` on the plugin instance read the current item's accumulated listened time and whether it already crossed the threshold, useful for a small "scrobbling in 0:42..." indicator instead of only reacting to the final event:
+
+```ts
+const scrobble = player.getPlugin(ScrobblePlugin);
+const secondsListened = scrobble?.listened() ?? 0;
+const alreadyScrobbled = scrobble?.isScrobbled() ?? false;
+```
+
+## Next steps
+
+- [Recipe: Queue & Playlist Panel](/nomercy-music-player/recipes/queue-playlist): rendering `queue()` as a clickable "up next" list.
