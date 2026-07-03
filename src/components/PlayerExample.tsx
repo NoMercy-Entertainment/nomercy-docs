@@ -113,7 +113,12 @@ export function PlayerExample({ snippet }: PlayerExampleProps) {
             config as import('@nomercy-entertainment/nomercy-music-player').MusicPlayerConfig,
           );
           player = instance;
-          cleanupOnReady = onReady?.(instance, el) ?? undefined;
+          void instance.ready().then(() => {
+            // Deferred to after ready() so onReady sees a populated queue: a
+            // snippet that calls item()/play() (music has no autoPlay config)
+            // would otherwise run before the async setup pipeline fills it.
+            if (!cancelled) cleanupOnReady = onReady?.(instance, el) ?? undefined;
+          });
 
           // Music has no consumer-facing `canplay` — that event is video-only
           // (see `IVideoPlayer`). `firstFrame` is the medium-neutral kit event
@@ -130,7 +135,12 @@ export function PlayerExample({ snippet }: PlayerExampleProps) {
             config as import('@nomercy-entertainment/nomercy-video-player').VideoPlayerConfig,
           );
           player = instance;
-          cleanupOnReady = onReady?.(instance, el) ?? undefined;
+          void instance.ready().then(() => {
+            // Deferred to after ready() so onReady sees a populated queue: a
+            // snippet that calls item()/play() (music has no autoPlay config)
+            // would otherwise run before the async setup pipeline fills it.
+            if (!cancelled) cleanupOnReady = onReady?.(instance, el) ?? undefined;
+          });
 
           // `canplay` (not `ready`) is the proof the media itself loaded —
           // `ready` fires once the setup pipeline settles, before the first

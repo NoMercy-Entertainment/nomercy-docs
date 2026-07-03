@@ -196,6 +196,9 @@ export default defineConfig({
         "zustand",
         "@headlessui/react",
         "clsx",
+        "@nomercy-entertainment/nomercy-player-core",
+        "@nomercy-entertainment/nomercy-video-player",
+        "@nomercy-entertainment/nomercy-music-player",
       ],
     },
     server: {

@@ -68,37 +68,56 @@ function stripLicenseHeader(source: string): string {
   return lines.slice(end).join('\n');
 }
 
-/**
- * A config-only example (`export default { config }`) is the island's input,
- * not a program a reader can run. For the rendered block, turn it into the
- * copy-paste-and-play form a consumer actually writes: import the factory,
- * keep the exact config verbatim, then mount and await readiness. The live
- * island still imports the untouched module, so the shown code and the running
- * player stay derived from the one source. Returns null for anything that isn't
- * this shape (kit snippets, build steps with an `onReady` overlay), left as-is.
- */
-function toRunnableSnippet(source: string): string | null {
-  const trimmed = source.trimEnd();
-  if (!/export default \{\s*config\s*\};?$/.test(trimmed)) return null;
-  const pkg = trimmed.match(/@nomercy-entertainment\/nomercy-(?:video|music)-player/)?.[0];
-  if (!pkg) return null;
-
-  let body = trimmed.replace(/\n*export default \{\s*config\s*\};?$/, '');
-
-  const typeRe = /^import type (\{[^}]*\}) from '(@nomercy-entertainment\/nomercy-(?:video|music)-player)';$/m;
-  if (typeRe.test(body)) {
-    body = body.replace(typeRe, (_m, names, p) => `import nmplayer, { type ${names.slice(1, -1).trim()} } from '${p}';`);
-  } else {
-    body = `import nmplayer from '${pkg}';\n\n${body}`;
+/** Extract the whole `const config … = { … };` declaration by brace-matching, ignoring the rest of the file. */
+function extractConfigBlock(source: string): string | null {
+  const decl = source.match(/const config\b[^=]*=\s*\{/);
+  if (!decl || decl.index === undefined) return null;
+  const braceStart = source.indexOf('{', decl.index);
+  let depth = 0;
+  for (let i = braceStart; i < source.length; i++) {
+    if (source[i] === '{') depth++;
+    else if (source[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        let end = i + 1;
+        if (source[end] === ';') end++;
+        return source.slice(decl.index, end);
+      }
+    }
   }
-
-  return `${body.trimEnd()}\n\nconst player = nmplayer('player').setup(config);\nawait player.ready();`;
+  return null;
 }
 
-/** License-stripped, and (for live config-only snippets) rewritten to runnable form. */
-function toDisplaySource(source: string, live: boolean): string {
+/**
+ * An example module is the island's input, not a program a reader can run: it
+ * carries an `export default { config, … }` and, for docs-preview autoplay,
+ * sometimes an `onReady`. For a `runnable` block we rebuild the copy-paste form
+ * a consumer actually writes: import the factory, the exact config verbatim,
+ * mount, await readiness, and (for music, which has no autoPlay config) start
+ * the first item. The config is brace-matched out so preview-only machinery
+ * (onReady, the `player` field) never shows. The live island still imports the
+ * untouched module, so shown code and running player stay one source.
+ */
+function toRunnableSnippet(source: string): string | null {
+  const pkg = source.match(/@nomercy-entertainment\/nomercy-(?:video|music)-player/)?.[0];
+  if (!pkg) return null;
+  const configBlock = extractConfigBlock(source);
+  if (!configBlock) return null;
+
+  const configType = configBlock.match(/const config\s*:\s*([A-Za-z0-9_]+)/)?.[1];
+  const importLine = configType
+    ? `import nmplayer, { type ${configType} } from '${pkg}';`
+    : `import nmplayer from '${pkg}';`;
+  const mount = `const player = nmplayer('player').setup(config);\nawait player.ready();`;
+  const start = pkg.includes('music') ? `${mount}\nplayer.item(0, { autoplay: true });` : mount;
+
+  return `${importLine}\n\n${configBlock}\n\n${start}`;
+}
+
+/** License-stripped, and (when the directive marks it `runnable`) rewritten to copy-paste form. */
+function toDisplaySource(source: string, runnable: boolean): string {
   const stripped = stripLicenseHeader(source);
-  const out = (live ? toRunnableSnippet(stripped) : null) ?? stripped;
+  const out = (runnable ? toRunnableSnippet(stripped) : null) ?? stripped;
   return out.endsWith('\n') ? out.slice(0, -1) : out;
 }
 
@@ -125,9 +144,13 @@ export function remarkSnippet() {
         }
 
         const live = node.attributes?.live !== 'false';
+        // `runnable` opts a snippet into copy-paste rewriting (import + config +
+        // mount). Tutorial snippets (build steps with an onReady overlay) omit
+        // it and show their exact source.
+        const runnable = node.attributes?.runnable !== undefined && node.attributes?.runnable !== 'false';
 
         const source = readFileSync(path.join(examplesDir, `${file}.ts`), 'utf8');
-        const codeValue = toDisplaySource(source, live);
+        const codeValue = toDisplaySource(source, runnable);
 
         const codeNode: any = { type: 'code', lang: 'ts', value: codeValue };
         if (!live) {
