@@ -145,7 +145,15 @@ export function remarkSnippet() {
           children: [],
         };
 
-        replacements.push({ parent, index, nodes: [codeNode, playerElement] });
+        // `preview="first"` renders the live player above the code, so the
+        // reader sees the running result and then the copy-paste example
+        // underneath it. Default keeps code-then-player for tutorial steps.
+        const playerFirst = node.attributes?.preview === 'first';
+        replacements.push({
+          parent,
+          index,
+          nodes: playerFirst ? [playerElement, codeNode] : [codeNode, playerElement],
+        });
       },
     );
 
