@@ -11,7 +11,7 @@ A progress bar needs position, duration, and buffered range in one read; a statu
 
 ## Time
 
-`time()` reads the current position in seconds; `time(seconds)` seeks to it through the same cancellable `beforeSeek` → `seek` → `seeked` cycle the transport methods use. `duration()`, `buffered()`, `bufferedRanges()`, and `seekable()` read the rest of the position picture straight from the backend, each returning a safe zero or empty range when no backend is registered yet.
+`time()` reads the current position in seconds; `time(seconds)` seeks to a new one, there is no separate `seek()` method. The seek runs the same cancellable event cycle the transport methods use, `beforeSeek` then `seek` then `seeked`, which are the events the operation emits, not methods you call. `duration()`, `buffered()`, `bufferedRanges()`, and `seekable()` read the rest of the position picture straight from the backend, each returning a safe zero or empty range when no backend is registered yet.
 
 `timeData()` bundles all of it into one `TimeState` snapshot: `position`, `duration`, `buffered`, `remaining`, and `percentage`, computed together so the values are consistent at the moment of the call instead of drifting across four separate reads.
 
