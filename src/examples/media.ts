@@ -221,11 +221,11 @@ export const anime: VideoPlaylistItem[] = [noRinItem, railWarsItem];
 const whereDreamsDrift: MusicPlaylistItem = {
   id: 'ketsa-01-where-dreams-drift',
   name: 'Where Dreams Drift',
-  url: '/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/01%20Where%20Dreams%20Drift.mp3',
-  cover: `${MUSIC_BASE}/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/cover.jpg`,
+  url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
+  cover: `${MUSIC_BASE}/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/cover.jpg`,
   artist: 'Ketsa',
   album: 'CC BY: Free to Use',
-  lyricsUrl: `${MUSIC_BASE}/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/01%20Where%20Dreams%20Drift.lrc`,
+  lyricsUrl: `${MUSIC_BASE}/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.lrc`,
 };
 
 /** Single track for snippets that need exactly one playable song. */
@@ -236,19 +236,19 @@ export const songs: MusicPlaylistItem[] = [
   {
     id: 'ketsa-02-saviour-above',
     name: 'Saviour Above',
-    url: '/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/02%20Saviour%20Above.mp3',
-    cover: `${MUSIC_BASE}/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/cover.jpg`,
+    url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/02.Saviour.Above.mp3',
+    cover: `${MUSIC_BASE}/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/cover.jpg`,
     artist: 'Ketsa',
     album: 'CC BY: Free to Use',
-    lyricsUrl: `${MUSIC_BASE}/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/02%20Saviour%20Above.lrc`,
+    lyricsUrl: `${MUSIC_BASE}/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/02.Saviour.Above.lrc`,
   },
   {
     id: 'bent-wyre-01-ants-of-the-beat',
     name: 'Ants Of The Beat',
-    url: '/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.mp3',
-    cover: `${MUSIC_BASE}/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/cover.jpg`,
+    url: '/B/bent.wyre/If.Only.Life.Was.This.Easy.Volume.5.The.Beat.Misdirect.(2025)/01.Ants.Of.The.Beat.mp3',
+    cover: `${MUSIC_BASE}/B/bent.wyre/If.Only.Life.Was.This.Easy.Volume.5.The.Beat.Misdirect.(2025)/cover.jpg`,
     artist: 'bent wyre',
     album: 'If Only Life Was This Easy Vol. 5',
-    lyricsUrl: `${MUSIC_BASE}/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.lrc`,
+    lyricsUrl: `${MUSIC_BASE}/B/bent.wyre/If.Only.Life.Was.This.Easy.Volume.5.The.Beat.Misdirect.(2025)/01.Ants.Of.The.Beat.lrc`,
   },
 ];

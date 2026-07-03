@@ -17,12 +17,24 @@ That's the only package you need. `nomercy-player-core` is a regular dependency 
 
 ## Play your first song
 
-Here it is running for real: an MP3 streamed from `baseUrl`. Below the player is the exact code that produced it, ready to copy:
+Here it is running for real: an MP3 streamed from `baseUrl`, played through the native `<audio>` controls that `controls: true` mounts. Below the player is the exact code that produced it, ready to copy:
 
 :::snippet{file="music-quickstart" runnable preview="first"}
 :::
 
-Add a `<div id="player"></div>` to your page for that code to mount into. The music player has no `autoPlay` config field, so playback starts with `player.item(0, { autoplay: true })` once `ready()` resolves. Browsers block unmuted autoplay for `<audio>` the same way they do for `<video>`, so call `player.mute()` first if you need it to start without a user gesture, or trigger the same call from a click.
+The player is headless: it mounts a plain `<audio>` element into your container, and `controls: true` gives it the browser's own control bar. `item(0)` loads the first track so those controls have something to play. Add the container and style it however your app needs, here it sits as a full-width bar along the bottom:
+
+```html
+<div id="player"></div>
+```
+
+```css
+#player audio {
+  position: fixed;
+  inset: auto 0 0 0;
+  width: 100%;
+}
+```
 
 ## The baseUrl pattern
 

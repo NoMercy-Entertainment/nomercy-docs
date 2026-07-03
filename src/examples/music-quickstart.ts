@@ -6,40 +6,29 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import type { IMusicPlayer, MusicPlayerConfig, MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+import type { IMusicPlayer, MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';
 
 const config: MusicPlayerConfig = {
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+  controls: true,
   playlist: [
     {
       id: 'where-dreams-drift',
       name: 'Where Dreams Drift',
       artist: 'Ketsa',
       album: 'CC BY: Free to Use',
-      url: '/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/01%20Where%20Dreams%20Drift.mp3',
-      cover:
-        'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/cover.jpg',
+      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
+      image:
+        'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/cover.jpg',
     },
   ],
 };
 
-// The music player is headless with no video frame, so the preview paints the
-// track cover as the backdrop (the audio equivalent of a video poster) instead
-// of a black box. Playback: the player has no autoPlay config field, and
-// onReady runs before the queue is populated, so wait for ready() then start
-// the first item. Browsers block muted audio autoplay, so in a real app you
-// call item(0, { autoplay: true }) from a user gesture (a click).
-function onReady(player: IMusicPlayer, container: HTMLElement): void {
-  const first = Array.isArray(config.playlist) ? (config.playlist[0] as MusicPlaylistItem) : undefined;
-  if (first?.cover) {
-    container.style.backgroundImage = `url("${first.cover}")`;
-    container.style.backgroundSize = 'cover';
-    container.style.backgroundPosition = 'center';
-  }
-  void player.ready().then(async () => {
-    await player.mute();
-    await player.item(0, { autoplay: true });
-  });
+// Docs-preview only (stripped from the rendered snippet): load the first track
+// so the native control bar has something to play. `controls: true` in the
+// config renders the bar itself.
+function onReady(player: IMusicPlayer): void {
+  void player.item(0);
 }
 
 export default { config, onReady, player: 'music' as const };

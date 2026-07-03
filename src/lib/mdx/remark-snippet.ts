@@ -109,7 +109,9 @@ function toRunnableSnippet(source: string): string | null {
     ? `import nmplayer, { type ${configType} } from '${pkg}';`
     : `import nmplayer from '${pkg}';`;
   const mount = `const player = nmplayer('player').setup(config);\nawait player.ready();`;
-  const start = pkg.includes('music') ? `${mount}\nplayer.item(0, { autoplay: true });` : mount;
+  // Music has no autoPlay config: load the first item so the native controls
+  // have something to play. Video autoplays via its own config flag.
+  const start = pkg.includes('music') ? `${mount}\nplayer.item(0);` : mount;
 
   return `${importLine}\n\n${configBlock}\n\n${start}`;
 }
