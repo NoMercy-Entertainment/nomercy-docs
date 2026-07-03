@@ -57,6 +57,51 @@ const DIRECTIVE_NODE_TYPES = ['containerDirective', 'leafDirective'] as const;
  * attribute; the import itself has to be added once the tree is HAST, not
  * here, or Astro's MDX compiler can't trace it back to a module.
  */
+/** Strip a leading SPDX/Copyright license comment block and the blank lines after it. */
+function stripLicenseHeader(source: string): string {
+  const lines = source.split('\n');
+  if (!lines[0]?.startsWith('//')) return source;
+  let end = 0;
+  while (end < lines.length && lines[end].startsWith('//')) end++;
+  if (!/SPDX|Copyright|Licensed under/.test(lines.slice(0, end).join('\n'))) return source;
+  while (end < lines.length && lines[end].trim() === '') end++;
+  return lines.slice(end).join('\n');
+}
+
+/**
+ * A config-only example (`export default { config }`) is the island's input,
+ * not a program a reader can run. For the rendered block, turn it into the
+ * copy-paste-and-play form a consumer actually writes: import the factory,
+ * keep the exact config verbatim, then mount and await readiness. The live
+ * island still imports the untouched module, so the shown code and the running
+ * player stay derived from the one source. Returns null for anything that isn't
+ * this shape (kit snippets, build steps with an `onReady` overlay), left as-is.
+ */
+function toRunnableSnippet(source: string): string | null {
+  const trimmed = source.trimEnd();
+  if (!/export default \{\s*config\s*\};?$/.test(trimmed)) return null;
+  const pkg = trimmed.match(/@nomercy-entertainment\/nomercy-(?:video|music)-player/)?.[0];
+  if (!pkg) return null;
+
+  let body = trimmed.replace(/\n*export default \{\s*config\s*\};?$/, '');
+
+  const typeRe = /^import type (\{[^}]*\}) from '(@nomercy-entertainment\/nomercy-(?:video|music)-player)';$/m;
+  if (typeRe.test(body)) {
+    body = body.replace(typeRe, (_m, names, p) => `import nmplayer, { type ${names.slice(1, -1).trim()} } from '${p}';`);
+  } else {
+    body = `import nmplayer from '${pkg}';\n\n${body}`;
+  }
+
+  return `${body.trimEnd()}\n\nconst player = nmplayer('player').setup(config);\nawait player.ready();`;
+}
+
+/** License-stripped, and (for live config-only snippets) rewritten to runnable form. */
+function toDisplaySource(source: string, live: boolean): string {
+  const stripped = stripLicenseHeader(source);
+  const out = (live ? toRunnableSnippet(stripped) : null) ?? stripped;
+  return out.endsWith('\n') ? out.slice(0, -1) : out;
+}
+
 export function remarkSnippet() {
   return (tree: Root) => {
     const replacements: { parent: any; index: number; nodes: any[] }[] = [];
@@ -82,11 +127,7 @@ export function remarkSnippet() {
         const live = node.attributes?.live !== 'false';
 
         const source = readFileSync(path.join(examplesDir, `${file}.ts`), 'utf8');
-        // A fenced code block's content never includes the file's own trailing
-        // EOF newline (the closing fence itself delimits the block) — strip
-        // exactly one so the rendered block matches every hand-authored fence
-        // in this repo, not the file's own trailing blank line.
-        const codeValue = source.endsWith('\n') ? source.slice(0, -1) : source;
+        const codeValue = toDisplaySource(source, live);
 
         const codeNode: any = { type: 'code', lang: 'ts', value: codeValue };
         if (!live) {

@@ -1,11 +1,11 @@
 ---
 title: 'Quick Start'
-description: 'Install nomercy-video-player and play a real HLS video with the baseUrl pattern. Copy-paste that works first try.'
+description: 'Install nomercy-video-player and play a real HLS video with the baseUrl pattern. One copy-paste example that works first try.'
 ---
 
 # Video Player: Quick Start
 
-This gets a real video playing in the preview below: Sintel, streamed over HLS, using the baseUrl pattern every NoMercy player and app is built around. Everything on this page is the same code you would copy into your own project.
+This gets a real video playing in the preview below: Sintel, streamed over HLS, using the baseUrl pattern every NoMercy player and app is built around.
 
 ## Install
 
@@ -17,44 +17,26 @@ That's the only package you need. `hls.js` is a regular dependency pulled in thr
 
 ## Play your first video
 
-:::snippet{file="quickstart"}
-:::
-
-That is a real player, playing a real HLS stream fetched from `baseUrl` at request time. `muted` and `autoPlay` are set here only so the preview above starts without a click; drop both for a normal app and call `player.play()` from your own UI on a user gesture instead.
-
-## The baseUrl pattern
-
-`baseUrl` is the one config field every playlist should set. Item paths (`file` in the snippet above) stay relative, exactly the shape a real media server sends, and the player prepends `baseUrl` as a plain string prefix, keeping the whole base path:
-
-```ts
-baseUrl: 'https://your-server.example.com/api/files',
-playlist: [{ /* ... */ file: '/Movie.(2020)/Movie.(2020).m3u8' }],
-```
-
-Move to a different server, a different environment, a signed-URL CDN, and you change one config value; nothing in your catalogue is hardcoded to today's origin. The server sends the base without a trailing slash and paths with a leading slash, so never pre-join an absolute URL into an item yourself. That is the player's job, and doing it twice breaks the moment the base changes.
-
-## Mounting into your own container
-
-The Sintel player above mounts into a container the example creates for you. In your own app, render a container and call the same factory:
+Add a container for the player, then run the code below. The preview underneath is that exact code, running:
 
 ```html
 <div id="player"></div>
 ```
 
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+:::snippet{file="quickstart"}
+:::
 
-const player = nmplayer('player').setup({
-  baseUrl: 'https://your-server.example.com/api/files',
-  playlist: [/* ... */],
-});
+`muted` and `autoPlay` are set here only so the preview starts without a click; drop both for a normal app and call `player.play()` from your own UI on a user gesture instead. `nmplayer('player')` mounts into `document.getElementById('player')`, or returns the instance already registered under that id, so calling it twice is always safe.
 
-await player.ready();
-```
+## The baseUrl pattern
 
-`nmplayer(id)` either mounts a new player into `document.getElementById(id)` or returns the instance already registered under that id, so calling it twice for the same id is always safe.
+`baseUrl` is the one config field every playlist should set. Item paths (`url` above) stay relative, exactly the shape a real media server sends, and the player prepends `baseUrl` as a plain string prefix, keeping the whole base path:
+
+- The server sends the base with no trailing slash (`.../master/Films`) and each item path with a leading slash (`/Sintel.(2010)/...`).
+- Move to a different server, a different environment, or a signed-URL CDN, and you change one config value; nothing in your catalogue is hardcoded to today's origin.
+- Never pre-join an absolute URL into an item yourself. That is the player's job, and doing it twice breaks the moment the base changes.
 
 ## Next steps
 
 - [Guided Tour: Transport](/nomercy-video-player/tour/transport): play(), pause(), and seeking, the first stop on the full method surface.
-- [What is nomercy-video-player](/nomercy-video-player/introduction): the setup-then-freedom model, and how far the plugin system and your own overlay can take you from here.
+- [Build a Player](/nomercy-video-player/build/shell): put a real overlay UI on top of the player, one control at a time.

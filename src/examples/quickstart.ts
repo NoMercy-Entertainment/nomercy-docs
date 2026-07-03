@@ -7,19 +7,18 @@
 // -----------------------------------------------------------------------------
 
 import type { VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
-import { FILMS_BASE, sintel } from './media';
 
-// baseUrl is the best-practice way to point the player at a content origin:
-// items carry relative paths and the player resolves them against baseUrl, so
-// one config value moves the whole catalogue between environments. muted +
-// autoPlay let the live PlayerExample island reach a playing state headlessly.
 const config: VideoPlayerConfig = {
-  baseUrl: FILMS_BASE,
-  baseImageUrl: 'https://image.tmdb.org/t/p',
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
   muted: true,
   autoPlay: true,
   controls: true,
-  playlist: [sintel],
+  playlist: [
+    {
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+    },
+  ],
 };
 
 export default { config };
