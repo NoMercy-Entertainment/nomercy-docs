@@ -1,0 +1,76 @@
+---
+title: 'Lyrics'
+description: 'LyricsPlugin: fetches item.lyricsUrl, parses it through the kit cue parser registry, and fires plugin:lyrics:lineEnter/lineExit on every active-line change.'
+---
+
+{/* Source: packages/nomercy-music-player/src/plugins/lyrics/index.ts */}
+
+# Lyrics
+
+Synced lyrics are timed text, looked up by playback position, the exact same shape the kit's cue parsers already handle. `LyricsPlugin` wires that generic machinery to `item.lyricsUrl` so a karaoke-style line-by-line display is a plugin away instead of a parser you write yourself.
+
+## Registering it
+
+Plugins register before `setup()`, the only point registration is valid:
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/lyrics';
+
+const player = nmplayer('player-container');
+player.addPlugin(LyricsPlugin);
+player.setup({ baseUrl, playlist });
+```
+
+On every `item` change, the plugin resolves `item.lyricsUrl` (or a custom `getLyricsUrl(item)` resolver passed as an option), fetches it through the kit's auth-aware fetch, and parses it through `resolveCueParser(url)`, the same registry [Core: Cue Parsers](/nomercy-player-core/tour/cue-parsers) documents. A `.lrc` file resolves to the built-in `lrcParser` automatically, no extra config needed for the common case.
+
+## lyricsUrl isn't resolved against baseUrl
+
+`item.url` (the track itself) goes through the kit's full URL resolution pipeline, `baseUrl` joins onto a relative path automatically. `lyricsUrl` doesn't, the plugin fetches it exactly as given. Set a fully-qualified URL:
+
+```ts
+{
+  id: 'track-1',
+  name: 'Where Dreams Drift',
+  url: '/K/Ketsa/01 Where Dreams Drift.mp3', // resolved against baseUrl
+  lyricsUrl: 'https://your-server.example.com/lyrics/track-1.lrc', // fetched as-is
+}
+```
+
+## Reading the active line
+
+Events are auto-namespaced onto the player's event bus as `plugin:lyrics:<event>`, there's no separate emitter on the plugin instance to subscribe to directly:
+
+```ts
+player.on('plugin:lyrics:loaded', ({ count }) => {
+  // cue list parsed, `count` lines available
+});
+player.on('plugin:lyrics:lineEnter', ({ text }) => {
+  lyricLine.textContent = text;
+});
+player.on('plugin:lyrics:lineExit', ({ text }) => {
+  // the line that just went inactive
+});
+```
+
+The plugin instance itself also exposes `current()` (the active line's payload, `undefined` between lines) and `all()` (every parsed cue) for a component that reads state on demand instead of subscribing:
+
+```ts
+const lyrics = player.getPlugin(LyricsPlugin);
+const activeLine = lyrics?.current();
+```
+
+## No lyrics file, no error
+
+When `item.lyricsUrl` is missing, the plugin clears its state and does nothing, no fetch, no error. When a fetch or parse fails, it reports through the plugin's error channel instead of throwing, a missing or malformed lyrics file never interrupts playback.
+
+## See it running
+
+`firstSong` carries a real `.lrc` sidecar (an instrumental track's stub line at `0:00`, since not every track in a real catalogue has full lyrics). The player below parses and displays it live.
+
+:::snippet{file="music-tour-lyrics"}
+:::
+
+## Next steps
+
+- [Playback State & Events](/nomercy-music-player/tour/state-events): playState(), bufferState(), and the full event surface a UI subscribes to.

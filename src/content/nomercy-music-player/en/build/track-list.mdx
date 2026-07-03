@@ -1,0 +1,51 @@
+---
+title: 'Build a Player: The Track List'
+description: 'Step 4 of 5: a track-list menu built from queue() and index(), calling item(index, { autoplay: true }) on click.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/queue.ts */}
+
+# Build a Player: The Track List
+
+[Step 3](/nomercy-music-player/build/volume) added volume. This step adds a track list, letting the listener see the whole queue and jump to any entry.
+
+## Building the menu
+
+Rather than guess when the queue is populated, build the menu from `queue()` fresh on every open, exactly the pattern [The Queue](/nomercy-music-player/tour/queue) documents:
+
+```ts
+function renderList() {
+  list.replaceChildren();
+  const items = player.queue();
+  const activeIndex = player.index();
+
+  items.forEach((item, index) => {
+    addOption(item.name, index === activeIndex, () => {
+      player.item(index, { autoplay: true });
+    });
+  });
+}
+```
+
+Each option button is built with `createButton`, the same accessible helper Step 1's play/pause used, so every entry gets a real `aria-label` for free.
+
+## Keeping the highlight in sync
+
+A track can change without a click on this menu at all, `next()`, `previous()`, or a manual [`crossfadeTo()`](/nomercy-music-player/tour/crossfade) all move the cursor. Re-render whenever the queue's `item` event fires and the list happens to be open, instead of only updating on a click inside the menu itself:
+
+```ts
+player.on('item', () => {
+  if (menuIsOpen) renderList();
+});
+```
+
+## See it running
+
+Click the list icon below to open the track list, sourced from the same three-track queue [The Queue](/nomercy-music-player/tour/queue) uses. The active track is highlighted; clicking another jumps straight to it.
+
+:::snippet{file="music-build-4-track-list"}
+:::
+
+## Next steps
+
+- [Step 5: Now Playing & Lyrics](/nomercy-music-player/build/now-playing): cover art, track metadata, and a synced lyric line, completing the player.

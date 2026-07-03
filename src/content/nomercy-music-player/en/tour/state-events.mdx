@@ -1,0 +1,59 @@
+---
+title: 'Playback State & Events'
+description: 'playState(), bufferState(), networkState(), and the music-specific events layered on top of the kit event bus: backend:changed and the crossfade set.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/player-state.ts, packages/nomercy-music-player/src/index.ts, src/types.ts */}
+
+# Playback State & Events
+
+A UI reads state two ways: pull a typed reader when you need a value right now, or subscribe once and let the player push updates. Both come from the kit, music only adds the events specific to its own medium on top.
+
+## Typed state readers
+
+These come straight from `nomercy-player-core` (see [Core: Time & State](/nomercy-player-core/tour/time-and-state) for the full contract) and work identically here:
+
+- `playState()`: `PlayState.IDLE` / `LOADING` / `PLAYING` / `PAUSED` / `STOPPED` / `ERROR`.
+- `bufferState()`: `BufferState.IDLE` / `LOADING` / `SEEKING` / `STALLED`.
+- `networkState()`: `NetworkState.ONLINE` / `OFFLINE` / `SLOW`.
+- `volumeState()`: `VolumeState.UNMUTED` / `MUTED` (see [Volume](/nomercy-music-player/tour/volume)).
+- `timeData()`: one `TimeState` snapshot (see [Time & Seeking](/nomercy-music-player/tour/time)).
+
+```ts
+import { PlayState } from '@nomercy-entertainment/nomercy-music-player';
+
+if (player.playState() === PlayState.PLAYING) {
+  // ...
+}
+```
+
+`bufferState()` and `networkState()` have no dedicated push event on this library. A status pill reads them on demand, alongside a transport event, or polls on a short interval if it needs to reflect buffering mid-track.
+
+## Music-specific events
+
+Everything below is unique to `MusicEventMap`, layered on top of the kit's `BaseEventMap` (transport, queue, volume, i18n, the events every tour page so far has already covered).
+
+| Event | Payload | Fires when |
+| --- | --- | --- |
+| `backend:changed` | `{ kind }` | `backend(kind)` finished swapping the active audio backend. |
+| `beforeCrossfade` | `BeforeEvent<{ from, to, duration }>` | Before `crossfadeTo()` starts the fade (see [Crossfade](/nomercy-music-player/tour/crossfade)). |
+| `crossfadeStart` / `crossfadeComplete` | `{ from, to, duration }` / `{ item }` | A crossfade begins / finishes. |
+| `crossfadePrevented` | `{ reason, cause? }` | A `beforeCrossfade` listener cancelled it. |
+| `time` | `{ time, percentage, position, duration, remaining }` | Every backend tick, richer than the kit's plain `{ time }` (see [Time & Seeking](/nomercy-music-player/tour/time)). |
+
+```ts
+player.on('backend:changed', ({ kind }) => {
+  // kind: 'audio-element' | 'webaudio'
+});
+```
+
+## See it running
+
+Toggling play/pause below updates `playState()`; the status line reads it alongside `bufferState()`/`networkState()` on an interval, since neither pushes its own event.
+
+:::snippet{file="music-tour-state-events"}
+:::
+
+## Next steps
+
+- [Build a Player: The Shell](/nomercy-music-player/build/shell): stop reading the API and start wiring it to real buttons, step by step.

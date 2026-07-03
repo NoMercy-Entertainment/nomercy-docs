@@ -1,0 +1,61 @@
+---
+title: 'Build a Player: The Scrubber'
+description: "Step 2 of 5: a progress bar reading position from the 'time' event and length from 'duration', seeking with time(seconds) only once the user releases."
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/time.ts */}
+
+# Build a Player: The Scrubber
+
+[Step 1](/nomercy-music-player/build/shell) built the bar and a play/pause button. This step adds a scrubber next to it, nothing about Step 1's code changes.
+
+## A native range input
+
+A plain `<input type="range">` is the whole scrubber, no custom drag math needed. `createElement` builds it the same way it built the bar:
+
+```ts
+const scrubber = player.createElement('input', 'my-scrubber')
+  .appendTo(bar)
+  .get();
+scrubber.type = 'range';
+scrubber.min = '0';
+scrubber.max = String(player.duration() || 0);
+scrubber.step = '0.1';
+```
+
+## Reading position without polling
+
+The scrubber's value tracks the player, not the other way around, by default. Subscribe to `'time'` for position and `'duration'` for length (both covered on [Time & Seeking](/nomercy-music-player/tour/time)), never poll `player.time()` in a loop:
+
+```ts
+player.on('duration', ({ duration }) => {
+  scrubber.max = String(duration);
+});
+player.on('time', ({ time }) => {
+  if (!dragging) scrubber.value = String(time);
+});
+```
+
+## Not fighting the user's drag
+
+Without the `dragging` guard above, an incoming `'time'` update mid-drag would snap the thumb back to the actual playback position every few hundred milliseconds, fighting the user's own gesture. Track it with `pointerdown`, and only seek on `change` (fires once, on release) instead of `input` (fires continuously) so `time()` isn't called dozens of times per drag:
+
+```ts
+let dragging = false;
+scrubber.addEventListener('pointerdown', () => { dragging = true; });
+scrubber.addEventListener('change', () => {
+  dragging = false;
+  void player.time(Number(scrubber.value)); // the same seek Time & Seeking describes
+});
+```
+
+## See it running
+
+Drag the scrubber below, it seeks on release through exactly `player.time(seconds)`, the method [Time & Seeking](/nomercy-music-player/tour/time) documents.
+
+:::snippet{file="music-build-2-scrubber"}
+:::
+
+## Next steps
+
+- [Step 3: Volume](/nomercy-music-player/build/volume): a volume slider and mute button, applying on every drag instead of waiting for release.

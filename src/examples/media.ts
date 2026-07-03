@@ -225,6 +225,7 @@ const whereDreamsDrift: MusicPlaylistItem = {
   cover: `${MUSIC_BASE}/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/cover.jpg`,
   artist: 'Ketsa',
   album: 'CC BY: Free to Use',
+  lyricsUrl: `${MUSIC_BASE}/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/01%20Where%20Dreams%20Drift.lrc`,
 };
 
 /** Single track for snippets that need exactly one playable song. */
@@ -239,6 +240,7 @@ export const songs: MusicPlaylistItem[] = [
     cover: `${MUSIC_BASE}/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/cover.jpg`,
     artist: 'Ketsa',
     album: 'CC BY: Free to Use',
+    lyricsUrl: `${MUSIC_BASE}/K/Ketsa/%5B2025%5D%20CC%20BY%20-%20FREE%20TO%20USE%20FOR%20ANYTHING/02%20Saviour%20Above.lrc`,
   },
   {
     id: 'bent-wyre-01-ants-of-the-beat',
@@ -247,5 +249,6 @@ export const songs: MusicPlaylistItem[] = [
     cover: `${MUSIC_BASE}/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/cover.jpg`,
     artist: 'bent wyre',
     album: 'If Only Life Was This Easy Vol. 5',
+    lyricsUrl: `${MUSIC_BASE}/B/bent%20wyre/%5B2025%5D%20If%20Only%20Life%20Was%20This%20Easy%20Volume%205%20-%20The%20Beat%20Misdirect/01%20Ants%20Of%20The%20Beat.lrc`,
   },
 ];

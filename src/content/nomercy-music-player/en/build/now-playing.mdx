@@ -1,0 +1,63 @@
+---
+title: 'Build a Player: Now Playing & Lyrics'
+description: 'Step 5 of 5: a now-playing panel (cover, title, artist) plus a synced lyric line via LyricsPlugin, completing the overlay this tutorial built.'
+---
+
+{/* Source: packages/nomercy-music-player/src/plugins/lyrics/index.ts */}
+
+# Build a Player: Now Playing & Lyrics
+
+[Step 4](/nomercy-music-player/build/track-list) added the track list. This is the last step: a now-playing panel and a synced lyric line, completing the overlay this tutorial has been building since [The Shell](/nomercy-music-player/build/shell).
+
+## Cover art needs a fully-qualified URL
+
+`item.url` (the track itself) resolves against `baseUrl` automatically. `item.cover` doesn't go through that same pipeline unless your app also configures a base for it, so a catalogue without a separate image origin should set `cover` to a full URL directly, the pattern [The Queue](/nomercy-music-player/tour/queue) sets up:
+
+```ts
+const cover = player.createElement('img', 'my-cover').appendTo(panel).get();
+cover.src = player.item()?.cover ?? '';
+```
+
+## Lyrics need a plugin, same rule as every plugin in this trio
+
+Painting a synced lyric line is [`LyricsPlugin`](/nomercy-music-player/tour/lyrics)'s job, registered in `configure()`, *before* `setup()` runs, registering after misses the plugin's own `use()` call during the setup pipeline:
+
+```ts
+import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/lyrics';
+
+const player = nmplayer('my-container');
+player.addPlugin(LyricsPlugin);
+player.setup(config);
+await player.ready();
+```
+
+## Wiring the panel
+
+`item` updates the cover, title, and artist together, since they all come from the same track. The lyric line is separate, driven by the plugin's own namespaced event:
+
+```ts
+player.on('item', ({ item }) => {
+  cover.src = item?.cover ?? '';
+  title.textContent = item?.name ?? '';
+  artist.textContent = item?.artist ?? '';
+  lyricLine.textContent = ''; // clear until the new track's lyrics resolve
+});
+player.on('plugin:lyrics:lineEnter', ({ text }) => {
+  lyricLine.textContent = text;
+});
+```
+
+## What you built
+
+Five steps, one player: a shell with play/pause, a scrubber that doesn't fight the user's drag, live volume with a mute button that can't drift, a track list built fresh from the real queue, and a now-playing panel with synced lyrics. Every method behind every piece is documented in full on the [Guided Tour](/nomercy-music-player/tour/transport), this tutorial only wired them to DOM you control instead of leaving you to design it from a bare method list.
+
+## See it running
+
+The complete player, all five steps at once.
+
+:::snippet{file="music-build-5-now-playing"}
+:::
+
+## Next steps
+
+- [Guided Tour: Transport](/nomercy-music-player/tour/transport): review the full method surface behind every piece this tutorial built.

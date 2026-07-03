@@ -1,0 +1,60 @@
+---
+title: 'Time & Seeking'
+description: 'time(), duration(), timeData(), rewind()/forward()/restart(), and seekByPercentage() — the position surface a scrubber reads and drives.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/time.ts, src/core/mixins/transport.ts */}
+
+# Time & Seeking
+
+Position and duration come straight from `nomercy-player-core`, same as transport. Music adds one thing on top: the `'time'` event carries a richer payload than the kit's plain `{ time }`, because a progress bar almost always wants percentage and remaining time in the same read.
+
+## Reading and seeking
+
+`time()` reads the current position in seconds; `time(seconds)` seeks to it through the kit's `beforeSeek` → `seek` → `seeked` cycle, same as every other transport action:
+
+```ts
+const currentTime = player.time(); // seconds
+await player.time(120); // jump to 2:00
+```
+
+`duration()` returns the total track length once metadata resolves (`0` before then). `buffered()` and `bufferedRanges()` read how far ahead playback has downloaded. `timeData()` bundles all of it into one `TimeState` snapshot, `position`, `duration`, `buffered`, `remaining`, `percentage`, computed together so the values agree at the moment of the call instead of drifting across separate reads:
+
+```ts
+const { position, duration, percentage } = player.timeData();
+```
+
+## Relative seeks
+
+`rewind(seconds?)` and `forward(seconds?)` compute a relative target from the current position and call `time()` internally; both default to a sane step size when called with no argument. `restart()` seeks to `0` and resumes playback, an atomic intent, not a seek-then-play sequence, so a cancelled seek skips the resulting `play()` too:
+
+```ts
+await player.rewind(10); // -10s
+await player.forward(30); // +30s
+await player.restart();
+```
+
+`seekByPercentage(pct)` seeks to a position expressed as `0`-`100` percent of `duration()`, the calculation a progress bar's click handler would otherwise have to do by hand.
+
+## The richer `'time'` event
+
+Core's `BaseEventMap` defines `'time'` as `{ time: number }`. `nomercy-music-player` overrides it with everything a scrubber needs in one payload:
+
+```ts
+player.on('time', ({ time, percentage, position, duration, remaining }) => {
+  scrubber.value = String(time);
+});
+```
+
+`position` is an alias for `time` in seconds, `percentage` is elapsed time as `0`-`100` of `duration`, `remaining` is seconds left. Subscribe to this instead of polling `timeData()` from a render loop.
+
+## See it running
+
+Drag the scrubber below, it seeks on release through exactly `player.time(seconds)`. The two buttons call `rewind(10)` and `forward(10)`.
+
+:::snippet{file="music-tour-time"}
+:::
+
+## Next steps
+
+- [Volume](/nomercy-music-player/tour/volume): volume(), mute()/unmute(), and the volume gain state a slider or mute icon reads.

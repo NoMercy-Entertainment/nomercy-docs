@@ -1,0 +1,49 @@
+---
+title: 'Transport'
+description: 'play(), pause(), stop(), togglePlayback(), and next()/previous() — the queue-driven playback commands every music UI wires first.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/transport.ts */}
+
+# Transport
+
+`nomercy-music-player` doesn't reimplement transport. Every method below is `nomercy-player-core`'s [Transport Contract](/nomercy-player-core/tour/transport): a cancellable `before*` dispatch, then a call into the active audio backend. Music adds nothing to the surface here, only a real audio element (or Web Audio graph) for it to drive.
+
+## Play, pause, stop
+
+`play()`, `pause()`, `stop()`, and `togglePlayback()` all return a `Promise<void>` that resolves once the backend call settles:
+
+```ts
+await player.play();
+await player.pause();
+await player.togglePlayback(); // flips based on the current playState()
+await player.stop();
+```
+
+Every one of these accepts `ActionOptions`: `{ source, silent }`. `source` defaults to `'user'` and gets stamped onto the emitted event, so a Connect plugin syncing playback across devices can tell its own remote-triggered `play()` apart from a real click.
+
+## Moving through the queue
+
+`next()` and `previous()` move the queue cursor and load the resulting item, honoring whatever `repeatState()` is set to (see [The Queue](/nomercy-music-player/tour/queue) for how the cursor itself works):
+
+```ts
+await player.next();
+await player.previous();
+```
+
+There's no music-only variant of either, the shuffle-aware, repeat-aware logic lives once in the kit and every player built on it gets it for free.
+
+## Guard first
+
+Every transport method calls the kit's `_assertReady()` guard before doing anything else. Calling `play()` before `setup()` resolves, or after `dispose()`, throws a typed `StateError` instead of silently reaching into missing state, the same contract [Core: Transport Contract](/nomercy-player-core/tour/transport) documents in full, including the `preventDefault()` / `delay()` shape of the `before*` event.
+
+## See it running
+
+Music ships no play button of its own, so the bar below is real DOM this snippet builds against the exact same methods documented above. [Build a Player](/nomercy-music-player/build/shell) walks through building it step by step.
+
+:::snippet{file="music-tour-transport"}
+:::
+
+## Next steps
+
+- [Time & Seeking](/nomercy-music-player/tour/time): time(), duration(), and rewind()/forward() for the scrubber this bar is missing.

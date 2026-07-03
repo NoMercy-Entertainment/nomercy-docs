@@ -1,0 +1,53 @@
+---
+title: 'Build a Player: Volume'
+description: 'Step 3 of 5: a volume slider that applies live on every drag, and a mute button reflecting volumeState() instead of a local boolean.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/volume.ts */}
+
+# Build a Player: Volume
+
+[Step 2](/nomercy-music-player/build/scrubber) added seeking. This step adds volume, a slider and a mute button, next to it.
+
+## Live, not on release
+
+The scrubber only seeks once the user releases the thumb, seeking mid-drag would spam network requests for segments the user hasn't settled on. Volume has no such cost, apply it on every `input` event so the slider tracks the pointer exactly:
+
+```ts
+volumeSlider.addEventListener('input', () => {
+  void player.volume(Number(volumeSlider.value)); // see Volume — 0-100, clamped
+});
+```
+
+## A mute button that can't drift
+
+A naive mute button tracks its own `isMuted` boolean, toggling it in the click handler. That drifts the moment anything else changes mute state, a keyboard shortcut, a Connect sync, another tab. Read `volumeState()` (see [Volume](/nomercy-music-player/tour/volume)) instead, and resync on the `'mute'` event rather than the click:
+
+```ts
+import { VolumeState } from '@nomercy-entertainment/nomercy-music-player';
+
+const muteButton = player.createButton('my-mute', 'Mute', () => {
+  player.toggleMute(); // the click only requests the change
+});
+
+const syncMute = () => {
+  const muted = player.volumeState() === VolumeState.MUTED; // the event confirms it
+  muteButton.textContent = muted ? '🔇' : '🔊';
+  muteButton.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
+};
+player.on('mute', syncMute);
+syncMute();
+```
+
+The click handler only ever *requests* a change; the `'mute'` event is what actually updates the icon, the same pattern Step 1's play/pause button uses for `playState()`.
+
+## See it running
+
+Drag the volume slider or click mute below.
+
+:::snippet{file="music-build-3-volume"}
+:::
+
+## Next steps
+
+- [Step 4: The Track List](/nomercy-music-player/build/track-list): list every queued track and jump to one on click.

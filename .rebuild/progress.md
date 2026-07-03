@@ -9,7 +9,8 @@ Altitude: core = compose-your-own-player (under the hood); video/music = consume
   plugins-adapters, reference). check-docs no longer reports ARC-SECTION-MISSING for core.
 - [x] video content: DONE, all 7 arc stages (intro, quickstart, tour, build, recipes,
   plugins-adapters, reference). check-docs no longer reports ARC-SECTION-MISSING for video.
-- [ ] music content (in progress: intro+quickstart done, see below)
+- [ ] music content (in progress: intro+quickstart+tour+build done, see below; recipes,
+  plugins-adapters, reference still open)
 - [ ] final cross-library verify (check-docs + build + nav + a11y)
 checkpoint (uncommitted): video intro+quickstart — reused src/examples/quickstart.ts + media.ts
 (no new example needed) + nav-structure.ts Getting Started group + navigation.ts/index.astro/
@@ -65,3 +66,16 @@ Getting-Started-only pattern used for video/core's first checkpoint + navigation
 core's reference/utilities.mdx cross-link fixes (/overview -> /introduction). check:nav green,
 `npx astro build` exit 0, `npx playwright test e2e/snippets.spec.ts` 2/2 (music island +
 every pre-existing video island reach data-player-ready). See .rebuild/music-intro-report.md.
+checkpoint (uncommitted): music tour/* (9 pages: transport, time, volume, queue, crossfade,
+equalizer, audio-output, lyrics, state-events) + build/* (5 pages: shell, scrubber, volume,
+track-list, now-playing) + 14 new src/examples/music-{tour,build}-*.ts + nav-structure.ts Guided
+Tour/Build a Player groups for nomercy-music-player. Music ships no native chrome (no `controls`
+equivalent), so every tour/build snippet builds a small real DOM overlay in `onReady()` instead of
+relying on a native bar; build steps are cumulative same shape as video's tutorial, tour snippets
+are each a standalone minimal demo. `media.ts` gained a real, HEAD-verified `lyricsUrl` on all 3
+songs (real `.lrc` fixture in nomercy-media, `[00:00.00]Instrumental`), documented as NOT
+baseUrl-resolved (fetched as-is by LyricsPlugin, unlike item.url) — e2e/media.spec.ts gained a
+matching lyricsUrl HEAD check (18/18 pass). check:nav green, `npx astro build` exit 0 (355 pages),
+check:docs reports only the expected ARC-SECTION-MISSING (recipes/plugins-adapters/reference, out
+of scope), `npx playwright test e2e/snippets.spec.ts` 2/2 (every music + video island reaches
+data-player-ready). See .rebuild/music-tour-report.md.

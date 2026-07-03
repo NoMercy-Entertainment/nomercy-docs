@@ -1,0 +1,73 @@
+---
+title: 'Crossfade'
+description: 'crossfadeTo(item, opts), isTransitioning(), and the crossfadeEnabled/crossfadeDefaults config that makes music the one player in the trio that overlaps tracks instead of cutting between them.'
+---
+
+{/* Source: packages/nomercy-music-player/src/index.ts, src/adapters/audio-backend/IAudioBackend.ts */}
+
+# Crossfade
+
+Moving from one track to the next without a gap, or with a real overlap instead of a hard cut, is the one job that's genuinely specific to listening. `crossfadeTo(item, opts)` is `nomercy-music-player`'s own method, not something inherited from the kit.
+
+## crossfadeTo()
+
+Call it with any queue item to fade the current track out while the target fades in, over a configurable duration:
+
+```ts
+const upNext = player.peekNext();
+if (upNext) {
+  await player.crossfadeTo(upNext, { duration: 4, curve: 'equal-power' });
+}
+```
+
+Internally this loads the target into a second audio element (or a second Web Audio node graph on `WebAudioBackend`), primes it, ramps both gains over the window, then swaps it in as the primary and advances the queue cursor, the same `item` event a normal `next()` fires. `isTransitioning()` reports `true` while a fade is in flight; a second `crossfadeTo()` call during that window is ignored rather than stacking.
+
+`opts.duration` falls back to `crossfadeDefaults.duration` on the config, then to 5 seconds. `opts.curve` is `'linear'` or `'equal-power'` (the perceptually smoother default, no volume dip at the midpoint). `opts.startAt` seeks the incoming track to a start position in milliseconds before the fade begins.
+
+## The event sequence
+
+```ts
+player.on('beforeCrossfade', (e) => {
+  // e.data: { from, to, duration } — call e.preventDefault() to cancel
+});
+player.on('crossfadeStart', ({ from, to, duration }) => { /* ... */ });
+player.on('crossfadeComplete', ({ item }) => { /* ... */ });
+player.on('crossfadePrevented', ({ reason }) => { /* ... */ });
+```
+
+`beforeCrossfade` is cancellable the same way every other `before*` event is, a listener can `preventDefault()` and no buffers are touched, `from` keeps playing, `crossfadePrevented` fires instead of `crossfadeStart`.
+
+## Automatic crossfade between queue items
+
+Manually calling `crossfadeTo()` is one use of crossfade. The other is automatic: `setup()` defaults `crossfadeEnabled: true` for music, so the queue's own natural track-boundary transition already overlaps instead of cutting. `crossfadeLeadSeconds` / `crossfadeTailSeconds` (both default `3`) control that window:
+
+```ts
+player.setup({
+  baseUrl,
+  playlist: tracks,
+  crossfadeLeadSeconds: 5,
+  crossfadeTailSeconds: 5,
+  crossfadeDefaults: { curve: 'equal-power' },
+});
+```
+
+That automatic behavior is `CrossfadeTransitionStrategy`, a medium-neutral kit primitive, not something this page reimplements. See [Adapter: Transition Strategy](/nomercy-player-core/plugins-adapters/adapter-transition-strategy) for the full mechanism, `crossfadeTo()` above is the explicit, on-demand version of the same idea.
+
+## Backend precision
+
+`AudioElementBackend` (the default) drives the fade with a `requestAnimationFrame` loop, not sample-accurate, expect sub-frame-length seams at track boundaries. `WebAudioBackend` routes through a real `AudioContext` graph for a sample-accurate ramp instead:
+
+```ts
+await player.backend('webaudio');
+```
+
+## See it running
+
+The button below calls `crossfadeTo()` against whatever track is up next in the queue.
+
+:::snippet{file="music-tour-crossfade"}
+:::
+
+## Next steps
+
+- [Equalizer](/nomercy-music-player/tour/equalizer): the Web Audio effect chain both backends expose, shared with the rest of the trio.

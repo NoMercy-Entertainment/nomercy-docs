@@ -70,4 +70,11 @@ for (const item of songs) {
     const response = await request.head(item.cover!);
     expect(response.status(), item.cover!).toBe(200);
   });
+
+  test(`song "${item.name}" has a working lyrics URL`, async ({ request }) => {
+    expect(item.lyricsUrl, 'lyricsUrl must be set').toBeTruthy();
+
+    const response = await request.head(item.lyricsUrl!);
+    expect(response.status(), item.lyricsUrl!).toBe(200);
+  });
 }

@@ -71,6 +71,8 @@ export const navStructure: Record<string, NavGroupDef[]> = {
   // quickstart, tour, build, recipes, plugins-adapters, reference.
   'nomercy-music-player': [
     { group: "Getting Started", pages: ['introduction', 'quickstart'] },
+    { group: "Guided Tour", pages: ['tour/transport', 'tour/time', 'tour/volume', 'tour/queue', 'tour/crossfade', 'tour/equalizer', 'tour/audio-output', 'tour/lyrics', 'tour/state-events'] },
+    { group: "Build a Player", pages: ['build/shell', 'build/scrubber', 'build/volume', 'build/track-list', 'build/now-playing'] },
   ],
   'nomercy-api': [
     { group: "Getting Started", pages: ['overview'] },

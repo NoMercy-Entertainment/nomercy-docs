@@ -1,0 +1,44 @@
+---
+title: 'Audio Output Devices'
+description: 'audioOutputs(), selectAudioOutput(), and audioOutput(deviceId) — routing playback to a specific speaker or Bluetooth device.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/audio-output.ts */}
+
+# Audio Output Devices
+
+Picking which speaker plays audio matters constantly for a listening session, headphones now, a Bluetooth speaker in ten minutes, a desk speaker after that. The device-routing surface lives in the kit, `nomercy-music-player` is simply the library most consumers reach for it from.
+
+## Listing devices
+
+`audioOutputs()` enumerates available output devices without prompting for permission:
+
+```ts
+const devices = await player.audioOutputs(); // MediaDeviceInfo[]
+```
+
+Browsers gate device *labels* behind a permission grant, without one, `enumerateDevices()` still returns entries, just with an empty `label` on some devices. Render what you get, a picker button covers the rest.
+
+## Picking one
+
+`selectAudioOutput()` opens the browser's own output picker (Chrome ≥105 only, everything else throws a structured `BrowserPolicyError`) and resolves with the chosen device, or `null` if the user cancels:
+
+```ts
+const device = await player.selectAudioOutput();
+if (device) {
+  await player.audioOutput(device.deviceId);
+}
+```
+
+`audioOutput()` reads the currently-selected device id (`null` for the system default); `audioOutput(deviceId)` routes playback there by calling `setSinkId()` on the backend's media element, and throws `BrowserPolicyError` when the browser doesn't support it.
+
+## See it running
+
+The list below comes from `audioOutputs()` directly, no picker prompt on load. "Choose device…" opens the real browser picker on click.
+
+:::snippet{file="music-tour-audio-output"}
+:::
+
+## Next steps
+
+- [Lyrics](/nomercy-music-player/tour/lyrics): the synced-lyrics plugin, parsing a timed lyrics file into cues and firing an event on every active line change.
