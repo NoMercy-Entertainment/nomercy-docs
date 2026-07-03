@@ -14,6 +14,10 @@ Adaptive bitrate is on by default, `hls.js` (or Safari's native HLS) keeps switc
 `qualityLevels()` returns the manifest's bitrate renditions once the `'levels'` event has fired, each with `bitrate`, and `height`/`width` when the manifest provides them. `qualityLevels({ includeUnsupported: true })` also returns renditions the current device can't decode, useful for showing them disabled in a menu rather than hiding them entirely:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player');
+
 const levels = player.qualityLevels(); // QualityLevel[]
 const withUnsupported = player.qualityLevels({ includeUnsupported: true });
 ```
@@ -44,13 +48,6 @@ player.setup({
 ## Bandwidth and capability checks
 
 `bandwidth()` reads the backend's current bandwidth estimate in bits per second, the number ABR is deciding against; `bandwidthEstimator(fn)` overrides the estimator with your own (a shared measurement across multiple players on the same page, for example). `canPlay(profile)` asks the platform's `MediaCapabilities` whether a given content profile (`contentType`, resolution, bitrate, framerate) is decodable before you offer it in a menu at all.
-
-## See it running
-
-`defaultQuality: 'auto'` below is the same value the kit applies with no config at all, set explicitly here so the field this page describes is visible in the sample.
-
-:::snippet{file="video-tour-quality" live="false"}
-:::
 
 ## Next steps
 

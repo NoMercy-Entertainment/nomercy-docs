@@ -32,6 +32,10 @@ interface IChapterSource {
 `VttChapterSource` reads chapters straight from `item.chapters`, the typed field `normalizePlaylistItem` already populates from a `kind: 'chapters'` sidecar track at queue-ingest time (see [The Queue & Playlist](/nomercy-video-player/tour/queue)). It does not fetch or parse a file itself, the parsing already happened during normalization, this class's job is only the synchronous `current(time)` lookup on top of whatever list is already there:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player');
+
 const source = new VttChapterSource();
 await source.load(player.item()!); // caches item.chapters
 const active = source.current(player.time()); // Chapter | null, no async lookup

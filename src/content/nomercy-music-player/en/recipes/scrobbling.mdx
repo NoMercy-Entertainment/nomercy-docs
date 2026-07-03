@@ -52,8 +52,10 @@ class MyScrobbler implements IScrobbler<MusicPlaylistItem> {
 ## Wiring it in
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
 import { ScrobblePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/scrobble';
 
+const player = nmplayer('player');
 player.addPlugin(ScrobblePlugin, {
   scrobbler: new MyScrobbler(() => authStore.accessToken),
   thresholdRatio: 0.5,      // Last.fm's 50% rule, the default
@@ -61,8 +63,15 @@ player.addPlugin(ScrobblePlugin, {
   minDurationSeconds: 30,   // never scrobble anything shorter than this
 });
 player.setup({
-  baseUrl: 'https://your-server.example.com/api/files',
-  playlist: [/* ... */],
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+  playlist: [
+    {
+      id: 'ketsa-01-where-dreams-drift',
+      name: 'Where Dreams Drift',
+      artist: 'Ketsa',
+      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
+    },
+  ],
 });
 ```
 

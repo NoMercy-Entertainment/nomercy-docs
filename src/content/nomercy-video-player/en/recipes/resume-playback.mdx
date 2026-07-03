@@ -14,6 +14,10 @@ The player never persists watch position on its own, it reads `item.progress` if
 `'progress'` fires `{ time, duration, percentage }`, throttled by `progressIntervalMs` (5 seconds by default), cheap enough to persist on every fire without debouncing again in your own code:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player');
+
 player.on('progress', ({ time, percentage }) => {
   void saveProgress(player.item()?.id, {
     time,
@@ -38,13 +42,19 @@ interface WatchProgress {
 ```
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+// `items` is your own catalogue (a page's fetched list, a store, ...) and
+// `progressStore` your own persistence layer — the one piece every app
+// supplies itself. Everything below `playlist` is real, runnable v2 API.
 const playlist: VideoPlaylistItem[] = items.map((item) => ({
   ...item,
   progress: progressStore.get(item.id), // WatchProgress | undefined
 }));
 
+const player = nmplayer('player');
 player.setup({
-  baseUrl: 'https://your-server.example.com/api/files',
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
   playlist,
   autoPlay: true,
 });

@@ -14,6 +14,18 @@ The last two steps had nothing to add — the native bar already covers transpor
 Earlier versions of this tutorial rebuilt play/pause, seeking, and volume as a competing custom bar sitting next to the native one. That's gone — the config below is still just `controls: true`. What's new is a single small button, positioned clear of the native bar, that opens a panel built fresh from `queue()`/`index()` on every open, exactly the pattern [The Queue](/nomercy-music-player/tour/queue) documents:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+
+const player = nmplayer('player');
+const list = document.querySelector<HTMLElement>('#track-list')!;
+
+function addOption(label: string, active: boolean, onSelect: () => void): void {
+  const button = player.createButton(`track-${label}`, label, onSelect);
+  button.textContent = label;
+  if (active) button.setAttribute('aria-current', 'true');
+  list.appendChild(button);
+}
+
 function renderList() {
   list.replaceChildren();
   const items = player.queue();
@@ -34,6 +46,8 @@ Each option button is built with `createButton`, `nomercy-player-core`'s accessi
 A track can change without a click on this menu at all — `next()`, `previous()`, or a manual [`crossfadeTo()`](/nomercy-music-player/tour/crossfade) all move the cursor. Re-render whenever the queue's `item` event fires and the list happens to be open, instead of only updating on a click inside the menu itself:
 
 ```ts
+let menuIsOpen = false;
+
 player.on('item', () => {
   if (menuIsOpen) renderList();
 });

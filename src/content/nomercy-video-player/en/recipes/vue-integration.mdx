@@ -13,35 +13,47 @@ description: 'A Vue 3 composable wrapping NMVideoPlayer: reactive state from eve
 
 ```ts
 // composables/useVideoPlayer.ts
-import { ref, onUnmounted } from 'vue';
+import { onMounted, onUnmounted, ref, shallowRef } from 'vue';
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { PlayState } from '@nomercy-entertainment/nomercy-video-player';
-import type { VideoPlayerConfig, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+import type { IVideoPlayer, VideoPlayerConfig, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
 export function useVideoPlayer(containerId: string, config: VideoPlayerConfig) {
+  // `shallowRef`, not `ref` — the player instance is a plain class holding
+  // its own internal state; deep-proxying it through Vue's reactivity would
+  // be both wasteful and unsupported. Only reassigning `.value` (done once,
+  // in `onMounted`, below) is reactive; the instance's own methods and
+  // properties are read as-is.
+  const player = shallowRef<IVideoPlayer | null>(null);
   const currentItem = ref<VideoPlaylistItem | undefined>(undefined);
   const isPlaying = ref(false);
   const currentTime = ref(0);
   const duration = ref(0);
   const volume = ref(100);
 
-  const player = nmplayer(containerId).setup(config);
+  onMounted(() => {
+    // `nmplayer(containerId)` looks up the DOM element by id immediately —
+    // it throws `core:player/element-missing` if the element isn't there
+    // yet. `onMounted` is the one point in a component's lifecycle Vue
+    // guarantees the template's own elements (including `#${containerId}`)
+    // are in the DOM, so the lookup is created here, not at composable-call
+    // time (`<script setup>`'s top level runs during the *setup* phase,
+    // before the template has mounted anything).
+    const instance = nmplayer(containerId).setup(config);
+    player.value = instance;
 
-  player.on('item', ({ item }) => {
-    currentItem.value = item;
+    instance.on('item', ({ item }) => { currentItem.value = item; });
+    instance.on('play', () => { isPlaying.value = true; });
+    instance.on('playing', () => { isPlaying.value = true; });
+    instance.on('pause', () => { isPlaying.value = false; });
+    instance.on('ended', () => { isPlaying.value = false; });
+    instance.on('time', ({ time }) => { currentTime.value = time; });
+    instance.on('duration', ({ duration: total }) => { duration.value = total; });
+    instance.on('volume', ({ level }) => { volume.value = level; });
   });
 
-  player.on('play', () => { isPlaying.value = true; });
-  player.on('playing', () => { isPlaying.value = true; });
-  player.on('pause', () => { isPlaying.value = false; });
-  player.on('ended', () => { isPlaying.value = false; });
-
-  player.on('time', ({ time }) => { currentTime.value = time; });
-  player.on('duration', ({ duration: total }) => { duration.value = total; });
-  player.on('volume', ({ level }) => { volume.value = level; });
-
   onUnmounted(() => {
-    void player.dispose();
+    void player.value?.dispose();
   });
 
   return {
@@ -51,24 +63,39 @@ export function useVideoPlayer(containerId: string, config: VideoPlayerConfig) {
     currentTime,
     duration,
     volume,
-    playState: () => player.playState() === PlayState.PLAYING,
+    playState: () => player.value?.playState() === PlayState.PLAYING,
   };
 }
 ```
 
-The composable calls `setup()` immediately, on the assumption it runs inside `<script setup>` after the container element already exists in the DOM (Vue's own `onMounted` timing, not the composable's). If your container is conditionally rendered, guard the call with `onMounted` instead and return a `mount()` function the template calls once the `<div>` exists.
+`player` is `null` until `onMounted` runs — a template reads it through `player?.togglePlayback()` the same way it reads any other ref that starts empty, and `playState()`/the `seek()` handler below guard the same way. This is the one shape that's correct regardless of how the caller renders the container (always-present markup, `v-if`, a route transition): the composable never assumes the DOM is ready before Vue says it is.
 
 ## Using it in a component
+
+`baseUrl` and `playlist` below are the real `nomercy-media` fixture catalogue (the same Sintel short film the [Quickstart](/nomercy-video-player/quickstart) mounts) — `muted: true` + `autoPlay: true` so playback starts without a user gesture, exactly like every other runnable example on this site:
 
 ```vue
 <script setup lang="ts">
 import { computed } from 'vue';
+import type { VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
 import { useVideoPlayer } from '@/composables/useVideoPlayer';
 
-const { player, currentItem, isPlaying, currentTime, duration } = useVideoPlayer('player', {
-  baseUrl: 'https://your-server.example.com/api/files',
-  playlist: [/* ... */],
-});
+const config: VideoPlayerConfig = {
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  baseImageUrl: 'https://image.tmdb.org/t/p',
+  muted: true,
+  autoPlay: true,
+  playlist: [
+    {
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+    },
+  ],
+};
+
+const { player, currentItem, isPlaying, currentTime, duration } = useVideoPlayer('player', config);
 
 const progress = computed(() =>
   duration.value > 0 ? (currentTime.value / duration.value) * 100 : 0,
@@ -77,7 +104,7 @@ const progress = computed(() =>
 function seek(event: MouseEvent) {
   const bar = event.currentTarget as HTMLElement;
   const ratio = event.offsetX / bar.clientWidth;
-  void player.time(ratio * duration.value);
+  void player.value?.time(ratio * duration.value);
 }
 </script>
 
@@ -89,28 +116,44 @@ function seek(event: MouseEvent) {
     <div class="fill" :style="{ width: `${progress}%` }" />
   </div>
 
-  <button type="button" @click="player.togglePlayback()">
+  <button type="button" @click="player?.togglePlayback()">
     {{ isPlaying ? 'Pause' : 'Play' }}
   </button>
 </template>
 ```
 
-The `id="player"` element must already be in the DOM when `useVideoPlayer` calls `nmplayer('player')`, `<script setup>` runs during the component's setup phase, before the template mounts. In practice this composable is called from a parent that already rendered the container, or from inside `onMounted` in the composable itself. The example above works because Vue resolves template refs and DOM insertion before a child composable's top-level code would observe a missing element, but if you see a `core:player/element-missing` error, move the `nmplayer()` call into `onMounted`.
+`player` is a top-level `<script setup>` ref, so the template above reads it unwrapped (`player?.togglePlayback()`, no `.value`) — Vue does that unwrapping automatically for refs returned from a composable and used directly in the template. Inside `<script>` itself (the `seek()` handler), it stays an explicit ref: `player.value?.time(...)`.
 
 ## Providing the player globally
 
-For an app where multiple components (a mini-player, a full-screen view, a queue sidebar) need the same instance, provide it once at the root instead of re-deriving state per component:
+For an app where multiple components (a mini-player, a full-screen view, a queue sidebar) need the same instance, provide it once at the root instead of re-deriving state per component. Unlike the composable above, this is safe to call at `main.ts`'s top level, not inside `onMounted`: `#global-player` is a static element already present in `index.html` (a sibling of `#app`, not something Vue itself renders), so it exists in the DOM before this module even runs:
 
 ```ts
 // main.ts
 import { createApp } from 'vue';
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import type { VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+import App from './App.vue';
 
 export const VideoPlayerKey = Symbol('VideoPlayer');
 
-const baseUrl = 'https://your-server.example.com/api/files';
+const config: VideoPlayerConfig = {
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  baseImageUrl: 'https://image.tmdb.org/t/p',
+  muted: true,
+  autoPlay: true,
+  playlist: [
+    {
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+    },
+  ],
+};
+
+const player = nmplayer('global-player').setup(config);
 const app = createApp(App);
-const player = nmplayer('global-player').setup({ baseUrl, playlist: [] });
 app.provide(VideoPlayerKey, player);
 app.mount('#app');
 ```
@@ -135,7 +178,7 @@ When several unrelated components need the same reactive state, not just the sam
 import { defineStore } from 'pinia';
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { PlayState } from '@nomercy-entertainment/nomercy-video-player';
-import type { NMVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+import type { NMVideoPlayer, VideoPlayerConfig, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
 export const useVideoPlayerStore = defineStore('videoPlayer', {
   state: () => ({
@@ -151,8 +194,11 @@ export const useVideoPlayerStore = defineStore('videoPlayer', {
   },
 
   actions: {
-    init(baseUrl: string) {
-      const player = nmplayer('global-player').setup({ baseUrl, playlist: [] });
+    // `config` is the caller's whole `VideoPlayerConfig`, not just a bare
+    // `baseUrl` — a store this generic shouldn't hardcode an empty playlist,
+    // the app that owns the actual catalogue supplies it at the one call site.
+    init(config: VideoPlayerConfig) {
+      const player = nmplayer('global-player').setup(config);
 
       player.on('item', ({ item }) => { this.currentItem = item ?? null; });
       player.on('play', () => { this.isPlaying = true; });
@@ -177,7 +223,27 @@ export const useVideoPlayerStore = defineStore('videoPlayer', {
 });
 ```
 
-Call `init()` once, after Pinia is installed, and `dispose()` once when the app genuinely tears down the player, not on every component unmount, that would kill playback every time the user navigates away from the view that happened to call `init()` first.
+Call `init()` once, after Pinia is installed, and `dispose()` once when the app genuinely tears down the player, not on every component unmount, that would kill playback every time the user navigates away from the view that happened to call `init()` first:
+
+```ts
+// App.vue, once at startup
+import { useVideoPlayerStore } from '@/stores/videoPlayer';
+
+useVideoPlayerStore().init({
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  baseImageUrl: 'https://image.tmdb.org/t/p',
+  muted: true,
+  autoPlay: true,
+  playlist: [
+    {
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+    },
+  ],
+});
+```
 
 ## Next steps
 

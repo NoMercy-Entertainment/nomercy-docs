@@ -14,6 +14,10 @@ Position and duration come straight from `nomercy-player-core`, same as transpor
 `time()` reads the current position in seconds; `time(seconds)` seeks to a new one, there is no separate `seek()` method. Position is reported by two different events for two different reasons: ordinary playback ticks the `time` event (per frame) and the throttled `progress` event, while a deliberate jump fires the cancellable `beforeSeek` → `seek` → `seeked` cycle. That is the split the web platform draws between `timeupdate` and `seeking`/`seeked`, the tick versus the jump:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+
+const player = nmplayer('player');
+
 const currentTime = player.time(); // seconds
 await player.time(120); // jump to 2:00
 ```
@@ -47,13 +51,6 @@ player.on('time', ({ time, percentage, position, duration, remaining }) => {
 ```
 
 `position` is an alias for `time` in seconds, `percentage` is elapsed time as `0`-`100` of `duration`, `remaining` is seconds left. Subscribe to this instead of polling `timeData()` from a render loop.
-
-## See it running
-
-Drag the scrubber below, it seeks on release through exactly `player.time(seconds)`. The two buttons call `rewind(10)` and `forward(10)`.
-
-:::snippet{file="music-tour-time" live="false"}
-:::
 
 ## Next steps
 

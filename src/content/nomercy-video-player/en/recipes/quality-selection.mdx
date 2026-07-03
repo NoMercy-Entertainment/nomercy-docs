@@ -14,6 +14,10 @@ description: "Build a quality picker from qualityLevels(), the levels event, qua
 `qualityLevels()` is empty until the HLS manifest is parsed, `'levels'` is the signal, not `mediaReady`, the list may not exist yet at that point:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player');
+
 player.on('levels', ({ levels }) => {
   renderQualityMenu(levels);
 });
@@ -47,6 +51,8 @@ function renderQualityMenu(levels: QualityLevel[]) {
 A click sets the level; `'level-switched'` (not the click handler) is what actually updates the menu's checked state, ABR can change the rendition on its own, and the menu has to reflect that too:
 
 ```ts
+const menu = document.querySelector<HTMLSelectElement>('#quality-menu')!;
+
 menu.addEventListener('change', () => {
   const value = menu.value;
   player.quality(value === 'auto' ? 'auto' : Number(value));

@@ -55,11 +55,21 @@ import nmplayer from '@nomercy-entertainment/nomercy-music-player';
 import type { MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';
 
 const config: MusicPlayerConfig = {
-  baseUrl: 'https://your-server.example.com/api/files',
-  playlist: [/* ... */],
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+  controls: true,
+  playlist: [
+    {
+      id: 'ketsa-01-where-dreams-drift',
+      name: 'Where Dreams Drift',
+      artist: 'Ketsa',
+      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
+    },
+  ],
 };
 
 const player = nmplayer('player').setup(config);
+await player.ready();
+player.item(0); // music has no autoPlay config — load the first track
 const badge = document.querySelector<HTMLElement>('#now-playing')!;
 
 const destroy = createPlayerController(player, (snapshot) => {
@@ -78,11 +88,16 @@ void player.dispose();
 The same controller works unchanged inside a custom element, connectedCallback / disconnectedCallback are the vanilla-DOM equivalent of a framework's mount/unmount hooks:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+
 class MusicPlayerStatus extends HTMLElement {
   #destroy: (() => void) | null = null;
 
   connectedCallback() {
-    const player = nmplayer(this.getAttribute('for')!) as IMusicPlayer;
+    // `nmplayer(id)` returns the concrete `NMMusicPlayer` for an id already
+    // `.setup()` elsewhere on the page — it already satisfies `IMusicPlayer`
+    // structurally, no cast needed.
+    const player = nmplayer(this.getAttribute('for')!);
     this.#destroy = createPlayerController(player, (snapshot) => {
       this.textContent = snapshot.playing ? 'Playing' : 'Paused';
     });

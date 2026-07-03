@@ -16,6 +16,13 @@ React does not own the player instance, `nomercy-music-player` mutates an `<audi
 :::snippet{file="music-recipe-react-integration" live="false"}
 :::
 
+## Mounting it
+
+`playlist` is a prop, not hardcoded — `MusicPlayerView` above takes real playlist data from whoever renders it. `songs` is the real `nomercy-media` fixture catalogue (the same Ketsa/bent wyre tracks the [Quickstart](/nomercy-music-player/quickstart) and the testbed use):
+
+:::snippet{file="music-recipe-react-app" live="false"}
+:::
+
 ## Config identity
 
 `config` is deliberately left out of the effect's dependency array. `MusicPlayerConfig` objects are rarely stable across renders (an inline `{ baseUrl, playlist }` literal is a new object every render), and re-running `setup()` on every render is both wrong (it throws once the player is already set up) and wasteful. `MusicPlayerView` above memoizes it with `useMemo`, keyed on `playlist`, instead of fighting the hook.

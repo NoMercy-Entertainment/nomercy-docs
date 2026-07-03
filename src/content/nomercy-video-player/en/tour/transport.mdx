@@ -14,6 +14,10 @@ description: 'play(), pause(), stop(), togglePlayback(), next()/previous(), rewi
 `play()`, `pause()`, `stop()`, and `togglePlayback()` all return a `Promise<void>` that resolves once the backend call settles. `next()` / `previous()` move the queue cursor and load, `restart()` seeks to `0` and resumes.
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player');
+
 await player.play();
 await player.pause();
 await player.togglePlayback(); // flips based on the current playState()
@@ -45,13 +49,6 @@ player.seekByPercentage(50); // jump to the halfway point
 ## Guard first
 
 Every transport method calls the kit's `_assertReady()` guard before doing anything else. Calling `play()` before `setup()` resolves, or after `dispose()`, throws a typed `StateError` instead of silently reaching into missing state — the same contract [Core: Transport Contract](/nomercy-player-core/tour/transport) documents in full, including the `preventDefault()` / `delay()` shape of the `before*` event.
-
-## See it running
-
-`controls: true` below renders the browser's native play/pause button and scrubber. They call exactly the methods on this page, nothing more — your own overlay in [Build a Player](/nomercy-video-player/build/shell) wires the same calls to buttons you draw yourself.
-
-:::snippet{file="video-tour-transport" live="false"}
-:::
 
 ## Next steps
 

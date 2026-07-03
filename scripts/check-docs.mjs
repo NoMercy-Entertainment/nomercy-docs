@@ -266,6 +266,29 @@ function runSnippetGate() {
   return 0;
 }
 
+/**
+ * Runs after the Playwright gate (not before) — that gate's own `webServer`
+ * (`npm run preview`) is what produces the `dist/` this reads, so `dist/` is
+ * only guaranteed fresh once it has finished. Catches the syntax-error class
+ * the Playwright gate itself can't see: `waitForPlayerExample` only proves
+ * the ONE snippet each page mounts live actually runs, it says nothing about
+ * every OTHER `ts`/`tsx` fenced block on that page (`live="false"` snippets,
+ * hand-written framework-recipe blocks, tour-page fragments) — this is the
+ * gate for those.
+ */
+function runSnippetSyntaxGate() {
+  console.log('\nPlaywright snippet gate passed — checking every rendered snippet parses...');
+  const result = spawnSync('node', ['scripts/check-snippet-syntax.mjs'], {
+    cwd: root,
+    stdio: 'inherit',
+  });
+  if (result.status !== 0) {
+    console.error('\nSnippet syntax gate failed.');
+    return result.status ?? 1;
+  }
+  return 0;
+}
+
 function main() {
   const { violations, notices } = runLint();
 
@@ -284,7 +307,11 @@ function main() {
   }
 
   console.log(`Contract OK — ${TRIO_COLLECTIONS.length} trio collection(s) checked.`);
-  process.exit(runSnippetGate());
+
+  const snippetGateStatus = runSnippetGate();
+  if (snippetGateStatus !== 0) process.exit(snippetGateStatus);
+
+  process.exit(runSnippetSyntaxGate());
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

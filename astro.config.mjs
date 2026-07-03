@@ -199,6 +199,20 @@ export default defineConfig({
         "@nomercy-entertainment/nomercy-player-core",
         "@nomercy-entertainment/nomercy-video-player",
         "@nomercy-entertainment/nomercy-music-player",
+        // Deep plugin subpath exports a docs example imports directly
+        // (`.../plugins/<name>`) are a SEPARATE dependency graph entry from
+        // the package's main export above — Vite doesn't pre-bundle them
+        // just because the parent package is listed. Left out, a page whose
+        // `PlayerExample` island dynamically imports that example module
+        // fails in a production build/preview with "Failed to fetch
+        // dynamically imported module" (the un-pre-bundled subpath never
+        // gets a resolvable chunk); dev mode hides it via Vite's on-demand
+        // optimize-on-discovery. Add every plugin subpath a `src/examples/`
+        // file imports here — this is the exhaustive, verified list, not a
+        // sample.
+        "@nomercy-entertainment/nomercy-video-player/plugins/desktop-ui",
+        "@nomercy-entertainment/nomercy-video-player/plugins/subtitle-overlay",
+        "@nomercy-entertainment/nomercy-music-player/plugins/lyrics",
       ],
     },
     server: {

@@ -50,6 +50,9 @@ function createMusicPlayerStore() {
       player.on('duration', ({ duration }) => update((state) => ({ ...state, duration })));
 
       update((state) => ({ ...state, player }));
+      // music has no autoPlay config — load the first track once setup's
+      // async pipeline actually resolves the playlist, not before
+      void player.ready().then(() => player.item(0));
     },
 
     dispose() {
@@ -89,12 +92,14 @@ export function mountMusicPlayer(node: HTMLElement, config: MusicPlayerConfig) {
 ## Using it in a component
 
 ```svelte
+<!-- MusicPlayer.svelte -->
 <script lang="ts">
+  import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
   import { musicPlayerStore } from '../stores/musicPlayer';
   import { mountMusicPlayer } from '../actions/mountMusicPlayer';
 
   export let baseUrl: string;
-  export let playlist;
+  export let playlist: MusicPlaylistItem[];
 
   $: progress = $musicPlayerStore.duration > 0
     ? ($musicPlayerStore.currentTime / $musicPlayerStore.duration) * 100
@@ -128,6 +133,30 @@ export function mountMusicPlayer(node: HTMLElement, config: MusicPlayerConfig) {
 ```
 
 `$musicPlayerStore` auto-subscribes and auto-unsubscribes with the component's own lifecycle, the `$:` reactive statement recomputes `progress` on every store update without a manual subscription. The action's `destroy()` fires when the bound element leaves the DOM, disposing the player at exactly the point Svelte itself considers the component gone.
+
+## Using it with real data
+
+`baseUrl` and `playlist` are props — the parent supplies the real `nomercy-media` fixture catalogue (the same Ketsa track the [Quickstart](/nomercy-music-player/quickstart) mounts):
+
+```svelte
+<!-- App.svelte -->
+<script lang="ts">
+  import MusicPlayer from './MusicPlayer.svelte';
+
+  const baseUrl = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
+  const playlist = [
+    {
+      id: 'ketsa-01-where-dreams-drift',
+      name: 'Where Dreams Drift',
+      artist: 'Ketsa',
+      album: 'CC BY: Free to Use',
+      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
+    },
+  ];
+</script>
+
+<MusicPlayer {baseUrl} {playlist} />
+```
 
 ## Next steps
 

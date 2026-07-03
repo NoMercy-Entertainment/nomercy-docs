@@ -25,13 +25,13 @@
  * the page.
  */
 
+// useMusicPlayer.tsx
 import type { MouseEvent } from 'react';
 import type { IMusicPlayer, MusicPlayerConfig, MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 import { SetupState } from '@nomercy-entertainment/nomercy-player-core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import nmplayer, { PlayState } from '@nomercy-entertainment/nomercy-music-player';
-
-const DEFAULT_BASE_URL = 'https://your-server.example.com/api/files';
+import { MUSIC_BASE } from './media';
 
 export function useMusicPlayer(containerId: string, config: MusicPlayerConfig) {
 	const playerRef = useRef<IMusicPlayer | null>(null);
@@ -44,6 +44,9 @@ export function useMusicPlayer(containerId: string, config: MusicPlayerConfig) {
 		const player = nmplayer(containerId);
 		if (player.setupState() === SetupState.NOT_SETUP) {
 			player.setup(config);
+			// music has no autoPlay config — load the first track once setup's
+			// async pipeline actually resolves the playlist, not before
+			void player.ready().then(() => player.item(0));
 		}
 		playerRef.current = player;
 
@@ -87,7 +90,7 @@ export function useMusicPlayer(containerId: string, config: MusicPlayerConfig) {
 }
 
 export function MusicPlayerView({ playlist }: { playlist: MusicPlaylistItem[] }) {
-	const config = useMemo<MusicPlayerConfig>(() => ({ baseUrl: DEFAULT_BASE_URL, playlist }), [playlist]);
+	const config = useMemo<MusicPlayerConfig>(() => ({ baseUrl: MUSIC_BASE, controls: true, playlist }), [playlist]);
 	const { player, currentItem, isPlaying, currentTime, duration } = useMusicPlayer('player', config);
 	const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 

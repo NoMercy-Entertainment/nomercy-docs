@@ -14,14 +14,26 @@ description: 'Rendering the full cue list from LyricsPlugin.all() up front and h
 `all()` returns every parsed cue for the current track, not just the active one. Render it once, on the plugin's `loaded` event, rather than building rows incrementally as lines become active:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
 import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/lyrics';
 
+const player = nmplayer('player');
 player.addPlugin(LyricsPlugin);
 player.setup({
-  baseUrl: 'https://your-server.example.com/api/files',
-  playlist: [/* ... */],
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+  playlist: [
+    {
+      id: 'ketsa-01-where-dreams-drift',
+      name: 'Where Dreams Drift',
+      artist: 'Ketsa',
+      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
+      lyricsUrl:
+        'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.lrc',
+    },
+  ],
 });
 
+const panel = document.querySelector<HTMLElement>('#lyrics-panel')!;
 const rows = new Map<{ text: string }, HTMLElement>();
 
 player.on('plugin:lyrics:loaded', () => {

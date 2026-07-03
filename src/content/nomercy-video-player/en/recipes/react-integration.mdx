@@ -16,6 +16,13 @@ React does not own the player instance, `nomercy-video-player` mutates a `<video
 :::snippet{file="video-recipe-react-integration" live="false"}
 :::
 
+## Mounting it
+
+`playlist` is a prop, not hardcoded — `VideoPlayerView` above takes real playlist data from whoever renders it. `films` is the real `nomercy-media` fixture catalogue (the same three shorts the [Quickstart](/nomercy-video-player/quickstart) and the testbed use):
+
+:::snippet{file="video-recipe-react-app" live="false"}
+:::
+
 ## Config identity
 
 `config` is deliberately left out of the effect's dependency array. `VideoPlayerConfig` objects are rarely stable across renders (an inline `{ baseUrl, playlist }` literal is a new object every render), and re-running `setup()` on every render is both wrong (it throws once the player is already set up) and wasteful. `VideoPlayerView` above memoizes it with `useMemo`, keyed on `playlist`, instead of fighting the hook.

@@ -55,8 +55,18 @@ import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import type { VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
 
 const config: VideoPlayerConfig = {
-  baseUrl: 'https://your-server.example.com/api/files',
-  playlist: [/* ... */],
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  baseImageUrl: 'https://image.tmdb.org/t/p',
+  muted: true,
+  autoPlay: true,
+  playlist: [
+    {
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+    },
+  ],
 };
 
 const player = nmplayer('player').setup(config);
@@ -78,11 +88,16 @@ void player.dispose();
 The same controller works unchanged inside a custom element, connectedCallback / disconnectedCallback are the vanilla-DOM equivalent of a framework's mount/unmount hooks:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
 class VideoPlayerStatus extends HTMLElement {
   #destroy: (() => void) | null = null;
 
   connectedCallback() {
-    const player = nmplayer(this.getAttribute('for')!) as IVideoPlayer;
+    // `nmplayer(id)` returns the concrete `NMVideoPlayer` for an id already
+    // `.setup()` elsewhere on the page — it already satisfies `IVideoPlayer`
+    // structurally, no cast needed.
+    const player = nmplayer(this.getAttribute('for')!);
     this.#destroy = createPlayerController(player, (snapshot) => {
       this.textContent = snapshot.playing ? 'Playing' : 'Paused';
     });

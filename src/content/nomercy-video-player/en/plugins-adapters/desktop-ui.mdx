@@ -34,6 +34,10 @@ Default-on: `play`, `mute`, `volume`, `fullscreen`, `settings`, `chapterPrev`, `
 Default-off (opt in via `buttons: { theater: true }`, etc.): `theater`, `pip`, `speed`, `quality`, `subtitles`, `audio`, `playlist`, `seekBack`, `seekForward`, `aspectRatio`. `seekBack`/`seekForward` default off because ±10s seek is already reachable through touch zones (double-tap) and the keyboard (`ArrowLeft`/`ArrowRight`), the control-bar buttons are a deliberate opt-in for a UI with no keyboard or touch input at all.
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player');
+
 player.addPlugin(DesktopUiPlugin, {
   buttons: { theater: true, subtitles: true, audio: true },
 });
@@ -60,6 +64,8 @@ player.addPlugin(DesktopUiPlugin, {
 Other plugins mount their own UI onto `DesktopUiPlugin`'s auto-hiding overlay root instead of the player container directly, so their elements inherit the same show/hide lifecycle rather than floating over a hidden chrome:
 
 ```ts
+const myCustomBadge = document.createElement('div'); // your own overlay element
+
 const overlayRoot = player.getPlugin(DesktopUiPlugin)?.overlay(); // HTMLElement | null
 if (overlayRoot) {
   overlayRoot.appendChild(myCustomBadge);

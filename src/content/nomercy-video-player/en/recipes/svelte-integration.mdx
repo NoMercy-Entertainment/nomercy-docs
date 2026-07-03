@@ -89,12 +89,14 @@ export function mountVideoPlayer(node: HTMLElement, config: VideoPlayerConfig) {
 ## Using it in a component
 
 ```svelte
+<!-- VideoPlayer.svelte -->
 <script lang="ts">
+  import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
   import { videoPlayerStore } from '../stores/videoPlayer';
   import { mountVideoPlayer } from '../actions/mountVideoPlayer';
 
   export let baseUrl: string;
-  export let playlist;
+  export let playlist: VideoPlaylistItem[];
 
   $: progress = $videoPlayerStore.duration > 0
     ? ($videoPlayerStore.currentTime / $videoPlayerStore.duration) * 100
@@ -128,6 +130,29 @@ export function mountVideoPlayer(node: HTMLElement, config: VideoPlayerConfig) {
 ```
 
 `$videoPlayerStore` auto-subscribes and auto-unsubscribes with the component's own lifecycle, the `$:` reactive statement recomputes `progress` on every store update without a manual subscription. The action's `destroy()` fires when the bound element leaves the DOM, disposing the player at exactly the point Svelte itself considers the component gone.
+
+## Using it with real data
+
+`baseUrl` and `playlist` are props — the parent supplies the real `nomercy-media` fixture catalogue (the same Sintel short film the [Quickstart](/nomercy-video-player/quickstart) mounts):
+
+```svelte
+<!-- App.svelte -->
+<script lang="ts">
+  import VideoPlayer from './VideoPlayer.svelte';
+
+  const baseUrl = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films';
+  const playlist = [
+    {
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+    },
+  ];
+</script>
+
+<VideoPlayer {baseUrl} {playlist} />
+```
 
 ## Next steps
 

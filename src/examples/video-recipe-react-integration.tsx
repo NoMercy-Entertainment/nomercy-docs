@@ -25,13 +25,13 @@
  * the page.
  */
 
+// useVideoPlayer.tsx
 import type { MouseEvent } from 'react';
 import type { IVideoPlayer, VideoPlayerConfig, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 import { SetupState } from '@nomercy-entertainment/nomercy-player-core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import nmplayer, { PlayState } from '@nomercy-entertainment/nomercy-video-player';
-
-const DEFAULT_BASE_URL = 'https://your-server.example.com/api/files';
+import { FILMS_BASE } from './media';
 
 export function useVideoPlayer(containerId: string, config: VideoPlayerConfig) {
 	const playerRef = useRef<IVideoPlayer | null>(null);
@@ -87,7 +87,7 @@ export function useVideoPlayer(containerId: string, config: VideoPlayerConfig) {
 }
 
 export function VideoPlayerView({ playlist }: { playlist: VideoPlaylistItem[] }) {
-	const config = useMemo<VideoPlayerConfig>(() => ({ baseUrl: DEFAULT_BASE_URL, playlist }), [playlist]);
+	const config = useMemo<VideoPlayerConfig>(() => ({ baseUrl: FILMS_BASE, muted: true, autoPlay: true, playlist }), [playlist]);
 	const { player, currentItem, isPlaying, currentTime, duration } = useVideoPlayer('player', config);
 	const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 

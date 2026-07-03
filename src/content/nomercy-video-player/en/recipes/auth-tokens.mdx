@@ -14,6 +14,14 @@ description: 'Protect a media server catalogue with a bearer token: the AuthConf
 `bearerToken` accepts a plain string, a sync getter, or an async getter, so a reactive store's current value is always read fresh instead of captured once at `setup()` time:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player');
+// Your own protected catalogue — this recipe is about the `auth` block,
+// not about media, so this is your app's real playlist, not a fixture.
+const playlist: VideoPlaylistItem[] = [];
+
 player.setup({
   baseUrl: 'https://media.your-domain.com/api/files',
   auth: {
@@ -24,6 +32,8 @@ player.setup({
 ```
 
 An async getter works identically, useful when the token itself has to be fetched or decrypted before use:
+
+{/* partial: an AuthConfig property to graft onto the setup() call above, not a standalone program */}
 
 ```ts
 auth: {
@@ -38,6 +48,8 @@ auth: {
 ## Handling a 401
 
 `refreshOnUnauthenticated` runs exactly once per 401 response, never on a 403 (which propagates immediately, on the assumption a 403 means "not allowed", not "token expired"). After it resolves, the original request retries once with freshly-resolved `bearerToken` / `headers`:
+
+{/* partial: an AuthConfig property to graft onto the setup() call above, not a standalone program */}
 
 ```ts
 auth: {
@@ -64,6 +76,8 @@ player.auth({ bearerToken: newToken }); // merges onto the existing AuthConfig
 ## Cookie-based auth instead of a bearer token
 
 When the media server relies on a session cookie rather than a header, skip `bearerToken` and set `credentials` instead, every request (`fetch`, and the HLS backend's own requests) includes the cookie automatically:
+
+{/* partial: an AuthConfig property to graft onto the setup() call above, not a standalone program */}
 
 ```ts
 auth: {

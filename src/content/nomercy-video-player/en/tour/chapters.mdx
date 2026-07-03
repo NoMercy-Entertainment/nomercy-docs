@@ -14,6 +14,10 @@ Chapters come from a sidecar VTT (`kind: 'chapters'` in the server's wire `track
 `chapters()` returns the resolved list, each entry an `index`, `start`, and `end` in seconds, plus a display title. `seekToChapter(idx)` jumps directly; `nextChapter()` / `previousChapter()` step relative to the current position, not the last chapter you explicitly selected, so they stay correct even after a manual scrub:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player');
+
 const list = player.chapters(); // Chapter[]: { index, start, end, title }
 
 player.seekToChapter(2);
@@ -41,13 +45,6 @@ player.clearSegment(); // stop watching, no seek or pause
 ```
 
 This isn't chapter-specific, it's the same primitive an intro-skip loop, a disc-menu state window, or a highlight-reel scrubber would use. Any previously active segment window is replaced immediately when you call `playSegment()` again; `clearSegment()` stops watching without moving playback.
-
-## See it running
-
-`sintel` carries a chapters sidecar; the player below resolves it on load.
-
-:::snippet{file="video-tour-chapters" live="false"}
-:::
 
 ## Next steps
 

@@ -14,6 +14,10 @@ description: 'Render queue() as an "up next" list that reacts to current and que
 `'item'` fires when the cursor moves, `'queue'` fires when the array itself changes (append, remove, reorder, replace). A panel that re-renders on both never drifts from the real state, and never needs a poll loop:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player');
+
 function render() {
   const activeId = player.item()?.id;
   renderList(player.queue(), activeId);
@@ -29,8 +33,12 @@ render(); // initial paint
 `queue(items); item(start); play()` races: `item()` fires a fire-and-forget `load()`, and a `play()` called right after can reach the backend before the new source is even set. A click handler in a queue panel calls `play()` implicitly (the user expects clicking an item to start it), so use `playItem(target)` instead of `item(target)`, it routes through `item(target, { autoplay: true })` internally, which only calls `play()` inside the load's own continuation:
 
 ```ts
-row.addEventListener('click', () => {
-  player.playItem(item.id);
+// One row per queue item, rendered inside renderList() above.
+player.queue().forEach((item) => {
+  const row = document.querySelector<HTMLElement>(`[data-item-id="${item.id}"]`)!;
+  row.addEventListener('click', () => {
+    player.playItem(item.id);
+  });
 });
 ```
 
@@ -39,12 +47,21 @@ row.addEventListener('click', () => {
 Every mutation method fires its own typed event, so a panel that already re-renders on `'queue'` gets append/remove/reorder for free, no extra listener needed:
 
 ```ts
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+const addToQueueButton = document.querySelector<HTMLElement>('#add-to-queue')!;
+const newItem: VideoPlaylistItem = { id: 'cosmos-laundromat', title: 'Cosmos Laundromat', url: '/Cosmos.Laundromat.(2015)/Cosmos.Laundromat.(2015).NoMercy.m3u8' };
+
 addToQueueButton.addEventListener('click', () => {
   player.queueAppend(newItem); // fires 'queue' — panel re-renders itself
 });
 
-removeButton.addEventListener('click', () => {
-  player.queueRemove(item.id);
+// Per-row remove button, rendered alongside each row in renderList() above.
+player.queue().forEach((item) => {
+  const removeButton = document.querySelector<HTMLElement>(`[data-remove-id="${item.id}"]`)!;
+  removeButton.addEventListener('click', () => {
+    player.queueRemove(item.id);
+  });
 });
 ```
 

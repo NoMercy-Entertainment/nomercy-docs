@@ -14,6 +14,11 @@ description: 'Step 5 of 5: a now-playing panel (cover, title, artist) plus a syn
 `item.url` (the track itself) resolves against `baseUrl` automatically. Artwork should read the canonical `image` field first, falling back to the deprecated `cover` for older catalogues — the exact resolution `MusicPreloadStrategy`/`CastSenderPlugin` use inside the package itself, and the same fix the [Quickstart](/nomercy-music-player/quickstart) applies:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+
+const player = nmplayer('player');
+const panel = document.querySelector<HTMLElement>('#now-playing')!;
+
 const cover = player.createElement('img', 'my-cover').appendTo(panel).get();
 const current = player.item();
 cover.src = current?.image ?? current?.cover ?? '';
@@ -38,6 +43,10 @@ await player.ready();
 `item` updates the cover, title, and artist together, since they all come from the same track. The lyric line is separate, driven by the plugin's own namespaced event:
 
 ```ts
+const title = panel.querySelector<HTMLElement>('.title')!;
+const artist = panel.querySelector<HTMLElement>('.artist')!;
+const lyricLine = panel.querySelector<HTMLElement>('.lyric-line')!;
+
 player.on('item', ({ item }) => {
   cover.src = item?.image ?? item?.cover ?? '';
   title.textContent = item?.name ?? '';

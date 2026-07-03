@@ -14,6 +14,8 @@ description: 'A <select> device switcher pre-selected to the active output, wire
 `audioOutputs()` enumerates devices without a permission prompt; `audioOutput()` (no argument) reads the currently-selected device id, `null` for the system default. Reading both together lets the dropdown open already showing the right selection instead of defaulting to the first entry:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+
 async function renderDeviceSelect(player: IMusicPlayer, select: HTMLSelectElement): Promise<void> {
   const [devices, current] = await Promise.all([player.audioOutputs(), player.audioOutput()]);
   select.replaceChildren();
@@ -26,6 +28,10 @@ async function renderDeviceSelect(player: IMusicPlayer, select: HTMLSelectElemen
     select.appendChild(option);
   });
 }
+
+const player = nmplayer('player');
+const select = document.querySelector<HTMLSelectElement>('#audio-output')!;
+void renderDeviceSelect(player, select);
 
 select.addEventListener('change', () => {
   void player.audioOutput(select.value);
@@ -55,6 +61,8 @@ Don't request this permission just to populate a device list, only do it if your
 `selectAudioOutput()` opens the browser's own device picker, useful as an always-available "choose a device" button regardless of whether labels are populated, since the native picker doesn't have the label-gating restriction the enumeration API does:
 
 ```ts
+const pickerButton = document.querySelector<HTMLElement>('#choose-output')!;
+
 pickerButton.addEventListener('click', () => {
   void player.selectAudioOutput().then(async (device) => {
     if (device) {

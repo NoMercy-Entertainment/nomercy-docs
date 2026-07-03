@@ -14,6 +14,17 @@ description: "Step 2 of 5: the native bar's scrubber, and the time() / 'time' / 
 `controls: true`'s scrubber reads the same position/length pair the kit exposes to everyone: `'time'` for position, `'duration'` for length (both covered on [Time & Seeking](/nomercy-music-player/tour/time)), and seeks through `time(seconds)` on release. A custom scrubber built from `nomercy-player-core`'s `createElement` would subscribe to exactly those two events:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+
+const player = nmplayer('player');
+const scrubber = document.querySelector<HTMLInputElement>('#scrubber')!;
+let dragging = false;
+scrubber.addEventListener('pointerdown', () => { dragging = true; });
+scrubber.addEventListener('change', () => {
+  dragging = false;
+  void player.time(Number(scrubber.value));
+});
+
 player.on('duration', ({ duration }) => {
   scrubber.max = String(duration);
 });
