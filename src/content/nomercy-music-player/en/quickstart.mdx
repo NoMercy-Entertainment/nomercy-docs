@@ -1,11 +1,11 @@
 ---
 title: 'Quick Start'
-description: 'Install nomercy-music-player and play a real song with the baseUrl pattern. Copy-paste that works first try.'
+description: 'Install nomercy-music-player and play a real song with the baseUrl pattern. One copy-paste example that works first try.'
 ---
 
 # Music Player: Quick Start
 
-This gets a real song playing in the preview below: "Where Dreams Drift" by Ketsa, streamed from the `nomercy-media` fixture catalogue, using the baseUrl pattern every NoMercy player and app is built around. Everything on this page is the same code you would copy into your own project.
+This gets a real song playing in the preview below: "Where Dreams Drift" by Ketsa, streamed from the `nomercy-media` fixture catalogue, using the baseUrl pattern every NoMercy player and app is built around.
 
 ## Install
 
@@ -17,55 +17,22 @@ That's the only package you need. `nomercy-player-core` is a regular dependency 
 
 ## Play your first song
 
-:::snippet{file="music-quickstart"}
+Here it is running for real: an MP3 streamed from `baseUrl`. Below the player is the exact code that produced it, ready to copy:
+
+:::snippet{file="music-quickstart" runnable preview="first"}
 :::
 
-That is a real player, playing a real audio file fetched from `baseUrl` at request time. The preview mutes the backend and loads the first item with `{ autoplay: true }` only so it starts without a click; drop both for a normal app and call `player.item(0, { autoplay: true })` (or `player.play()` once an item is already loaded) from your own UI on a user gesture instead.
+Add a `<div id="player"></div>` to your page for that code to mount into. The music player has no `autoPlay` config field, so playback starts with `player.item(0, { autoplay: true })` once `ready()` resolves. Browsers block unmuted autoplay for `<audio>` the same way they do for `<video>`, so call `player.mute()` first if you need it to start without a user gesture, or trigger the same call from a click.
 
 ## The baseUrl pattern
 
-`baseUrl` is the one config field every playlist should set. Item paths (`url` in the snippet above) stay relative, exactly the shape a real media server sends, and the player prepends `baseUrl` as a plain string prefix, keeping the whole base path:
+`baseUrl` is the one config field every playlist should set. Item paths (`url` above) stay relative, exactly the shape a real media server sends, and the player prepends `baseUrl` as a plain string prefix, keeping the whole base path:
 
-```ts
-baseUrl: 'https://your-server.example.com/api/files',
-playlist: [{ /* ... */ url: '/Artist/Album/01 Track.mp3' }],
-```
-
-Move to a different server, a different environment, a signed-URL CDN, and you change one config value; nothing in your catalogue is hardcoded to today's origin. The server sends the base without a trailing slash and paths with a leading slash, so never pre-join an absolute URL into an item yourself. That is the player's job, and doing it twice breaks the moment the base changes.
-
-## There is no autoPlay config field
-
-`MusicPlayerConfig` has no `muted` / `autoPlay` config sugar, `setup()` loads the queue but does not start anything on its own. Start playback the same way your own UI would, once `ready()` resolves:
-
-```ts
-await player.ready();
-player.item(0, { autoplay: true });
-```
-
-`item(target, opts)` moves the queue cursor (by index, id, or item reference) and loads it; `{ autoplay: true }` plays it as soon as the load resolves. Call `player.mute()` first if you need playback to start without a user gesture, browsers block unmuted autoplay the same way for `<audio>` as they do for `<video>`.
-
-## Mounting into your own container
-
-The player above mounts into a container the example creates for you. In your own app, render a container and call the same factory:
-
-```html
-<div id="player"></div>
-```
-
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-music-player';
-
-const player = nmplayer('player').setup({
-  baseUrl: 'https://your-server.example.com/api/files',
-  playlist: [/* ... */],
-});
-
-await player.ready();
-player.item(0, { autoplay: true });
-```
-
-`nmplayer(id)` either mounts a new player into `document.getElementById(id)` or returns the instance already registered under that id, so calling it twice for the same id is always safe.
+- The server sends the base with no trailing slash (`.../master/Music`) and each item path with a leading slash (`/K/Ketsa/...`).
+- Move to a different server, a different environment, or a signed-URL CDN, and you change one config value; nothing in your catalogue is hardcoded to today's origin.
+- Never pre-join an absolute URL into an item yourself. That is the player's job, and doing it twice breaks the moment the base changes.
 
 ## Next steps
 
-- [What is nomercy-music-player](/nomercy-music-player/introduction): the setup-then-freedom model, the swappable audio backend, and how far the plugin system can take you from here.
+- [Guided Tour: Transport](/nomercy-music-player/tour/transport): play(), pause(), and moving through the queue, the first stop on the full method surface.
+- [Build a Player](/nomercy-music-player/build/shell): put a real overlay UI on top of the player, one control at a time.

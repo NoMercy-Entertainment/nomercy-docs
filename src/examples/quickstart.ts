@@ -10,13 +10,16 @@ import type { VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-pla
 
 const config: VideoPlayerConfig = {
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  baseImageUrl: 'https://image.tmdb.org/t/p',
   muted: true,
   autoPlay: true,
   controls: true,
   playlist: [
     {
+      id: 'sintel',
       title: 'Sintel',
       url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
     },
   ],
 };
