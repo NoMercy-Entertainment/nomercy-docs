@@ -182,6 +182,22 @@ export default defineConfig({
       },
       dedupe: ["react", "react-dom", "react/jsx-runtime"],
     },
+    optimizeDeps: {
+      // Pre-bundle the deps every layout island pulls, so Vite never discovers
+      // them mid-session and re-optimizes (which invalidates the hash the SSR'd
+      // HTML already referenced and 504s "Outdated Optimize Dep", breaking
+      // island hydration). Keeping react here alongside dedupe also pins a
+      // single React copy through the pre-bundle.
+      include: [
+        "react",
+        "react-dom",
+        "react/jsx-runtime",
+        "framer-motion",
+        "zustand",
+        "@headlessui/react",
+        "clsx",
+      ],
+    },
     server: {
       watch: {
         // Use polling for WSL/network filesystems - helps with file change detection
