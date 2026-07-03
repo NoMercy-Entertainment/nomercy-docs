@@ -1,53 +1,43 @@
 ---
 title: 'Build a Player: Volume'
-description: 'Step 3 of 5: a volume slider that applies live on every drag, and a mute button reflecting volumeState() instead of a local boolean.'
+description: "Step 3 of 5: the volumeSlider option — horizontal (hover-expand, default), vertical (click-to-open popup), or auto."
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/mixins/volume.ts */}
+{/* Source: packages/nomercy-video-player/src/plugins/desktop-ui/responsive.ts (wireVolumeSlider) */}
 
 # Build a Player: Volume
 
-[Step 2](/nomercy-video-player/build/scrubber) added seeking. This step adds volume, a slider and a mute button, next to it.
+[Step 2](/nomercy-video-player/build/scrubber) looked at the scrubber. This step is the volume control's one real option: `volumeSlider`.
 
-## Live, not on release
+## Three display modes
 
-The scrubber only seeks once the user releases the thumb, seeking mid-drag would spam network requests for segments the user hasn't settled on. Volume has no such cost, apply it on every `input` event so the slider tracks the pointer exactly:
+`DesktopUiPlugin`'s volume slider isn't a fixed layout — `volumeSlider` picks how it presents next to the mute button:
 
-```ts
-volumeSlider.addEventListener('input', () => {
-  void player.volume(Number(volumeSlider.value)); // see Volume — 0-100, clamped
-});
-```
+| Value | Behavior |
+| --- | --- |
+| `'horizontal'` | Inline, expands on hover. The default. |
+| `'vertical'` | A popup above the mute button, toggled on click. |
+| `'auto'` | Vertical under ~520 px container width, horizontal above it. |
 
-## A mute button that can't drift
-
-A naive mute button tracks its own `isMuted` boolean, toggling it in the click handler. That drifts the moment anything else changes mute state, a keyboard shortcut, a Connect sync, another tab. Read `volumeState()` (see [Volume](/nomercy-video-player/tour/volume)) instead, and resync on the `'mute'` event rather than the click:
+The player below sets `volumeSlider: 'vertical'` — click the mute button's icon (not the mute action itself) to open the popup, instead of hovering to reveal an inline track. Useful when the bar is too narrow for a hover-expand slider to have anywhere to expand into.
 
 ```ts
-import { VolumeState } from '@nomercy-entertainment/nomercy-video-player';
-
-const muteButton = player.createButton('my-mute', 'Mute', () => {
-  player.toggleMute(); // the click only requests the change
-});
-
-const syncMute = () => {
-  const muted = player.volumeState() === VolumeState.MUTED; // the event confirms it
-  muteButton.textContent = muted ? '🔇' : '🔊';
-  muteButton.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
-};
-player.on('mute', syncMute);
-syncMute();
+plugins: [
+  { plugin: DesktopUiPlugin, opts: { volumeSlider: 'vertical' } },
+],
 ```
 
-The click handler only ever *requests* a change; the `'mute'` event is what actually updates the icon, the same pattern Step 1's play/pause button uses for `playState()`.
+## Underneath, the same methods
+
+Whichever mode renders, the slider and mute button drive `volume()` / `mute()` / `unmute()` and resync on `'volume'` / `'mute'`, exactly what [Volume](/nomercy-video-player/tour/volume) documents for a consumer building their own volume UI from scratch.
 
 ## See it running
 
-Drag the volume slider or click mute below.
+Click the volume icon below to open the vertical popup.
 
 :::snippet{file="video-build-3-volume"}
 :::
 
 ## Next steps
 
-- [Step 4: The Subtitle Menu](/nomercy-video-player/build/subtitle-menu): list real subtitle tracks and register the plugin that actually paints them.
+- [Step 4: The Subtitle Menu](/nomercy-video-player/build/subtitle-menu): a real subtitle picker, and the plugin that paints the cue text.

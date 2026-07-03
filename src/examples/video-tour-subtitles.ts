@@ -16,7 +16,7 @@
  * and rendering are separate concerns, see the page prose.
  */
 
-import type { IVideoPlayer, VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+import type { VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
 import { SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/subtitle-overlay';
 import { FILMS_BASE, sintel } from './media';
 
@@ -27,11 +27,8 @@ const config: VideoPlayerConfig = {
 	autoPlay: true,
 	controls: true,
 	defaultSubtitleLanguage: 'eng',
+	plugins: [SubtitleOverlayPlugin],
 	playlist: [sintel],
 };
 
-function configure(player: IVideoPlayer): void {
-	player.addPlugin(SubtitleOverlayPlugin);
-}
-
-export default { config, configure };
+export default { config };

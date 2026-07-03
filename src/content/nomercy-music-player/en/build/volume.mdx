@@ -1,53 +1,36 @@
 ---
 title: 'Build a Player: Volume'
-description: 'Step 3 of 5: a volume slider that applies live on every drag, and a mute button reflecting volumeState() instead of a local boolean.'
+description: "Step 3 of 5: the native bar's volume slider and mute button, and the volume() / mute() / volumeState() surface underneath."
 ---
 
 {/* Source: packages/nomercy-player-core/src/core/mixins/volume.ts */}
 
 # Build a Player: Volume
 
-[Step 2](/nomercy-music-player/build/scrubber) added seeking. This step adds volume, a slider and a mute button, next to it.
+[Step 2](/nomercy-music-player/build/scrubber) covered seeking. Same pattern here — the native bar already has a volume slider and a mute toggle, so the config is unchanged again. This is the last of the three "nothing to build" steps before [The Track List](/nomercy-music-player/build/track-list) adds something real.
 
-## Live, not on release
+## What's already wired
 
-The scrubber only seeks once the user releases the thumb, seeking mid-drag would spam network requests for segments the user hasn't settled on. Volume has no such cost, apply it on every `input` event so the slider tracks the pointer exactly:
-
-```ts
-volumeSlider.addEventListener('input', () => {
-  void player.volume(Number(volumeSlider.value)); // see Volume — 0-100, clamped
-});
-```
-
-## A mute button that can't drift
-
-A naive mute button tracks its own `isMuted` boolean, toggling it in the click handler. That drifts the moment anything else changes mute state, a keyboard shortcut, a Connect sync, another tab. Read `volumeState()` (see [Volume](/nomercy-music-player/tour/volume)) instead, and resync on the `'mute'` event rather than the click:
+The native slider applies live on every drag through `volume(level)` — 0-100, clamped, no cost to spamming it the way seeking has. The mute button reflects `volumeState()` (see [Volume](/nomercy-music-player/tour/volume)) and resyncs on the `'mute'` event rather than tracking a local boolean, so it can't drift when something else changes mute state — a keyboard shortcut, a Connect sync, another tab:
 
 ```ts
 import { VolumeState } from '@nomercy-entertainment/nomercy-music-player';
 
-const muteButton = player.createButton('my-mute', 'Mute', () => {
-  player.toggleMute(); // the click only requests the change
+player.on('mute', () => {
+  const muted = player.volumeState() === VolumeState.MUTED;
+  // update a custom mute icon here
 });
-
-const syncMute = () => {
-  const muted = player.volumeState() === VolumeState.MUTED; // the event confirms it
-  muteButton.textContent = muted ? '🔇' : '🔊';
-  muteButton.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
-};
-player.on('mute', syncMute);
-syncMute();
 ```
 
-The click handler only ever *requests* a change; the `'mute'` event is what actually updates the icon, the same pattern Step 1's play/pause button uses for `playState()`.
+A click only ever *requests* a change — `toggleMute()` — the `'mute'` event is what confirms it and is the only thing a custom UI should render from.
 
 ## See it running
 
-Drag the volume slider or click mute below.
+Drag the native slider or click mute below — same track, same config as the last two steps.
 
 :::snippet{file="music-build-3-volume"}
 :::
 
 ## Next steps
 
-- [Step 4: The Track List](/nomercy-music-player/build/track-list): list every queued track and jump to one on click.
+- [Step 4: The Track List](/nomercy-music-player/build/track-list): the first thing in this tutorial actually worth hand-building — nothing native covers a playlist.

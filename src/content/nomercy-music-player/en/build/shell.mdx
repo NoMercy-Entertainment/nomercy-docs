@@ -1,60 +1,37 @@
 ---
 title: 'Build a Player: The Shell'
-description: 'Step 1 of 5: build a real overlay bar with one play/pause button, wired to togglePlayback() and playState(), the starting point for a full music player UI.'
+description: 'Step 1 of 5: controls: true is the real music player — the native <audio controls> bar, no chrome plugin to mount because music ships none.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/mixins/dom-mixin.ts */}
+{/* Source: packages/nomercy-music-player/src/index.ts (controls), packages/nomercy-player-core/src/types/config.ts */}
 
 # Build a Player: The Shell
 
-This is a five-step tutorial that builds a real UI against a live player: a shell with play/pause, a scrubber, volume, a track list, now-playing and lyrics. Each step's live player below shows exactly that step's result, nothing from later steps. By the end you have one complete, self-contained overlay file.
+This is a five-step tutorial that mounts a real music player and adds the two things it genuinely lacks: a track list and a now-playing panel. Music ships no UI plugin at all — there's no shipped chrome overlay for audio the way there is for video, so steps 1 through 3 are about what the native bar already gives you for free, and steps 4 and 5 build the two things it can't.
 
-## No native bar to turn off
+## The real chrome is native
 
-Every example on the Guided Tour already builds its own DOM, `nomercy-music-player` ships no chrome at all, not even an optional native bar to switch on. There's nothing to disable here, `player.container` is a bare `<div>` from the first render.
-
-## The DOM helpers
-
-`nomercy-player-core` exposes the same DOM construction helpers the kit itself is built from, `createElement`, `createButton`, `createSVG`, `addClasses`, `removeClasses`, so building an overlay doesn't require a component framework or a CSS toolkit. `createElement(type, id)` returns a fluent builder; `createButton(id, label, onClick)` returns an accessible `<button>` with `aria-label`, `title`, and the click handler already wired:
+`controls: true` renders the browser's own `<audio controls>` bar — the same bar the [Quickstart](/nomercy-music-player/quickstart) mounts. There's no options surface to configure it with; the browser owns its layout and rendering entirely:
 
 ```ts
-const bar = player.createElement('div', 'my-controls')
-  .appendTo(player.container)
-  .get();
-
-const playPause = player.createButton('my-play-pause', 'Play', () => {
-  void player.togglePlayback();
-});
-bar.appendChild(playPause);
-```
-
-`player.container` is the real mounted `<div>`, the same element `setup()` received. Position it `relative` so an absolutely-positioned bar anchors to it instead of the page.
-
-## Wiring the button to state
-
-A play/pause button needs to reflect state it didn't cause, another tab's play, a Connect sync, the track ending. Read `playState()` and subscribe to `'play'`/`'pause'`/`'playing'` (see [Playback State & Events](/nomercy-music-player/tour/state-events)) instead of tracking a local boolean toggled only by the click handler:
-
-```ts
-import { PlayState } from '@nomercy-entertainment/nomercy-music-player';
-
-const sync = () => {
-  const playing = player.playState() === PlayState.PLAYING;
-  playPause.textContent = playing ? '⏸' : '▶';
-  playPause.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+const config: MusicPlayerConfig = {
+  baseUrl,
+  playlist: songs,
+  controls: true,
 };
-player.on('play', sync);
-player.on('pause', sync);
-player.on('playing', sync);
-sync(); // set the initial label
 ```
+
+`item(0)` loads the first track once `setup()`'s pipeline settles so the bar has something to play — music has no `autoPlay` config field the way video does, since browsers block audio autoplay outside a user gesture anyway.
+
+## What the native bar already covers
+
+Play/pause, seeking, volume, and mute are all in the bar the moment `controls: true` is set. The next two steps ([Scrubber](/nomercy-music-player/build/scrubber), [Volume](/nomercy-music-player/build/volume)) point at the exact kit methods driving it under the hood — useful the day you swap the native bar for a fully custom one, not because there's anything left to add here.
 
 ## See it running
-
-`onReady()` in the snippet below runs once, synchronously, right after `setup()`, the same moment your own app has a live player instance to build against. It returns a cleanup function that removes the listeners and the bar, called when the example unmounts.
 
 :::snippet{file="music-build-1-shell"}
 :::
 
 ## Next steps
 
-- [Step 2: The Scrubber](/nomercy-music-player/build/scrubber): a progress bar driven by the `'time'` and `'duration'` events, seeking through `time()`.
+- [Step 2: The Scrubber](/nomercy-music-player/build/scrubber): the `time()` / `'time'` / `'duration'` surface already wired into the bar you're looking at.

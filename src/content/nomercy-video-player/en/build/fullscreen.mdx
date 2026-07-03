@@ -1,45 +1,53 @@
 ---
 title: 'Build a Player: Fullscreen'
-description: 'Step 5 of 5: a fullscreen button driven by toggleFullscreen() and the settled fullscreen event, completing the overlay this tutorial built.'
+description: 'Step 5 of 5: the complete DesktopUiPlugin configuration — theater, PiP, quality, audio track, playlist, and aspect ratio, all turned on together.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/index.ts (fullscreen, toggleFullscreen) */}
+{/* Source: packages/nomercy-video-player/src/plugins/desktop-ui/index.ts (DesktopUiButtonOptions) */}
 
 # Build a Player: Fullscreen
 
-[Step 4](/nomercy-video-player/build/subtitle-menu) added the subtitle menu. This is the last step: a fullscreen button, completing the overlay this tutorial has been building since [The Shell](/nomercy-video-player/build/shell).
+[Step 4](/nomercy-video-player/build/subtitle-menu) added the subtitle picker. This is the last step: every remaining default-off button, turned on together, over a real three-item queue.
 
-## Request, then confirm
+## The rest of the button set
 
-`toggleFullscreen()` flips `fullscreen()` through the platform's `FullscreenController` (`setup({ platform })`, defaulting to `browserPlatform`, the browser's own Fullscreen API underneath). Same pattern as every other button in this tutorial: the click only requests the change, the `'fullscreen'` event confirms it settled:
+`theater`, `pip`, `quality`, `audio`, `playlist`, and `aspectRatio` are the buttons the previous four steps left off. None of them need a hand-built click handler or a `toggleFullscreen()`/`fullscreen()` wrapper the way earlier versions of this page taught — `DesktopUiPlugin` already drives every one of those methods internally. Turning them on is the whole change:
 
 ```ts
-const fullscreenButton = player.createButton('my-fullscreen', 'Fullscreen', () => {
-  player.toggleFullscreen();
-});
-
-const syncFullscreen = () => {
-  const active = player.fullscreen() === FullscreenState.ON;
-  fullscreenButton.textContent = active ? '⤢' : '⛶';
-  fullscreenButton.setAttribute('aria-label', active ? 'Exit fullscreen' : 'Fullscreen');
-};
-player.on('fullscreen', syncFullscreen);
-syncFullscreen();
+plugins: [
+  {
+    plugin: DesktopUiPlugin,
+    opts: {
+      buttons: {
+        theater: true,
+        pip: true,
+        quality: true,
+        audio: true,
+        playlist: true,
+        subtitles: true,
+        aspectRatio: true,
+      },
+    },
+  },
+  SubtitleOverlayPlugin,
+],
 ```
 
-Requesting fullscreen requires an actual user gesture, browsers reject a programmatic call outside a click handler, so nothing in `onReady()` calls it automatically; only the button's own click does.
+## A real queue for the playlist button
 
-## What you built
+A playlist button with one item is a button that does nothing — this step switches to `films`, the same three-item fixture [The Queue](/nomercy-video-player/tour/queue) uses, so the playlist panel has something real to list and `next()`/`previous()` have somewhere to go.
 
-Five steps, one overlay: a shell with play/pause, a scrubber that doesn't fight the user's drag, live volume with a mute button that can't drift, a subtitle menu backed by a real rendering plugin, and fullscreen. Every method behind every button is documented in full on the [Guided Tour](/nomercy-video-player/tour/transport), this tutorial only wired them to DOM you control instead of the browser's native bar.
+## What this tutorial built
+
+Five steps, one real player: a shell, a chapter-aware scrubber, a configurable volume control, a subtitle picker backed by a real rendering plugin, and the complete button set. Every method behind every button is documented in full on the [Guided Tour](/nomercy-video-player/tour/transport) — this tutorial mounted the shipped chrome and configured it, it never reinvented it.
 
 ## See it running
 
-The complete overlay, all five steps at once.
+The complete configuration, all five steps' options at once.
 
 :::snippet{file="video-build-5-fullscreen"}
 :::
 
 ## Next steps
 
-- [Recipe: Vue Integration](/nomercy-video-player/recipes/vue-integration): wrap this same overlay pattern in a framework, or jump to [Guided Tour: Transport](/nomercy-video-player/tour/transport) to review the full method surface behind every button this tutorial built.
+- [Recipe: Vue Integration](/nomercy-video-player/recipes/vue-integration): wrap `DesktopUiPlugin` in a framework, or jump to [Guided Tour: Transport](/nomercy-video-player/tour/transport) to review the full method surface behind every button this tutorial turned on.

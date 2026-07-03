@@ -1,31 +1,17 @@
 ---
 title: 'Build a Player: The Scrubber'
-description: "Step 2 of 5: a progress bar reading position from the 'time' event and length from 'duration', seeking with time(seconds) only once the user releases."
+description: "Step 2 of 5: the native bar's scrubber, and the time() / 'time' / 'duration' surface it's already wired to underneath."
 ---
 
 {/* Source: packages/nomercy-player-core/src/core/mixins/time.ts */}
 
 # Build a Player: The Scrubber
 
-[Step 1](/nomercy-music-player/build/shell) built the bar and a play/pause button. This step adds a scrubber next to it, nothing about Step 1's code changes.
+[Step 1](/nomercy-music-player/build/shell) mounted the native bar. The config below is identical — there's nothing to add, because the native scrubber already covers seeking. This page exists to name the methods underneath it, for the day you build your own.
 
-## A native range input
+## What's already wired
 
-A plain `<input type="range">` is the whole scrubber, no custom drag math needed. `createElement` builds it the same way it built the bar:
-
-```ts
-const scrubber = player.createElement('input', 'my-scrubber')
-  .appendTo(bar)
-  .get();
-scrubber.type = 'range';
-scrubber.min = '0';
-scrubber.max = String(player.duration() || 0);
-scrubber.step = '0.1';
-```
-
-## Reading position without polling
-
-The scrubber's value tracks the player, not the other way around, by default. Subscribe to `'time'` for position and `'duration'` for length (both covered on [Time & Seeking](/nomercy-music-player/tour/time)), never poll `player.time()` in a loop:
+`controls: true`'s scrubber reads the same position/length pair the kit exposes to everyone: `'time'` for position, `'duration'` for length (both covered on [Time & Seeking](/nomercy-music-player/tour/time)), and seeks through `time(seconds)` on release. A custom scrubber built from `nomercy-player-core`'s `createElement` would subscribe to exactly those two events:
 
 ```ts
 player.on('duration', ({ duration }) => {
@@ -36,26 +22,15 @@ player.on('time', ({ time }) => {
 });
 ```
 
-## Not fighting the user's drag
-
-Without the `dragging` guard above, an incoming `'time'` update mid-drag would snap the thumb back to the actual playback position every few hundred milliseconds, fighting the user's own gesture. Track it with `pointerdown`, and only seek on `change` (fires once, on release) instead of `input` (fires continuously) so `time()` isn't called dozens of times per drag:
-
-```ts
-let dragging = false;
-scrubber.addEventListener('pointerdown', () => { dragging = true; });
-scrubber.addEventListener('change', () => {
-  dragging = false;
-  void player.time(Number(scrubber.value)); // the same seek Time & Seeking describes
-});
-```
+The `dragging` guard matters the moment you build this yourself: without it, an incoming `'time'` update mid-drag snaps the thumb back to the actual playback position every frame, fighting the user's own gesture. Seek only on `change` (release), never on `input` (continuous) — the same rule [Transport](/nomercy-music-player/tour/transport) documents for `time()`.
 
 ## See it running
 
-Drag the scrubber below, it seeks on release through exactly `player.time(seconds)`, the method [Time & Seeking](/nomercy-music-player/tour/time) documents.
+The scrubber below is the browser's own — drag it, it seeks through exactly the `time()` method just described.
 
 :::snippet{file="music-build-2-scrubber"}
 :::
 
 ## Next steps
 
-- [Step 3: Volume](/nomercy-music-player/build/volume): a volume slider and mute button, applying on every drag instead of waiting for release.
+- [Step 3: Volume](/nomercy-music-player/build/volume): same story, for the native bar's volume slider and mute button.

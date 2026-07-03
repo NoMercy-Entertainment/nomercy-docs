@@ -1,17 +1,17 @@
 ---
 title: 'Build a Player: The Track List'
-description: 'Step 4 of 5: a track-list menu built from queue() and index(), calling item(index, { autoplay: true }) on click.'
+description: 'Step 4 of 5: a track-list toggle built from queue() and index(), calling item(index, { autoplay: true }) on click — the first real gap in the native bar.'
 ---
 
 {/* Source: packages/nomercy-player-core/src/core/mixins/queue.ts */}
 
 # Build a Player: The Track List
 
-[Step 3](/nomercy-music-player/build/volume) added volume. This step adds a track list, letting the listener see the whole queue and jump to any entry.
+The last two steps had nothing to add — the native bar already covers transport. This step is different: `controls: true` has no concept of a playlist at all, so a track-list toggle is the first thing in this tutorial actually worth hand-building.
 
-## Building the menu
+## One button, not a bar
 
-Rather than guess when the queue is populated, build the menu from `queue()` fresh on every open, exactly the pattern [The Queue](/nomercy-music-player/tour/queue) documents:
+Earlier versions of this tutorial rebuilt play/pause, seeking, and volume as a competing custom bar sitting next to the native one. That's gone — the config below is still just `controls: true`. What's new is a single small button, positioned clear of the native bar, that opens a panel built fresh from `queue()`/`index()` on every open, exactly the pattern [The Queue](/nomercy-music-player/tour/queue) documents:
 
 ```ts
 function renderList() {
@@ -27,11 +27,11 @@ function renderList() {
 }
 ```
 
-Each option button is built with `createButton`, the same accessible helper Step 1's play/pause used, so every entry gets a real `aria-label` for free.
+Each option button is built with `createButton`, `nomercy-player-core`'s accessible DOM helper, so every entry gets a real `aria-label` for free.
 
 ## Keeping the highlight in sync
 
-A track can change without a click on this menu at all, `next()`, `previous()`, or a manual [`crossfadeTo()`](/nomercy-music-player/tour/crossfade) all move the cursor. Re-render whenever the queue's `item` event fires and the list happens to be open, instead of only updating on a click inside the menu itself:
+A track can change without a click on this menu at all — `next()`, `previous()`, or a manual [`crossfadeTo()`](/nomercy-music-player/tour/crossfade) all move the cursor. Re-render whenever the queue's `item` event fires and the list happens to be open, instead of only updating on a click inside the menu itself:
 
 ```ts
 player.on('item', () => {
@@ -41,7 +41,7 @@ player.on('item', () => {
 
 ## See it running
 
-Click the list icon below to open the track list, sourced from the same three-track queue [The Queue](/nomercy-music-player/tour/queue) uses. The active track is highlighted; clicking another jumps straight to it.
+Click the list icon (top right) below to open the track list, sourced from the same catalogue [The Queue](/nomercy-music-player/tour/queue) uses. The active track is highlighted; clicking another jumps straight to it. The native bar along the bottom still owns transport.
 
 :::snippet{file="music-build-4-track-list"}
 :::

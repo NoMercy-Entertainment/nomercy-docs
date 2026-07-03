@@ -1,33 +1,35 @@
 ---
 title: 'Build a Player: Now Playing & Lyrics'
-description: 'Step 5 of 5: a now-playing panel (cover, title, artist) plus a synced lyric line via LyricsPlugin, completing the overlay this tutorial built.'
+description: 'Step 5 of 5: a now-playing panel (cover, title, artist) plus a synced lyric line via LyricsPlugin, registered declaratively through setup({ plugins }).'
 ---
 
 {/* Source: packages/nomercy-music-player/src/plugins/lyrics/index.ts */}
 
 # Build a Player: Now Playing & Lyrics
 
-[Step 4](/nomercy-music-player/build/track-list) added the track list. This is the last step: a now-playing panel and a synced lyric line, completing the overlay this tutorial has been building since [The Shell](/nomercy-music-player/build/shell).
+[Step 4](/nomercy-music-player/build/track-list) added the track list. This is the last step: a now-playing panel and a synced lyric line — the second (and last) thing the native bar has no concept of.
 
-## Cover art needs a fully-qualified URL
+## Cover art reads the canonical field
 
-`item.url` (the track itself) resolves against `baseUrl` automatically. `item.cover` doesn't go through that same pipeline unless your app also configures a base for it, so a catalogue without a separate image origin should set `cover` to a full URL directly, the pattern [The Queue](/nomercy-music-player/tour/queue) sets up:
+`item.url` (the track itself) resolves against `baseUrl` automatically. Artwork should read the canonical `image` field first, falling back to the deprecated `cover` for older catalogues — the exact resolution `MusicPreloadStrategy`/`CastSenderPlugin` use inside the package itself, and the same fix the [Quickstart](/nomercy-music-player/quickstart) applies:
 
 ```ts
 const cover = player.createElement('img', 'my-cover').appendTo(panel).get();
-cover.src = player.item()?.cover ?? '';
+const current = player.item();
+cover.src = current?.image ?? current?.cover ?? '';
 ```
 
-## Lyrics need a plugin, same rule as every plugin in this trio
+## Plugins register declaratively
 
-Painting a synced lyric line is [`LyricsPlugin`](/nomercy-music-player/tour/lyrics)'s job, registered in `configure()`, *before* `setup()` runs, registering after misses the plugin's own `use()` call during the setup pipeline:
+Painting a synced lyric line is [`LyricsPlugin`](/nomercy-music-player/tour/lyrics)'s job. `plugins` in `setup()` is the declarative registration path — sugar over calling `addPlugin()` yourself before `setup()`, resolved at the exact same pipeline point, so there's no separate call to sequence:
 
 ```ts
 import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/lyrics';
 
-const player = nmplayer('my-container');
-player.addPlugin(LyricsPlugin);
-player.setup(config);
+const player = nmplayer('my-container').setup({
+  ...config,
+  plugins: [LyricsPlugin],
+});
 await player.ready();
 ```
 
@@ -37,7 +39,7 @@ await player.ready();
 
 ```ts
 player.on('item', ({ item }) => {
-  cover.src = item?.cover ?? '';
+  cover.src = item?.image ?? item?.cover ?? '';
   title.textContent = item?.name ?? '';
   artist.textContent = item?.artist ?? '';
   lyricLine.textContent = ''; // clear until the new track's lyrics resolve
@@ -49,11 +51,11 @@ player.on('plugin:lyrics:lineEnter', ({ text }) => {
 
 ## What you built
 
-Five steps, one player: a shell with play/pause, a scrubber that doesn't fight the user's drag, live volume with a mute button that can't drift, a track list built fresh from the real queue, and a now-playing panel with synced lyrics. Every method behind every piece is documented in full on the [Guided Tour](/nomercy-music-player/tour/transport), this tutorial only wired them to DOM you control instead of leaving you to design it from a bare method list.
+Five steps, one real player: the native bar for transport (nothing to rebuild there), a track-list toggle for the one gap it has, and a now-playing panel with synced lyrics for the other. Every method behind every piece is documented in full on the [Guided Tour](/nomercy-music-player/tour/transport) — this tutorial only hand-built the two things nothing shipped already covers.
 
 ## See it running
 
-The complete player, all five steps at once.
+The complete player: native transport, plus the now-playing panel and lyric line this step adds.
 
 :::snippet{file="music-build-5-now-playing"}
 :::

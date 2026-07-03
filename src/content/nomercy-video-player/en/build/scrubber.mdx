@@ -1,61 +1,38 @@
 ---
 title: 'Build a Player: The Scrubber'
-description: "Step 2 of 5: a progress bar reading position from the 'time' event and length from 'duration', seeking with time(seconds) only once the user releases."
+description: 'Step 2 of 5: the real chapter-segmented scrubber DesktopUiPlugin renders automatically when the current item has chapter marks.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/mixins/time.ts */}
+{/* Source: packages/nomercy-video-player/src/plugins/desktop-ui/progressBar.ts */}
 
 # Build a Player: The Scrubber
 
-[Step 1](/nomercy-video-player/build/shell) built the bar and a play/pause button. This step adds a scrubber next to it, nothing about Step 1's code changes.
+[Step 1](/nomercy-video-player/build/shell) mounted the real chrome. Nothing new to register here — this step looks closer at one piece of what that mount already gave you: the scrubber.
 
-## A native range input
+## Not a plain range input
 
-A plain `<input type="range">` is the whole scrubber, no custom drag math needed. `createElement` builds it the same way it built the bar:
+The progress bar isn't a bare `<input type="range">` — `DesktopUiPlugin` reads `chapters()` (see [Chapters](/nomercy-video-player/tour/chapters)) off the current item and, when it's non-empty, splits the bar into one segment per chapter, each with its own buffer fill. `sintel` carries real chapter marks, so the segments below are real, not simulated. An item with no chapters gets a single unsegmented bar — same component, no configuration needed either way.
 
-```ts
-const scrubber = player.createElement('input', 'my-scrubber')
-  .appendTo(bar)
-  .get();
-scrubber.type = 'range';
-scrubber.min = '0';
-scrubber.max = String(player.duration() || 0);
-scrubber.step = '0.1';
-```
+## Chapter navigation follows the data
 
-## Reading position without polling
-
-The scrubber's value tracks the player, not the other way around, by default. Subscribe to `'time'` for position and `'duration'` for length (both covered on [Playback State & Events](/nomercy-video-player/tour/state-events)), never poll `player.time()` in a loop:
+`buttons.chapterPrev` / `chapterNext` both default to `true`, but they gate on content: no chapters, no buttons, regardless of the option. Setting them explicitly below doesn't change anything visible — it's here to name the two toggles that exist, in case a consumer wants to hide chapter navigation on an item that has marks but shouldn't offer to skip between them (a live stream with ad-break markers, say):
 
 ```ts
-player.on('duration', ({ duration }) => {
-  scrubber.max = String(duration);
-});
-player.on('time', ({ time }) => {
-  if (!dragging) scrubber.value = String(time);
-});
-```
-
-## Not fighting the user's drag
-
-Without the `dragging` guard above, an incoming `'time'` update mid-drag would snap the thumb back to the actual playback position every few hundred milliseconds, fighting the user's own gesture. Track it with `pointerdown`, and only seek on `change` (fires once, on release) instead of `input` (fires continuously) so `time()` isn't called dozens of times per drag:
-
-```ts
-let dragging = false;
-scrubber.addEventListener('pointerdown', () => { dragging = true; });
-scrubber.addEventListener('change', () => {
-  dragging = false;
-  void player.time(Number(scrubber.value)); // the same seek Transport describes
-});
+plugins: [
+  {
+    plugin: DesktopUiPlugin,
+    opts: { buttons: { chapterPrev: true, chapterNext: true } },
+  },
+],
 ```
 
 ## See it running
 
-Drag the scrubber below, it seeks on release through exactly `player.time(seconds)`, the method [Transport](/nomercy-video-player/tour/transport) documents.
+Drag the scrubber below — the chapter dividers are real `sintel` data, not decoration.
 
 :::snippet{file="video-build-2-scrubber"}
 :::
 
 ## Next steps
 
-- [Step 3: Volume](/nomercy-video-player/build/volume): a volume slider and mute button, applying on every drag instead of waiting for release.
+- [Step 3: Volume](/nomercy-video-player/build/volume): the volume slider's three display modes.
