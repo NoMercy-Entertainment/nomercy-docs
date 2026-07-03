@@ -12,7 +12,7 @@ reader who's read one of the three already knows the shape of the other two.
 
 | # | Stage | What lives here |
 |---|---|---|
-| 1 | Introduction | What the library is, who it's for, why it exists. Pitches the extensibility model: strict JWPlayer-style setup then playback, full freedom over the UI after that. |
+| 1 | Introduction | What the library is, who it's for, why it exists. Pitches the extensibility model: a strict setup-then-playback flow you may recognize from other web player setups, full freedom over the UI after that. Never name other player libraries explicitly. |
 | 2 | Quickstart | Install to first media playing, with a live preview. Copy-paste that works first try. |
 | 3 | Guided tour | The API in small, one-concept pages: setup, lifecycle, transport, time, volume, queue, tracks/subtitles, state/events. |
 | 4 | Build a player | Step-by-step overlay build. Every step shows the live result exactly as the reader's own code will render it. |
