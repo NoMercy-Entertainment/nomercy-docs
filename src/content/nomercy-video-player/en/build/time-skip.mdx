@@ -1,0 +1,124 @@
+---
+title: 'Build a Player: Time & Skip'
+description: 'Step 4 of 10: skip buttons on rewind()/forward(), and a current-time / duration readout fed by the time event and a small formatter.'
+---
+
+{/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step4Plugin.ts, packages/nomercy-player-core/src/types/player.ts */}
+
+# Build a Player: Time & Skip
+
+[Step 3](/nomercy-video-player/build/progress-bar) made position visible. This step makes it legible and jumpable: two skip buttons and a `0:00 / 15:00` readout in the button row.
+
+Two label fields, two calls at the end of `use()`:
+
+{/* partial */}
+
+```ts
+private currentTimeLabel!: HTMLSpanElement;  // NEW
+private durationLabel!: HTMLSpanElement;     // NEW
+
+override use(): void {
+  // ...everything from step 3, unchanged
+
+  this.createSkipButtons();  // NEW
+  this.createTimeDisplay();  // NEW
+}
+```
+
+## Ten seconds, either way
+
+`rewind(seconds)` and `forward(seconds)` are the player's own bounded-seek methods, they clamp at the ends of the item so there is nothing to guard:
+
+{/* partial */}
+
+```ts
+private createSkipButtons(): void {
+  const skipBack = this.createUiButton(this.bottomRow, 'skip-back', 'Skip back 10 seconds');
+  skipBack.innerHTML = SEEK_BACK_ICON;
+  this.listen(skipBack, 'click', (event) => {
+    event.stopPropagation();
+    void this.player.rewind(10);
+  });
+
+  const skipForward = this.createUiButton(this.bottomRow, 'skip-forward', 'Skip forward 10 seconds');
+  skipForward.innerHTML = SEEK_FORWARD_ICON;
+  this.listen(skipForward, 'click', (event) => {
+    event.stopPropagation();
+    void this.player.forward(10);
+  });
+}
+```
+
+`createUiButton()` is the step-2 helper earning its keep: every button from here on is one call plus an icon.
+
+## The clock
+
+The `time` event carries seconds, and the kit ships the formatter: `formatSeconds()` renders `M:SS`, rolls over to `H:MM:SS` past the hour, and returns `0:00` for anything negative or non-finite, so there is nothing to hand-roll and nothing to guard:
+
+{/* partial */}
+
+```ts
+import { formatSeconds, Plugin } from '@nomercy-entertainment/nomercy-player-core';
+```
+
+Three spans in the button row, current, separator, duration, then a listener. The labels subscribe to the same `time` event the progress bar already uses, their own listener, so `createTimeDisplay()` stays self-contained and step 3's method is untouched:
+
+{/* partial */}
+
+```ts
+private createTimeDisplay(): void {
+  this.currentTimeLabel = this.player
+    .createElement('span', 'current-time')
+    .addClasses([
+      'text-white',
+      'text-xs',
+      'tabular-nums',
+      'ml-2',
+    ])
+    .appendTo(this.bottomRow)
+    .get();
+  this.currentTimeLabel.textContent = '0:00';
+
+  const separator = this.player
+    .createElement('span', 'time-separator')
+    .addClasses([
+      'text-white/50',
+      'text-xs',
+      'mx-1',
+    ])
+    .appendTo(this.bottomRow)
+    .get();
+  separator.textContent = '/';
+
+  this.durationLabel = this.player
+    .createElement('span', 'duration')
+    .addClasses([
+      'text-white',
+      'text-xs',
+      'tabular-nums',
+    ])
+    .appendTo(this.bottomRow)
+    .get();
+  this.durationLabel.textContent = '0:00';
+
+  this.on('time', ({ time }) => {
+    this.currentTimeLabel.textContent = formatSeconds(time);
+    this.durationLabel.textContent = formatSeconds(this.player.duration());
+  });
+}
+```
+
+`tabular-nums` keeps the digits monospaced so the readout doesn't jitter as seconds tick.
+
+Two listeners on one event is normal, the bus fans out to every subscriber, and each concern staying in its own builder method is what keeps this class readable as it grows.
+
+## See it running
+
+Click the skip buttons and watch the readout and the scrubber both jump, neither knows about the other, both follow the same events.
+
+:::snippet{file="video-build-4-time-skip" preview="first"}
+:::
+
+## Next steps
+
+- [Step 5: Volume](/nomercy-video-player/build/volume): the mute toggle and the hover-expand volume slider.

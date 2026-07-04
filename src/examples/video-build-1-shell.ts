@@ -7,25 +7,108 @@
 // -----------------------------------------------------------------------------
 
 /**
- * Build a Player, step 1 of 5: mount the real desktop chrome.
+ * Build a Player, step 1 of 10: Shell & Layout.
  *
- * `DesktopUiPlugin` is the shipped v2 UI overlay — the same chrome every
- * NoMercy app mounts, not something this tutorial reinvents from `<div>`s.
- * `plugins` in `setup()` registers it declaratively: the config sugar over
- * `addPlugin()`, resolved before the setup pipeline's `pluginsRegistering`
- * stage, so there's no separate pre-setup call to remember or get the
- * timing of wrong.
+ * The v2 translation of the original examples.nomercy.tv tutorial step. You
+ * are writing your own UI plugin, not mounting the shipped one: an overlay
+ * root and two control bars that every later step fills with real controls.
  *
- * With zero options it already renders: play/pause, mute, volume, a
- * scrubber (with chapter segments — `sintel` carries real chapter marks),
- * fullscreen, and a settings button. Off by default: theater, PiP, speed,
- * quality, subtitles, audio-track, playlist, and aspect-ratio buttons —
- * this tutorial turns them on one at a time over the next four steps.
+ * The bars key their visibility off the `.active` / `.paused` state classes
+ * the PLAYER maintains on `.nomercyplayer` — activity tracking is a player
+ * concern, so the plugin ships zero show/hide code. `inactivityMs` on the
+ * config tunes the fade delay.
+ *
+ * There is no `dispose()` on purpose: `mount('overlay')` registers its own
+ * teardown and the base cleans every `this.listen()` / `this.on()`
+ * subscription, so the v1 original's manual `remove()` calls have nothing
+ * left to do in v2.
  */
 
-import type { VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
-import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/desktop-ui';
+import type { NMVideoPlayer, VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { FILMS_BASE, sintel } from './media';
+
+class StepPlugin extends Plugin<NMVideoPlayer> {
+	static override readonly id = 'tutorial-ui';
+
+	private overlay!: HTMLElement;
+	private topBar!: HTMLDivElement;
+	private bottomBar!: HTMLDivElement;
+
+	override use(): void {
+		this.player.addClasses(this.player.container, ['group']);
+
+		this.overlay = this.mount('overlay');
+		this.player.addClasses(this.overlay, [
+			'overlay',
+			'absolute',
+			'inset-0',
+			'pointer-events-none',
+		]);
+
+		this.createTopBar();
+		this.createBottomBar();
+	}
+
+	private createTopBar(): void {
+		this.topBar = this.player
+			.createElement('div', 'top-bar')
+			.addClasses([
+				'absolute',
+				'top-0',
+				'left-0',
+				'right-0',
+				'flex',
+				'items-center',
+				'gap-2',
+				'p-4',
+				'pb-12',
+				'bg-gradient-to-b',
+				'from-black/80',
+				'to-transparent',
+				'opacity-0',
+				'transition-opacity',
+				'duration-300',
+				'pointer-events-none',
+				'group-[&.nomercyplayer.active]:opacity-100',
+				'group-[&.nomercyplayer.active]:pointer-events-auto',
+				'group-[&.nomercyplayer.paused]:opacity-100',
+				'group-[&.nomercyplayer.paused]:pointer-events-auto',
+			])
+			.appendTo(this.overlay)
+			.get();
+	}
+
+	private createBottomBar(): void {
+		this.bottomBar = this.player
+			.createElement('div', 'bottom-bar')
+			.addClasses([
+				'absolute',
+				'bottom-0',
+				'left-0',
+				'right-0',
+				'flex',
+				'flex-col',
+				'gap-1',
+				'px-4',
+				'pt-12',
+				'pb-2',
+				'bg-gradient-to-t',
+				'from-black/80',
+				'to-transparent',
+				'opacity-0',
+				'transition-opacity',
+				'duration-300',
+				'pointer-events-none',
+				'group-[&.nomercyplayer.active]:opacity-100',
+				'group-[&.nomercyplayer.active]:pointer-events-auto',
+				'group-[&.nomercyplayer.paused]:opacity-100',
+				'group-[&.nomercyplayer.paused]:pointer-events-auto',
+			])
+			.appendTo(this.overlay)
+			.get();
+	}
+}
 
 const config: VideoPlayerConfig = {
 	baseUrl: FILMS_BASE,
@@ -33,8 +116,11 @@ const config: VideoPlayerConfig = {
 	muted: true,
 	autoPlay: true,
 	controls: false,
-	plugins: [DesktopUiPlugin],
 	playlist: [sintel],
 };
 
-export default { config };
+function configure(player: NMVideoPlayer): void {
+	player.addPlugin(StepPlugin);
+}
+
+export default { config, configure };

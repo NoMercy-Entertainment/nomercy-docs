@@ -1,0 +1,206 @@
+---
+title: 'Build a Player: Progress Bar'
+description: 'Step 3 of 10: a draggable scrubber above the button row, seeking through seekByPercentage() and staying in sync via the time event.'
+---
+
+{/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step3Plugin.ts, packages/nomercy-player-core/src/types/player.ts */}
+
+# Build a Player: Progress Bar
+
+[Step 2](/nomercy-video-player/build/play-pause) wired playback. This step adds the control everyone reaches for first: a scrubber. It sits inside the bottom bar, above the button row (`flex-col` on the bar from step 1 was for exactly this), and it is four elements: the bar, a buffer fill, a progress fill, and a hover nipple.
+
+One field for the bar itself, one for the drag state, one call in `use()` placed before `createBottomRow()` so the DOM order matches the visual order:
+
+{/* partial */}
+
+```ts
+private sliderBar!: HTMLDivElement;  // NEW
+private isMouseDown = false;         // NEW
+
+override use(): void {
+  // ...everything from step 2, unchanged, except one insertion:
+
+  this.createBottomBar();
+  this.createProgressBar();  // NEW, before the button row
+  this.createBottomRow();
+  this.createPlaybackButton();
+}
+```
+
+## Four elements
+
+The bar is the interactive parent; the buffer fill, progress fill, and hover nipple are `pointer-events-none` children painted by width and position:
+
+{/* partial */}
+
+```ts
+private createProgressBar(): void {
+  this.sliderBar = this.player
+    .createElement('div', 'slider-bar')
+    .addClasses([
+      'relative',
+      'w-full',
+      'h-1',
+      'mx-2',
+      'bg-white/20',
+      'rounded-full',
+      'cursor-pointer',
+      'group/slider',
+      'hover:h-2',
+      'transition-all',
+      'duration-150',
+    ])
+    .appendTo(this.bottomBar)
+    .get();
+
+  const sliderBuffer = this.player
+    .createElement('div', 'slider-buffer')
+    .addClasses([
+      'absolute',
+      'top-0',
+      'left-0',
+      'h-full',
+      'bg-white/30',
+      'rounded-full',
+      'pointer-events-none',
+    ])
+    .appendTo(this.sliderBar)
+    .get();
+
+  const sliderProgress = this.player
+    .createElement('div', 'slider-progress')
+    .addClasses([
+      'absolute',
+      'top-0',
+      'left-0',
+      'h-full',
+      'bg-white',
+      'rounded-full',
+      'pointer-events-none',
+    ])
+    .appendTo(this.sliderBar)
+    .get();
+
+  const sliderNipple = this.player
+    .createElement('div', 'slider-nipple')
+    .addClasses([
+      'absolute',
+      'top-1/2',
+      '-translate-y-1/2',
+      '-translate-x-1/2',
+      'w-3',
+      'h-3',
+      'rounded-full',
+      'bg-white',
+      'hidden',
+      'group-hover/slider:flex',
+      'pointer-events-none',
+      'left-0',
+      'z-20',
+    ])
+    .appendTo(this.sliderBar)
+    .get();
+
+  // ...the handlers below all live inside this method too
+}
+```
+
+The fills and nipple are `const`s, not fields: only the handlers inside this method ever touch them, so they stay local, `hover:h-2` on the parent plus `group-hover/slider:flex` on the nipple give the fatten-on-hover feel with zero JavaScript.
+
+## Pointer position to percentage
+
+Everything a scrubber does starts with "where is the pointer, as a fraction of the bar". One helper handles mouse and touch (including `changedTouches`, which is what `touchend` carries), clamped so dragging past the edges holds at 0 and 100:
+
+{/* partial */}
+
+```ts
+const getPercentFromEvent = (event: MouseEvent | TouchEvent): number => {
+  const rect = this.sliderBar.getBoundingClientRect();
+  const clientX = ('clientX' in event ? event.clientX : undefined)
+    ?? ('touches' in event ? event.touches?.[0]?.clientX : undefined)
+    ?? ('changedTouches' in event ? event.changedTouches?.[0]?.clientX : undefined)
+    ?? 0;
+  const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+  return (x / rect.width) * 100;
+};
+```
+
+## Click to seek
+
+The player exposes `seekByPercentage()` for exactly this, no `duration() * percent / 100` math at the call site:
+
+{/* partial */}
+
+```ts
+this.listen(this.sliderBar, 'click', (event) => {
+  this.isMouseDown = false;
+  const percent = getPercentFromEvent(event as MouseEvent);
+  this.player.seekByPercentage(percent);
+  sliderNipple.style.left = `${percent}%`;
+});
+```
+
+## Drag to scrub, and don't fight the clock
+
+`mousedown`/`touchstart` arm the drag, `mousemove`/`touchmove` paint it without seeking yet, and leaving the bar cancels it:
+
+{/* partial */}
+
+```ts
+for (const eventName of ['mousedown', 'touchstart']) {
+  this.listen(this.sliderBar, eventName, () => {
+    this.isMouseDown = true;
+  }, { passive: true });
+}
+
+for (const eventName of ['mousemove', 'touchmove']) {
+  this.listen(this.sliderBar, eventName, (event) => {
+    if (!this.isMouseDown)
+      return;
+    const percent = getPercentFromEvent(event as MouseEvent | TouchEvent);
+    sliderNipple.style.left = `${percent}%`;
+    sliderProgress.style.width = `${percent}%`;
+  }, { passive: true });
+}
+
+this.listen(this.sliderBar, 'mouseleave', () => {
+  this.isMouseDown = false;
+}, { passive: true });
+```
+
+The `time` listener that keeps the bar in sync during normal playback skips its updates while `isMouseDown` is true, otherwise every tick would yank the nipple back to the playhead mid-drag:
+
+{/* partial */}
+
+```ts
+this.on('time', ({ time }) => {
+  if (this.isMouseDown)
+    return;
+  const duration = this.player.duration();
+  const percentage = duration > 0 ? (time / duration) * 100 : 0;
+  sliderProgress.style.width = `${percentage}%`;
+  sliderNipple.style.left = `${percentage}%`;
+});
+```
+
+The `time` event carries seconds; the percentage is yours to derive from `duration()`. And when the playlist moves to another item, both fills reset to zero through the same `item` event the title bar will use in [step 6](/nomercy-video-player/build/title-bar):
+
+{/* partial */}
+
+```ts
+this.on('item', () => {
+  sliderBuffer.style.width = '0';
+  sliderProgress.style.width = '0';
+});
+```
+
+## See it running
+
+Hover the bar: it thickens and the nipple appears. Click anywhere: playback jumps. Drag: the bar follows your pointer, not the clock.
+
+:::snippet{file="video-build-3-progress-bar" preview="first"}
+:::
+
+## Next steps
+
+- [Step 4: Time & Skip](/nomercy-video-player/build/time-skip): the clock readout and ten-second skip buttons.

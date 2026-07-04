@@ -1,0 +1,203 @@
+---
+title: 'Build a Player: Fullscreen & Speed'
+description: 'Step 7 of 10: a right-aligned cluster with a playback-speed menu on playbackRates()/playbackRate(), and a fullscreen toggle on the fullscreen event.'
+---
+
+{/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step7Plugin.ts, packages/nomercy-player-core/src/types/player.ts */}
+
+# Build a Player: Fullscreen & Speed
+
+The last hand-built step. Two controls on the right side of the button row: a speed menu, the first dropdown of the tutorial, and the fullscreen toggle.
+
+Two fields for the menu machinery, three calls, and one config addition:
+
+{/* partial */}
+
+```ts
+private speedMenu: HTMLDivElement | null = null;  // NEW
+private activeMenu: string | null = null;         // NEW
+
+override use(): void {
+  // ...everything from step 6, unchanged
+
+  this.createRightSpacer();       // NEW
+  this.createSpeedButton();       // NEW
+  this.createFullscreenButton();  // NEW
+}
+```
+
+`createRightSpacer()` is a one-liner, a `flex-1` div that pushes everything after it to the right edge:
+
+{/* partial */}
+
+```ts
+private createRightSpacer(): void {
+  this.player
+    .createElement('div', 'spacer')
+    .addClasses(['flex-1'])
+    .appendTo(this.bottomRow);
+}
+```
+
+## The speed menu
+
+`playbackRates()` reads the available speeds from config, so the menu never hardcodes them. That means the config now supplies them:
+
+{/* partial */}
+
+```ts
+const config: VideoPlayerConfig = {
+  // ...as before, plus:
+  playbackRates: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
+};
+```
+
+The button rides the step-2 helper; the menu is a hidden dropdown anchored above the row:
+
+{/* partial */}
+
+```ts
+private createSpeedButton(): void {
+  const button = this.createUiButton(this.bottomRow, 'speed', 'Playback speed');
+  button.innerHTML = SPEED_ICON;
+
+  this.listen(button, 'click', (event) => {
+    event.stopPropagation();
+    this.toggleMenu('speed');
+  });
+
+  this.speedMenu = this.player
+    .createElement('div', 'speed-menu')
+    .addClasses([
+      'absolute',
+      'bottom-12',
+      'right-0',
+      'bg-black/90',
+      'rounded-lg',
+      'p-2',
+      'hidden',
+      'flex-col',
+      'gap-1',
+      'min-w-[120px]',
+      'pointer-events-auto',
+    ])
+    .appendTo(this.bottomRow)
+    .get();
+
+  // ...the options loop below lives here too
+}
+```
+
+One option button per rate, `playbackRate(rate)` to act, the `playbackRate` event to react, the exact act/react split every control in this tutorial has used:
+
+{/* partial */}
+
+```ts
+const rates = this.player.playbackRates();
+for (const rate of rates) {
+  const option = this.player
+    .createElement('button', `speed-${rate}`)
+    .addClasses([
+      'text-white',
+      'text-sm',
+      'px-3',
+      'py-1.5',
+      'rounded',
+      'hover:bg-white/20',
+      'text-left',
+      'cursor-pointer',
+    ])
+    .appendTo(this.speedMenu!)
+    .get();
+  option.textContent = rate === 1 ? 'Normal' : `${rate}x`;
+  this.listen(option, 'click', (event) => {
+    event.stopPropagation();
+    void this.player.playbackRate(rate);
+    this.toggleMenu(null);
+  });
+}
+
+this.on('playbackRate', () => this.updateSpeedMenu());
+```
+
+`toggleMenu(name)` closes whatever is open before opening the requested menu, one menu at a time, and `updateSpeedMenu()` marks the active rate:
+
+{/* partial */}
+
+```ts
+private updateSpeedMenu(): void {
+  if (!this.speedMenu)
+    return;
+  const current = this.player.playbackRate();
+  const buttons = this.speedMenu.querySelectorAll('button');
+  const rates = this.player.playbackRates();
+  buttons.forEach((button, index) => {
+    button.classList.toggle('bg-white/20', rates[index] === current);
+  });
+}
+
+private toggleMenu(name: string | null): void {
+  this.speedMenu?.classList.add('hidden');
+  this.speedMenu?.classList.remove('flex');
+
+  if (name === this.activeMenu || name === null) {
+    this.activeMenu = null;
+    return;
+  }
+
+  this.activeMenu = name;
+  if (name === 'speed' && this.speedMenu) {
+    this.speedMenu.classList.remove('hidden');
+    this.speedMenu.classList.add('flex');
+  }
+}
+```
+
+With a single menu it looks like overkill; it is the shape the shipped plugin scales to a dozen menus, and [step 8](/nomercy-video-player/build/selectors) is where that payoff lands.
+
+## Fullscreen
+
+`toggleFullscreen()` to act, the `fullscreen` event, payload `{ active }`, to react. The icon pair and the `aria-label` both follow the event, never a locally-tracked flag, so an Escape-key exit (which never went through the button) still updates both:
+
+{/* partial */}
+
+```ts
+private createFullscreenButton(): void {
+  const button = this.createUiButton(this.bottomRow, 'fullscreen', 'Fullscreen');
+
+  const enterIcon = this.player
+    .createElement('span', 'fs-enter')
+    .appendTo(button)
+    .get();
+  enterIcon.innerHTML = FULLSCREEN_ICON;
+
+  const exitIcon = this.player
+    .createElement('span', 'fs-exit')
+    .appendTo(button)
+    .get();
+  exitIcon.innerHTML = EXIT_FULLSCREEN_ICON;
+  exitIcon.style.display = 'none';
+
+  this.listen(button, 'click', (event) => {
+    event.stopPropagation();
+    this.player.toggleFullscreen();
+  });
+
+  this.on('fullscreen', ({ active }) => {
+    enterIcon.style.display = active ? 'none' : 'flex';
+    exitIcon.style.display = active ? 'flex' : 'none';
+    button.ariaLabel = active ? 'Exit fullscreen' : 'Fullscreen';
+  });
+}
+```
+
+## See it running
+
+Seven steps in, this is a real player: transport, scrubber, clock, volume, title, speed, fullscreen, all on the public method surface, all reacting to events instead of tracking their own state.
+
+:::snippet{file="video-build-7-fullscreen-speed" preview="first"}
+:::
+
+## Next steps
+
+- [Step 8: Selectors](/nomercy-video-player/build/selectors): where hand-building stops paying its way, and the shipped plugin takes over.

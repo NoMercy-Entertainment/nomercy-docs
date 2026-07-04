@@ -7,16 +7,16 @@
 // -----------------------------------------------------------------------------
 
 /**
- * Subtitles: `sintel`'s wire item carries four VTT subtitle tracks (English,
- * Dutch, French, German) under `tracks[]`, normalized into `subtitles`/
- * `SubtitleTrackRef[]` on ingest. `defaultSubtitleLanguage: 'eng'` below
- * auto-selects the English track once the manifest resolves, the same
- * language-matching `subtitle()`/`subtitles()` describe on this page.
- * `SubtitleOverlayPlugin` is what actually paints the cue text — selection
- * and rendering are separate concerns, see the page prose.
+ * Subtitles: `sintel` carries four real VTT subtitle tracks (English, Dutch,
+ * French, German) directly on its typed `subtitles: SubtitleTrackRef[]`
+ * field. `defaultSubtitleLanguage: 'eng'` below auto-selects the English
+ * track once the manifest resolves, the same language-matching
+ * `subtitle()`/`subtitles()` describe on this page. `SubtitleOverlayPlugin`
+ * is what actually paints the cue text — selection and rendering are
+ * separate concerns, see the page prose.
  */
 
-import type { VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+import type { NMVideoPlayer, VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
 import { SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/subtitle-overlay';
 import { FILMS_BASE, sintel } from './media';
 
@@ -27,8 +27,11 @@ const config: VideoPlayerConfig = {
 	autoPlay: true,
 	controls: true,
 	defaultSubtitleLanguage: 'eng',
-	plugins: [SubtitleOverlayPlugin],
 	playlist: [sintel],
 };
 
-export default { config };
+function configure(player: NMVideoPlayer): void {
+	player.addPlugin(SubtitleOverlayPlugin);
+}
+
+export default { config, configure };

@@ -1,0 +1,43 @@
+---
+title: 'Build a Player: Selectors'
+description: 'Step 8 of 10: quality, subtitle, and audio menus, by swapping your seven-step plugin for the shipped DesktopUiPlugin, exactly as the original tutorial did.'
+---
+
+{/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step8Plugin.ts, packages/nomercy-video-player/src/plugins/desktop-ui/index.ts */}
+
+# Build a Player: Selectors
+
+The selector menus, quality, subtitles, audio tracks, are structurally the speed menu from [step 7](/nomercy-video-player/build/fullscreen-speed) three more times: a button, a dropdown, one option per track, act with a method (`quality(idx)`, `subtitle(idx)`, `audioTrack(idx)`), react to an event. You already know how to build them.
+
+Which is why this step, exactly like the original v1 tutorial at this same point, does something else: it swaps your hand-built plugin for the shipped one.
+
+## The swap
+
+Delete `StepPlugin` from the registration and add `DesktopUiPlugin`:
+
+```ts
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/desktop-ui';
+
+function configure(player: NMVideoPlayer): void {
+  player.addPlugin(DesktopUiPlugin);
+}
+```
+
+That one line brings every control you built in steps 1 through 7, plus the three selector menus, the playlist panel, chapters on the scrubber, tooltips, keyboard hints, theater and PiP, and the seek preview. All of it runs the same public methods you wired by hand: its play button calls the `togglePlayback()` you called, its scrubber seeks the way yours did, its menus follow the one-open-at-a-time shape `toggleMenu()` taught.
+
+## Why here
+
+Seven steps taught concepts. The selectors teach nothing new, they are volume: three menus, track labels, active-state marks, empty-state handling, RTL, focus management. That is maintenance surface, not learning surface, and it is exactly what a shipped plugin is for. The v1 tutorial made the same cut at the same step.
+
+The [DesktopUiPlugin page](/nomercy-video-player/plugins-adapters/desktop-ui) documents its options; the defaults below are enough for everything this page shows. `playbackRates` stays in the config, the shipped speed menu reads the exact same `playbackRates()` yours did.
+
+## See it running
+
+Open the settings menu: quality, subtitles (Sintel ships four languages), audio, and speed, the menus this step is named for. Everything else in the frame is a control you have already built once yourself.
+
+:::snippet{file="video-build-8-selectors" preview="first"}
+:::
+
+## Next steps
+
+- [Step 9: Seek Preview](/nomercy-video-player/build/seek-preview): back to your own plugin, to build the one desktop-ui feature the v1 tutorial saved for last: the hover thumbnail.

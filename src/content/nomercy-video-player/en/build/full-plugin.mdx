@@ -1,0 +1,274 @@
+---
+title: 'Build a Player: Full Plugin'
+description: 'Step 10 of 10: the touch layer, double-tap seek zones with ripples, tap-to-dismiss through the activity event, and the finished hand-built plugin.'
+---
+
+{/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step10Plugin.ts, packages/nomercy-video-player/src/plugins/touch-zones/index.ts */}
+
+# Build a Player: Full Plugin
+
+The last step, and the last v1 lesson: the touch layer. A phone player is not a mouse player, seeking is a double-tap on the left or right half of the screen, play/pause is a tap in the middle, and a stray tap dismisses the controls. The v1 tutorial closed on exactly this; v2 ships the same ideas as [TouchZonesPlugin](/nomercy-video-player/plugins-adapters/touch-zones), and here you build the core of it into your own plugin.
+
+Two fields, one call, and one removal:
+
+{/* partial */}
+
+```ts
+private center!: HTMLDivElement;      // NEW
+private controlsVisible = false;      // NEW
+// REMOVED: private centerButton — the center touch zone replaces it
+
+override use(): void {
+  // ...everything from step 9, minus createCenterButton()
+
+  this.createTouchZones();  // NEW
+}
+```
+
+## A grid under the controls
+
+The touch layer is a 3x6 grid stretched over the whole frame, inserted as the overlay's FIRST child so every bar and button from the previous steps renders above it. Zones are grid cells; `isMobile()` picks the layout, phones get volume zones above and below the center:
+
+{/* partial */}
+
+```ts
+this.overlay.insertBefore(center.get(), this.overlay.firstChild);
+this.center = center.get();
+
+if (this.player.isMobile()) {
+  this.createTouchSeekBack({ x: { start: 1, end: 1 }, y: { start: 2, end: 6 } });
+  this.createTouchPlayback({ x: { start: 2, end: 2 }, y: { start: 3, end: 5 } });
+  this.createTouchSeekForward({ x: { start: 3, end: 3 }, y: { start: 2, end: 6 } });
+  this.createTouchVolume('up', { x: { start: 2, end: 2 }, y: { start: 1, end: 3 } });
+  this.createTouchVolume('down', { x: { start: 2, end: 2 }, y: { start: 5, end: 7 } });
+}
+else {
+  this.createTouchSeekBack({ x: { start: 1, end: 2 }, y: { start: 2, end: 6 } });
+  this.createTouchPlayback({ x: { start: 2, end: 3 }, y: { start: 2, end: 6 } });
+  this.createTouchSeekForward({ x: { start: 3, end: 4 }, y: { start: 2, end: 6 } });
+}
+```
+
+Each zone is one div placed by grid coordinates, `pointer-events-auto` on the zones only, so the layer itself never eats a click meant for the video:
+
+{/* partial */}
+
+```ts
+private createTouchBox(id: string, pos: TouchZonePosition): HTMLDivElement {
+  const box = this.player
+    .createElement('div', `touch-box-${id}`)
+    .addClasses([
+      `touch-box-${id}`,
+      'pointer-events-auto',
+    ])
+    .appendTo(this.center)
+    .get();
+
+  box.style.gridColumnStart = String(pos.x.start);
+  box.style.gridColumnEnd = String(pos.x.end);
+  box.style.gridRowStart = String(pos.y.start);
+  box.style.gridRowEnd = String(pos.y.end);
+
+  return box;
+}
+```
+
+## Double-tap vs single-tap
+
+One helper arbitrates: a second tap inside the window fires the double action and cancels the pending single; otherwise the single action fires after the window closes. The pending timer goes through `this.timeout()`, so a plugin disposed mid-window never fires into a dead UI:
+
+{/* partial */}
+
+```ts
+private doubleTap(onDouble: (event: Event) => void, onSingle?: (event: Event) => void): (event: Event) => void {
+  let lastTap = 0;
+  let singleTimer: number | undefined;
+
+  return (event: Event) => {
+    const now = performance.now();
+    const sinceLast = now - lastTap;
+
+    if (sinceLast > 0 && sinceLast < DOUBLE_TAP_DELAY_MS) {
+      event.preventDefault();
+      onDouble(event);
+      if (singleTimer !== undefined)
+        clearTimeout(singleTimer);
+    }
+    else {
+      singleTimer = this.timeout(() => onSingle?.(event), DOUBLE_TAP_DELAY_MS);
+    }
+    lastTap = now;
+  };
+}
+```
+
+Each seek zone pairs the helper with a ripple that flashes the amount and hides itself 600ms later:
+
+{/* partial */}
+
+```ts
+private createTouchSeekBack(pos: TouchZonePosition): void {
+  const box = this.createTouchBox('seek-back', pos);
+  const ripple = this.createSeekRipple(box, 'left');
+
+  this.listen(box, 'click', this.doubleTap(
+    () => {
+      void this.player.rewind(10);
+      ripple.show('10 seconds');
+    },
+    () => this.dismissControls(),
+  ));
+}
+```
+
+(`createTouchSeekForward` is its mirror: `forward(10)`, ripple side `'right'`.) The ripple builder returns a tiny `{ show }` handle instead of leaking its elements, rounded on the inner edge, arrow-side anchored, text set per show:
+
+{/* partial */}
+
+```ts
+private createSeekRipple(parent: HTMLDivElement, side: 'left' | 'right'): { show: (text: string) => void } {
+  const ripple = this.player
+    .createElement('div', `seek-ripple-${side}`)
+    .addClasses([
+      'absolute',
+      'inset-y-0',
+      'w-1/3',
+      'hidden',
+      'flex-col',
+      'items-center',
+      'justify-center',
+      'bg-white/10',
+      'pointer-events-none',
+    ])
+    .appendTo(parent)
+    .get();
+
+  const text = this.player
+    .createElement('p', `seek-ripple-text-${side}`)
+    .addClasses([
+      'text-white',
+      'text-sm',
+      'font-medium',
+    ])
+    .appendTo(ripple)
+    .get();
+
+  if (side === 'left') {
+    ripple.style.borderRadius = '0 50% 50% 0';
+    ripple.style.left = '0px';
+  }
+  else {
+    ripple.style.borderRadius = '50% 0 0 50%';
+    ripple.style.right = '0px';
+  }
+
+  let hideTimer: number | undefined;
+  return {
+    show: (label: string): void => {
+      text.innerText = label;
+      ripple.style.display = 'flex';
+      if (hideTimer !== undefined)
+        clearTimeout(hideTimer);
+      hideTimer = this.timeout(() => {
+        ripple.style.display = 'none';
+      }, 600);
+    },
+  };
+}
+```
+
+The center zone replaces step 2's center play button, which is why `createCenterButton()` left the class: single-tap toggles playback while controls are up, double-tap toggles fullscreen, and a big play glyph shows whenever playback is paused:
+
+{/* partial */}
+
+```ts
+private createTouchPlayback(pos: TouchZonePosition): void {
+  const box = this.createTouchBox('playback', pos);
+  this.player.addClasses(box, [
+    'flex',
+    'items-center',
+    'justify-center',
+  ]);
+
+  this.listen(box, 'click', this.doubleTap(
+    () => this.player.toggleFullscreen(),
+    () => {
+      if (this.controlsVisible) {
+        this.player.togglePlayback();
+      }
+    },
+  ));
+
+  const playButton = this.player
+    .createElement('span', 'big-play')
+    .addClasses([
+      'pointer-events-none',
+      'text-white',
+    ])
+    .appendTo(box)
+    .get();
+  playButton.innerHTML = BIG_PLAY_ICON;
+
+  this.on('ready', () => { playButton.style.display = 'flex'; });
+  this.on('pause', () => { playButton.style.display = 'flex'; });
+  this.on('play', () => { playButton.style.display = 'none'; });
+}
+```
+
+On mobile, the volume zones are the same double-tap arbitration around `volumeUp()` / `volumeDown()`:
+
+{/* partial */}
+
+```ts
+private createTouchVolume(direction: 'up' | 'down', pos: TouchZonePosition): void {
+  const box = this.createTouchBox(`vol-${direction}`, pos);
+
+  this.listen(box, 'click', this.doubleTap(
+    () => {
+      if (direction === 'up') {
+        void this.player.volumeUp();
+      }
+      else {
+        void this.player.volumeDown();
+      }
+    },
+    () => this.dismissControls(),
+  ));
+}
+```
+
+## Dismissing through the activity event
+
+A single tap on a seek zone while the controls are up should hide them. [Step 1](/nomercy-video-player/build/shell) established who owns show-hide: the player tracks activity and the container classes follow the `activity` event. So the plugin dismisses by speaking that same language, and tracks visibility by listening to it, never by reading classes:
+
+{/* partial */}
+
+```ts
+this.on('activity', ({ active }) => {
+  this.controlsVisible = active;
+});
+
+private dismissControls(): void {
+  if (this.controlsVisible) {
+    this.player.emit('activity', { active: false });
+  }
+}
+```
+
+## What ten steps built
+
+A shell on the player's own show-hide contract, transport, a scrubber, the clock, volume, a title bar, a speed menu and fullscreen, the shipped plugin's selectors, a sprite seek preview, and a touch layer. Every line on the public surface: `togglePlayback()`, `seekByPercentage()`, `rewind()`/`forward()`, `volume()`/`toggleMute()`, `item()`, `playbackRate()`, `toggleFullscreen()`, `this.fetch()`, and the event bus throughout. No `dispose()` anywhere, the base cleans every element, listener, and timer you registered.
+
+For production, the shipped pairing covers this whole tutorial and more: [DesktopUiPlugin](/nomercy-video-player/plugins-adapters/desktop-ui) plus [TouchZonesPlugin](/nomercy-video-player/plugins-adapters/touch-zones). Now you know every line they run.
+
+## See it running
+
+Double-tap left or right of center to skip with a ripple. Tap center to toggle playback, double-tap for fullscreen. On a phone, the volume zones sit above and below center.
+
+:::snippet{file="video-build-10-full-plugin" preview="first"}
+:::
+
+## Next steps
+
+- [Plugin & Adapter: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui): every option on the shipped plugin you just rebuilt the fundamentals of.
+- [Recipe: Vue Integration](/nomercy-video-player/recipes/vue-integration): wrap a player, hand-built or shipped, in a framework component.

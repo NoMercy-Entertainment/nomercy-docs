@@ -12,9 +12,9 @@
  * since Step 4 — the native `controls: true` bar handles transport, this
  * handles everything it can't.
  *
- * `LyricsPlugin` registers declaratively via `plugins` in `setup()` — the
- * config sugar over `addPlugin()`, resolved before the pipeline's
- * `pluginsRegistering` stage runs. Artwork reads the canonical `image`
+ * `LyricsPlugin` registers through `addPlugin()` in `configure()`, exactly
+ * like a plugin you wrote yourself (the `plugins` array in `setup()` config
+ * is the declarative equivalent). Artwork reads the canonical `image`
  * field first, falling back to the deprecated `cover`, matching how
  * `MusicPreloadStrategy`/`CastSenderPlugin` resolve it inside the package
  * itself (see the [Quickstart](/nomercy-music-player/quickstart)).
@@ -27,9 +27,12 @@ import { MUSIC_BASE, songs } from './media';
 const config: MusicPlayerConfig = {
 	baseUrl: MUSIC_BASE,
 	controls: true,
-	plugins: [LyricsPlugin],
 	playlist: songs,
 };
+
+function configure(player: IMusicPlayer): void {
+	player.addPlugin(LyricsPlugin);
+}
 
 function onReady(player: IMusicPlayer, container: HTMLElement): () => void {
 	if (!container.style.position)
@@ -85,4 +88,4 @@ function onReady(player: IMusicPlayer, container: HTMLElement): () => void {
 	};
 }
 
-export default { config, onReady, player: 'music' as const };
+export default { config, configure, onReady, player: 'music' as const };

@@ -1,0 +1,233 @@
+---
+title: 'Build a Player: Seek Preview'
+description: "Step 9 of 10: the hover thumbnail over the scrubber, from the item's sprite-VTT manifest through the plugin's auth-aware fetch()."
+---
+
+{/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step9Plugin.ts, packages/nomercy-player-core/src/core/plugin/base.ts */}
+
+# Build a Player: Seek Preview
+
+Back to your own plugin. The v1 tutorial extended the shipped plugin with a seek preview at this step because the v1 shipped plugin did not have one; v2's `DesktopUiPlugin` ships it built in, so this translation adds the preview to your step-7 class instead, the same mechanics, taught on the plugin you own.
+
+The data: a playlist item can carry `previewSpriteUrl`, a VTT manifest whose cues map time ranges to regions of one sprite image (`thumbs.webp#xywh=x,y,w,h`). Sintel's fixture carries a real one.
+
+Four fields and a `PreviewCue` shape:
+
+{/* partial */}
+
+```ts
+interface PreviewCue {
+  start: number;
+  end: number;
+  imageUrl: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+private previewCues: PreviewCue[] = [];      // NEW
+private sliderPop!: HTMLDivElement;          // NEW
+private sliderPopImage!: HTMLDivElement;     // NEW
+private sliderPopText!: HTMLSpanElement;     // NEW
+
+override use(): void {
+  // ...everything from step 7, unchanged
+
+  this.createSeekPreview();  // NEW
+}
+```
+
+## The tooltip: pop, image, timestamp
+
+Three elements anchored above the step-3 slider bar, hidden until hover, all `pointer-events-none` so they never block the scrub:
+
+{/* partial */}
+
+```ts
+private createSeekPreview(): void {
+  this.sliderPop = this.player
+    .createElement('div', 'slider-pop')
+    .addClasses([
+      'absolute',
+      'bottom-full',
+      'mb-3',
+      'flex',
+      'flex-col',
+      'items-center',
+      'pointer-events-none',
+      'z-30',
+      'opacity-0',
+      'transition-opacity',
+      'duration-150',
+    ])
+    .appendTo(this.sliderBar)
+    .get();
+
+  this.sliderPopImage = this.player
+    .createElement('div', 'slider-pop-image')
+    .addClasses([
+      'rounded',
+      'overflow-hidden',
+      'bg-no-repeat',
+      'border',
+      'border-white/30',
+    ])
+    .appendTo(this.sliderPop)
+    .get();
+
+  this.sliderPopText = this.player
+    .createElement('span', 'slider-pop-text')
+    .addClasses([
+      'text-white',
+      'text-xs',
+      'mt-1',
+      'tabular-nums',
+      'bg-black/70',
+      'px-1.5',
+      'py-0.5',
+      'rounded',
+    ])
+    .appendTo(this.sliderPop)
+    .get();
+
+  // ...the cue loading and hover wiring below live here too
+}
+```
+
+## Fetching through the plugin
+
+`this.fetch()` is the plugin base's auth-aware fetch: it resolves the URL through the player's auth config, attaches credentials when configured, retries per policy, and ties the request's lifetime to the plugin. The sprite manifest is plain text, so the default text response is exactly right; `scope: 'silent'` keeps a missing manifest from surfacing as a player error, no thumbnails is a fine state:
+
+{/* partial */}
+
+```ts
+private async fetchPreviewCues(): Promise<void> {
+  if (this.previewCues.length > 0)
+    return;
+
+  const item = this.player.item();
+  const spritePath = item?.previewSpriteUrl;
+  if (!spritePath)
+    return;
+
+  const vttUrl = `${this.player.options.baseUrl ?? ''}${spritePath}`;
+  try {
+    const raw = await this.fetch<string>(vttUrl, { scope: 'silent' });
+    this.previewCues = parsePreviewVtt(raw, vttUrl);
+  }
+  catch {
+    this.previewCues = [];
+  }
+}
+```
+
+The parser is module-level code: split cue blocks, read the `-->` timestamps, match the `#xywh=` region, and resolve the sprite image against the VTT's own URL, sprite paths are relative to their manifest, like every sprite format:
+
+{/* partial */}
+
+```ts
+function parsePreviewVtt(raw: string, vttUrl: string): PreviewCue[] {
+  const cues: PreviewCue[] = [];
+  const timestamp = /(?:(\d+):)?(\d{2}):(\d{2})\.(\d{3})/gu;
+  const region = /^(?<file>[^#]+)#xywh=(?<x>\d+),(?<y>\d+),(?<w>\d+),(?<h>\d+)$/u;
+
+  const toSeconds = (match: RegExpExecArray): number => {
+    const [, hours, minutes, seconds, millis] = match;
+    return Number(hours ?? 0) * 3600 + Number(minutes) * 60 + Number(seconds) + Number(millis) / 1000;
+  };
+
+  for (const block of raw.split(/\r?\n\r?\n/)) {
+    const lines = block.trim().split(/\r?\n/);
+    const cueLineIndex = lines.findIndex(line => line.includes('-->'));
+    if (cueLineIndex === -1)
+      continue;
+
+    timestamp.lastIndex = 0;
+    const startMatch = timestamp.exec(lines[cueLineIndex]);
+    const endMatch = timestamp.exec(lines[cueLineIndex]);
+    const regionMatch = region.exec(lines[cueLineIndex + 1] ?? '');
+    if (!startMatch || !endMatch || !regionMatch?.groups)
+      continue;
+
+    cues.push({
+      start: toSeconds(startMatch),
+      end: toSeconds(endMatch),
+      imageUrl: new URL(regionMatch.groups.file, vttUrl).toString(),
+      x: Number(regionMatch.groups.x),
+      y: Number(regionMatch.groups.y),
+      w: Number(regionMatch.groups.w),
+      h: Number(regionMatch.groups.h),
+    });
+  }
+
+  return cues;
+}
+```
+
+## Hover maps X to a cue
+
+`mousemove` over the step-3 slider bar converts the pointer position to a time (the same math the scrubber uses), finds the covering cue, and paints the tooltip by shifting the sprite's `background-position`. Clamping keeps the tooltip inside the bar at both ends, and leaving the bar fades it out:
+
+{/* partial */}
+
+```ts
+this.listen(this.sliderBar, 'mousemove', (event) => {
+  if (this.previewCues.length === 0)
+    return;
+
+  const rect = this.sliderBar.getBoundingClientRect();
+  const x = Math.max(0, Math.min((event as MouseEvent).clientX - rect.left, rect.width));
+  const percent = x / rect.width;
+  const scrubTime = percent * this.player.duration();
+
+  const preview = this.previewCues.find(
+    cue => scrubTime >= cue.start && scrubTime < cue.end,
+  ) ?? this.previewCues.at(-1);
+
+  if (preview) {
+    this.sliderPopImage.style.backgroundImage = `url('${preview.imageUrl}')`;
+    this.sliderPopImage.style.backgroundPosition = `-${preview.x}px -${preview.y}px`;
+    this.sliderPopImage.style.width = `${preview.w}px`;
+    this.sliderPopImage.style.height = `${preview.h}px`;
+
+    const popWidth = preview.w;
+    const minLeft = popWidth / 2;
+    const maxLeft = rect.width - popWidth / 2;
+    const clampedX = Math.max(minLeft, Math.min(x, maxLeft));
+    this.sliderPop.style.left = `${clampedX}px`;
+    this.sliderPop.style.transform = 'translateX(-50%)';
+
+    this.sliderPopText.textContent = formatSeconds(scrubTime);
+  }
+
+  this.sliderPop.style.opacity = '1';
+}, { passive: true });
+
+this.listen(this.sliderBar, 'mouseleave', () => {
+  this.sliderPop.style.opacity = '0';
+}, { passive: true });
+```
+
+Cues load at `ready` and reload on `item` (after clearing, so a playlist jump never shows the previous film's thumbnails):
+
+{/* partial */}
+
+```ts
+this.on('ready', () => void this.fetchPreviewCues());
+this.on('item', () => {
+  this.previewCues = [];
+  void this.fetchPreviewCues();
+});
+```
+
+## See it running
+
+Hover along the scrubber: Sintel's real sprite thumbnails follow the pointer with the timestamp underneath, the same manifest the shipped plugin's preview reads.
+
+:::snippet{file="video-build-9-seek-preview" preview="first"}
+:::
+
+## Next steps
+
+- [Step 10: Full Plugin](/nomercy-video-player/build/full-plugin): the touch layer, double-tap seeking, and the finished plugin.

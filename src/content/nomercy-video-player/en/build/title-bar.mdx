@@ -1,0 +1,87 @@
+---
+title: 'Build a Player: Title Bar'
+description: 'Step 6 of 10: the top bar earns its place, a title readout on item() and the item event, with show/season/episode composition.'
+---
+
+{/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step6Plugin.ts, packages/nomercy-video-player/src/types.ts */}
+
+# Build a Player: Title Bar
+
+The top bar has been empty since [step 1](/nomercy-video-player/build/shell). This step gives it a job: show what is playing.
+
+One field, and one call slotted right after `createTopBar()` so the class keeps reading in visual order, top of the screen first:
+
+{/* partial */}
+
+```ts
+private titleLabel!: HTMLDivElement;  // NEW
+
+override use(): void {
+  this.overlay = this.mount('overlay');
+  // ...overlay classes from step 1
+
+  this.createTopBar();
+  this.createTitle();  // NEW
+  // ...everything else from step 5, unchanged
+}
+```
+
+## item() now, the item event later
+
+`item()` reads the current playlist item synchronously; the `item` event fires every time the cursor moves to another one. A readout needs both, the value now and the updates later, so `createTitle()` renders once and subscribes once:
+
+{/* partial */}
+
+```ts
+private createTitle(): void {
+  this.titleLabel = this.player
+    .createElement('div', 'title-display')
+    .addClasses([
+      'text-white',
+      'text-sm',
+      'font-medium',
+      'truncate',
+    ])
+    .appendTo(this.topBar)
+    .get();
+
+  this.updateTitle();
+  this.on('item', () => this.updateTitle());
+}
+```
+
+## Movies and episodes read differently
+
+`VideoPlaylistItem` carries `title` for everything, plus `show` / `season` / `episode` for episodic content. A movie shows its title; an episode shows the show, then `S1E4: Episode Title`:
+
+{/* partial */}
+
+```ts
+private updateTitle(): void {
+  const item = this.player.item();
+  if (!item)
+    return;
+
+  let text = item.title;
+  if (item.show) {
+    text = item.show;
+    if (item.season !== undefined && item.episode !== undefined) {
+      text += ` - S${item.season}E${item.episode}: ${item.title}`;
+    }
+  }
+  this.titleLabel.textContent = text ?? '';
+}
+```
+
+`truncate` on the label is the safety net for long titles: one line, ellipsis, no wrapping over the video.
+
+## See it running
+
+Sintel is a movie, so the top bar reads its plain title. Feed the same plugin an episode item and the show/season/episode composition takes over, same code, driven by the item's own fields.
+
+:::snippet{file="video-build-6-title-bar" preview="first"}
+:::
+
+## Next steps
+
+- [Step 7: Fullscreen & Speed](/nomercy-video-player/build/fullscreen-speed): the right-side button cluster and the first dropdown menu.

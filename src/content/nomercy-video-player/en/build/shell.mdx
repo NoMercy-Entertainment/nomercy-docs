@@ -1,38 +1,162 @@
 ---
-title: 'Build a Player: The Shell'
-description: 'Step 1 of 5: mount DesktopUiPlugin, the real shipped v2 chrome, declaratively via setup({ plugins }) — no hand-rolled DOM.'
+title: 'Build a Player: Shell & Layout'
+description: 'Step 1 of 10: write your own UI plugin from scratch. Lay down the overlay root and the two control bars every later step fills in.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/plugins/desktop-ui/index.ts, packages/nomercy-player-core/src/core/mixins/lifecycle.ts */}
+{/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step1Plugin.ts, packages/nomercy-player-core/src/core/mixins/container-class-emit.ts, src/core/mixins/activity.ts */}
 
-# Build a Player: The Shell
+# Build a Player: Shell & Layout
 
-This is a five-step tutorial that mounts and configures a real player chrome: the shell, chapter-aware scrubbing, the volume slider's display mode, a real subtitle picker, and the complete configuration. Nothing here is hand-built DOM — every step mounts `DesktopUiPlugin`, the same overlay every NoMercy app ships, and turns on one more piece of its real options surface.
+This is a ten-step tutorial where you write your own control UI, one piece at a time. It is the v2 translation of the original tutorial on examples.nomercy.tv, step for step: a shell, play and pause, a progress bar, time and skip, volume, a title bar, fullscreen and speed, then the shipped plugin and what it adds on top. When you finish, you will understand every line the real `DesktopUiPlugin` runs, because you will have written its shape yourself.
 
-## Registering a plugin declaratively
+Everything you write rides the player's public method surface, the same `play()`, `volume()`, `time()`, and `duration()` calls any consumer has.
 
-Every plugin in this trio used to require an imperative `addPlugin()` call *before* `setup()` — easy to get the timing of wrong, and easy to miss under a framework's re-render cycle. `plugins` on `BasePlayerConfig` is the declarative form: pass the class (or `{ plugin, opts }` for one that takes options) straight into `setup()`, and the kit registers it at the exact same pipeline point `addPlugin()` would have, before `pluginsRegistering` runs:
+This first step is the skeleton: the overlay root, a top bar, and a bottom bar. Empty for now. The next steps fill them.
+
+## One class, extending Plugin
+
+A UI is just a plugin. Extend core's `Plugin` base, give it a `static readonly id`, and do your DOM work in `use()`, which the player calls once the plugin is registered and the container exists. The overlay and both bars are declared as fields up front, because later steps append controls into them:
 
 ```ts
-const player = nmplayer('my-container').setup({
-  baseUrl,
-  playlist: [item],
-  plugins: [DesktopUiPlugin],
-});
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+
+class StepPlugin extends Plugin<NMVideoPlayer> {
+  static override readonly id = 'tutorial-ui';
+
+  private overlay!: HTMLElement;
+  private topBar!: HTMLDivElement;
+  private bottomBar!: HTMLDivElement;
+
+  override use(): void {
+    this.player.addClasses(this.player.container, ['group']);
+
+    this.overlay = this.mount('overlay');
+    this.player.addClasses(this.overlay, [
+      'overlay',
+      'absolute',
+      'inset-0',
+      'pointer-events-none',
+    ]);
+
+    this.createTopBar();
+    this.createBottomBar();
+  }
+}
+```
+
+The first line marks the player container as a Tailwind `group` parent. Every state-reactive class in this tutorial (`group-[&.nomercyplayer.active]:opacity-100` on the bars below, the spinner's `.buffering` variant in step 2) resolves against a `.group` ancestor, and the container is the element that carries the state classes, so it is the group.
+
+`mount('overlay')` claims a `<div>` on the player container and, crucially, registers its own teardown. When the plugin disposes, that div and everything you append under it are removed for you, along with every listener you add through `this.listen()` and `this.on()`. That is why this class has no `dispose()` method anywhere in the tutorial: the v1 original had to `remove()` its bars by hand, and in v2 there is nothing left to write.
+
+## Build the bars
+
+`player.createElement(tag, id)` returns a chainable builder, so you read the construction straight down: create it, style it, append it, and `.get()` unwraps the real element into the field:
+
+{/* partial */}
+
+```ts
+private createTopBar(): void {
+  this.topBar = this.player
+    .createElement('div', 'top-bar')
+    .addClasses([
+      'absolute',
+      'top-0',
+      'left-0',
+      'right-0',
+      'flex',
+      'items-center',
+      'gap-2',
+      'p-4',
+      'pb-12',
+      'bg-gradient-to-b',
+      'from-black/80',
+      'to-transparent',
+      'opacity-0',
+      'transition-opacity',
+      'duration-300',
+      'pointer-events-none',
+      'group-[&.nomercyplayer.active]:opacity-100',
+      'group-[&.nomercyplayer.active]:pointer-events-auto',
+      'group-[&.nomercyplayer.paused]:opacity-100',
+      'group-[&.nomercyplayer.paused]:pointer-events-auto',
+    ])
+    .appendTo(this.overlay)
+    .get();
+}
+```
+
+The bottom bar is the same shape flipped, `bottom-0` and `bg-gradient-to-t`, with one structural difference: `flex-col`, because it will stack a progress bar above a row of buttons:
+
+{/* partial */}
+
+```ts
+private createBottomBar(): void {
+  this.bottomBar = this.player
+    .createElement('div', 'bottom-bar')
+    .addClasses([
+      'absolute',
+      'bottom-0',
+      'left-0',
+      'right-0',
+      'flex',
+      'flex-col',
+      'gap-1',
+      'px-4',
+      'pt-12',
+      'pb-2',
+      'bg-gradient-to-t',
+      'from-black/80',
+      'to-transparent',
+      'opacity-0',
+      'transition-opacity',
+      'duration-300',
+      'pointer-events-none',
+      'group-[&.nomercyplayer.active]:opacity-100',
+      'group-[&.nomercyplayer.active]:pointer-events-auto',
+      'group-[&.nomercyplayer.paused]:opacity-100',
+      'group-[&.nomercyplayer.paused]:pointer-events-auto',
+    ])
+    .appendTo(this.overlay)
+    .get();
+}
+```
+
+## The player owns the show-hide
+
+Look at the last four classes on each bar. They key off `.active` and `.paused` on the `.nomercyplayer` container, and those classes are not yours to manage. The player maintains a set of state classes on its own container, in sync with every event:
+
+- `playing` / `paused` / `stopped` / `ended` / `buffering`, the playback state, mutually exclusive
+- `active` / `inactive`, whether the viewer is interacting right now
+- `muted`, `fullscreen`, `pip`, `theater`, the matching toggles
+
+Activity is a player concern: the player itself watches its container for pointer, touch, and key input, shows the controls on any of it, and drops to `.inactive` after four seconds of idle while playing. Pausing always keeps the controls up. Your plugin inherits all of that through those four CSS classes, with zero wiring; `inactivityMs` in the config tunes the delay, and `bumpActivity()` exists for interactions the DOM can't see (see [Reference: VideoPlayerConfig](/nomercy-video-player/reference/config)).
+
+So the bars already fade in when you move the pointer and fade out when you leave playback running. You wrote no timer for that, and you never will in this tutorial.
+
+## Register it
+
+A plugin you wrote is registered exactly like a shipped one, with `addPlugin()`:
+
+```ts
+const player = nmplayer('my-container')
+  .addPlugin(StepPlugin)
+  .setup({
+    baseUrl,
+    playlist: [sintel],
+  });
 await player.ready();
 ```
 
-No separate call to sequence, no window to miss. This is sugar over `addPlugin()`, not a second registration path — duplicate-id, missing-dependency, and version checks all run identically either way.
-
-## What ships with zero options
-
-`DesktopUiPlugin` needs no configuration to be a complete player. Mounted bare, it already renders play/pause, mute + volume, a scrubber, fullscreen, and a settings button — plus chapter navigation, since `sintel` (this tutorial's fixture) carries real chapter marks. Off by default: theater, PiP, speed, quality, subtitles, audio-track, playlist, and aspect-ratio buttons. The next four steps turn each of those on for a real reason, one at a time.
+`addPlugin()` is the method to reach for. The same registration also exists declaratively as `plugins: [StepPlugin]` in the `setup()` config; both do the same thing, so pick whichever reads better in your app.
 
 ## See it running
 
-:::snippet{file="video-build-1-shell"}
+Move the pointer over the video: two gradient bars fade in. Leave it running: they fade out. Pause: they stay. Empty bars, but real ones, on the player's own show-hide contract. Step two puts the first control in them.
+
+:::snippet{file="video-build-1-shell" preview="first"}
 :::
 
 ## Next steps
 
-- [Step 2: The Scrubber](/nomercy-video-player/build/scrubber): the chapter-segmented progress bar this mount already gave you.
+- [Step 2: Play & Pause](/nomercy-video-player/build/play-pause): the center play button, a buffering spinner, and the bottom-bar playback button.

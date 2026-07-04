@@ -1,0 +1,211 @@
+---
+title: 'Build a Player: Play & Pause'
+description: 'Step 2 of 10: a center play button, a bottom-bar playback button, and a pure-CSS buffering spinner riding the player-maintained .buffering class.'
+---
+
+{/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step2Plugin.ts, packages/nomercy-player-core/src/core/mixins/container-class-emit.ts */}
+
+# Build a Player: Play & Pause
+
+[Step 1](/nomercy-video-player/build/shell) built the shell: an overlay, a top bar, a bottom bar, all empty. This step puts the first real control in them, twice over. A big center button for starting playback, and a small button in the bottom bar for toggling it afterwards. Both call the same method.
+
+Four new fields join the class, and `use()` grows four calls:
+
+{/* partial */}
+
+```ts
+private centerButton!: HTMLButtonElement;    // NEW
+private spinner!: HTMLDivElement;            // NEW
+private bottomRow!: HTMLDivElement;          // NEW
+private playbackButton!: HTMLButtonElement;  // NEW
+
+override use(): void {
+  // ...overlay and both bars from step 1, unchanged
+
+  this.createCenterButton();    // NEW
+  this.createSpinner();         // NEW
+  this.createBottomRow();       // NEW
+  this.createPlaybackButton();  // NEW
+}
+```
+
+## The center play button
+
+`togglePlayback()` flips between playing and paused based on the player's own state, no separate `play()`/`pause()` branching needed in the click handler. And the button doesn't maintain an "am I visible" flag, it just listens: whatever changed the state (a click, a keyboard shortcut, a remote-control command over NoMercy Connect) fires the same `play` event, and it hides itself:
+
+{/* partial */}
+
+```ts
+private createCenterButton(): void {
+  this.centerButton = this.player
+    .createElement('button', 'center-play')
+    .addClasses([
+      'absolute',
+      'top-1/2',
+      'left-1/2',
+      '-translate-x-1/2',
+      '-translate-y-1/2',
+      'w-16',
+      'h-16',
+      'rounded-full',
+      'bg-black/50',
+      'text-white',
+      'flex',
+      'items-center',
+      'justify-center',
+      'transition-opacity',
+      'duration-300',
+      'hover:bg-black/70',
+      'hover:scale-110',
+      'cursor-pointer',
+      'pointer-events-auto',
+    ])
+    .appendTo(this.overlay)
+    .get();
+  this.centerButton.ariaLabel = 'Play';
+  this.centerButton.innerHTML = PLAY_ICON;
+
+  this.listen(this.centerButton, 'click', (event) => {
+    event.stopPropagation();
+    this.player.togglePlayback();
+  });
+
+  this.on('play', () => {
+    this.centerButton.style.display = 'none';
+  });
+}
+```
+
+`event.stopPropagation()` matters because the buttons sit over the video, and step ten wires tap behavior onto the surface underneath. `this.listen()` instead of `addEventListener` for the same reason there is no `dispose()`: the base unwinds it at teardown. `PLAY_ICON` (and `PAUSE_ICON`, `SPINNER_SVG` below) are module-level SVG string constants, the full example carries them verbatim.
+
+## One helper for every round button
+
+Every control button from here to step ten is the same 40x40 round shape, so it gets a helper once, shared classes and the `aria-label` in one place:
+
+{/* partial */}
+
+```ts
+private createUiButton(parent: HTMLElement, id: string, label: string): HTMLButtonElement {
+  const button = this.player
+    .createElement('button', id)
+    .addClasses([
+      'w-10',
+      'h-10',
+      'rounded-full',
+      'flex',
+      'items-center',
+      'justify-center',
+      'text-white',
+      'hover:bg-white/20',
+      'cursor-pointer',
+    ])
+    .appendTo(parent)
+    .get();
+  button.ariaLabel = label;
+  return button;
+}
+```
+
+## The button row
+
+Step 1's bottom bar stays exactly as built — it is a column, and this step nests a horizontal row inside it as the home for every control button. Step 3 will drop the progress bar into the same column, above this row, which is the whole reason the bar is `flex-col`:
+
+{/* partial */}
+
+```ts
+private createBottomRow(): void {
+  this.bottomRow = this.player
+    .createElement('div', 'bottom-row')
+    .addClasses([
+      'flex',
+      'items-center',
+      'gap-1',
+      'h-10',
+    ])
+    .appendTo(this.bottomBar)
+    .get();
+}
+```
+
+## The playback toggle
+
+The bottom-bar playback button holds two icon spans and swaps them on the `play`/`pause` pair, the same react-don't-track pattern as the center button:
+
+{/* partial */}
+
+```ts
+private createPlaybackButton(): void {
+  this.playbackButton = this.createUiButton(this.bottomRow, 'playback', 'Play');
+
+  const playIcon = this.player
+    .createElement('span', 'playback-play')
+    .appendTo(this.playbackButton)
+    .get();
+  playIcon.innerHTML = PLAY_ICON;
+
+  const pauseIcon = this.player
+    .createElement('span', 'playback-pause')
+    .appendTo(this.playbackButton)
+    .get();
+  pauseIcon.innerHTML = PAUSE_ICON;
+  pauseIcon.style.display = 'none';
+
+  this.listen(this.playbackButton, 'click', (event) => {
+    event.stopPropagation();
+    this.player.togglePlayback();
+  });
+
+  this.on('pause', () => {
+    pauseIcon.style.display = 'none';
+    playIcon.style.display = 'flex';
+  });
+  this.on('play', () => {
+    playIcon.style.display = 'none';
+    pauseIcon.style.display = 'flex';
+  });
+}
+```
+
+`createUiButton()` is a small private helper (in the full example below) that builds the round 40x40 button every later control reuses: one place for the shared classes and the `aria-label`.
+
+## The spinner is pure CSS
+
+No listener at all. [Step 1](/nomercy-video-player/build/shell) covered the state classes the player maintains on its container; `.buffering` is one of them, driven by the backend's `waiting`/`stalled`/`canplay` signals. The spinner just declares itself visible in that state:
+
+{/* partial */}
+
+```ts
+private createSpinner(): void {
+  this.spinner = this.player
+    .createElement('div', 'spinner')
+    .addClasses([
+      'absolute',
+      'top-1/2',
+      'left-1/2',
+      '-translate-x-1/2',
+      '-translate-y-1/2',
+      'w-12',
+      'h-12',
+      'hidden',
+      'group-[&.nomercyplayer.buffering]:block',
+      'pointer-events-none',
+    ])
+    .appendTo(this.overlay)
+    .get();
+
+  this.spinner.innerHTML = SPINNER_SVG;
+}
+```
+
+Buffering starts: the player swaps the container to `.buffering` and the spinner appears. Playback recovers: class gone, spinner gone. Zero JavaScript on your side.
+
+## See it running
+
+Click the center button to start, then use the small one in the bottom bar. Both toggle the same playback state. Throttle the network in devtools and the spinner shows itself.
+
+:::snippet{file="video-build-2-play-pause" preview="first"}
+:::
+
+## Next steps
+
+- [Step 3: Progress Bar](/nomercy-video-player/build/progress-bar): a draggable scrubber wired to the `time` event and `seekByPercentage()`.

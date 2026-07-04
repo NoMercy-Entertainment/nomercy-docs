@@ -1,45 +1,252 @@
 ---
 title: 'Build a Player: Volume'
-description: "Step 3 of 5: the volumeSlider option — horizontal (hover-expand, default), vertical (click-to-open popup), or auto."
+description: 'Step 5 of 10: a mute toggle with three state icons and a hover-expand slider, on volume()/toggleMute() and the volume/mute events.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/plugins/desktop-ui/responsive.ts (wireVolumeSlider) */}
+{/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step5Plugin.ts, packages/nomercy-player-core/src/types/player.ts */}
 
 # Build a Player: Volume
 
-[Step 2](/nomercy-video-player/build/scrubber) looked at the scrubber. This step is the volume control's one real option: `volumeSlider`.
+[Step 4](/nomercy-video-player/build/time-skip) finished the transport cluster. This step adds the audio cluster: a mute button whose icon tracks three states (high, low, muted) and a volume slider that stays collapsed until you hover the group.
 
-## Three display modes
+One new field and one call:
 
-`DesktopUiPlugin`'s volume slider isn't a fixed layout — `volumeSlider` picks how it presents next to the mute button:
-
-| Value | Behavior |
-| --- | --- |
-| `'horizontal'` | Inline, expands on hover. The default. |
-| `'vertical'` | A popup above the mute button, toggled on click. |
-| `'auto'` | Vertical under ~520 px container width, horizontal above it. |
-
-The player below sets `volumeSlider: 'vertical'` — click the mute button's icon (not the mute action itself) to open the popup, instead of hovering to reveal an inline track. Useful when the bar is too narrow for a hover-expand slider to have anywhere to expand into.
-
-{/* partial: the `plugins` property to graft onto setup(), not a standalone program — the complete version is in "See it running" below */}
+{/* partial */}
 
 ```ts
-plugins: [
-  { plugin: DesktopUiPlugin, opts: { volumeSlider: 'vertical' } },
-],
+private volumeSlider!: HTMLDivElement;  // NEW
+
+override use(): void {
+  // ...everything from step 4, unchanged
+
+  this.createVolumeControl();  // NEW
+}
 ```
 
-## Underneath, the same methods
+## The cluster: container, button, three icons
 
-Whichever mode renders, the slider and mute button drive `volume()` / `mute()` / `unmute()` and resync on `'volume'` / `'mute'`, exactly what [Volume](/nomercy-video-player/tour/volume) documents for a consumer building their own volume UI from scratch.
+Everything lives in one `group/volume` container: the mute button (via the step-2 `createUiButton()` helper) holding three icon spans, high, low, muted, only one visible at a time, then the slider:
+
+{/* partial */}
+
+```ts
+private createVolumeControl(): void {
+  const volumeContainer = this.player
+    .createElement('div', 'volume-container')
+    .addClasses([
+      'flex',
+      'items-center',
+      'group/volume',
+      'ml-1',
+    ])
+    .appendTo(this.bottomRow)
+    .get();
+
+  const volumeButton = this.createUiButton(volumeContainer, 'volume', 'Mute');
+
+  const volHigh = this.player
+    .createElement('span', 'vol-high')
+    .appendTo(volumeButton)
+    .get();
+  volHigh.innerHTML = VOLUME_HIGH_ICON;
+
+  const volLow = this.player
+    .createElement('span', 'vol-low')
+    .appendTo(volumeButton)
+    .get();
+  volLow.innerHTML = VOLUME_LOW_ICON;
+  volLow.style.display = 'none';
+
+  const volMuted = this.player
+    .createElement('span', 'vol-muted')
+    .appendTo(volumeButton)
+    .get();
+  volMuted.innerHTML = VOLUME_MUTED_ICON;
+  volMuted.style.display = 'none';
+
+  this.listen(volumeButton, 'click', (event) => {
+    event.stopPropagation();
+    this.player.toggleMute();
+  });
+
+  // ...the slider, its fills, and the handlers below all live here too
+}
+```
+
+## The hover-expand trick is pure CSS
+
+The slider starts at `w-0 opacity-0` and expands when the surrounding group is hovered or focused, Tailwind's named groups (`group/volume`) scope the hover so only this cluster reacts:
+
+{/* partial */}
+
+```ts
+this.volumeSlider = this.player
+  .createElement('div', 'volume-slider')
+  .addClasses([
+    'relative',
+    'h-1',
+    'rounded-full',
+    'bg-white/20',
+    'cursor-pointer',
+    'group/vol-slider',
+    'w-0',
+    'opacity-0',
+    'group-hover/volume:w-20',
+    'group-hover/volume:mx-2',
+    'group-hover/volume:opacity-100',
+    'group-focus-within/volume:w-20',
+    'group-focus-within/volume:mx-2',
+    'group-focus-within/volume:opacity-100',
+    'hover:h-2',
+    'transition-all',
+    'duration-150',
+  ])
+  .appendTo(volumeContainer)
+  .get();
+```
+
+The `group-focus-within` variants matter for keyboard users: tabbing into the cluster expands the slider the same way hovering does.
+
+Inside it, the same fill-and-nipple pair as the scrubber, plus one function that paints both from a level:
+
+{/* partial */}
+
+```ts
+const volumeProgress = this.player
+  .createElement('div', 'volume-progress')
+  .addClasses([
+    'absolute',
+    'top-0',
+    'left-0',
+    'h-full',
+    'bg-white',
+    'rounded-full',
+    'pointer-events-none',
+  ])
+  .appendTo(this.volumeSlider)
+  .get();
+
+const volumeNipple = this.player
+  .createElement('div', 'volume-nipple')
+  .addClasses([
+    'absolute',
+    'top-1/2',
+    '-translate-y-1/2',
+    '-translate-x-1/2',
+    'w-3',
+    'h-3',
+    'rounded-full',
+    'bg-white',
+    'hidden',
+    'group-hover/vol-slider:flex',
+    'pointer-events-none',
+    'z-20',
+  ])
+  .appendTo(this.volumeSlider)
+  .get();
+
+const updateVolSliderUi = (vol: number): void => {
+  const pct = Math.max(0, Math.min(vol, 100));
+  volumeProgress.style.width = `${pct}%`;
+  volumeNipple.style.left = `${pct}%`;
+};
+```
+
+## Click and drag set the level
+
+The pointer-to-value math is the scrubber's `getPercentFromEvent` shape scaled to 0-100 (the full example carries `getVolFromEvent`, identical but rounded). Click sets the level once; dragging sets it continuously through `volume(vol)`:
+
+{/* partial */}
+
+```ts
+let volDragging = false;
+
+for (const eventName of ['mousedown', 'touchstart']) {
+  this.listen(this.volumeSlider, eventName, () => {
+    volDragging = true;
+  }, { passive: true });
+}
+this.listen(this.volumeSlider, 'click', (event) => {
+  volDragging = false;
+  const vol = getVolFromEvent(event as MouseEvent);
+  this.player.volume(vol);
+  updateVolSliderUi(vol);
+});
+for (const eventName of ['mousemove', 'touchmove']) {
+  this.listen(this.volumeSlider, eventName, (event) => {
+    if (!volDragging)
+      return;
+    const vol = getVolFromEvent(event as MouseEvent | TouchEvent);
+    this.player.volume(vol);
+    updateVolSliderUi(vol);
+  }, { passive: true });
+}
+this.listen(this.volumeSlider, 'mouseleave', () => {
+  volDragging = false;
+}, { passive: true });
+```
+
+## Two events, one icon
+
+Volume level and mute state are separate concerns in the player, `volume` carries `{ level }`, `mute` carries `{ muted }`. The icon depends on both, so the plugin tracks the mute flag and re-derives the icon on either event, seeded from `volume()` and `volumeState()` at build time:
+
+{/* partial */}
+
+```ts
+let muted = this.player.volumeState() === VolumeState.MUTED;
+
+const updateVolumeIcon = (volume: number): void => {
+  volHigh.style.display = 'none';
+  volLow.style.display = 'none';
+  volMuted.style.display = 'none';
+
+  if (muted || volume === 0) {
+    volMuted.style.display = 'flex';
+  }
+  else if (volume < 50) {
+    volLow.style.display = 'flex';
+  }
+  else {
+    volHigh.style.display = 'flex';
+  }
+};
+
+this.on('volume', ({ level }) => {
+  updateVolSliderUi(level);
+  updateVolumeIcon(level);
+});
+this.on('mute', (payload) => {
+  muted = payload.muted;
+  updateVolumeIcon(this.player.volume());
+});
+
+const initialVol = this.player.volume();
+updateVolSliderUi(initialVol);
+updateVolumeIcon(initialVol);
+```
+
+## Dragging outside the slider
+
+The drag pattern is the step-3 scrubber pattern again, with one addition: `mouseup` and `touchend` listeners on `document`, not the slider. A drag that ends with the pointer outside the slider would otherwise leave `volDragging` stuck at `true`. `this.listen()` cleans document-level listeners on dispose the same as element-level ones, which is exactly why the base owns listener registration:
+
+{/* partial */}
+
+```ts
+this.listen(document, 'mouseup', () => {
+  volDragging = false;
+}, { passive: true });
+this.listen(document, 'touchend', () => {
+  volDragging = false;
+}, { passive: true });
+```
 
 ## See it running
 
-Click the volume icon below to open the vertical popup.
+Hover the speaker: the slider unfolds. Drag it, click it, click the speaker to mute, the icon follows whichever of the two events fired. The player in this example starts muted (`muted: true` for autoplay), so the icon starts on the muted glyph, exactly what `volumeState()` seeded.
 
-:::snippet{file="video-build-3-volume"}
+:::snippet{file="video-build-5-volume" preview="first"}
 :::
 
 ## Next steps
 
-- [Step 4: The Subtitle Menu](/nomercy-video-player/build/subtitle-menu): a real subtitle picker, and the plugin that paints the cue text.
+- [Step 6: Title Bar](/nomercy-video-player/build/title-bar): put the top bar to work with `item()` and the `item` event.

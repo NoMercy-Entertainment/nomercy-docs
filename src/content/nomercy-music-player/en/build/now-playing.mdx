@@ -24,17 +24,16 @@ const current = player.item();
 cover.src = current?.image ?? current?.cover ?? '';
 ```
 
-## Plugins register declaratively
+## Registering the plugin
 
-Painting a synced lyric line is [`LyricsPlugin`](/nomercy-music-player/tour/lyrics)'s job. `plugins` in `setup()` is the declarative registration path — sugar over calling `addPlugin()` yourself before `setup()`, resolved at the exact same pipeline point, so there's no separate call to sequence:
+Painting a synced lyric line is [`LyricsPlugin`](/nomercy-music-player/tour/lyrics)'s job. A shipped plugin registers with `addPlugin()`, exactly like one you wrote yourself (the `plugins: [LyricsPlugin]` entry in `setup()` config is the declarative equivalent, resolved at the same pipeline point):
 
 ```ts
 import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/lyrics';
 
-const player = nmplayer('my-container').setup({
-  ...config,
-  plugins: [LyricsPlugin],
-});
+const player = nmplayer('my-container')
+  .addPlugin(LyricsPlugin)
+  .setup(config);
 await player.ready();
 ```
 
@@ -66,7 +65,7 @@ Five steps, one real player: the native bar for transport (nothing to rebuild th
 
 The complete player: native transport, plus the now-playing panel and lyric line this step adds.
 
-:::snippet{file="music-build-5-now-playing"}
+:::snippet{file="music-build-5-now-playing" preview="first"}
 :::
 
 ## Next steps
