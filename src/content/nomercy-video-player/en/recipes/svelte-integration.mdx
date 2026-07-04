@@ -133,7 +133,7 @@ export function mountVideoPlayer(node: HTMLElement, config: VideoPlayerConfig) {
 
 ## Using it with real data
 
-`baseUrl` and `playlist` are props — the parent supplies the real `nomercy-media` fixture catalogue (the same Sintel short film the [Quickstart](/nomercy-video-player/quickstart) mounts):
+`baseUrl` and `playlist` are props — the parent supplies the real `nomercy-media` fixture catalogue (the same three shorts the [Quickstart](/nomercy-video-player/quickstart) and the testbed use):
 
 ```svelte
 <!-- App.svelte -->
@@ -148,11 +148,42 @@ export function mountVideoPlayer(node: HTMLElement, config: VideoPlayerConfig) {
       url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
       image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
     },
+    {
+      id: 'cosmos-laundromat',
+      title: 'Cosmos Laundromat',
+      url: '/Cosmos.Laundromat.(2015)/Cosmos.Laundromat.(2015).NoMercy.m3u8',
+      image: '/w780/f2wABsgj2lIR2dkDEfBZX8p4Iyk.jpg',
+    },
+    {
+      id: 'big-buck-bunny',
+      title: 'Big Buck Bunny',
+      url: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8',
+      image: '/original/xtdybjRRZ15mCrPOvEld305myys.jpg',
+    },
   ];
 </script>
 
 <VideoPlayer {baseUrl} {playlist} />
 ```
+
+## Sharing the instance
+
+`videoPlayerStore` is a module-level singleton, exported once from `stores/videoPlayer.ts`. Every component that imports it, not only `VideoPlayer.svelte` above, reads the exact same reactive state and the exact same player instance, no provider and no second `init()` call:
+
+```svelte
+<!-- NowPlayingBadge.svelte -->
+<script lang="ts">
+  import { videoPlayerStore } from '../stores/videoPlayer';
+</script>
+
+{#if $videoPlayerStore.currentItem}
+  <p class="badge">
+    {$videoPlayerStore.isPlaying ? 'Playing' : 'Paused'} — {$videoPlayerStore.currentItem.title}
+  </p>
+{/if}
+```
+
+Mount `<NowPlayingBadge />` anywhere else in the tree, a header, a persistent mini-player, a route that never renders `VideoPlayer.svelte` itself, and it reflects the same playback state. Svelte's module system is the shared-instance mechanism here, the same job Vue's `provide`/`inject` and React's context provider do explicitly elsewhere in this section.
 
 ## Next steps
 

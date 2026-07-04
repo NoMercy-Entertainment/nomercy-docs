@@ -1,9 +1,9 @@
 ---
 title: 'Adapter: Translator'
-description: 'ITranslator: t()/language()/addTranslations() and more. Default DefaultTranslator ships English and Dutch; swap for i18next, FormatJS, or ICU MessageFormat.'
+description: 'ITranslator: t()/language()/addTranslations() and more. Default DefaultTranslator ships built-in core.* strings, English eager and other locales lazy; swap for i18next, FormatJS, or ICU MessageFormat.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/adapters/translator/ITranslator.ts, src/adapters/translator/translator.ts */}
+{/* Source: packages/nomercy-player-core/src/adapters/translator/ITranslator.ts, src/adapters/translator/translator.ts, src/kit-translations.ts, src/core/mixins/lifecycle.ts */}
 
 # Adapter: Translator
 
@@ -26,7 +26,7 @@ interface ITranslator {
 
 ## Default implementation
 
-`DefaultTranslator` is a key + `{var}` interpolation lookup over a merged bundle table, seeded with English and Dutch. Constructor options (`DefaultTranslatorOptions`): `language` (initial tag, default `'en'`), `translations` (initial bundles), `loadTranslations` (async loader for a tag not yet fetched), `onMissingTranslation` (custom fallback for an unresolved key), and `fallbackLanguage` (final-fallback tag, default `'en'`, pass `null` to disable and rely solely on the BCP-47 parent chain).
+`DefaultTranslator` is a key + `{var}` interpolation lookup over a merged bundle table, seeded with the kit's own `core.*` strings, English loaded eagerly, every other kit locale loaded lazily the first time `language(lang)` switches to it. Constructor options (`DefaultTranslatorOptions`): `language` (initial tag, default `'en'`), `translations` (initial bundles), `loadTranslations` (async loader for a tag not yet fetched), `onMissingTranslation` (custom fallback for an unresolved key), and `fallbackLanguage` (final-fallback tag, default `'en'`, pass `null` to disable and rely solely on the BCP-47 parent chain).
 
 ## Rules & restrictions
 

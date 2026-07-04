@@ -20,7 +20,61 @@ description: 'Call the kit auth-aware fetch pipeline directly from data-layer co
 
 ## Response typing
 
-`responseType` discriminates how the body decodes: `'text'` (default, with an optional `parser` callback), `'json'` (throws `core:network/parse-failed` on invalid JSON), or `'arrayBuffer'` for binary payloads. `isAuthError()` and `isNetworkError()` are the same type guards `Plugin.fetch()` callers use to branch a `catch` block without an `instanceof` import.
+`responseType` discriminates how the body decodes, and only one variant accepts a transform callback:
+
+```ts
+type FetchOptions<T>
+	= | { responseType?: 'text'; parser?: (raw: string) => T }
+		| { responseType: 'json' }
+		| { responseType: 'arrayBuffer' };
+```
+
+`'text'` is the default, and the only variant that takes a `parser`. With no `parser`, a `'text'` fetch resolves to the raw response string (`T = string`). `'json'` calls `response.json()` and `'arrayBuffer'` calls `response.arrayBuffer()`, neither accepts a `parser`, invalid JSON throws the same `core:network/parse-failed` a parser failure does.
+
+### The `parser` callback
+
+`parser` receives the raw response body as a string and returns the `T` that `Plugin.fetch<T>()` (or `authFetch<T>()`) resolves to. Reach for it for any body that isn't JSON, a newline- or comma-delimited list, a custom sidecar format, anything your own endpoint returns as plain text:
+
+```ts
+class QueueSyncPlugin extends Plugin {
+	// The endpoint returns one queue item id per line as text/plain.
+	async loadRemoteQueueIds(): Promise<string[]> {
+		try {
+			return await this.fetch<string[]>('/api/queue/ids.txt', {
+				parser: raw => raw.split('\n').map(line => line.trim()).filter(Boolean),
+			});
+		}
+		catch (err) {
+			if (isNetworkError(err) && err.code === 'core:network/parse-failed') {
+				this.logger.warn('queue id list came back malformed, keeping the current queue');
+				return [];
+			}
+			throw err;
+		}
+	}
+}
+```
+
+A `parser` that throws surfaces exactly like a malformed `'json'` body: `core:network/parse-failed`, a `NetworkError` caught with `isNetworkError()`, never an uncaught exception from inside the fetch pipeline.
+
+For a body that's already JSON, skip `parser` and set `responseType: 'json'` instead:
+
+```ts
+interface QueueSnapshot {
+	ids: string[];
+	updatedAt: string;
+}
+
+class QueueSyncPlugin extends Plugin {
+	async loadRemoteQueueSnapshot(): Promise<QueueSnapshot> {
+		return this.fetch<QueueSnapshot>('/api/queue', { responseType: 'json' });
+	}
+}
+```
+
+The type flows differently through the two branches. In the `'text'` branch `T` is inferred from the `parser`'s own return type, so the explicit `<string[]>` above is optional: write `{ parser: (raw): string[] => ... }` and the fetch resolves to `Promise<string[]>` on its own, because the `parser` is the one place your code runs to produce the value, so its return type is the one the compiler can hold you to. The `'json'` and `'arrayBuffer'` branches have no callback to infer from. You name `T` yourself (`fetch<QueueSnapshot>`) and the kit casts the decoded body to it unchecked, the same `response.json() as T` you would write by hand, with nothing validating the shape at runtime. So keep the explicit type parameter for bodies you trust, and reach for a `parser` when you want the transform itself to be type-checked.
+
+`isAuthError()` and `isNetworkError()` are the same type guards `Plugin.fetch()` callers use to branch a `catch` block without an `instanceof` import.
 
 ## Next steps
 

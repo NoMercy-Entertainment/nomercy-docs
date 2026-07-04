@@ -7,7 +7,7 @@ description: 'chapters(), seekToChapter(), nextChapter()/previousChapter(), and 
 
 # Chapters
 
-Chapters come from a sidecar VTT (`kind: 'chapters'` in the server's wire `tracks[]`, normalized into `chapters` on ingest, same as subtitles), resolved asynchronously once the active item loads.
+Chapters come from the item's typed `chapters` field: canonical `ChapterRef[]` (`{ index, start, end, title }`, seconds) set directly, or the server's wire format's millisecond-based `chapters` array, which `normalizePlaylistItem` converts to the canonical shape at queue-ingest time. `chapters()` is a plain synchronous getter over whatever list is already on the active item, there's no async fetch to wait on.
 
 ## Listing and navigating
 
@@ -27,7 +27,7 @@ player.previousChapter();
 
 `chapter()` reads the chapter containing the current playback position, or `null` before the list resolves. `seekToChapter()` and the chapter-boundary crossing both emit `'chapter'` with `{ index, title }`, subscribe to that instead of diffing `chapter()` on every `'time'` tick.
 
-`chapters()` returns `[]`, not a rejected promise, for an item with no chapter sidecar, a chapter-marker UI can render unconditionally and simply show nothing when the list is empty.
+`chapters()` returns `[]` for an item with no `chapters` field, a chapter-marker UI can render unconditionally and simply show nothing when the list is empty.
 
 ## Arbitrary time windows
 

@@ -3,7 +3,7 @@ title: 'Build a Player: Add i18n'
 description: 'Step 4 of 4: pass language and translations straight into setup(), the same config object that carries logLevel and everything else, to finish the player this tutorial builds.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/mixins/i18n.ts, src/types/config.ts */}
+{/* Source: packages/nomercy-player-core/src/core/mixins/i18n.ts, src/types/config.ts, src/kit-translations.ts, src/core/mixins/lifecycle.ts */}
 
 # Build a Player: Add i18n
 
@@ -11,7 +11,9 @@ The last step. Step 3 left a player with a real backend and a registered plugin.
 
 ## Config, not a separate call
 
-[i18n](/nomercy-player-core/tour/i18n) showed `addTranslations()` merging a bundle into an already-running player. That's the right tool for translations that arrive after setup, loaded from a network bundle or registered by a plugin. Here, the translations are known upfront, so they go straight into `setup()` alongside `logLevel` and everything else: `language` and `translations` are ordinary `BasePlayerConfig` fields. The kit's built-in English bundle is always merged underneath whatever you pass, so a key missing from your `nl` bundle falls back to English instead of rendering blank.
+[i18n](/nomercy-player-core/tour/i18n) showed `addTranslations()` merging a bundle into an already-running player. That's the right tool for translations that arrive after setup, loaded from a network bundle or registered by a plugin. Here, the translations are known upfront, so they go straight into `setup()` alongside `logLevel` and everything else: `language` and `translations` are ordinary `BasePlayerConfig` fields.
+
+The kit ships its own `core.*` strings out of the box, network, auth, DRM, and accessibility-announcement copy among them, so a player has working error and status text before you write a single translation key. English is seeded eagerly at `setup()`, merged directly underneath whatever `translations.en` you pass, so `t('core.*')` resolves immediately and a key you don't override still resolves to the kit's English copy. Every other kit locale loads lazily instead, the first time `language(lang)` switches to a tag with no bundle seeded for it yet, the same on-demand mechanism plugin translation bundles use, passing your own static `translations.nl` (as above) seeds that tag directly and takes over from the kit's lazy `nl` bundle rather than merging with it. Supplying your own `translator` engine replaces this default merge entirely, the kit only owns translation state for its built-in `DefaultTranslator`.
 
 ## Adding it
 

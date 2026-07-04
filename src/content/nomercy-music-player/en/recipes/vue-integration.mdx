@@ -76,28 +76,24 @@ export function useMusicPlayer(containerId: string, config: MusicPlayerConfig) {
 
 ## Using it in a component
 
-`baseUrl` and `playlist` below are the real `nomercy-media` fixture catalogue (the same Ketsa track the [Quickstart](/nomercy-music-player/quickstart) mounts):
+`MusicPlayer.vue` below takes `baseUrl` and `playlist` as props instead of owning them, the same two values `useMusicPlayer`'s `config` already needs, just threaded one level up so whoever mounts the component supplies the real catalogue:
 
 ```vue
+<!-- MusicPlayer.vue -->
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';
+import type { MusicPlayerConfig, MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 import { useMusicPlayer } from '@/composables/useMusicPlayer';
 
+const props = defineProps<{
+  baseUrl: string;
+  playlist: MusicPlaylistItem[];
+}>();
+
 const config: MusicPlayerConfig = {
-  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+  baseUrl: props.baseUrl,
   controls: true,
-  playlist: [
-    {
-      id: 'ketsa-01-where-dreams-drift',
-      name: 'Where Dreams Drift',
-      artist: 'Ketsa',
-      album: 'CC BY: Free to Use',
-      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
-      image:
-        'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/cover.jpg',
-    },
-  ],
+  playlist: props.playlist,
 };
 
 const { player, currentTrack, isPlaying, currentTime, duration } = useMusicPlayer('player', config);
@@ -129,6 +125,52 @@ function seek(event: MouseEvent) {
 
 `player` is a top-level `<script setup>` ref, so the template above reads it unwrapped (`player?.togglePlayback()`, no `.value`) — Vue does that unwrapping automatically for refs returned from a composable and used directly in the template. Inside `<script>` itself (the `seek()` handler), it stays an explicit ref: `player.value?.time(...)`.
 
+## Mounting it
+
+`songs` is the real `nomercy-media` fixture catalogue (the same Ketsa/bent wyre tracks the [Quickstart](/nomercy-music-player/quickstart) and the testbed use), passed down as a prop, not hardcoded inside the component above:
+
+```vue
+<!-- App.vue -->
+<script setup lang="ts">
+import MusicPlayer from './MusicPlayer.vue';
+
+const baseUrl = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
+const songs = [
+  {
+    id: 'ketsa-01-where-dreams-drift',
+    name: 'Where Dreams Drift',
+    artist: 'Ketsa',
+    album: 'CC BY: Free to Use',
+    url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
+    image:
+      'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/cover.jpg',
+  },
+  {
+    id: 'ketsa-02-saviour-above',
+    name: 'Saviour Above',
+    artist: 'Ketsa',
+    album: 'CC BY: Free to Use',
+    url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/02.Saviour.Above.mp3',
+    image:
+      'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/cover.jpg',
+  },
+  {
+    id: 'bent-wyre-01-ants-of-the-beat',
+    name: 'Ants Of The Beat',
+    artist: 'bent wyre',
+    album: 'If Only Life Was This Easy Vol. 5',
+    url: '/B/bent.wyre/If.Only.Life.Was.This.Easy.Volume.5.The.Beat.Misdirect.(2025)/01.Ants.Of.The.Beat.mp3',
+    image:
+      'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/B/bent.wyre/If.Only.Life.Was.This.Easy.Volume.5.The.Beat.Misdirect.(2025)/cover.jpg',
+  },
+];
+</script>
+
+<template>
+  <MusicPlayer :baseUrl="baseUrl" :playlist="songs" />
+</template>
+```
+
 ## Providing the player globally
 
 For an app where multiple components (a mini-player, a queue sidebar, a lyrics panel) need the same instance, provide it once at the root instead of re-deriving state per component. Unlike the composable above, this is safe to call at `main.ts`'s top level, not inside `onMounted`: `#global-player` is a static element already present in `index.html` (a sibling of `#app`, not something Vue itself renders), so it exists in the DOM before this module even runs:
@@ -150,7 +192,28 @@ const config: MusicPlayerConfig = {
       id: 'ketsa-01-where-dreams-drift',
       name: 'Where Dreams Drift',
       artist: 'Ketsa',
+      album: 'CC BY: Free to Use',
       url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
+      image:
+        'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/cover.jpg',
+    },
+    {
+      id: 'ketsa-02-saviour-above',
+      name: 'Saviour Above',
+      artist: 'Ketsa',
+      album: 'CC BY: Free to Use',
+      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/02.Saviour.Above.mp3',
+      image:
+        'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/cover.jpg',
+    },
+    {
+      id: 'bent-wyre-01-ants-of-the-beat',
+      name: 'Ants Of The Beat',
+      artist: 'bent wyre',
+      album: 'If Only Life Was This Easy Vol. 5',
+      url: '/B/bent.wyre/If.Only.Life.Was.This.Easy.Volume.5.The.Beat.Misdirect.(2025)/01.Ants.Of.The.Beat.mp3',
+      image:
+        'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/B/bent.wyre/If.Only.Life.Was.This.Easy.Volume.5.The.Beat.Misdirect.(2025)/cover.jpg',
     },
   ],
 };
@@ -243,7 +306,28 @@ useMusicPlayerStore().init({
       id: 'ketsa-01-where-dreams-drift',
       name: 'Where Dreams Drift',
       artist: 'Ketsa',
+      album: 'CC BY: Free to Use',
       url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
+      image:
+        'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/cover.jpg',
+    },
+    {
+      id: 'ketsa-02-saviour-above',
+      name: 'Saviour Above',
+      artist: 'Ketsa',
+      album: 'CC BY: Free to Use',
+      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/02.Saviour.Above.mp3',
+      image:
+        'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/cover.jpg',
+    },
+    {
+      id: 'bent-wyre-01-ants-of-the-beat',
+      name: 'Ants Of The Beat',
+      artist: 'bent wyre',
+      album: 'If Only Life Was This Easy Vol. 5',
+      url: '/B/bent.wyre/If.Only.Life.Was.This.Easy.Volume.5.The.Beat.Misdirect.(2025)/01.Ants.Of.The.Beat.mp3',
+      image:
+        'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/B/bent.wyre/If.Only.Life.Was.This.Easy.Volume.5.The.Beat.Misdirect.(2025)/cover.jpg',
     },
   ],
 });

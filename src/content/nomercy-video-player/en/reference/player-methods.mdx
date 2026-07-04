@@ -15,6 +15,7 @@ description: 'The IVideoPlayer-specific method surface: video element, geometry,
 |---|---|---|
 | `videoElement` | `readonly HTMLVideoElement \| undefined` | The raw element. `undefined` until the first `backend()` call. |
 | `backend()` | `() => IVideoBackend` | The active backend instance, constructed lazily on first call. See [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-video-backend). |
+| `backend(kind)` | `(kind: VideoBackendKind) => Promise<void>` | Swaps the active backend at runtime, disposing the current instance and emitting `'backend:changed'`. Only `'html5'` has a built-in implementation, `'mse'` and `'webcodecs'` need `options.backendFactory` to supply one, otherwise the swap rejects with `core:not-implemented/video-backend`. |
 | `videoRect()` | `() => VideoRect \| null` | The displayed content rectangle under `object-fit: contain`, `null` before metadata loads. Changes fire `'videoRect'`. |
 
 ## Fullscreen, PiP, theater

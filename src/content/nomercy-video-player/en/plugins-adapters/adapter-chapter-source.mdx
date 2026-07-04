@@ -29,7 +29,7 @@ interface IChapterSource {
 
 ## The shipped implementation
 
-`VttChapterSource` reads chapters straight from `item.chapters`, the typed field `normalizePlaylistItem` already populates from a `kind: 'chapters'` sidecar track at queue-ingest time (see [The Queue & Playlist](/nomercy-video-player/tour/queue)). It does not fetch or parse a file itself, the parsing already happened during normalization, this class's job is only the synchronous `current(time)` lookup on top of whatever list is already there:
+`VttChapterSource` reads chapters straight from `item.chapters`, the typed field a consumer populates directly (canonical `ChapterRef[]`) or `normalizePlaylistItem` derives from the server wire format's millisecond-based `chapters` array at queue-ingest time (see [The Queue & Playlist](/nomercy-video-player/tour/queue)). It does not fetch or parse a file itself, the list is already resolved by the time `load()` runs, this class's job is only the synchronous `current(time)` lookup on top of whatever list is already there:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -49,7 +49,7 @@ const active = source.current(player.time()); // Chapter | null, no async lookup
 
 ## How to extend it
 
-Implement the four methods against a source `normalizePlaylistItem` doesn't already cover, a chapters endpoint separate from the item payload, or a format your server doesn't emit as a `kind: 'chapters'` sidecar track:
+Implement the four methods against a source `normalizePlaylistItem` doesn't already cover, a chapters endpoint separate from the item payload, or any format your server doesn't already ship as the item's `chapters` field:
 
 ```ts
 class ApiChapterSource implements IChapterSource {

@@ -44,17 +44,6 @@ Shared kit mixin surface, narrowed to the required, audio-relevant shape here (e
 | `chapter()` / `chapter(idx)` | `() => Chapter \| null`, `(idx: number) => void` | |
 | `seekToChapter(idx, opts?)` / `nextChapter(opts?)` / `previousChapter(opts?)` | `(idx: number, opts?: ActionOptions) => void` | |
 
-## Subtitles: not supported
-
-`subtitles()`, `subtitle()`, and `subtitleStyle()` are declared on `IPlayer` as optional, cross-library surface. `NMMusicPlayer` overrides all three to throw `NotImplementedError` rather than silently returning an empty list:
-
-```ts
-player.subtitles(); // throws NotImplementedError:
-// "Music backends don't expose subtitle tracks. Use a video player for subtitle support."
-```
-
-This is deliberate: an empty array is indistinguishable from "no subtitles on this track" and "this player can't have subtitles at all", the thrown error makes the structural limit visible immediately instead of a UI silently rendering nothing. Reach for `nomercy-video-player` for subtitle support.
-
 ## Playback overrides
 
 `IMusicPlayer` narrows a handful of methods `IPlayer` marks optional (for cross-library compatibility with the video player) to required, since `NMMusicPlayer` always implements them: `time()`, `duration()`, `playbackRate()`, `togglePlayback()`, `toggleMute()`, `rewind()`, `forward()`, `playState()`, `volumeState()`, `volume()`, `buffered()`, `play()`, `pause()`, `stop()`, `next()`, `previous()`, `item()`, `queueLength()`, `index()`, `queue()`, `playbackRates()`. Signatures are unchanged from `IPlayer`, only the optionality is tightened, see the [Guided Tour](/nomercy-music-player/tour/transport) for behavior.

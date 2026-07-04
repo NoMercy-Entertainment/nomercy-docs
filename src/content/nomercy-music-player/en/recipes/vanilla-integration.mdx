@@ -18,6 +18,8 @@ import { PlayState } from '@nomercy-entertainment/nomercy-music-player';
 interface PlayerSnapshot {
   playing: boolean;
   name: string;
+  currentTime: number;
+  duration: number;
 }
 
 function createPlayerController(
@@ -28,20 +30,28 @@ function createPlayerController(
     onChange({
       playing: player.playState() === PlayState.PLAYING,
       name: player.item()?.name ?? '',
+      currentTime: player.time(),
+      duration: player.duration(),
     });
   };
 
   player.on('play', emit);
   player.on('pause', emit);
   player.on('playing', emit);
+  player.on('ended', emit);
   player.on('item', emit);
+  player.on('time', emit);
+  player.on('duration', emit);
   emit(); // initial snapshot
 
   return () => {
     player.off('play', emit);
     player.off('pause', emit);
     player.off('playing', emit);
+    player.off('ended', emit);
     player.off('item', emit);
+    player.off('time', emit);
+    player.off('duration', emit);
   };
 }
 ```
@@ -49,6 +59,8 @@ function createPlayerController(
 One function in, one cleanup function out, no class, no subscription object to manage by hand. This is also the shape [The Shell](/nomercy-music-player/build/shell) and every other Build a Player step already use for wiring a single button, `createPlayerController` is just that pattern generalized to a whole snapshot of state instead of one value.
 
 ## Wiring it to real DOM
+
+`songs` is the real `nomercy-media` fixture catalogue (the same Ketsa/bent wyre tracks the [Quickstart](/nomercy-music-player/quickstart) and the testbed use). The markup below already has a name, a progress slider, and a play/pause button in it, the same three elements every framework recipe in this section renders, `createPlayerController`'s snapshot just drives them directly instead of through a template:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -62,7 +74,28 @@ const config: MusicPlayerConfig = {
       id: 'ketsa-01-where-dreams-drift',
       name: 'Where Dreams Drift',
       artist: 'Ketsa',
+      album: 'CC BY: Free to Use',
       url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
+      image:
+        'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/cover.jpg',
+    },
+    {
+      id: 'ketsa-02-saviour-above',
+      name: 'Saviour Above',
+      artist: 'Ketsa',
+      album: 'CC BY: Free to Use',
+      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/02.Saviour.Above.mp3',
+      image:
+        'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/cover.jpg',
+    },
+    {
+      id: 'bent-wyre-01-ants-of-the-beat',
+      name: 'Ants Of The Beat',
+      artist: 'bent wyre',
+      album: 'If Only Life Was This Easy Vol. 5',
+      url: '/B/bent.wyre/If.Only.Life.Was.This.Easy.Volume.5.The.Beat.Misdirect.(2025)/01.Ants.Of.The.Beat.mp3',
+      image:
+        'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music/B/bent.wyre/If.Only.Life.Was.This.Easy.Volume.5.The.Beat.Misdirect.(2025)/cover.jpg',
     },
   ],
 };
@@ -70,18 +103,39 @@ const config: MusicPlayerConfig = {
 const player = nmplayer('player').setup(config);
 await player.ready();
 player.item(0); // music has no autoPlay config — load the first track
-const badge = document.querySelector<HTMLElement>('#now-playing')!;
+
+const title = document.querySelector<HTMLElement>('#now-playing')!;
+const bar = document.querySelector<HTMLElement>('#progress')!;
+const fill = document.querySelector<HTMLElement>('#progress-fill')!;
+const button = document.querySelector<HTMLButtonElement>('#toggle')!;
 
 const destroy = createPlayerController(player, (snapshot) => {
-  badge.textContent = `${snapshot.playing ? 'Playing' : 'Paused'} - ${snapshot.name}`;
+  title.textContent = snapshot.name || 'Nothing playing';
+  const progress = snapshot.duration > 0 ? (snapshot.currentTime / snapshot.duration) * 100 : 0;
+  fill.style.width = `${progress}%`;
+  bar.setAttribute('aria-valuenow', String(progress));
+  button.textContent = snapshot.playing ? 'Pause' : 'Play';
 });
+
+function seek(event: MouseEvent): void {
+  const ratio = event.offsetX / bar.clientWidth;
+  void player.time(ratio * player.duration());
+}
+bar.addEventListener('click', seek);
+
+function toggle(): void {
+  void player.togglePlayback();
+}
+button.addEventListener('click', toggle);
 
 // Later, when the player genuinely goes away (route change, modal close):
 destroy();
+bar.removeEventListener('click', seek);
+button.removeEventListener('click', toggle);
 void player.dispose();
 ```
 
-`destroy()` only removes the listeners `createPlayerController` added, it does not dispose the player itself, the two are separate concerns on purpose. A page that mounts several independent controllers against the same player (a status badge, a queue panel, a volume indicator) can tear any one of them down without touching the others or the player instance they all share.
+`destroy()` only removes the listeners `createPlayerController` added, it does not dispose the player itself, the two are separate concerns on purpose. A page that mounts several independent controllers against the same player (a status readout, a queue panel, a volume indicator) can tear any one of them down without touching the others or the player instance they all share.
 
 ## Wrapping it in a Web Component
 
@@ -114,7 +168,7 @@ customElements.define('music-player-status', MusicPlayerStatus);
 
 ## See it running
 
-The badge in the corner below is `createPlayerController` wired to the live player, exactly the code on this page, nothing added for the preview.
+The name, progress slider, and play/pause button below are `createPlayerController` wired to the live player, exactly the code on this page, nothing added for the preview.
 
 :::snippet{file="music-recipe-vanilla-integration"}
 :::

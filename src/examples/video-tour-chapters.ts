@@ -7,11 +7,11 @@
 // -----------------------------------------------------------------------------
 
 /**
- * Chapters: `sintel`'s wire item carries a `chapters.vtt` sidecar under
- * `tracks[]` (`kind: 'chapters'`), normalized into the canonical `chapters`
- * field on ingest. `chapters()` lists them, `seekToChapter()`/
- * `nextChapter()`/`previousChapter()` navigate, and `playSegment()` loops or
- * holds an arbitrary time window — not just a chapter's own bounds.
+ * Chapters: `sintel` carries real chapter marks (from the fixture's own
+ * `chapters.vtt`) directly on its typed `chapters: ChapterRef[]` field.
+ * `chapters()` lists them, `seekToChapter()`/`nextChapter()`/
+ * `previousChapter()` navigate, and `playSegment()` loops or holds an
+ * arbitrary time window — not just a chapter's own bounds.
  */
 
 import type { VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';

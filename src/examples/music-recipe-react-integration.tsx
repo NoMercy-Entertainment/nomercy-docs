@@ -65,13 +65,7 @@ export function useMusicPlayer(containerId: string, config: MusicPlayerConfig) {
 		player.on('duration', onDuration);
 
 		return () => {
-			player.off('item', onItem);
-			player.off('play', onPlay);
-			player.off('playing', onPlay);
-			player.off('pause', onPause);
-			player.off('ended', onPause);
-			player.off('time', onTime);
-			player.off('duration', onDuration);
+      		// Events cleanup with dispose
 			void player.dispose();
 			playerRef.current = null;
 		};

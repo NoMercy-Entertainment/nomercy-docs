@@ -72,27 +72,26 @@ export function useVideoPlayer(containerId: string, config: VideoPlayerConfig) {
 
 ## Using it in a component
 
-`baseUrl` and `playlist` below are the real `nomercy-media` fixture catalogue (the same Sintel short film the [Quickstart](/nomercy-video-player/quickstart) mounts) — `muted: true` + `autoPlay: true` so playback starts without a user gesture, exactly like every other runnable example on this site:
+`VideoPlayer.vue` below takes `baseUrl` and `playlist` as props instead of owning them, the same two values `useVideoPlayer`'s `config` already needs, just threaded one level up so whoever mounts the component supplies the real catalogue. `muted: true` + `autoPlay: true` are the constant part of the config (so playback starts without a user gesture, exactly like every other runnable example on this site) — only `baseUrl` and `playlist` vary by caller:
 
 ```vue
+<!-- VideoPlayer.vue -->
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+import type { VideoPlayerConfig, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 import { useVideoPlayer } from '@/composables/useVideoPlayer';
 
+const props = defineProps<{
+  baseUrl: string;
+  playlist: VideoPlaylistItem[];
+}>();
+
 const config: VideoPlayerConfig = {
-  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  baseUrl: props.baseUrl,
   baseImageUrl: 'https://image.tmdb.org/t/p',
   muted: true,
   autoPlay: true,
-  playlist: [
-    {
-      id: 'sintel',
-      title: 'Sintel',
-      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-      image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
-    },
-  ],
+  playlist: props.playlist,
 };
 
 const { player, currentItem, isPlaying, currentTime, duration } = useVideoPlayer('player', config);
@@ -124,6 +123,43 @@ function seek(event: MouseEvent) {
 
 `player` is a top-level `<script setup>` ref, so the template above reads it unwrapped (`player?.togglePlayback()`, no `.value`) — Vue does that unwrapping automatically for refs returned from a composable and used directly in the template. Inside `<script>` itself (the `seek()` handler), it stays an explicit ref: `player.value?.time(...)`.
 
+## Mounting it
+
+`films` is the real `nomercy-media` fixture catalogue (the same three shorts the [Quickstart](/nomercy-video-player/quickstart) and the testbed use), passed down as a prop, not hardcoded inside the component above:
+
+```vue
+<!-- App.vue -->
+<script setup lang="ts">
+import VideoPlayer from './VideoPlayer.vue';
+
+const baseUrl = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films';
+const films = [
+  {
+    id: 'sintel',
+    title: 'Sintel',
+    url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+    image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+  },
+  {
+    id: 'cosmos-laundromat',
+    title: 'Cosmos Laundromat',
+    url: '/Cosmos.Laundromat.(2015)/Cosmos.Laundromat.(2015).NoMercy.m3u8',
+    image: '/w780/f2wABsgj2lIR2dkDEfBZX8p4Iyk.jpg',
+  },
+  {
+    id: 'big-buck-bunny',
+    title: 'Big Buck Bunny',
+    url: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8',
+    image: '/original/xtdybjRRZ15mCrPOvEld305myys.jpg',
+  },
+];
+</script>
+
+<template>
+  <VideoPlayer :baseUrl="baseUrl" :playlist="films" />
+</template>
+```
+
 ## Providing the player globally
 
 For an app where multiple components (a mini-player, a full-screen view, a queue sidebar) need the same instance, provide it once at the root instead of re-deriving state per component. Unlike the composable above, this is safe to call at `main.ts`'s top level, not inside `onMounted`: `#global-player` is a static element already present in `index.html` (a sibling of `#app`, not something Vue itself renders), so it exists in the DOM before this module even runs:
@@ -148,6 +184,18 @@ const config: VideoPlayerConfig = {
       title: 'Sintel',
       url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
       image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+    },
+    {
+      id: 'cosmos-laundromat',
+      title: 'Cosmos Laundromat',
+      url: '/Cosmos.Laundromat.(2015)/Cosmos.Laundromat.(2015).NoMercy.m3u8',
+      image: '/w780/f2wABsgj2lIR2dkDEfBZX8p4Iyk.jpg',
+    },
+    {
+      id: 'big-buck-bunny',
+      title: 'Big Buck Bunny',
+      url: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8',
+      image: '/original/xtdybjRRZ15mCrPOvEld305myys.jpg',
     },
   ],
 };
@@ -240,6 +288,18 @@ useVideoPlayerStore().init({
       title: 'Sintel',
       url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
       image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+    },
+    {
+      id: 'cosmos-laundromat',
+      title: 'Cosmos Laundromat',
+      url: '/Cosmos.Laundromat.(2015)/Cosmos.Laundromat.(2015).NoMercy.m3u8',
+      image: '/w780/f2wABsgj2lIR2dkDEfBZX8p4Iyk.jpg',
+    },
+    {
+      id: 'big-buck-bunny',
+      title: 'Big Buck Bunny',
+      url: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8',
+      image: '/original/xtdybjRRZ15mCrPOvEld305myys.jpg',
     },
   ],
 });

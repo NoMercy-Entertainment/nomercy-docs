@@ -25,7 +25,17 @@ description: 'VideoEventMap in full: every video-specific event and payload, lay
 | `quality:requested` | `{ level: number \| 'auto' }` | A `quality()` call was made, before the backend confirms. Video-specific, fires ahead of the kit's own `'level-switched'`. |
 | `levels` | `{ levels: QualityLevel[] }` | HLS manifest parsed, the quality list is populated. May fire after `mediaReady`, subscribe here rather than reading `qualityLevels()` at ready time. |
 | `audioTracks` | `{ tracks: AudioTrack[] }` | Audio-track list is populated. |
+
+## Subtitles
+
+These rows live on the kit's `BaseEventMap` for shared-implementation reasons, but the methods that trigger them (`subtitle()`, `subtitleStyle()`) are video-only, `nomercy-music-player` doesn't expose them, see [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles).
+
+| Event | Payload | Fires when |
+|---|---|---|
 | `subtitleCue` | `SubtitleCueChange` | Every cue change, sidecar VTT or native text track alike, the single channel every subtitle renderer plugin subscribes to. |
+| `subtitleStyle` | `SubtitleStyle` | `subtitleStyle(patch)` merged a style patch, the signal `SubtitleOverlayPlugin` repaints every active cue from. |
+| `subtitle` | `{ track: number \| null }` | `subtitle(idx)` changed the active track, `null` when subtitles are off. |
+| `beforeSubtitle` / `subtitlePrevented` | `BeforeEvent<{ track }>` / `{ reason, cause? }` | Fires before `subtitle(idx)` changes the active track, a listener can `preventDefault()` it. |
 
 ## Display state
 

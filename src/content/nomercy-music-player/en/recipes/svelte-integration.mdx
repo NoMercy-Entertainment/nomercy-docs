@@ -136,7 +136,7 @@ export function mountMusicPlayer(node: HTMLElement, config: MusicPlayerConfig) {
 
 ## Using it with real data
 
-`baseUrl` and `playlist` are props — the parent supplies the real `nomercy-media` fixture catalogue (the same Ketsa track the [Quickstart](/nomercy-music-player/quickstart) mounts):
+`baseUrl` and `playlist` are props — the parent supplies the real `nomercy-media` fixture catalogue (the same Ketsa/bent wyre tracks the [Quickstart](/nomercy-music-player/quickstart) and the testbed use):
 
 ```svelte
 <!-- App.svelte -->
@@ -152,11 +152,44 @@ export function mountMusicPlayer(node: HTMLElement, config: MusicPlayerConfig) {
       album: 'CC BY: Free to Use',
       url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
     },
+    {
+      id: 'ketsa-02-saviour-above',
+      name: 'Saviour Above',
+      artist: 'Ketsa',
+      album: 'CC BY: Free to Use',
+      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/02.Saviour.Above.mp3',
+    },
+    {
+      id: 'bent-wyre-01-ants-of-the-beat',
+      name: 'Ants Of The Beat',
+      artist: 'bent wyre',
+      album: 'If Only Life Was This Easy Vol. 5',
+      url: '/B/bent.wyre/If.Only.Life.Was.This.Easy.Volume.5.The.Beat.Misdirect.(2025)/01.Ants.Of.The.Beat.mp3',
+    },
   ];
 </script>
 
 <MusicPlayer {baseUrl} {playlist} />
 ```
+
+## Sharing the instance
+
+`musicPlayerStore` is a module-level singleton, exported once from `stores/musicPlayer.ts`. Every component that imports it, not only `MusicPlayer.svelte` above, reads the exact same reactive state and the exact same player instance, no provider and no second `init()` call:
+
+```svelte
+<!-- NowPlayingBadge.svelte -->
+<script lang="ts">
+  import { musicPlayerStore } from '../stores/musicPlayer';
+</script>
+
+{#if $musicPlayerStore.currentTrack}
+  <p class="badge">
+    {$musicPlayerStore.isPlaying ? 'Playing' : 'Paused'} — {$musicPlayerStore.currentTrack.name}
+  </p>
+{/if}
+```
+
+Mount `<NowPlayingBadge />` anywhere else in the tree, a header, a persistent mini-player, a route that never renders `MusicPlayer.svelte` itself, and it reflects the same playback state. Svelte's module system is the shared-instance mechanism here, the same job Vue's `provide`/`inject` and React's context provider do explicitly elsewhere in this section.
 
 ## Next steps
 

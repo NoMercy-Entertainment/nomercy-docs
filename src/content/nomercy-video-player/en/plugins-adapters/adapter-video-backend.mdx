@@ -87,7 +87,7 @@ Method conventions mirror the player class itself: stateful values are overloade
 ## Rules & restrictions
 
 - `backend()` constructs the instance lazily, on first call, and caches it, calling it before `setup()` returns an instance not yet wired to a loaded source.
-- Only one backend is active per player at a time. Swapping backends mid-session (Cast handoff, for instance) is a `transferTo()` / plugin-level concern, not something `IVideoBackend` itself supports.
+- Only one backend is active per player at a time. `player.backend(kind)` swaps it mid-session, disposing the previous instance and emitting `backend:changed`, it is not itself a crossfade, whatever was playing stops and reloads on the new backend. See [Reference: Video Player Methods](/nomercy-video-player/reference/player-methods#video-element-geometry). Cast handoff is a separate, `transferTo()` / plugin-level concern, unrelated to this swap.
 - `mediaKeys()` / `setMediaKeys()` / `outputProtectionState()` exist for EME/DRM coordination (see [Plugin: DRM](/nomercy-video-player/plugins-adapters/drm)), a backend that never touches encrypted content can implement them as no-ops.
 - `outputNode` / `analysisNode` are optional, only implement them if the backend wants to support `AudioGraphPlugin`-style Web Audio taps (equalizer, spectrum visualizers, re-exported from the kit); a backend that never builds a Web Audio graph pays zero cost by omitting them.
 

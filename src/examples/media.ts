@@ -13,12 +13,15 @@
  * every snippet that imports from this module plays back for real, first
  * try, with no server or auth required.
  *
- * `films` items carry the v1/server "wire" shape (`file`, `tracks`) that
- * `NMVideoPlayer.setup({ playlist })` normalizes into the canonical
- * `VideoPlaylistItem` shape (`url`, `subtitles`, `chapters`) on ingest — the
- * same input format the real media server sends. `WirePlaylistItem` types
- * that wire shape explicitly so consumers get full property checking
- * instead of an `as VideoPlaylistItem` cast per item.
+ * Items use the canonical `VideoPlaylistItem` shape directly (`url`,
+ * `subtitles`, `chapters`, `previewSpriteUrl`) rather than the v1/server wire
+ * format (`file`, `tracks[]`) — `normalizePlaylistItem` only reshapes the
+ * top-level media path (`file` -> `url`) and font descriptors on ingest, the
+ * `chapters` and `subtitles` fields are read as typed straight off the item
+ * (see [The Queue & Playlist](/nomercy-video-player/tour/queue) and
+ * [Adapter: Chapter Source](/nomercy-video-player/plugins-adapters/adapter-chapter-source)),
+ * so docs fixtures ship them pre-typed instead of nesting them under a wire
+ * `tracks[]` array that nothing here actually reads.
  */
 
 import type { FontTrackRef, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
@@ -31,115 +34,96 @@ export const ANIME_BASE =
 export const MUSIC_BASE =
   'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
 
-/** One sidecar track entry in the wire `tracks` array — see `WirePlaylistItem`. */
-export interface WireTrack {
-  id: number;
-  label?: string;
-  file: string;
-  language?: string;
-  kind: 'subtitles' | 'chapters' | 'thumbnails' | 'sprite';
-}
-
-/**
- * The v1/server wire shape for a playlist item. `NMVideoPlayer` accepts this
- * directly (`file` normalizes to `url`, `tracks` normalizes to
- * `subtitles`/`chapters`/`previewSpriteUrl`) and it is what the real media
- * server sends, so docs examples ship data shaped exactly like production.
- */
-export interface WirePlaylistItem extends VideoPlaylistItem {
-  file: string;
-  tracks?: WireTrack[];
-}
-
-const sintelItem: WirePlaylistItem = {
+const sintelItem: VideoPlaylistItem = {
   id: 'sintel',
   title: 'Sintel',
   description:
     'A short fantasy film by the Blender Foundation. Sintel searches for a baby dragon she calls Scales.',
-  file: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+  url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
   image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
   duration: 888,
   year: 2010,
-  tracks: [
+  subtitles: [
     {
-      id: 0,
+      id: 'eng',
       label: 'English',
-      file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
       language: 'eng',
       kind: 'subtitles',
+      url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
     },
     {
-      id: 1,
+      id: 'dut',
       label: 'Dutch',
-      file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.dut.full.vtt',
       language: 'dut',
       kind: 'subtitles',
+      url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.dut.full.vtt',
     },
     {
-      id: 2,
+      id: 'fre',
       label: 'French',
-      file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.fre.full.vtt',
       language: 'fre',
       kind: 'subtitles',
+      url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.fre.full.vtt',
     },
     {
-      id: 3,
+      id: 'ger',
       label: 'German',
-      file: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.ger.full.vtt',
       language: 'ger',
       kind: 'subtitles',
-    },
-    {
-      id: 4,
-      file: '/Sintel.(2010)/chapters.vtt',
-      kind: 'chapters',
-    },
-    {
-      id: 5,
-      file: '/Sintel.(2010)/thumbs_256x109.vtt',
-      kind: 'thumbnails',
-    },
-    {
-      id: 6,
-      file: '/Sintel.(2010)/thumbs_256x109.webp',
-      kind: 'sprite',
+      url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.ger.full.vtt',
     },
   ],
+  // Real chapter marks from the fixture's own `chapters.vtt`, in seconds.
+  chapters: [
+    { index: 0, start: 0, end: 107, title: 'Opening' },
+    { index: 1, start: 107, end: 207, title: 'A Dangerous Quest' },
+    { index: 2, start: 207, end: 338, title: 'Scales' },
+    { index: 3, start: 338, end: 445, title: 'The Attack' },
+    { index: 4, start: 445, end: 557, title: 'In Pursuit' },
+    { index: 5, start: 557, end: 621, title: 'The Cave' },
+    { index: 6, start: 621, end: 745, title: 'Eye to Eye' },
+    { index: 7, start: 745, end: 888, title: 'End Credits' },
+  ],
+  // Sprite-VTT manifest — cue bodies reference `thumbs_256x109.webp#xywh=...`
+  // relative to this file, no separate sprite-image field needed.
+  previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.vtt',
 };
 
-const cosmosLaundromatItem: WirePlaylistItem = {
+const cosmosLaundromatItem: VideoPlaylistItem = {
   id: 'cosmos-laundromat',
   title: 'Cosmos Laundromat',
   description: 'On a desolate island, a suicidal sheep meets his fate.',
-  file: '/Cosmos.Laundromat.(2015)/Cosmos.Laundromat.(2015).NoMercy.m3u8',
+  url: '/Cosmos.Laundromat.(2015)/Cosmos.Laundromat.(2015).NoMercy.m3u8',
   image: '/w780/f2wABsgj2lIR2dkDEfBZX8p4Iyk.jpg',
   duration: 724,
   year: 2015,
-  tracks: [
+  subtitles: [
     {
-      id: 0,
+      id: 'eng',
       label: 'English',
-      file: '/Cosmos.Laundromat.(2015)/subtitles/Cosmos.Laundromat.(2015).NoMercy.eng.full.vtt',
       language: 'eng',
       kind: 'subtitles',
+      url: '/Cosmos.Laundromat.(2015)/subtitles/Cosmos.Laundromat.(2015).NoMercy.eng.full.vtt',
     },
   ],
 };
 
-const bigBuckBunnyItem: WirePlaylistItem = {
+const bigBuckBunnyItem: VideoPlaylistItem = {
   id: 'big-buck-bunny',
   title: 'Big Buck Bunny',
   description: 'A giant rabbit with a heart bigger than himself.',
-  file: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8',
+  url: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8',
   image: '/original/xtdybjRRZ15mCrPOvEld305myys.jpg',
   duration: 596,
   year: 2008,
-  tracks: [
-    {
-      id: 0,
-      file: '/Big.Buck.Bunny.(2008)/chapters.vtt',
-      kind: 'chapters',
-    },
+  // Real chapter marks from the fixture's own `chapters.vtt`, in seconds.
+  chapters: [
+    { index: 0, start: 0, end: 65, title: 'Opening' },
+    { index: 1, start: 65, end: 162, title: 'A Beautiful Day' },
+    { index: 2, start: 162, end: 250, title: 'The Bullies' },
+    { index: 3, start: 250, end: 350, title: 'Plotting Revenge' },
+    { index: 4, start: 350, end: 495, title: 'The Traps' },
+    { index: 5, start: 495, end: 596, title: 'End Credits' },
   ],
 };
 
@@ -158,7 +142,7 @@ function fontsManifest(file: string, label: string): FontTrackRef[] {
   return [{ file, label }];
 }
 
-const noRinItem: WirePlaylistItem = {
+const noRinItem: VideoPlaylistItem = {
   id: 'no-rin-s00e00',
   title: 'No-Rin',
   show: 'No-Rin',
@@ -166,22 +150,22 @@ const noRinItem: WirePlaylistItem = {
   episode: 0,
   description:
     'ASS subtitle + embedded-font fixture episode from the nomercy-media test catalogue.',
-  file: '/No-Rin.(2014)/No-Rin.S00E00/No-Rin.(2014).S00E00.NoMercy.m3u8',
+  url: '/No-Rin.(2014)/No-Rin.S00E00/No-Rin.(2014).S00E00.NoMercy.m3u8',
   duration: 1420,
   year: 2014,
-  tracks: [
+  subtitles: [
     {
-      id: 0,
+      id: 'eng',
       label: 'English',
-      file: '/No-Rin.(2014)/No-Rin.S00E00/subtitles/No-Rin.(2014).S00E00.NoMercy.eng.full.ass',
       language: 'eng',
       kind: 'subtitles',
+      url: '/No-Rin.(2014)/No-Rin.S00E00/subtitles/No-Rin.(2014).S00E00.NoMercy.eng.full.ass',
     },
   ],
   fonts: fontsManifest('/No-Rin.(2014)/No-Rin.S00E00/fonts.json', 'No-Rin fonts manifest'),
 };
 
-const railWarsItem: WirePlaylistItem = {
+const railWarsItem: VideoPlaylistItem = {
   id: 'rail-wars-s00e00',
   title: 'Rail Wars!',
   show: 'Rail Wars!',
@@ -189,16 +173,16 @@ const railWarsItem: WirePlaylistItem = {
   episode: 0,
   description:
     'ASS subtitle + embedded-font fixture episode from the nomercy-media test catalogue.',
-  file: '/Rail.Wars!.(2014)/Rail.Wars!.S00E00/Rail.Wars!.(2014).S00E00.NoMercy.m3u8',
+  url: '/Rail.Wars!.(2014)/Rail.Wars!.S00E00/Rail.Wars!.(2014).S00E00.NoMercy.m3u8',
   duration: 90,
   year: 2014,
-  tracks: [
+  subtitles: [
     {
-      id: 0,
+      id: 'eng',
       label: 'English',
-      file: '/Rail.Wars!.(2014)/Rail.Wars!.S00E00/subtitles/Rail.Wars!.(2014).S00E00.NoMercy.eng.full.ass',
       language: 'eng',
       kind: 'subtitles',
+      url: '/Rail.Wars!.(2014)/Rail.Wars!.S00E00/subtitles/Rail.Wars!.(2014).S00E00.NoMercy.eng.full.ass',
     },
   ],
   fonts: fontsManifest(
@@ -214,7 +198,7 @@ export const anime: VideoPlaylistItem[] = [noRinItem, railWarsItem];
  * source the player testbed uses (`tools/player-testbed/src/data/fmaDefaults.ts`).
  * `url` carries the baseUrl-relative shape (leading slash, no `MUSIC_BASE`
  * prefix) that `MusicPlayerConfig.baseUrl` resolves against, exactly like
- * `films`/`file` above. `cover` is a full URL rather than baseUrl-relative —
+ * `films`/`url` above. `cover` is a full URL rather than baseUrl-relative —
  * cover art resolves through the `'poster'` category (`baseImageUrl`, not
  * `baseUrl`), and these tracks don't ship a separate image origin.
  */
