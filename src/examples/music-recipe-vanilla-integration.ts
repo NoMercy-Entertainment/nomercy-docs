@@ -104,7 +104,7 @@ function onReady(player: IMusicPlayer, container: HTMLElement): () => void {
 
 	function seek(event: MouseEvent): void {
 		const ratio = event.offsetX / bar.clientWidth;
-		void player.time(ratio * player.duration());
+		player.seekByPercentage(ratio * 100);
 	}
 	bar.addEventListener('click', seek);
 

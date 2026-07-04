@@ -7,7 +7,7 @@ description: 'Step 7 of 10: a right-aligned cluster with a playback-speed menu o
 
 # Build a Player: Fullscreen & Speed
 
-The last hand-built step. Two controls on the right side of the button row: a speed menu, the first dropdown of the tutorial, and the fullscreen toggle.
+Two controls on the right side of the button row: a speed menu, the first dropdown of the tutorial, and the fullscreen toggle. The icon table gains `speed`, `fullscreen`, and `exitFullscreen`.
 
 Two fields for the menu machinery, three calls, and one config addition:
 
@@ -59,7 +59,7 @@ The button rides the step-2 helper; the menu is a hidden dropdown anchored above
 ```ts
 private createSpeedButton(): void {
   const button = this.createUiButton(this.bottomRow, 'speed', 'Playback speed');
-  button.innerHTML = SPEED_ICON;
+  button.innerHTML = svgFromIcon(icons.speed);
 
   this.listen(button, 'click', (event) => {
     event.stopPropagation();
@@ -153,7 +153,7 @@ private toggleMenu(name: string | null): void {
 }
 ```
 
-With a single menu it looks like overkill; it is the shape the shipped plugin scales to a dozen menus, and [step 8](/nomercy-video-player/build/selectors) is where that payoff lands.
+With a single menu it looks like overkill; it is the shape that scales, and [step 8](/nomercy-video-player/build/selectors) collects the payoff: three more menus join, and `toggleMenu()` grows a registry so this method never needs another named branch.
 
 ## Fullscreen
 
@@ -169,13 +169,13 @@ private createFullscreenButton(): void {
     .createElement('span', 'fs-enter')
     .appendTo(button)
     .get();
-  enterIcon.innerHTML = FULLSCREEN_ICON;
+  enterIcon.innerHTML = svgFromIcon(icons.fullscreen);
 
   const exitIcon = this.player
     .createElement('span', 'fs-exit')
     .appendTo(button)
     .get();
-  exitIcon.innerHTML = EXIT_FULLSCREEN_ICON;
+  exitIcon.innerHTML = svgFromIcon(icons.exitFullscreen);
   exitIcon.style.display = 'none';
 
   this.listen(button, 'click', (event) => {
@@ -200,4 +200,4 @@ Seven steps in, this is a real player: transport, scrubber, clock, volume, title
 
 ## Next steps
 
-- [Step 8: Selectors](/nomercy-video-player/build/selectors): where hand-building stops paying its way, and the shipped plugin takes over.
+- [Step 8: Selectors](/nomercy-video-player/build/selectors): the subtitle, audio, and quality menus, built on the registry `toggleMenu()` grows.

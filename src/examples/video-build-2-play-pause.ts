@@ -12,15 +12,44 @@
  * Adds to the step-1 shell: a big center play button, a buffering spinner
  * that is pure CSS riding the player's `.buffering` container class, a
  * bottom row inside the bottom bar, and a playback toggle button with a
- * play and a pause icon swapped by the `play` / `pause` events.
+ * play and a pause icon swapped by the `play` / `pause` events. Icons come
+ * from a module-level table rendered by `svgFromIcon()`, v1's pattern.
  */
 
-import type { NMVideoPlayer, VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+import type { NMVideoPlayer, VideoPlayerConfig, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
-import { FILMS_BASE, sintel } from './media';
+import { FILMS_BASE } from './media';
 
-const PLAY_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M7.60846 4.61586C7.1087 4.34394 6.5 4.7057 6.5 5.27466V18.727C6.5 19.2959 7.1087 19.6577 7.60846 19.3858L19.97 12.6596C20.4921 12.3755 20.4921 11.6261 19.97 11.342L7.60846 4.61586ZM5 5.27466C5 3.5678 6.82609 2.48249 8.32538 3.29828L20.687 10.0244C22.2531 10.8766 22.2531 13.125 20.687 13.9772L8.32538 20.7033C6.82609 21.5191 5 20.4338 5 18.727V5.27466Z"/></svg>';
-const PAUSE_ICON = '<svg viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6"><path d="M6.25 3C5.00736 3 4 4.00736 4 5.25V18.75C4 19.9926 5.00736 21 6.25 21H8.75C9.99264 21 11 19.9926 11 18.75V5.25C11 4.00736 9.99264 3 8.75 3H6.25ZM5.5 5.25C5.5 4.83579 5.83579 4.5 6.25 4.5H8.75C9.16421 4.5 9.5 4.83579 9.5 5.25V18.75C9.5 19.1642 9.16421 19.5 8.75 19.5H6.25C5.83579 19.5 5.5 19.1642 5.5 18.75V5.25ZM15.25 3C14.0074 3 13 4.00736 13 5.25V18.75C13 19.9926 14.0074 21 15.25 21H17.75C18.9926 21 20 19.9926 20 18.75V5.25C20 4.00736 18.9926 3 17.75 3H15.25ZM14.5 5.25C14.5 4.83579 14.8358 4.5 15.25 4.5H17.75C18.1642 4.5 18.5 4.83579 18.5 5.25V18.75C18.5 19.1642 18.1642 19.5 17.75 19.5H15.25C14.8358 19.5 14.5 19.1642 14.5 18.75V5.25Z"/></svg>';
+interface TutorialIcon {
+	title: string;
+	normal: string;
+	hover: string;
+}
+
+const icons = {
+	play: {
+		title: 'Pause',
+		normal: 'M7.60846 4.61586C7.1087 4.34394 6.5 4.7057 6.5 5.27466V18.727C6.5 19.2959 7.1087 19.6577 7.60846 19.3858L19.97 12.6596C20.4921 12.3755 20.4921 11.6261 19.97 11.342L7.60846 4.61586ZM5 5.27466C5 3.5678 6.82609 2.48249 8.32538 3.29828L20.687 10.0244C22.2531 10.8766 22.2531 13.125 20.687 13.9772L8.32538 20.7033C6.82609 21.5191 5 20.4338 5 18.727V5.27466Z',
+		hover: 'M5 5.27466C5 3.5678 6.82609 2.48249 8.32538 3.29828L20.687 10.0244C22.2531 10.8766 22.2531 13.125 20.687 13.9772L8.32538 20.7033C6.82609 21.5191 5 20.4338 5 18.727V5.27466Z',
+	},
+	pause: {
+		title: 'Play',
+		normal: 'M6.25 3C5.00736 3 4 4.00736 4 5.25V18.75C4 19.9926 5.00736 21 6.25 21H8.75C9.99264 21 11 19.9926 11 18.75V5.25C11 4.00736 9.99264 3 8.75 3H6.25ZM5.5 5.25C5.5 4.83579 5.83579 4.5 6.25 4.5H8.75C9.16421 4.5 9.5 4.83579 9.5 5.25V18.75C9.5 19.1642 9.16421 19.5 8.75 19.5H6.25C5.83579 19.5 5.5 19.1642 5.5 18.75V5.25ZM15.25 3C14.0074 3 13 4.00736 13 5.25V18.75C13 19.9926 14.0074 21 15.25 21H17.75C18.9926 21 20 19.9926 20 18.75V5.25C20 4.00736 18.9926 3 17.75 3H15.25ZM14.5 5.25C14.5 4.83579 14.8358 4.5 15.25 4.5H17.75C18.1642 4.5 18.5 4.83579 18.5 5.25V18.75C18.5 19.1642 18.1642 19.5 17.75 19.5H15.25C14.8358 19.5 14.5 19.1642 14.5 18.75V5.25Z',
+		hover: 'M5.74609 3C4.7796 3 3.99609 3.7835 3.99609 4.75V19.25C3.99609 20.2165 4.7796 21 5.74609 21H9.24609C10.2126 21 10.9961 20.2165 10.9961 19.25V4.75C10.9961 3.7835 10.2126 3 9.24609 3H5.74609ZM14.7461 3C13.7796 3 12.9961 3.7835 12.9961 4.75V19.25C12.9961 20.2165 13.7796 21 14.7461 21H18.2461C19.2126 21 19.9961 20.2165 19.9961 19.25V4.75C19.9961 3.7835 19.2126 3 18.2461 3H14.7461Z',
+	},
+} satisfies Record<string, TutorialIcon>;
+
+/**
+ * Inline-SVG renderer for the icon table: both variants render stacked as
+ * `icon-normal` + `icon-hover` paths, and the button's hover state swaps
+ * which one is visible — the same mechanism the shipped plugin uses.
+ */
+function svgFromIcon(icon: TutorialIcon, size = 24): string {
+	return `<svg viewBox="0 0 24 24" fill="currentColor" width="${size}" height="${size}" aria-hidden="true">`
+		+ `<path class="icon-normal" d="${icon.normal}"/>`
+		+ `<path class="icon-hover" d="${icon.hover}"/>`
+		+ `</svg>`;
+}
 
 const SPINNER_SVG = `
 	<svg class="animate-spin text-white" viewBox="0 0 100 101" fill="none">
@@ -131,6 +160,9 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 				'text-white',
 				'hover:bg-white/20',
 				'cursor-pointer',
+				'[&_.icon-hover]:hidden',
+				'[&:hover_.icon-normal]:hidden',
+				'[&:hover_.icon-hover]:block',
 			])
 			.appendTo(parent)
 			.get();
@@ -161,11 +193,14 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 				'hover:scale-110',
 				'cursor-pointer',
 				'pointer-events-auto',
+				'[&_.icon-hover]:hidden',
+				'[&:hover_.icon-normal]:hidden',
+				'[&:hover_.icon-hover]:block',
 			])
 			.appendTo(this.overlay)
 			.get();
 		this.centerButton.ariaLabel = 'Play';
-		this.centerButton.innerHTML = PLAY_ICON;
+		this.centerButton.innerHTML = svgFromIcon(icons.play);
 
 		this.listen(this.centerButton, 'click', (event) => {
 			event.stopPropagation();
@@ -218,13 +253,13 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			.createElement('span', 'playback-play')
 			.appendTo(this.playbackButton)
 			.get();
-		playIcon.innerHTML = PLAY_ICON;
+		playIcon.innerHTML = svgFromIcon(icons.play);
 
 		const pauseIcon = this.player
 			.createElement('span', 'playback-pause')
 			.appendTo(this.playbackButton)
 			.get();
-		pauseIcon.innerHTML = PAUSE_ICON;
+		pauseIcon.innerHTML = svgFromIcon(icons.pause);
 		pauseIcon.style.display = 'none';
 
 		this.listen(this.playbackButton, 'click', (event) => {
@@ -242,6 +277,62 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 		});
 	}
 }
+
+// One real film from the public nomercy-media fixture catalogue. The item
+// carries everything the steps light up: `subtitles` (step 8's menu),
+// `chapters` (step 9's ticks and tooltip titles), and `previewSpriteUrl`
+// (step 9's thumbnail manifest). Media paths resolve against the config's
+// `baseUrl`; the poster resolves against `baseImageUrl`.
+const sintel: VideoPlaylistItem = {
+	id: 'sintel',
+	title: 'Sintel',
+	description: 'A short fantasy film by the Blender Foundation. Sintel searches for a baby dragon she calls Scales.',
+	url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+	image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+	duration: 888,
+	year: 2010,
+	subtitles: [
+		{
+			id: 'eng',
+			label: 'English',
+			language: 'eng',
+			kind: 'subtitles',
+			url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
+		},
+		{
+			id: 'dut',
+			label: 'Dutch',
+			language: 'dut',
+			kind: 'subtitles',
+			url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.dut.full.vtt',
+		},
+		{
+			id: 'fre',
+			label: 'French',
+			language: 'fre',
+			kind: 'subtitles',
+			url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.fre.full.vtt',
+		},
+		{
+			id: 'ger',
+			label: 'German',
+			language: 'ger',
+			kind: 'subtitles',
+			url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.ger.full.vtt',
+		},
+	],
+	chapters: [
+		{ index: 0, start: 0, end: 107, title: 'Opening' },
+		{ index: 1, start: 107, end: 207, title: 'A Dangerous Quest' },
+		{ index: 2, start: 207, end: 338, title: 'Scales' },
+		{ index: 3, start: 338, end: 445, title: 'The Attack' },
+		{ index: 4, start: 445, end: 557, title: 'In Pursuit' },
+		{ index: 5, start: 557, end: 621, title: 'The Cave' },
+		{ index: 6, start: 621, end: 745, title: 'Eye to Eye' },
+		{ index: 7, start: 745, end: 888, title: 'End Credits' },
+	],
+	previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.vtt',
+};
 
 const config: VideoPlayerConfig = {
 	baseUrl: FILMS_BASE,

@@ -1,6 +1,6 @@
 ---
 title: 'Build a Player: Time & Skip'
-description: 'Step 4 of 10: skip buttons on rewind()/forward(), and a current-time / duration readout fed by the time event and a small formatter.'
+description: 'Step 4 of 10: skip buttons on rewind()/forward(), and a current-time / duration readout painted straight from the time event payload with formatSeconds().'
 ---
 
 {/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step4Plugin.ts, packages/nomercy-player-core/src/types/player.ts */}
@@ -34,14 +34,14 @@ override use(): void {
 ```ts
 private createSkipButtons(): void {
   const skipBack = this.createUiButton(this.bottomRow, 'skip-back', 'Skip back 10 seconds');
-  skipBack.innerHTML = SEEK_BACK_ICON;
+  skipBack.innerHTML = svgFromIcon(icons.seekBack);
   this.listen(skipBack, 'click', (event) => {
     event.stopPropagation();
     void this.player.rewind(10);
   });
 
   const skipForward = this.createUiButton(this.bottomRow, 'skip-forward', 'Skip forward 10 seconds');
-  skipForward.innerHTML = SEEK_FORWARD_ICON;
+  skipForward.innerHTML = svgFromIcon(icons.seekForward);
   this.listen(skipForward, 'click', (event) => {
     event.stopPropagation();
     void this.player.forward(10);
@@ -49,11 +49,11 @@ private createSkipButtons(): void {
 }
 ```
 
-`createUiButton()` is the step-2 helper earning its keep: every button from here on is one call plus an icon.
+`createUiButton()` is the step-2 helper earning its keep: every button from here on is one call plus an icon, and the icon table grows `seekBack` and `seekForward` entries to match.
 
 ## The clock
 
-The `time` event carries seconds, and the kit ships the formatter: `formatSeconds()` renders `M:SS`, rolls over to `H:MM:SS` past the hour, and returns `0:00` for anything negative or non-finite, so there is nothing to hand-roll and nothing to guard:
+The `time` event payload carries `position` and `duration` (step 3 already used its `percentage`), and the kit ships the formatter: `formatSeconds()` renders `M:SS`, rolls over to `H:MM:SS` past the hour, and returns `0:00` for anything negative or non-finite, so there is nothing to hand-roll and nothing to guard:
 
 {/* partial */}
 
@@ -101,9 +101,9 @@ private createTimeDisplay(): void {
     .get();
   this.durationLabel.textContent = '0:00';
 
-  this.on('time', ({ time }) => {
-    this.currentTimeLabel.textContent = formatSeconds(time);
-    this.durationLabel.textContent = formatSeconds(this.player.duration());
+  this.on('time', ({ position, duration }) => {
+    this.currentTimeLabel.textContent = formatSeconds(position);
+    this.durationLabel.textContent = formatSeconds(duration);
   });
 }
 ```

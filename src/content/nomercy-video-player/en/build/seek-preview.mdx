@@ -1,17 +1,17 @@
 ---
-title: 'Build a Player: Seek Preview'
-description: "Step 9 of 10: the hover thumbnail over the scrubber, from the item's sprite-VTT manifest through the plugin's auth-aware fetch()."
+title: 'Build a Player: Seek Preview & Chapters'
+description: "Step 9 of 10: the hover thumbnail over the scrubber from the item's sprite-VTT manifest, chapter ticks from chapters(), and the covering chapter's title in the tooltip."
 ---
 
-{/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step9Plugin.ts, packages/nomercy-player-core/src/core/plugin/base.ts */}
+{/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step9Plugin.ts, packages/nomercy-player-core/src/core/plugin/base.ts, packages/nomercy-player-core/src/types/chapter.ts */}
 
-# Build a Player: Seek Preview
+# Build a Player: Seek Preview & Chapters
 
-Back to your own plugin. The v1 tutorial extended the shipped plugin with a seek preview at this step because the v1 shipped plugin did not have one; v2's `DesktopUiPlugin` ships it built in, so this translation adds the preview to your step-7 class instead, the same mechanics, taught on the plugin you own.
+Two features left before the touch layer, and they share a home: the scrubber. A thumbnail tooltip that follows the pointer, and chapter marks, ticks on the bar plus the chapter's title inside the tooltip.
 
-The data: a playlist item can carry `previewSpriteUrl`, a VTT manifest whose cues map time ranges to regions of one sprite image (`thumbs.webp#xywh=x,y,w,h`). Sintel's fixture carries a real one.
+The data for both was already declared on the playlist item in [step 1](/nomercy-video-player/build/shell). `previewSpriteUrl` names a VTT manifest whose cues map time ranges to regions of one sprite image (`thumbs.webp#xywh=x,y,w,h`), and `chapters` carries the `{ index, start, end, title }` entries the player exposes through `chapters()` and announces through the `chapters` event. This step is where both fields light up.
 
-Four fields and a `PreviewCue` shape:
+Six fields and a `PreviewCue` shape:
 
 {/* partial */}
 
@@ -29,18 +29,74 @@ interface PreviewCue {
 private previewCues: PreviewCue[] = [];      // NEW
 private sliderPop!: HTMLDivElement;          // NEW
 private sliderPopImage!: HTMLDivElement;     // NEW
+private sliderPopChapter!: HTMLSpanElement;  // NEW
 private sliderPopText!: HTMLSpanElement;     // NEW
+private chapterLayer!: HTMLDivElement;       // NEW
 
 override use(): void {
-  // ...everything from step 7, unchanged
+  // ...everything from step 8, unchanged
 
-  this.createSeekPreview();  // NEW
+  this.createChapterMarkers();  // NEW
+  this.createSeekPreview();     // NEW
 }
 ```
 
-## The tooltip: pop, image, timestamp
+## Chapter ticks on the bar
 
-Three elements anchored above the step-3 slider bar, hidden until hover, all `pointer-events-none` so they never block the scrub:
+A `pointer-events-none` layer over the step-3 slider bar holds one thin tick per chapter start (skipping the one at zero, the bar's left edge already marks it). Ticks are re-rendered whenever the chapter list or the duration resolves, whichever arrives last:
+
+{/* partial */}
+
+```ts
+private createChapterMarkers(): void {
+  this.chapterLayer = this.player
+    .createElement('div', 'chapter-markers')
+    .addClasses([
+      'absolute',
+      'inset-0',
+      'pointer-events-none',
+      'z-10',
+    ])
+    .appendTo(this.sliderBar)
+    .get();
+
+  this.on('chapters', () => this.renderChapterMarkers());
+  this.on('duration', () => this.renderChapterMarkers());
+}
+
+private renderChapterMarkers(): void {
+  this.chapterLayer.innerHTML = '';
+
+  const { duration } = this.player.timeData();
+  if (duration <= 0)
+    return;
+
+  for (const chapter of this.player.chapters()) {
+    if (chapter.start <= 0)
+      continue;
+
+    const tick = this.player
+      .createElement('div', `chapter-tick-${chapter.index}`)
+      .addClasses([
+        'absolute',
+        'top-0',
+        'h-full',
+        'w-0.5',
+        '-translate-x-1/2',
+        'bg-black/70',
+      ])
+      .appendTo(this.chapterLayer)
+      .get();
+    tick.style.left = `${(chapter.start / duration) * 100}%`;
+  }
+}
+```
+
+Clicking a tick needs no code at all: the ticks don't take pointer events, so the click lands on the slider bar underneath and the step-3 seek handler does what it always did.
+
+## The tooltip: a card above the bar
+
+One card, hidden until hover: thumbnail on top, chapter title under it, timestamp at the bottom. The card carries the background so the sprite region and the labels read as one surface, the same construction the shipped plugin uses:
 
 {/* partial */}
 
@@ -55,6 +111,12 @@ private createSeekPreview(): void {
       'flex',
       'flex-col',
       'items-center',
+      'gap-1',
+      'rounded-md',
+      'overflow-hidden',
+      'bg-[rgba(20,20,25,0.95)]',
+      'pb-1',
+      'min-w-[60px]',
       'pointer-events-none',
       'z-30',
       'opacity-0',
@@ -67,26 +129,34 @@ private createSeekPreview(): void {
   this.sliderPopImage = this.player
     .createElement('div', 'slider-pop-image')
     .addClasses([
+      'mx-1.5',
+      'mt-1.5',
       'rounded',
-      'overflow-hidden',
       'bg-no-repeat',
-      'border',
-      'border-white/30',
     ])
     .appendTo(this.sliderPop)
     .get();
+
+  this.sliderPopChapter = this.player
+    .createElement('span', 'slider-pop-chapter')
+    .addClasses([
+      'text-white/80',
+      'text-xs',
+      'px-2',
+      'max-w-[240px]',
+      'truncate',
+    ])
+    .appendTo(this.sliderPop)
+    .get();
+  this.sliderPopChapter.style.display = 'none';
 
   this.sliderPopText = this.player
     .createElement('span', 'slider-pop-text')
     .addClasses([
       'text-white',
       'text-xs',
-      'mt-1',
       'tabular-nums',
-      'bg-black/70',
-      'px-1.5',
-      'py-0.5',
-      'rounded',
+      'px-2',
     ])
     .appendTo(this.sliderPop)
     .get();
@@ -94,6 +164,8 @@ private createSeekPreview(): void {
   // ...the cue loading and hover wiring below live here too
 }
 ```
+
+The chapter span starts hidden and only shows while a chapter actually covers the hovered time, so items without chapters get the plain thumbnail-plus-timestamp card.
 
 ## Fetching through the plugin
 
@@ -143,21 +215,23 @@ function parsePreviewVtt(raw: string, vttUrl: string): PreviewCue[] {
     if (cueLineIndex === -1)
       continue;
 
+    const cueLine = lines[cueLineIndex] ?? '';
     timestamp.lastIndex = 0;
-    const startMatch = timestamp.exec(lines[cueLineIndex]);
-    const endMatch = timestamp.exec(lines[cueLineIndex]);
+    const startMatch = timestamp.exec(cueLine);
+    const endMatch = timestamp.exec(cueLine);
     const regionMatch = region.exec(lines[cueLineIndex + 1] ?? '');
-    if (!startMatch || !endMatch || !regionMatch?.groups)
+    const { file, x, y, w, h } = regionMatch?.groups ?? {};
+    if (!startMatch || !endMatch || !file || !x || !y || !w || !h)
       continue;
 
     cues.push({
       start: toSeconds(startMatch),
       end: toSeconds(endMatch),
-      imageUrl: new URL(regionMatch.groups.file, vttUrl).toString(),
-      x: Number(regionMatch.groups.x),
-      y: Number(regionMatch.groups.y),
-      w: Number(regionMatch.groups.w),
-      h: Number(regionMatch.groups.h),
+      imageUrl: new URL(file, vttUrl).toString(),
+      x: Number(x),
+      y: Number(y),
+      w: Number(w),
+      h: Number(h),
     });
   }
 
@@ -165,9 +239,9 @@ function parsePreviewVtt(raw: string, vttUrl: string): PreviewCue[] {
 }
 ```
 
-## Hover maps X to a cue
+## Hover maps X to a cue and a chapter
 
-`mousemove` over the step-3 slider bar converts the pointer position to a time (the same math the scrubber uses), finds the covering cue, and paints the tooltip by shifting the sprite's `background-position`. Clamping keeps the tooltip inside the bar at both ends, and leaving the bar fades it out:
+`mousemove` over the step-3 slider bar converts the pointer position to a time (the same math the scrubber uses), finds the covering cue, paints the tooltip by shifting the sprite's `background-position`, and looks up the covering chapter for the title line. Clamping measures the card's real width, `offsetWidth`, so the tooltip stays inside the bar at both ends, and leaving the bar fades it out:
 
 {/* partial */}
 
@@ -191,12 +265,18 @@ this.listen(this.sliderBar, 'mousemove', (event) => {
     this.sliderPopImage.style.width = `${preview.w}px`;
     this.sliderPopImage.style.height = `${preview.h}px`;
 
-    const popWidth = preview.w;
+    const popWidth = this.sliderPop.offsetWidth || preview.w;
     const minLeft = popWidth / 2;
     const maxLeft = rect.width - popWidth / 2;
     const clampedX = Math.max(minLeft, Math.min(x, maxLeft));
     this.sliderPop.style.left = `${clampedX}px`;
     this.sliderPop.style.transform = 'translateX(-50%)';
+
+    const chapterTitle = this.player.chapters()
+      .find(chapter => scrubTime >= chapter.start && scrubTime <= chapter.end)
+      ?.title ?? '';
+    this.sliderPopChapter.textContent = chapterTitle;
+    this.sliderPopChapter.style.display = chapterTitle ? '' : 'none';
 
     this.sliderPopText.textContent = formatSeconds(scrubTime);
   }
@@ -223,7 +303,7 @@ this.on('item', () => {
 
 ## See it running
 
-Hover along the scrubber: Sintel's real sprite thumbnails follow the pointer with the timestamp underneath, the same manifest the shipped plugin's preview reads.
+Hover along the scrubber: Sintel's real sprite thumbnails follow the pointer, the chapter line flips from "Opening" through "A Dangerous Quest" to "End Credits" as you cross the ticks, and the timestamp sits underneath.
 
 :::snippet{file="video-build-9-seek-preview" preview="first"}
 :::

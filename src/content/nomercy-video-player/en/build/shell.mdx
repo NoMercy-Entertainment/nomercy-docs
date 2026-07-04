@@ -7,7 +7,7 @@ description: 'Step 1 of 10: write your own UI plugin from scratch. Lay down the 
 
 # Build a Player: Shell & Layout
 
-This is a ten-step tutorial where you write your own control UI, one piece at a time. It is the v2 translation of the original tutorial on examples.nomercy.tv, step for step: a shell, play and pause, a progress bar, time and skip, volume, a title bar, fullscreen and speed, then the shipped plugin and what it adds on top. When you finish, you will understand every line the real `DesktopUiPlugin` runs, because you will have written its shape yourself.
+This is a ten-step tutorial where you write your own control UI, one piece at a time: a shell, play and pause, a progress bar, time and skip, volume, a title bar, fullscreen and speed, the track selectors, a seek preview with chapters, and a touch layer. When you finish, you will understand every line the real `DesktopUiPlugin` runs, because you will have written its shape yourself.
 
 Everything you write rides the player's public method surface, the same `play()`, `volume()`, `time()`, and `duration()` calls any consumer has.
 
@@ -133,6 +133,40 @@ Look at the last four classes on each bar. They key off `.active` and `.paused` 
 Activity is a player concern: the player itself watches its container for pointer, touch, and key input, shows the controls on any of it, and drops to `.inactive` after four seconds of idle while playing. Pausing always keeps the controls up. Your plugin inherits all of that through those four CSS classes, with zero wiring; `inactivityMs` in the config tunes the delay, and `bumpActivity()` exists for interactions the DOM can't see (see [Reference: VideoPlayerConfig](/nomercy-video-player/reference/config)).
 
 So the bars already fade in when you move the pointer and fade out when you leave playback running. You wrote no timer for that, and you never will in this tutorial.
+
+## The playlist item
+
+The tutorial plays one real film, declared right in the example, because the item is where half of this tutorial's data lives. Alongside the stream URL it carries the subtitle tracks step 8's menu will list, the chapter list step 9 turns into scrubber ticks and tooltip titles, and the sprite-VTT manifest behind step 9's seek thumbnails. Media paths are relative; the config's `baseUrl` resolves them (and `baseImageUrl` resolves the poster):
+
+```ts
+const sintel: VideoPlaylistItem = {
+  id: 'sintel',
+  title: 'Sintel',
+  description: 'A short fantasy film by the Blender Foundation. Sintel searches for a baby dragon she calls Scales.',
+  url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+  image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+  duration: 888,
+  year: 2010,
+  subtitles: [
+    {
+      id: 'eng',
+      label: 'English',
+      language: 'eng',
+      kind: 'subtitles',
+      url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
+    },
+    // ...Dutch, French, and German entries, same shape
+  ],
+  chapters: [
+    { index: 0, start: 0, end: 107, title: 'Opening' },
+    { index: 1, start: 107, end: 207, title: 'A Dangerous Quest' },
+    // ...six more, through 'End Credits'
+  ],
+  previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.vtt',
+};
+```
+
+Nothing reads `subtitles`, `chapters`, or `previewSpriteUrl` yet, the item just declares what the film has, and each later step lights up the part it needs. The full example below carries every entry.
 
 ## Register it
 

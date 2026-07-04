@@ -9,6 +9,47 @@ description: 'Step 2 of 10: a center play button, a bottom-bar playback button, 
 
 [Step 1](/nomercy-video-player/build/shell) built the shell: an overlay, a top bar, a bottom bar, all empty. This step puts the first real control in them, twice over. A big center button for starting playback, and a small button in the bottom bar for toggling it afterwards. Both call the same method.
 
+## The icon table
+
+Controls need icons, and icons are data, not code. The plugin keeps them in one module-level table, each entry a normal and a hover variant of the same glyph (the paths are the design system's own, the ones the shipped plugin renders), plus one renderer that stacks both variants into an inline SVG:
+
+{/* partial */}
+
+```ts
+interface TutorialIcon {
+  title: string;
+  normal: string;
+  hover: string;
+}
+
+const icons = {
+  play: {
+    title: 'Pause',
+    normal: 'M7.60846 4.61586C7.1087 4.34394...',
+    hover: 'M5 5.27466C5 3.5678 6.82609...',
+  },
+  pause: {
+    title: 'Play',
+    normal: 'M6.25 3C5.00736 3 4 4.00736...',
+    hover: 'M5.74609 3C4.7796 3 3.99609...',
+  },
+} satisfies Record<string, TutorialIcon>;
+
+/**
+ * Inline-SVG renderer for the icon table: both variants render stacked as
+ * `icon-normal` + `icon-hover` paths, and the button's hover state swaps
+ * which one is visible — the same mechanism the shipped plugin uses.
+ */
+function svgFromIcon(icon: TutorialIcon, size = 24): string {
+  return `<svg viewBox="0 0 24 24" fill="currentColor" width="${size}" height="${size}" aria-hidden="true">`
+    + `<path class="icon-normal" d="${icon.normal}"/>`
+    + `<path class="icon-hover" d="${icon.hover}"/>`
+    + `</svg>`;
+}
+```
+
+The path data is elided here; the full example at the bottom carries every entry verbatim, and each later step adds the entries its controls need. Nothing reads `title` yet, it documents what the glyph depicts, and the outline-to-filled swap on hover is three utility classes on the button, coming right up.
+
 Four new fields join the class, and `use()` grows four calls:
 
 {/* partial */}
@@ -59,11 +100,14 @@ private createCenterButton(): void {
       'hover:scale-110',
       'cursor-pointer',
       'pointer-events-auto',
+      '[&_.icon-hover]:hidden',
+      '[&:hover_.icon-normal]:hidden',
+      '[&:hover_.icon-hover]:block',
     ])
     .appendTo(this.overlay)
     .get();
   this.centerButton.ariaLabel = 'Play';
-  this.centerButton.innerHTML = PLAY_ICON;
+  this.centerButton.innerHTML = svgFromIcon(icons.play);
 
   this.listen(this.centerButton, 'click', (event) => {
     event.stopPropagation();
@@ -76,7 +120,9 @@ private createCenterButton(): void {
 }
 ```
 
-`event.stopPropagation()` matters because the buttons sit over the video, and step ten wires tap behavior onto the surface underneath. `this.listen()` instead of `addEventListener` for the same reason there is no `dispose()`: the base unwinds it at teardown. `PLAY_ICON` (and `PAUSE_ICON`, `SPINNER_SVG` below) are module-level SVG string constants, the full example carries them verbatim.
+`event.stopPropagation()` matters because the buttons sit over the video, and step ten wires tap behavior onto the surface underneath. `this.listen()` instead of `addEventListener` for the same reason there is no `dispose()`: the base unwinds it at teardown.
+
+The last three classes are the icon hover swap: hide every `icon-hover` path by default, and on hover hide the normal path and show the hover twin. Filled-on-hover, straight from the table, zero JavaScript.
 
 ## One helper for every round button
 
@@ -98,6 +144,9 @@ private createUiButton(parent: HTMLElement, id: string, label: string): HTMLButt
       'text-white',
       'hover:bg-white/20',
       'cursor-pointer',
+      '[&_.icon-hover]:hidden',
+      '[&:hover_.icon-normal]:hidden',
+      '[&:hover_.icon-hover]:block',
     ])
     .appendTo(parent)
     .get();
@@ -141,13 +190,13 @@ private createPlaybackButton(): void {
     .createElement('span', 'playback-play')
     .appendTo(this.playbackButton)
     .get();
-  playIcon.innerHTML = PLAY_ICON;
+  playIcon.innerHTML = svgFromIcon(icons.play);
 
   const pauseIcon = this.player
     .createElement('span', 'playback-pause')
     .appendTo(this.playbackButton)
     .get();
-  pauseIcon.innerHTML = PAUSE_ICON;
+  pauseIcon.innerHTML = svgFromIcon(icons.pause);
   pauseIcon.style.display = 'none';
 
   this.listen(this.playbackButton, 'click', (event) => {
@@ -198,6 +247,8 @@ private createSpinner(): void {
 ```
 
 Buffering starts: the player swaps the container to `.buffering` and the spinner appears. Playback recovers: class gone, spinner gone. Zero JavaScript on your side.
+
+`SPINNER_SVG` is the one glyph that lives outside the icon table: it is an animated two-path ring, not a normal/hover pair, so it stays a module-level constant (the full example carries it verbatim).
 
 ## See it running
 

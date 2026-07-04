@@ -1,43 +1,288 @@
 ---
 title: 'Build a Player: Selectors'
-description: 'Step 8 of 10: quality, subtitle, and audio menus, by swapping your seven-step plugin for the shipped DesktopUiPlugin, exactly as the original tutorial did.'
+description: 'Step 8 of 10: subtitle, audio, and quality menus on subtitles()/subtitle(), audioTracks()/audioTrack(), qualityLevels()/quality(), with a menu registry and content gating.'
 ---
 
-{/* Source: docs/nomercy-examples/src/components/TutorialPlayer/steps/step8Plugin.ts, packages/nomercy-video-player/src/plugins/desktop-ui/index.ts */}
+{/* Source: packages/nomercy-video-player/src/types.ts, packages/nomercy-player-core/src/types/tracks.ts, packages/nomercy-player-core/src/types/events.ts */}
 
 # Build a Player: Selectors
 
-The selector menus, quality, subtitles, audio tracks, are structurally the speed menu from [step 7](/nomercy-video-player/build/fullscreen-speed) three more times: a button, a dropdown, one option per track, act with a method (`quality(idx)`, `subtitle(idx)`, `audioTrack(idx)`), react to an event. You already know how to build them.
+The selector menus, subtitles, audio tracks, quality, are structurally the speed menu from [step 7](/nomercy-video-player/build/fullscreen-speed) three more times: a button, a dropdown, one option per track, act with a method, react to an event. Repeating a shape three times is the signal to generalize it, so this step does both: it grows `toggleMenu()` into a registry that scales to any number of menus, and extracts the panel and option construction into helpers the three new menus share.
 
-Which is why this step, exactly like the original v1 tutorial at this same point, does something else: it swaps your hand-built plugin for the shipped one.
+Four fields, three calls:
 
-## The swap
-
-Delete `StepPlugin` from the registration and add `DesktopUiPlugin`:
+{/* partial */}
 
 ```ts
-import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/desktop-ui';
+private menus = new Map<string, HTMLDivElement>();        // NEW
+private subtitleMenu: HTMLDivElement | null = null;       // NEW
+private audioMenu: HTMLDivElement | null = null;          // NEW
+private qualityMenu: HTMLDivElement | null = null;        // NEW
 
-function configure(player: NMVideoPlayer): void {
-  player.addPlugin(DesktopUiPlugin);
+override use(): void {
+  // ...everything from step 7, unchanged, except three insertions
+  // between createRightSpacer() and createSpeedButton():
+
+  this.createSubtitleButton();  // NEW
+  this.createAudioButton();     // NEW
+  this.createQualityButton();   // NEW
 }
 ```
 
-That one line brings every control you built in steps 1 through 7, plus the three selector menus, the playlist panel, chapters on the scrubber, tooltips, keyboard hints, theater and PiP, and the seek preview. All of it runs the same public methods you wired by hand: its play button calls the `togglePlayback()` you called, its scrubber seeks the way yours did, its menus follow the one-open-at-a-time shape `toggleMenu()` taught.
+## One registry for every menu
 
-## Why here
+Step 7's `toggleMenu()` knew about exactly one menu by name. Instead of stacking three more `if (name === ...)` branches, the menus register themselves in a `Map`, and the method walks it:
 
-Seven steps taught concepts. The selectors teach nothing new, they are volume: three menus, track labels, active-state marks, empty-state handling, RTL, focus management. That is maintenance surface, not learning surface, and it is exactly what a shipped plugin is for. The v1 tutorial made the same cut at the same step.
+{/* partial */}
 
-The [DesktopUiPlugin page](/nomercy-video-player/plugins-adapters/desktop-ui) documents its options; the defaults below are enough for everything this page shows. `playbackRates` stays in the config, the shipped speed menu reads the exact same `playbackRates()` yours did.
+```ts
+private toggleMenu(name: string | null): void {
+  for (const menu of this.menus.values()) {
+    menu.classList.add('hidden');
+    menu.classList.remove('flex');
+  }
+
+  if (name === this.activeMenu || name === null) {
+    this.activeMenu = null;
+    return;
+  }
+
+  this.activeMenu = name;
+  const menu = this.menus.get(name);
+  menu?.classList.remove('hidden');
+  menu?.classList.add('flex');
+}
+```
+
+The speed menu joins the registry with one line after its creation in `createSpeedButton()`:
+
+{/* partial */}
+
+```ts
+this.menus.set('speed', this.speedMenu);
+```
+
+Everything else about step 7's speed menu is untouched, and the one-open-at-a-time behavior now covers all four menus for free.
+
+## A panel and an options renderer
+
+The dropdown panel is the speed menu's shape with a scroll cap, built once:
+
+{/* partial */}
+
+```ts
+private createMenuPanel(id: string): HTMLDivElement {
+  return this.player
+    .createElement('div', id)
+    .addClasses([
+      'absolute',
+      'bottom-12',
+      'right-0',
+      'bg-black/90',
+      'rounded-lg',
+      'p-2',
+      'hidden',
+      'flex-col',
+      'gap-1',
+      'min-w-[160px]',
+      'max-h-56',
+      'overflow-y-auto',
+      'pointer-events-auto',
+    ])
+    .appendTo(this.bottomRow)
+    .get();
+}
+```
+
+Unlike the speed list, track lists change at runtime, an HLS manifest parse can add renditions after `mediaReady`, and a playlist jump replaces them wholesale. So options are (re)rendered from data, not built once: clear the panel, one button per label, mark the active index, wire the pick:
+
+{/* partial */}
+
+```ts
+private renderMenuOptions(
+  menu: HTMLDivElement,
+  labels: string[],
+  activeIndex: number,
+  onPick: (index: number) => void,
+): void {
+  menu.innerHTML = '';
+  labels.forEach((label, index) => {
+    const option = this.player
+      .createElement('button', `${menu.id}-option-${index}`)
+      .addClasses([
+        'text-white',
+        'text-sm',
+        'px-3',
+        'py-1.5',
+        'rounded',
+        'hover:bg-white/20',
+        'text-left',
+        'cursor-pointer',
+      ])
+      .appendTo(menu)
+      .get();
+    option.textContent = label;
+    option.classList.toggle('bg-white/20', index === activeIndex);
+    this.listen(option, 'click', (event) => {
+      event.stopPropagation();
+      onPick(index);
+      this.toggleMenu(null);
+    });
+  });
+}
+
+private markActiveOption(menu: HTMLDivElement | null, activeIndex: number): void {
+  menu?.querySelectorAll('button').forEach((button, index) => {
+    button.classList.toggle('bg-white/20', index === activeIndex);
+  });
+}
+```
+
+`markActiveOption()` is the cheap path: when only the selection changes (not the list), it repaints the highlight without rebuilding buttons.
+
+## Subtitles
+
+`subtitles()` lists the tracks, the four `subtitles` entries declared on the playlist item back in [step 1](/nomercy-video-player/build/shell), each with the `label` the menu shows. `subtitle(idx)` selects one, `subtitle(null)` turns them off, and the `subtitle` event reports every change, including ones made by other plugins or a keyboard shortcut. The menu prepends an "Off" entry, so every menu index is the track index plus one:
+
+{/* partial */}
+
+```ts
+private createSubtitleButton(): void {
+  const button = this.createUiButton(this.bottomRow, 'subtitles', 'Subtitles');
+  button.innerHTML = svgFromIcon(icons.subtitles);
+  button.style.display = 'none';
+
+  this.subtitleMenu = this.createMenuPanel('subtitle-menu');
+  this.menus.set('subtitles', this.subtitleMenu);
+
+  this.listen(button, 'click', (event) => {
+    event.stopPropagation();
+    this.toggleMenu('subtitles');
+  });
+
+  const activeIndex = (): number => (this.player.subtitle()?.index ?? -1) + 1;
+
+  const rebuild = (): void => {
+    const tracks = this.player.subtitles();
+    button.style.display = tracks.length > 0 ? '' : 'none';
+    this.renderMenuOptions(
+      this.subtitleMenu!,
+      ['Off', ...tracks.map(track => track.label)],
+      activeIndex(),
+      (index) => {
+        void this.player.subtitle(index === 0 ? null : index - 1);
+      },
+    );
+  };
+
+  this.on('mediaReady', rebuild);
+  this.on('item', rebuild);
+  this.on('subtitle', () => this.markActiveOption(this.subtitleMenu, activeIndex()));
+}
+```
+
+`subtitle()` with no argument returns the current selection as `{ index, track }` or `null` when subtitles are off, which is exactly the `-1 + 1 = 0` ("Off" highlighted) case.
+
+## Audio tracks
+
+Same shape, no "Off" entry, an item always plays *some* audio track. The list arrives from the manifest parse, which is what the `audioTracks` event signals:
+
+{/* partial */}
+
+```ts
+private createAudioButton(): void {
+  const button = this.createUiButton(this.bottomRow, 'audio', 'Audio track');
+  button.innerHTML = svgFromIcon(icons.language);
+  button.style.display = 'none';
+
+  this.audioMenu = this.createMenuPanel('audio-menu');
+  this.menus.set('audio', this.audioMenu);
+
+  this.listen(button, 'click', (event) => {
+    event.stopPropagation();
+    this.toggleMenu('audio');
+  });
+
+  const activeIndex = (): number => this.player.audioTrack()?.index ?? 0;
+
+  const rebuild = (): void => {
+    const tracks = this.player.audioTracks();
+    button.style.display = tracks.length > 1 ? '' : 'none';
+    this.renderMenuOptions(
+      this.audioMenu!,
+      tracks.map(track => track.label),
+      activeIndex(),
+      (index) => {
+        void this.player.audioTrack(index);
+      },
+    );
+  };
+
+  this.on('audioTracks', rebuild);
+  this.on('mediaReady', rebuild);
+  this.on('audioTrack', () => this.markActiveOption(this.audioMenu, activeIndex()));
+}
+```
+
+## Quality
+
+`qualityLevels()` lists the renditions the manifest offers, each with a ready-made `label`. `quality('auto')` hands selection back to adaptive bitrate, `quality(idx)` pins a level. Two events matter: `quality:requested` fires when someone picks, `level-switched` fires when the stream actually changes level, which in auto mode happens without any pick:
+
+{/* partial */}
+
+```ts
+private createQualityButton(): void {
+  const button = this.createUiButton(this.bottomRow, 'quality', 'Quality');
+  button.innerHTML = svgFromIcon(icons.quality);
+  button.style.display = 'none';
+
+  this.qualityMenu = this.createMenuPanel('quality-menu');
+  this.menus.set('quality', this.qualityMenu);
+
+  this.listen(button, 'click', (event) => {
+    event.stopPropagation();
+    this.toggleMenu('quality');
+  });
+
+  const activeIndex = (): number => {
+    const current = this.player.quality();
+    return current === 'auto' ? 0 : current.index + 1;
+  };
+
+  const rebuild = (): void => {
+    const levels = this.player.qualityLevels();
+    button.style.display = levels.length > 1 ? '' : 'none';
+    this.renderMenuOptions(
+      this.qualityMenu!,
+      ['Auto', ...levels.map(level => level.label)],
+      activeIndex(),
+      (index) => {
+        const level = levels[index - 1];
+        this.player.quality(index === 0 || !level ? 'auto' : level.index);
+      },
+    );
+  };
+
+  this.on('levels', rebuild);
+  this.on('mediaReady', rebuild);
+  this.on('quality:requested', () => this.markActiveOption(this.qualityMenu, activeIndex()));
+  this.on('level-switched', () => this.markActiveOption(this.qualityMenu, activeIndex()));
+}
+```
+
+`quality()` returns `'auto'` or `{ index, track }`, mirroring the subtitle selection shape.
+
+## Buttons that hide themselves
+
+Every selector starts `display: 'none'` and only shows when its list offers a real choice: subtitles need at least one track, audio and quality need at least two, one option is not a choice. This is content gating, the same rule the shipped plugin applies, and Sintel demonstrates both sides of it live: four subtitle languages and four quality levels show their menus, the single audio track keeps that button hidden.
 
 ## See it running
 
-Open the settings menu: quality, subtitles (Sintel ships four languages), audio, and speed, the menus this step is named for. Everything else in the frame is a control you have already built once yourself.
+Open the subtitles menu and switch languages, open quality and pin a level, then set it back to Auto. The highlight follows the events, so a selection made anywhere else, another plugin, a keyboard shortcut, repaints these menus too.
 
 :::snippet{file="video-build-8-selectors" preview="first"}
 :::
 
 ## Next steps
 
-- [Step 9: Seek Preview](/nomercy-video-player/build/seek-preview): back to your own plugin, to build the one desktop-ui feature the v1 tutorial saved for last: the hover thumbnail.
+- [Step 9: Seek Preview & Chapters](/nomercy-video-player/build/seek-preview): the hover thumbnail over the scrubber, and chapter marks from the item's chapter list.

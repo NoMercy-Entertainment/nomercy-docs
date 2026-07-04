@@ -7,7 +7,7 @@ description: 'time(), duration(), timeData(), rewind()/forward()/restart(), and 
 
 # Time & Seeking
 
-Position and duration come straight from `nomercy-player-core`, same as transport. Music adds one thing on top: the `'time'` event carries a richer payload than the kit's plain `{ time }`, because a progress bar almost always wants percentage and remaining time in the same read.
+Position and duration come straight from `nomercy-player-core`, same as transport, and so does the `'time'` event's payload: the kit's full `TimeState` snapshot, because a progress bar almost always wants percentage and remaining time in the same read.
 
 ## Reading and seeking
 
@@ -40,17 +40,17 @@ await player.restart();
 
 `seekByPercentage(pct)` seeks to a position expressed as `0`-`100` percent of `duration()`, the calculation a progress bar's click handler would otherwise have to do by hand.
 
-## The richer `'time'` event
+## The `'time'` event payload
 
-Core's `BaseEventMap` defines `'time'` as `{ time: number }`. `nomercy-music-player` overrides it with everything a scrubber needs in one payload:
+Core's `BaseEventMap` defines `'time'` as the full `TimeState` snapshot, everything a scrubber needs in one payload, identical across the music and video players:
 
 ```ts
-player.on('time', ({ time, percentage, position, duration, remaining }) => {
+player.on('time', ({ time, percentage, position, duration, buffered, remaining }) => {
   scrubber.value = String(time);
 });
 ```
 
-`position` is an alias for `time` in seconds, `percentage` is elapsed time as `0`-`100` of `duration`, `remaining` is seconds left. Subscribe to this instead of polling `timeData()` from a render loop.
+`position` is an alias for `time` in seconds, `percentage` is elapsed time as `0`-`100` of `duration`, `buffered` is how many seconds are loaded ahead of the position, `remaining` is seconds left. It is the same shape `timeData()` returns, so subscribe to this instead of polling from a render loop.
 
 ## Next steps
 

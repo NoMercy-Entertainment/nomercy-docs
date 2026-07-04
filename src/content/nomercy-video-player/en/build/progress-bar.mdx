@@ -41,7 +41,6 @@ private createProgressBar(): void {
       'relative',
       'w-full',
       'h-1',
-      'mx-2',
       'bg-white/20',
       'rounded-full',
       'cursor-pointer',
@@ -173,17 +172,19 @@ The `time` listener that keeps the bar in sync during normal playback skips its 
 {/* partial */}
 
 ```ts
-this.on('time', ({ time }) => {
+this.on('time', ({ position, duration, buffered, percentage }) => {
   if (this.isMouseDown)
     return;
-  const duration = this.player.duration();
-  const percentage = duration > 0 ? (time / duration) * 100 : 0;
   sliderProgress.style.width = `${percentage}%`;
   sliderNipple.style.left = `${percentage}%`;
+  if (duration > 0)
+    sliderBuffer.style.width = `${Math.min(100, ((position + buffered) / duration) * 100)}%`;
 });
 ```
 
-The `time` event carries seconds; the percentage is yours to derive from `duration()`. And when the playlist moves to another item, both fills reset to zero through the same `item` event the title bar will use in [step 6](/nomercy-video-player/build/title-bar):
+The `time` event carries the player's full time snapshot, `time`/`position`, `duration`, `buffered`, `remaining`, and a ready-made `percentage`, the same shape `timeData()` returns, so there is no time math to derive inside the handler. The progress fill and nipple take `percentage` as-is; the buffer fill is the one derived value, because "how far ahead is buffered" is a UI choice: `buffered` is seconds ahead of `position`, so the fill ends at `position + buffered`.
+
+And when the playlist moves to another item, the fills reset to zero through the same `item` event the title bar will use in [step 6](/nomercy-video-player/build/title-bar):
 
 {/* partial */}
 
