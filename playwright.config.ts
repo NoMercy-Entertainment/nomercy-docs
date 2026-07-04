@@ -8,7 +8,12 @@
 
 import { defineConfig } from '@playwright/test';
 
-const PORT = 4321;
+// NOT 4321: that's the `astro dev` port (docs-dev tunnels it). With
+// `reuseExistingServer` the gate would silently ride the dev server —
+// dev-mode per-page compiles blow the per-example time budget and the dev
+// toolbar pollutes snapshots. A port of its own means the gate always
+// asserts against the production preview it spawned itself.
+const PORT = 4323;
 const BASE_URL = `http://localhost:${PORT}`;
 
 export default defineConfig({
@@ -39,7 +44,7 @@ export default defineConfig({
   // preview` — so the gate below asserts against actual build output, not a
   // dev-mode approximation of it.
   webServer: {
-    command: 'npm run preview',
+    command: `npm run preview -- --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,
