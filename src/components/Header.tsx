@@ -52,7 +52,7 @@ function TopLevelNavItem({
   isActive?: boolean;
 }) {
   return (
-    <li>
+    <li className="whitespace-nowrap">
       <Link
         href={href}
         className={clsx(

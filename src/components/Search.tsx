@@ -590,7 +590,7 @@ export function Search() {
             ? t('nav.search.open', { shortcut: `${modifierKey.trim()}+K` })
             : t('nav.search.label')
         }
-        className="hidden h-8 w-full items-center gap-2 rounded-full bg-white pr-3 pl-2 text-sm text-zinc-500 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 lg:flex dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20"
+        className="hidden h-8 w-full items-center gap-2 rounded-full bg-white pr-3 pl-2 text-sm text-zinc-500 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 lg:flex dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20 whitespace-nowrap"
         {...buttonProps}
       >
         <SearchIcon className="h-5 w-5 stroke-current" />
