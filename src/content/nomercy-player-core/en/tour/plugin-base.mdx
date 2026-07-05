@@ -15,6 +15,7 @@ Subclass `Plugin` and `initialize()` (called by the player, never by you) wires 
 
 - `on` / `once` / `off` / `hasListeners`: two forms, a string for player events or a plugin class for another plugin's namespaced events (`on(OtherPlugin, 'event', fn)`), both auto-removed on teardown.
 - `listen` / `timeout` / `interval` / `frame` / `abortable`: DOM listeners, timers, an animation-frame loop, and an `AbortController`, all released together.
+- `lifecycle.observe(observer)`: wraps a `ResizeObserver`, `MutationObserver`, or `IntersectionObserver` so it disconnects on dispose. Returns the observer, so you chain the `observe(el)` straight onto it.
 - `emit(event, data)`: fire-and-forget, auto-namespaced under `plugin:<id>:`.
 - `dispatchBefore(event, data, opts?)`: the cancellable, mutable, async-aware pattern from [Transport Contract](/nomercy-player-core/tour/transport), available for your own actions.
 - `fetch(url, options?)` / `websocket(url, opts?)`: auth-aware HTTP and an auto-reconnecting realtime channel, both bound to the plugin's lifecycle. See [Recipe: Use authFetch](/nomercy-player-core/recipes/auth-fetch#response-typing) for the `parser` callback on a `'text'` response.
@@ -22,7 +23,7 @@ Subclass `Plugin` and `initialize()` (called by the player, never by you) wires 
 - `throw(payload)` / `report(payload)`: structured error escalation, `throw` aborting the current flow, `report` just surfacing a warning.
 - `mount(name)`: a `<div>` on the player container, namespaced `nmplayer-<id>-<name>`, removed on dispose.
 
-Never call `this.player.on` / `.emit` directly, and never use raw `setTimeout` or `addEventListener`: they bypass the scoping and the auto-cleanup, and the kit's lint pack flags both.
+Reach for these helpers rather than the raw primitives. Calling `this.player.on` / `.emit` directly, or using a raw `setTimeout`, `addEventListener`, `new ResizeObserver`, a raw `throw`, or the global `fetch`, all skip the scoping, cleanup, auth, and structured-error handling the helpers give you. Each one leaks something past `dispose()` or drops off a contract, so the `@nomercy-entertainment/eslint-plugin-player` rules flag them at write time. When a plugin genuinely needs the raw form — a public URL that must not carry auth, a third-party emitter that is not an `EventTarget` — an `eslint-disable-next-line` with a one-line reason is the intended escape hatch.
 
 ## Declaring the contract
 
