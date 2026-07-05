@@ -45,6 +45,12 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 }
 ```
 
+::Callout
+
+Notice the two kinds of `this` already in play. `this.mount()` is the plugin's own helper, bare `this.*`, because `this` is the plugin you are writing. `this.player.addClasses()` reaches the player, the collaborator this plugin extends. That split, what you *are* versus what you *talk to*, is the organising rule of the whole trio and decides where every behaviour lives. [Player and Plugin](/nomercy-player-core/tour/composition-boundary) is the short read.
+
+::
+
 The first line marks the player container as a Tailwind `group` parent. Every state-reactive class in this tutorial (`group-[&.nomercyplayer.active]:opacity-100` on the bars below, the spinner's `.buffering` variant in step 2) resolves against a `.group` ancestor, and the container is the element that carries the state classes, so it is the group.
 
 `mount('overlay')` claims a `<div>` on the player container and, crucially, registers its own teardown. When the plugin disposes, that div and everything you append under it are removed for you, along with every listener you add through `this.listen()` and `this.on()`. That is why this class has no `dispose()` method anywhere in the tutorial: the v1 original had to `remove()` its bars by hand, and in v2 there is nothing left to write.

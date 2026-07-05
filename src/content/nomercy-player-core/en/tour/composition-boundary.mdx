@@ -1,0 +1,73 @@
+---
+title: 'Player and Plugin'
+description: 'The this-versus-this.player boundary that organises the whole trio: what you extend is this, what you talk to is this.player, and that line decides whether a behaviour is a player concern or a plugin concern.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/plugin/base.ts, src/core/state.ts, packages/nomercy-video-player/src/index.ts */}
+
+# Core: Player and Plugin
+
+There is one rule underneath everything else in this trio, and once it is named the rest of the library stops feeling like a pile of methods and starts feeling like one shape. The rule is about what `this` means.
+
+## What you extend is `this`. What you talk to is `this.player`.
+
+A plugin subclasses `Plugin`, so inside a plugin `this` is the plugin. Its own machinery is bare `this.*`: `use()`, `on()`, `off()`, `listen()`, `timeout()`, `emit()`, `fetch()`, `t()`, `mount()`. Every one of those is scoped to the plugin and cleaned up when the plugin goes away. The player is not part of the plugin. It is a collaborator the plugin holds a reference to, and you reach it through `this.player`:
+
+```ts
+class CountingPlugin extends Plugin<NMVideoPlayer> {
+  static override readonly id = 'counter';
+
+  override use(): void {
+    // this.on / this.listen / this.timeout — the PLUGIN's own helpers
+    this.on('play', () => {
+      this.count += 1;              // plugin state
+      this.emit('milestone', {});   // the plugin's OWN namespaced bus
+    });
+
+    // this.player.* — the PLAYER's public action surface
+    void this.player.play();
+    this.player.seekByPercentage(50);
+  }
+
+  private count = 0;
+}
+```
+
+The player is built the same way, one layer down. `NMVideoPlayer` is not written as a class full of methods. It is composed: `composeMixins` stamps the shared core mixins (transport, time, volume, queue) onto its prototype, and the per-library file adds the handful of methods its medium needs. Inside any of those mixin bodies, `this` is the player. `this.play()`, `this.time()`, `this.emit('seek', ...)` are the player's own methods calling each other. There is no `this.player` in there, because in there `this` already is the player.
+
+So the boundary is symmetric. From a plugin, the player is the collaborator: `this.player.action()`. From inside the player, a plugin is the collaborator, reached the mirror way, through `getPlugin()`:
+
+```ts
+// Inside the player (or from any holder of the instance)
+const counter = player.getPlugin(CountingPlugin);
+counter?.someMethod();
+
+// From one plugin reaching a peer plugin's public surface
+const peer = this.player.getPlugin(OtherPlugin);
+peer?.someMethod();
+```
+
+`this` for the thing you are, `this.<collaborator>` for the thing you are talking to. That is the entire rule.
+
+## The rule is also a decision
+
+Because `this` marks what a piece of code *is* part of, the same boundary answers the question every new feature runs into: where does this behaviour live?
+
+If a behaviour is part of what the player *is*, it belongs on the player: a core mixin when it is identical for video and music, a per-library method when it carries a domain twist. You call it `this.action()` from inside, consumers call it `player.action()` from outside, and every plugin gets it for free through `this.player.action()`.
+
+If a behaviour is something layered *onto* a player from outside, it belongs in a plugin: `extends Plugin`, its state and lifecycle scoped to `this`, the player reached through `this.player`.
+
+Autohide is the worked example. Controls fading out after a few idle seconds sounds like a UI detail, so it is tempting to build it inside whatever plugin draws the controls. But "am I being interacted with right now" is a fact about the *player*, true whether or not any particular UI is mounted, and every UI wants the same answer. So activity tracking is a player concern: the player watches its own container, keeps `.active` / `.inactive` on its element, and emits `activity`. A UI plugin does not compute it. It reads `this.player`'s classes, or subscribes to the event. Ask "is this part of the thing, or a consumer of the thing," and the `this` boundary tells you which side to build on.
+
+## Why this is the shape of the trio
+
+The same boundary, read at each layer, is why the three packages fit together the way they do.
+
+`nomercy-video-player` and `nomercy-music-player` do not share code by importing each other. They share it because both *are* `nomercy-player-core` composed onto their own prototype. The core mixins are `this` for both players at once, which is exactly why a fix there reaches both in one release, and exactly why the [core rules](/nomercy-player-core/introduction) say a method that would branch on "is this music or video" does not belong in core: a branch means the behaviour is not really shared, so it is not really part of the thing both players are.
+
+And plugins ride on top of all of it without forking any of it, because a plugin only ever talks to `this.player`'s public surface. It never reaches inside the composition. That is what lets the same [`Plugin`](/nomercy-player-core/tour/plugin-base) base work against a video player, a music player, or a third library you compose yourself: the plugin does not know or care which player it is talking to, only that `this.player` exposes the shared contract.
+
+## Next steps
+
+- [The Plugin Base](/nomercy-player-core/tour/plugin-base): every helper on the `this.*` side, and how registration wires a plugin to its player.
+- [Adapters & Dependency Injection](/nomercy-player-core/tour/adapters): the third kind of collaborator, the swappable ports a player is built from.
