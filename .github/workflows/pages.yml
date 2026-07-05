@@ -30,6 +30,12 @@ jobs:
       - name: Install dependencies
         run: npm install && npm install @rollup/rollup-linux-x64-gnu --save-dev
 
+      - name: Install Playwright Chromium
+        # The build runs the live snippet gate (e2e/snippets.spec.ts), which
+        # launches headless Chromium. Without this the runner has no browser
+        # and the gate fails.
+        run: npx playwright install --with-deps chromium
+
       - name: Build
         run: npm run build
 
