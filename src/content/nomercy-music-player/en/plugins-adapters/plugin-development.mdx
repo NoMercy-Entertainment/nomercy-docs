@@ -1,0 +1,174 @@
+---
+title: 'Plugin Development'
+description: 'Writing plugins for nomercy-music-player v2: the plugin catalog, typing against IMusicPlayer, music-specific events and methods, and the memory-safe patterns the lint rules enforce.'
+---
+
+{/* Source: packages/nomercy-music-player/src/types.ts, packages/nomercy-player-core/src/core/plugin/base.ts, packages/nomercy-player-core/src/types/events.ts */}
+
+# Plugin Development: Music Player
+
+Plugins for `nomercy-music-player` follow the same contract as the player core's plugin system. This page covers the music-player-specific patterns. For the base plugin contract — every helper on `this`, the lifecycle, and the registration pipeline — see [The Plugin Base](/nomercy-player-core/tour/plugin-base) and [Player and Plugin](/nomercy-player-core/tour/composition-boundary).
+
+## Built-in plugin catalog
+
+All built-in plugins are importable from `@nomercy-entertainment/nomercy-music-player/plugins`.
+
+| Plugin | Plugin id | What it does |
+| ------ | --------- | ------------ |
+| [`AutoAdvancePlugin`](/nomercy-music-player/plugins-adapters/auto-advance) | `'auto-advance'` | Advances the queue on `ended`; optionally preloads and crossfades as an item nears its end |
+| [`LyricsPlugin`](/nomercy-music-player/plugins-adapters/lyrics) | `'lyrics'` | Fetches and time-syncs lyrics via the cue parser registry; fires `line` / `lineEnter` / `lineExit` |
+| [`ScrobblePlugin`](/nomercy-music-player/plugins-adapters/scrobble) | `'scrobble'` | Reports plays to a scrobbling service on the standard threshold |
+| [`CastSenderPlugin`](/nomercy-music-player/plugins-adapters/cast-sender) | `'cast-sender'` | Chromecast sender with music metadata and `audio/mpeg` content type |
+| [`MediaSessionPlugin`](/nomercy-music-player/plugins-adapters/media-session) | `'media-session'` | Publishes track metadata and artwork to the OS Media Session (lock screen, notifications) |
+| [`KeyHandlerPlugin`](/nomercy-music-player/plugins-adapters/key-handler) | `'key-handler'` | Keyboard shortcuts: space, arrows, mute, plus music-specific bindings |
+
+## Typing against the music player
+
+Use `IMusicPlayer` as the `P` generic. `IMusicPlayer` is the stable public interface for the music player — it is the correct type for plugins and consumer functions. `NMMusicPlayer` is the concrete class (implementation detail); prefer `IMusicPlayer` so your plugin does not depend on the class hierarchy.
+
+When a plugin needs to read the active item with `this.player.item()`, add `& WithCurrentItem<YourItemType>` to the `P` generic. Plugins that only call transport methods or `metrics()` can omit it — those are on `IPlayer` directly.
+
+```ts
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { WithCurrentItem } from '@nomercy-entertainment/nomercy-player-core';
+import type { IMusicPlayer, MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+interface NowPlayingOptions {
+  endpoint: string;
+}
+
+export class NowPlayingPlugin extends Plugin<
+  IMusicPlayer & WithCurrentItem<MusicPlaylistItem>,
+  NowPlayingOptions
+> {
+  static override readonly id = 'nomercy:now-playing';
+  static override readonly version = '1.0.0';
+  static override readonly description = 'Reports the current track to a now-playing endpoint';
+
+  override use(): void {
+    this.on('item', ({ item }) => {
+      if (!item) return;
+      // this.fetch runs the player's auth pipeline and aborts on dispose —
+      // never the global fetch inside a plugin.
+      void this.fetch(this.opts.endpoint, {
+        method: 'POST',
+        responseType: 'json',
+        body: JSON.stringify({ name: item.name, artist: item.artist }),
+      });
+    });
+  }
+}
+```
+
+Registration:
+
+{/* partial */}
+
+```ts
+player.addPlugin(NowPlayingPlugin, { endpoint: 'https://api.example.com/now-playing' });
+```
+
+## Accessing music-specific methods
+
+Inside a plugin, `this.player` is typed as `IMusicPlayer`. Music-specific methods are available directly:
+
+{/* partial */}
+
+```ts
+use(): void {
+  this.on('item', ({ item }) => {
+    if (!item) return;
+    if (this.player.isTransitioning()) return; // mid-crossfade, skip
+    const output = this.player.backend().outputNode(this.audioContext);
+    this.wireGraph(output);
+  });
+}
+```
+
+- `this.player.backend()` — the active `IAudioBackend` (audio-element or Web Audio).
+- `this.player.crossfadeTo(item, opts?)` — start a dual-buffer crossfade to another item.
+- `this.player.isTransitioning()` — whether a crossfade is in progress.
+
+## Listening to music-specific events
+
+{/* partial */}
+
+```ts
+use(): void {
+  // Crossfade lifecycle:
+  this.on('crossfadeStart', ({ from, to, duration }) => {
+    this.logCrossfade(from?.name, to.name, duration);
+  });
+  this.on('crossfadeComplete', ({ item }) => {
+    this.onSettled(item);
+  });
+
+  // An item is nearing its end — the cross-library "ending soon" signal:
+  this.on('itemEndingSoon', ({ remaining, item }) => {
+    this.preload(item, remaining);
+  });
+}
+```
+
+`itemEndingSoon` is a core event shared by both players (the video player fires the same one) — it replaces v1's track-specific ending signal.
+
+## Best practices
+
+### Memory-safe cleanup
+
+The lifecycle helpers — `this.on`, `this.listen`, `this.timeout`, `this.interval`, `this.frame`, `this.websocket`, `this.mount`, and `this.lifecycle.observe` — all register automatic cleanup when the plugin is torn down. That is why most plugins need no `dispose()` at all: there is nothing left to release by hand. You override `dispose()` only for a resource none of the helpers track — a third-party library instance, a raw `AudioNode` graph you built outside the backend.
+
+A `ResizeObserver` is tracked: wrap it with `this.lifecycle.observe`, which disconnects it on dispose and returns the observer so you chain the `observe(el)` straight on:
+
+{/* partial */}
+
+```ts
+this.lifecycle
+  .observe(new ResizeObserver(() => this.relayout()))
+  .observe(this.player.container);
+```
+
+A raw `new ResizeObserver` that you store and disconnect by hand works, but it is the pattern `this.lifecycle.observe` exists to remove — and the `@nomercy-entertainment/eslint-plugin-player` rules flag it, alongside raw `setTimeout` / `addEventListener`, a raw `throw`, and the global `fetch`.
+
+### Use the scoped helpers, not the raw primitives
+
+`this.listen(target, event, handler)` wraps `addEventListener` and auto-removes on dispose. `this.fetch(url, options?)` runs the player's auth pipeline and aborts on teardown. `this.throw(payload)` surfaces a structured error. Reaching past these to the raw form leaks a listener, sends an unauthenticated request, or drops an error off the contract — which is why the lint rules flag each one. A genuine exception (a public URL that must not carry auth) takes an `eslint-disable-next-line` with a one-line reason.
+
+### Inter-plugin communication via events, not direct references
+
+Use `this.emit()` to broadcast from a plugin and `this.on(PluginClass, event, fn)` to receive from a specific plugin. This keeps plugins decoupled and independently testable. Direct references — calling methods on another plugin instance — create hidden load-order dependencies.
+
+```ts
+// Emitting plugin: declares its own event map as the third generic
+interface QueueMenuEvents {
+  selected: { index: number };
+}
+
+export class QueueMenuPlugin extends Plugin<IMusicPlayer, unknown, QueueMenuEvents> {
+  static override readonly id = 'nomercy:queue-menu';
+
+  private choose(index: number): void {
+    this.emit('selected', { index }); // scoped to plugin:nomercy:queue-menu:selected
+  }
+}
+
+// Receiving plugin
+export class QueuePanelPlugin extends Plugin<IMusicPlayer> {
+  static override readonly id = 'nomercy:queue-panel';
+  static override readonly requires = [QueueMenuPlugin];
+
+  use(): void {
+    // on(PluginClass, event, fn) — auto-cleaned, fully typed
+    this.on(QueueMenuPlugin, 'selected', ({ index }) => {
+      this.highlightRow(index);
+    });
+  }
+}
+```
+
+`this.on(PluginClass, event, fn)` is the typed form for listening to another plugin's events. The consumer-facing string form is `on('plugin:<id>:<event>', fn)` on the player object itself — use the class form inside plugins.
+
+## Next steps
+
+- [The Plugin Base](/nomercy-player-core/tour/plugin-base): every helper on `this`, the lifecycle, and how registration wires a plugin to its player.
+- [Player and Plugin](/nomercy-player-core/tour/composition-boundary): the `this`-versus-`this.player` boundary the lint rules enforce.
