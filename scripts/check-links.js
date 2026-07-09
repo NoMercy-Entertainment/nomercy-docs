@@ -42,6 +42,11 @@ function walk(dir) {
 // Collections whose served URL base differs from the folder/collection name.
 const URL_BASE = {};
 
+// Trio collections whose 'introduction' page renders at the section base
+// route (src/pages/<collection>/index.astro reads it directly) instead of
+// at /introduction — mirrors the same override in src/lib/navigation.ts.
+const INTRODUCTION_AT_BASE = new Set(['nomercy-player-core', 'nomercy-video-player', 'nomercy-music-player']);
+
 // Turn a content file path into the URL Astro serves it at.
 // `<collection>/en/foo/bar.mdx` -> `/<urlBase>/foo/bar`; `index` -> root.
 function urlFor(collection, file) {
@@ -52,6 +57,7 @@ function urlFor(collection, file) {
     .replace(/\.(mdx|md)$/, '');
   rel = rel.replace(/^[a-z]{2}\//, '').replace(/^[a-z]{2}$/, '');
   if (rel === 'index' || rel === '') return `/${base}`;
+  if (rel === 'introduction' && INTRODUCTION_AT_BASE.has(collection)) return `/${base}`;
   return `/${base}/${rel.replace(/\/index$/, '')}`;
 }
 

@@ -11,7 +11,12 @@ export async function getStaticPaths() {
   });
 
   return docs
-    .filter(doc => doc.id.replace(/^[a-z]{2}\//, '').replace(/\.(md|mdx)$/, '') !== 'index')
+    .filter(doc => {
+      if (/^[a-z]{2}$/.test(doc.id)) return false;
+      const slug = doc.id.replace(/^[a-z]{2}\//, '').replace(/\.(md|mdx)$/, '');
+      // 'introduction' renders at the section base route (index.astro), not here.
+      return slug !== 'index' && slug !== 'introduction';
+    })
     .map(doc => ({
       params: { slug: doc.id.replace(/^[a-z]{2}\//, '').replace(/\.(md|mdx)$/, '') },
       props: { doc },

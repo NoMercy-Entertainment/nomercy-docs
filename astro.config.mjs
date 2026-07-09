@@ -16,8 +16,13 @@ export default defineConfig({
   site: "https://docs.nomercy.tv",
   redirects: {
     // Legacy /nomercy-player-kit/ URLs, kept working after the rename to core.
-    "/nomercy-player-kit": "/nomercy-player-core/overview",
+    // /overview was core's old landing slug; core now lands on the base route.
+    "/nomercy-player-kit": "/nomercy-player-core/",
     "/nomercy-player-kit/[...slug]": "/nomercy-player-core/[...slug]",
+    // The wildcard above only resolves slugs that still exist as [...slug]
+    // routes in nomercy-player-core; introduction moved to the base route
+    // (see the trio block below), so it needs its own exact-match entry.
+    "/nomercy-player-kit/introduction": "/nomercy-player-core/",
 
     // -----------------------------------------------------------------------
     // /player/kit/ → /nomercy-player-core/
@@ -116,6 +121,16 @@ export default defineConfig({
     // -----------------------------------------------------------------------
     "/nomercy-video-player/plugins/tv-ui": "/nomercy-video-player/plugins/tv-key-handler",
     "/nomercy-video-player/plugins/auto-advance": "/nomercy-video-player/recipes/playlist-and-queue",
+
+    // -----------------------------------------------------------------------
+    // Trio introduction pages now render at the section base route
+    // (index.astro loads en/introduction.mdx directly) instead of at
+    // /introduction, so the old sub-route redirects here instead of
+    // duplicating the same content at two URLs.
+    // -----------------------------------------------------------------------
+    "/nomercy-player-core/introduction": "/nomercy-player-core/",
+    "/nomercy-video-player/introduction": "/nomercy-video-player/",
+    "/nomercy-music-player/introduction": "/nomercy-music-player/",
 
     // -----------------------------------------------------------------------
     // /mediaserver/ → /nomercy-media-server/

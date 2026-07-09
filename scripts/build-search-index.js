@@ -18,6 +18,11 @@ const contentDirs = [
   { dir: './src/content/nomercy-api',           baseUrl: '/nomercy-api',           product: 'nomercy-api' },
 ];
 
+// Trio collections whose 'introduction' page renders at the section base
+// route (src/pages/<collection>/index.astro reads it directly) instead of
+// at /introduction — mirrors the same override in src/lib/navigation.ts.
+const introductionAtBase = new Set(['nomercy-player-core', 'nomercy-video-player', 'nomercy-music-player']);
+
 const productLabels = {
   'nomercy-player-core': 'Core',
   'nomercy-video-player': 'Video Player',
@@ -75,7 +80,10 @@ async function buildSearchIndex() {
           .replace(/\/index$/, '')
           .replace(/^index$/, '');
 
-        const url = slug ? `${baseUrl}/${slug}` : baseUrl || '/';
+        // The nav-lookup key stays 'introduction' (matches nav-structure.ts);
+        // only the URL collapses onto the section base for the trio.
+        const urlSlug = introductionAtBase.has(product) && slug === 'introduction' ? '' : slug;
+        const url = urlSlug ? `${baseUrl}/${urlSlug}` : baseUrl || '/';
 
         const section = productLabels[product] || product;
         const placement = navLookup[product]?.get(slug);
