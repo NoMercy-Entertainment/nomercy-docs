@@ -195,7 +195,7 @@ export function PlayerExample({ snippet }: PlayerExampleProps) {
         aria-label={label ?? t('player.example.regionLabel')}
         data-player-ready={status === 'ready' ? 'true' : undefined}
         data-player-error={errorMessage ?? undefined}
-        className="aspect-video w-full"
+        className="aspect-video w-full -my-0.5"
       />
       <p role="status" aria-live="polite" className="sr-only">
         {status === 'loading' && t('player.example.statusLoading')}

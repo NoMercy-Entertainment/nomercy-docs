@@ -11,8 +11,8 @@ import type { VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-pla
 const config: VideoPlayerConfig = {
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
   baseImageUrl: 'https://image.tmdb.org/t/p',
-  muted: true,
-  autoPlay: true,
+  muted: false,
+  autoPlay: false,
   controls: true,
   playlist: [
     {

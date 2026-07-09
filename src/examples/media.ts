@@ -35,61 +35,57 @@ export const MUSIC_BASE =
   'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
 
 const sintelItem: VideoPlaylistItem = {
-  id: 'sintel',
-  title: 'Sintel',
-  description:
-    'A short fantasy film by the Blender Foundation. Sintel searches for a baby dragon she calls Scales.',
-  url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-  image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
-  duration: 888,
-  year: 2010,
-  subtitles: [
-    {
-      id: 'eng',
-      label: 'English',
-      language: 'eng',
-      kind: 'subtitles',
-      url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
-    },
-    {
-      id: 'dut',
-      label: 'Dutch',
-      language: 'dut',
-      kind: 'subtitles',
-      url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.dut.full.vtt',
-    },
-    {
-      id: 'fre',
-      label: 'French',
-      language: 'fre',
-      kind: 'subtitles',
-      url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.fre.full.vtt',
-    },
-    {
-      id: 'ger',
-      label: 'German',
-      language: 'ger',
-      kind: 'subtitles',
-      url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.ger.full.vtt',
-    },
-  ],
-  // Real chapter marks from the fixture's own `chapters.vtt`, in seconds.
-  chapters: [
-    { index: 0, start: 0, end: 107, title: 'Opening' },
-    { index: 1, start: 107, end: 207, title: 'A Dangerous Quest' },
-    { index: 2, start: 207, end: 338, title: 'Scales' },
-    { index: 3, start: 338, end: 445, title: 'The Attack' },
-    { index: 4, start: 445, end: 557, title: 'In Pursuit' },
-    { index: 5, start: 557, end: 621, title: 'The Cave' },
-    { index: 6, start: 621, end: 745, title: 'Eye to Eye' },
-    { index: 7, start: 745, end: 888, title: 'End Credits' },
-  ],
-  // Sprite-VTT manifest — cue bodies reference `thumbs_256x109.webp#xywh=...`
-  // relative to this file, no separate sprite-image field needed.
-  previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.vtt',
+	id: 'sintel',
+	title: 'Sintel',
+	description: 'A short fantasy film by the Blender Foundation. Sintel searches for a baby dragon she calls Scales.',
+	url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+	image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
+	duration: 888,
+	year: 2010,
+	subtitles: [
+		{
+			id: 'eng',
+			label: 'English',
+			language: 'eng',
+			kind: 'subtitles',
+			url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
+		},
+		{
+			id: 'dut',
+			label: 'Dutch',
+			language: 'dut',
+			kind: 'subtitles',
+			url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.dut.full.vtt',
+		},
+		{
+			id: 'fre',
+			label: 'French',
+			language: 'fre',
+			kind: 'subtitles',
+			url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.fre.full.vtt',
+		},
+		{
+			id: 'ger',
+			label: 'German',
+			language: 'ger',
+			kind: 'subtitles',
+			url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.ger.full.vtt',
+		},
+	],
+	chapters: [
+		{ index: 0, start: 0, end: 107, title: 'Opening' },
+		{ index: 1, start: 107, end: 207, title: 'A Dangerous Quest' },
+		{ index: 2, start: 207, end: 338, title: 'Scales' },
+		{ index: 3, start: 338, end: 445, title: 'The Attack' },
+		{ index: 4, start: 445, end: 557, title: 'In Pursuit' },
+		{ index: 5, start: 557, end: 621, title: 'The Cave' },
+		{ index: 6, start: 621, end: 745, title: 'Eye to Eye' },
+		{ index: 7, start: 745, end: 888, title: 'End Credits' },
+	],
+	previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.vtt',
 };
 
-const cosmosLaundromatItem: VideoPlaylistItem = {
+export const cosmosLaundromatItem: VideoPlaylistItem = {
   id: 'cosmos-laundromat',
   title: 'Cosmos Laundromat',
   description: 'On a desolate island, a suicidal sheep meets his fate.',
@@ -108,12 +104,12 @@ const cosmosLaundromatItem: VideoPlaylistItem = {
   ],
 };
 
-const bigBuckBunnyItem: VideoPlaylistItem = {
+export const bigBuckBunnyItem: VideoPlaylistItem = {
   id: 'big-buck-bunny',
   title: 'Big Buck Bunny',
   description: 'A giant rabbit with a heart bigger than himself.',
   url: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8',
-  image: '/original/xtdybjRRZ15mCrPOvEld305myys.jpg',
+  image: '/w780/xtdybjRRZ15mCrPOvEld305myys.jpg',
   duration: 596,
   year: 2008,
   // Real chapter marks from the fixture's own `chapters.vtt`, in seconds.

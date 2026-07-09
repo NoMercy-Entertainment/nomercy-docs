@@ -19,7 +19,7 @@
 import type { NMVideoPlayer, VideoPlayerConfig, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 import { formatSeconds, Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { VolumeState } from '@nomercy-entertainment/nomercy-video-player';
-import { FILMS_BASE } from './media';
+import { bigBuckBunnyItem, FILMS_BASE } from './media';
 
 interface TutorialIcon {
 	title: string;
@@ -1435,70 +1435,14 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 }
 
-// One real film from the public nomercy-media fixture catalogue. The item
-// carries everything the steps light up: `subtitles` (step 8's menu),
-// `chapters` (step 9's ticks and tooltip titles), and `previewSpriteUrl`
-// (step 9's thumbnail manifest). Media paths resolve against the config's
-// `baseUrl`; the poster resolves against `baseImageUrl`.
-const sintel: VideoPlaylistItem = {
-	id: 'sintel',
-	title: 'Sintel',
-	description: 'A short fantasy film by the Blender Foundation. Sintel searches for a baby dragon she calls Scales.',
-	url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-	image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
-	duration: 888,
-	year: 2010,
-	subtitles: [
-		{
-			id: 'eng',
-			label: 'English',
-			language: 'eng',
-			kind: 'subtitles',
-			url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
-		},
-		{
-			id: 'dut',
-			label: 'Dutch',
-			language: 'dut',
-			kind: 'subtitles',
-			url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.dut.full.vtt',
-		},
-		{
-			id: 'fre',
-			label: 'French',
-			language: 'fre',
-			kind: 'subtitles',
-			url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.fre.full.vtt',
-		},
-		{
-			id: 'ger',
-			label: 'German',
-			language: 'ger',
-			kind: 'subtitles',
-			url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.ger.full.vtt',
-		},
-	],
-	chapters: [
-		{ index: 0, start: 0, end: 107, title: 'Opening' },
-		{ index: 1, start: 107, end: 207, title: 'A Dangerous Quest' },
-		{ index: 2, start: 207, end: 338, title: 'Scales' },
-		{ index: 3, start: 338, end: 445, title: 'The Attack' },
-		{ index: 4, start: 445, end: 557, title: 'In Pursuit' },
-		{ index: 5, start: 557, end: 621, title: 'The Cave' },
-		{ index: 6, start: 621, end: 745, title: 'Eye to Eye' },
-		{ index: 7, start: 745, end: 888, title: 'End Credits' },
-	],
-	previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.vtt',
-};
-
 const config: VideoPlayerConfig = {
 	baseUrl: FILMS_BASE,
 	baseImageUrl: 'https://image.tmdb.org/t/p',
-	muted: true,
-	autoPlay: true,
+	muted: false,
+	autoPlay: false,
 	controls: false,
 	playbackRates: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
-	playlist: [sintel],
+	playlist: [bigBuckBunnyItem],
 };
 
 function configure(player: NMVideoPlayer): void {

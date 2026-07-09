@@ -22,7 +22,7 @@ const config: VideoPlayerConfig = {
 	baseUrl: FILMS_BASE,
 	baseImageUrl: 'https://image.tmdb.org/t/p',
 	muted: true,
-	autoPlay: true,
+	autoPlay: false,
 	controls: true,
 	playlist: [sintel],
 };

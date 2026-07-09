@@ -153,7 +153,7 @@ function toRunnableSnippet(source: string): string | null {
       `await player.ready();`,
     );
   } else {
-    mountLines.push(`const player = nmplayer('player').setup(config);`, `await player.ready();`);
+    mountLines.push(`const player = nmplayer('player')`, `    .setup(config);`, `await player.ready();`);
   }
 
   if (onReadySig) {

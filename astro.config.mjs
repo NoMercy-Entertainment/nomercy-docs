@@ -2,8 +2,8 @@
 import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
 import mdx from "@astrojs/mdx";
-import path from "path";
-import { fileURLToPath } from "url";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { remarkPlugins } from "./src/lib/mdx/remark.ts";
 import { rehypePlugins } from "./src/lib/mdx/rehype.ts";

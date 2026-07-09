@@ -81,7 +81,7 @@ export function useVideoPlayer(containerId: string, config: VideoPlayerConfig) {
 }
 
 export function VideoPlayerView({ playlist }: { playlist: VideoPlaylistItem[] }) {
-	const config = useMemo<VideoPlayerConfig>(() => ({ baseUrl: FILMS_BASE, muted: true, autoPlay: true, playlist }), [playlist]);
+	const config = useMemo<VideoPlayerConfig>(() => ({ baseUrl: FILMS_BASE, muted: true, autoPlay: false, playlist }), [playlist]);
 	const { player, currentItem, isPlaying, currentTime, duration } = useVideoPlayer('player', config);
 	const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
