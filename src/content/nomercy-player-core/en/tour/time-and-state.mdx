@@ -13,7 +13,7 @@ A progress bar needs position, duration, and buffered range in one read; a statu
 
 `time()` reads the current position in seconds; `time(seconds)` seeks to a new one, there is no separate `seek()` method. Position is reported by two different events for two different reasons: ordinary playback ticks the `time` event (per frame) and the throttled `progress` event, while a deliberate jump fires the cancellable `beforeSeek` → `seek` → `seeked` cycle. It is the split the web platform draws between `timeupdate` and `seeking`/`seeked`, the tick versus the jump. `duration()`, `buffered()`, `bufferedRanges()`, and `seekable()` read the rest of the position picture straight from the backend, each returning a safe zero or empty range when no backend is registered yet.
 
-`timeData()` bundles all of it into one `TimeState` snapshot: `position`, `duration`, `buffered`, `remaining`, and `percentage`, computed together so the values are consistent at the moment of the call instead of drifting across four separate reads.
+`timeData()` bundles all of it into one `TimeState` snapshot: `time` (alias of `position`), `position`, `duration`, `buffered`, `remaining`, and `percentage`, computed together so the values are consistent at the moment of the call instead of drifting across four separate reads.
 
 `playbackRate()` reads the current multiplier; `playbackRate(rate)` clamps it to `[0.25, 2]` and dispatches `beforePlaybackRate` before applying it, same cancellable shape as transport. It fires unconditionally, independent of `setup({ mutationGuards })`, since a speed change is cheap and every consumer expects it to always be interceptable. `playbackRates()` returns the fixed list of values a speed-selector UI should offer: `[0.5, 0.75, 1, 1.25, 1.5, 2]`.
 

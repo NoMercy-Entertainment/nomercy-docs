@@ -11,7 +11,8 @@
  *
  * `setup()` runs a fixed pipeline (`setupStart` -> `configResolved` ->
  * `pluginsRegistering` -> `pluginsRegistered` -> `streamsReady` -> `authReady`
- * -> `playlistReady` -> `mediaReady` -> `ready`) and drives the phase machine
+ * -> `playlistReady` -> `mediaReady` -> `ready`; `playlistResolving` also
+ * fires in between when the playlist is a URL) and drives the phase machine
  * (`idle` -> `setup` -> `ready` -> ... -> `disposed`). `ready()` resolves once
  * that pipeline settles; `dispose()` tears every policy subscription down and
  * moves the player to `disposed`. `MinimalPlayer` has no media backend, so it
@@ -41,9 +42,11 @@ await player.dispose();
 console.log(player.phase()); // 'disposed'
 
 // A second setup() call throws instead of leaving the instance half-configured.
+// The already-setup guard checks first and stays tripped across dispose(), so
+// this is core:lifecycle/already-setup, not core:player/disposed.
 try {
 	player.setup({});
 }
 catch (err) {
-	console.log((err as Error).message); // 'core:player/disposed: setup() called after dispose().'
+	console.log((err as Error).message); // 'core:lifecycle/already-setup: setup() called twice. Re-setup requires dispose() first.'
 }

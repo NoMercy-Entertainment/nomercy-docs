@@ -95,11 +95,11 @@ Both back the identical `IAudioBackend` surface, so every player-level method, `
 
 ## Crossfade: the dual-buffer contract
 
-`crossfadeTo()` on the player delegates the actual dual-buffer work to whichever backend is active: `loadSecondary(url)` allocates and loads a second playback handle without touching primary playback, `primeSecondary(seekMs)` pre-rolls it to a start position and waits for it to be ready, `crossfade(durationMs)` ramps both gains over the window and swaps the secondary in as primary, disposing the old one. `secondaryGain()` / `secondaryGain(value)` exist for test introspection and advanced callers inspecting mid-crossfade state.
+`crossfadeTo()` on the player delegates the actual dual-buffer work to whichever backend is active: `loadSecondary(url)` allocates and loads a second playback handle without touching primary playback, `primeSecondary(seekMs)` pre-rolls it to a start position and waits for it to be ready, `crossfade(durationMs, curve?)` ramps both gains over the window (linear by default, constant-power when `'equal-power'` is passed) and swaps the secondary in as primary, disposing the old one. `secondaryGain()` / `secondaryGain(value)` exist for test introspection and advanced callers inspecting mid-crossfade state.
 
 Precision differs by backend: `AudioElementBackend` drives the fade with a `requestAnimationFrame` loop at roughly 50fps, not sample-accurate, expect sub-frame-length seams at track boundaries. `WebAudioBackend` allocates a fresh `<audio>` element + `MediaElementAudioSourceNode` pair per crossfade (`createMediaElementSource()` permanently binds an element to a context, so the same element can't be reattached to a different source node) and ramps through real `AudioParam` automation for a sample-accurate transition.
 
-`supportsCrossfade()` reports whether a backend can allocate a second playback handle at all, both built-in backends return `true`. A custom backend that returns `false` causes `crossfadeTo()` to throw `PlayerError('core:crossfade/unsupported')` rather than attempting the transition.
+`supportsCrossfade()` reports whether a backend can allocate a second playback handle at all, both built-in backends return `true`. A custom backend that returns `false` causes `crossfadeTo()` to throw a `StateError` (a `PlayerError` subclass) with code `core:player/crossfade-unsupported` before any crossfade event fires or buffer is touched, rather than attempting the transition.
 
 ## Auth on manifest and segment requests
 
@@ -118,6 +118,7 @@ Provide a `backendFactory` at `setup()`, it receives the resolved kind and full 
 
 ```ts
 import type { AudioBackendFactory } from '@nomercy-entertainment/nomercy-music-player';
+import { AudioElementBackend } from '@nomercy-entertainment/nomercy-music-player/adapters/audio-backend';
 
 const backendFactory: AudioBackendFactory = (kind, config) => {
   if (kind === 'webaudio') return new MyCustomWebAudioBackend(container);

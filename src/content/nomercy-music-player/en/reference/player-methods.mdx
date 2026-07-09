@@ -1,6 +1,6 @@
 ---
 title: 'Reference: Music Player Methods'
-description: 'The IMusicPlayer-specific method surface: backend access, crossfade, audio output, and the track/quality/chapter methods as they apply to audio. Curated from src/index.ts.'
+description: 'The IMusicPlayer-specific method surface: backend access, crossfade, the transition strategy swap, the T-typed item cursor & queue, audio output, and the track/quality/chapter methods as they apply to audio. Curated from src/index.ts.'
 ---
 
 {/* Source: packages/nomercy-music-player/src/index.ts, src/types.ts */}
@@ -17,8 +17,22 @@ description: 'The IMusicPlayer-specific method surface: backend access, crossfad
 | `backend(kind)` | `(kind: AudioBackendKind) => Promise<void>` | Swaps backends at runtime (`'audio-element'` / `'webaudio'`), disposing the previous one and emitting `'backend:changed'`. |
 | `crossfadeTo(item, opts?)` | `(item: T, opts?: CrossfadeOptions & ActionOptions) => Promise<void>` | Fades the current track out while `item` fades in. Ignored (no-op) while another crossfade is already in flight. See [Crossfade](/nomercy-music-player/tour/crossfade). |
 | `isTransitioning()` | `() => boolean` | Whether a `crossfadeTo()` is currently in flight. |
+| `setTransitionStrategy(strategy)` | `(strategy: ITransitionStrategy) => void` | Swaps the transition strategy driving the automatic queue-boundary transition (crossfade / gapless / cut) at runtime. `setup()` builds the default from `crossfadeEnabled` / `crossfadeDefaults`, see [Recipe: Crossfade & Gapless Playback](/nomercy-music-player/recipes/crossfade-gapless). |
 
-These four methods are the entire music-owned surface, not inherited or shared with `nomercy-video-player`.
+## Item cursor & queue
+
+`IPlayer` itself is item-type-agnostic. `IMusicPlayer` redeclares `item()`, `queue()`, `peekNext()`, and `peekPrevious()` against the concrete `T` instead (mirroring `IVideoPlayer`), same required behavior as the kit surface, just typed to the music item shape rather than the base one:
+
+| Method | Signature | Notes |
+|---|---|---|
+| `item()` | `() => T \| undefined` | The current queue item. |
+| `item(target, opts?)` | `(target: T \| string \| number, opts?: LoadOptions) => void` | Load an item by reference, id, or index. |
+| `queue()` | `() => ReadonlyArray<T>` | Current items as a read-only array. |
+| `queue(items, opts?)` | `(items: T[], opts?: ActionOptions) => void` | Replace queue contents. |
+| `peekNext()` | `() => T \| undefined` | What `next()` would load, without moving the cursor. |
+| `peekPrevious()` | `() => T \| undefined` | What `previous()` would load, without moving the cursor. |
+
+Together with backend access, crossfade, and the transition strategy swap above, this is the entire music-owned method surface, not inherited or shared with `nomercy-video-player`.
 
 ## Audio output
 
@@ -36,17 +50,13 @@ Shared kit mixin surface, narrowed to the required, audio-relevant shape here (e
 
 | Method | Signature | Notes |
 |---|---|---|
-| `audioTracks()` | `() => AudioTrack[]` | Embedded audio rendition list (alternate language commentary, for instance). |
+| `audioTracks()` | `() => ReadonlyArray<AudioTrack>` | Embedded audio rendition list (alternate language commentary, for instance). |
 | `audioTrack()` / `audioTrack(idx)` | `() => CurrentAudioTrackSelection \| null`, `(idx: number) => Promise<void>` | |
-| `qualityLevels()` / `qualityLevels({ includeUnsupported: true })` | `() => QualityLevel[]` | Populated once the stream's manifest is parsed, for an adaptive-bitrate audio source. |
+| `qualityLevels()` / `qualityLevels({ includeUnsupported: true })` | `() => ReadonlyArray<QualityLevel>` | Populated once the stream's manifest is parsed, for an adaptive-bitrate audio source. |
 | `quality()` / `quality(idx)` | `() => CurrentQualitySelection \| 'auto'`, `(idx: number \| 'auto') => void` | |
-| `chapters()` | `() => Chapter[]` | From the item's typed `chapters` field, an audiobook or podcast episode's chapter marks. |
+| `chapters()` | `() => ReadonlyArray<Chapter>` | From the item's typed `chapters` field, an audiobook or podcast episode's chapter marks. |
 | `chapter()` / `chapter(idx)` | `() => Chapter \| null`, `(idx: number) => void` | |
 | `seekToChapter(idx, opts?)` / `nextChapter(opts?)` / `previousChapter(opts?)` | `(idx: number, opts?: ActionOptions) => void` | |
-
-## Playback overrides
-
-`IMusicPlayer` narrows a handful of methods `IPlayer` marks optional (for cross-library compatibility with the video player) to required, since `NMMusicPlayer` always implements them: `time()`, `duration()`, `playbackRate()`, `togglePlayback()`, `toggleMute()`, `rewind()`, `forward()`, `playState()`, `volumeState()`, `volume()`, `buffered()`, `play()`, `pause()`, `stop()`, `next()`, `previous()`, `item()`, `queueLength()`, `index()`, `queue()`, `playbackRates()`. Signatures are unchanged from `IPlayer`, only the optionality is tightened, see the [Guided Tour](/nomercy-music-player/tour/transport) for behavior.
 
 ## Coming from v1
 

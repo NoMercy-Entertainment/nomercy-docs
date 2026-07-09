@@ -29,6 +29,8 @@ player.previousChapter();
 
 `chapters()` returns `[]` for an item with no `chapters` field, a chapter-marker UI can render unconditionally and simply show nothing when the list is empty.
 
+Malformed lists get a safety net. Once the media duration is known, any span the list fails to cover (a lead-in before the first chapter, a hole between two chapters, or a tail after the last one) is backfilled with a synthetic chapter carrying a translated "Untitled" title and `synthetic: true`, so markers and `nextChapter()` always operate on a list that spans the whole timeline. A list that already covers the full duration passes through untouched, and an empty list stays empty; the net only catches lists that claim partial coverage.
+
 ## Arbitrary time windows
 
 Chapters are one instance of a more general primitive: `playSegment({ startSec, endSec, onEnd })` seeks to `startSec` and watches every `'time'` event for `endSec`. When the boundary is reached, `'segmentBoundary'` always fires first, then `onEnd` decides what happens:

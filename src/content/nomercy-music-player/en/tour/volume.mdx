@@ -22,7 +22,17 @@ const level = player.volume(); // 0-100
 await player.volume(50);
 ```
 
-There's no `volume` field on `MusicPlayerConfig`, a player always starts at the backend's default gain. Set an initial level yourself right after `ready()` if your app needs one, or read a saved preference before calling `volume()`.
+`MusicPlayerConfig` doesn't add a volume field of its own, but it inherits `defaultVolume` from the kit's `BasePlayerConfig`, set it at `setup()` for a declarative initial level, `100` when omitted:
+
+```ts
+player.setup({
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+  playlist: [/* ... */],
+  defaultVolume: 40,
+});
+```
+
+Read a saved preference into that same field before `setup()` runs instead of calling `volume()` after `ready()`.
 
 ## Mute
 

@@ -3,7 +3,7 @@ title: 'Recipe: Use authFetch'
 description: 'Call the kit auth-aware fetch pipeline directly from data-layer code, with the same 401-refresh-and-retry and 403-propagates behavior Plugin.fetch wraps.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/auth-fetch/index.ts, src/core/auth-fetch/types.ts */}
+{/* Source: packages/nomercy-player-core/src/core/auth-fetch/index.ts, src/core/auth-fetch/types.ts, src/core/plugin/fetch.ts */}
 
 # Recipe: Use authFetch
 
@@ -20,7 +20,7 @@ description: 'Call the kit auth-aware fetch pipeline directly from data-layer co
 
 ## Response typing
 
-`responseType` discriminates how the body decodes, and only one variant accepts a transform callback:
+`responseType` discriminates how the body decodes, and only one variant accepts a transform callback. This is `FetchOptions<T>`, the shape `Plugin.fetch()` / `this.fetch()` accepts, defined in `core/plugin/fetch.ts`; `authFetch()` itself takes the lower-level `AuthFetchOptions<T>` (`core/auth-fetch/types.ts`) with the same three-way `responseType` split, plus `url`, `auth`, and `signal`, which `Plugin.fetch()` fills in for you from the plugin's own lifecycle:
 
 ```ts
 type FetchOptions<T>

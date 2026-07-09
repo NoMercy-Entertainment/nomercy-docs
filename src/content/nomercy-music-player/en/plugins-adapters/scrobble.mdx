@@ -50,6 +50,20 @@ interface ScrobbleContext {
 
 A normal playback tick advances the `time` event by well under a second; anything ≥2 seconds between ticks is treated as a seek or a track change and doesn't count toward listened time. This means scrubbing back and forth through a track doesn't inflate the listened total the way naively summing every `time` delta would.
 
+## Methods
+
+`ScrobblePlugin` exposes the tracked state read-only, for a UI that wants to show elapsed listened time or badge a track as scrobbled without waiting on the plugin's own events:
+
+| Method | Signature | Notes |
+|---|---|---|
+| `listened()` | `() => number` | Seconds of listened time accumulated for the current item so far, the same running total `scrobble()` is checked against once it crosses the threshold. |
+| `isScrobbled()` | `() => boolean` | Whether the current item already crossed the scrobble threshold. Latches `true` for the rest of that item's playback. |
+
+```ts
+const scrobble = player.getPlugin(ScrobblePlugin);
+console.log(scrobble?.listened(), scrobble?.isScrobbled());
+```
+
 ## Rules & restrictions
 
 - A failed `scrobble()` or `nowPlaying()` call never interrupts playback, the plugin catches the rejection and reports it through its own error channel (`plugin:scrobble/scrobble-failed`, `plugin:scrobble/now-playing-failed`) instead of throwing.
@@ -81,7 +95,7 @@ player.setup({
 });
 ```
 
-See [Recipe: Scrobbling](/nomercy-music-player/recipes/scrobbling) for a full `IScrobbler` implementation and the in-progress `listened()` / `isScrobbled()` read surface.
+See [Recipe: Scrobbling](/nomercy-music-player/recipes/scrobbling) for a full `IScrobbler` implementation built on the `listened()` / `isScrobbled()` read surface above.
 
 ## Next steps
 

@@ -57,6 +57,15 @@ interface IMusicPlayer<T extends MusicPlaylistItem = MusicPlaylistItem>
 	backend(kind: AudioBackendKind): Promise<void>;
 	crossfadeTo(item: T, opts?: CrossfadeOptions & ActionOptions): Promise<void>;
 	isTransitioning(): boolean;
+	setTransitionStrategy(strategy: ITransitionStrategy): void; // crossfade / gapless / cut, swappable at runtime
+
+	// T-typed; IPlayer itself is item-type-agnostic, mirrors IVideoPlayer
+	item(): T | undefined;
+	item(target: T | string | number, opts?: LoadOptions): void;
+	queue(): ReadonlyArray<T>;
+	queue(items: T[], opts?: ActionOptions): void;
+	peekNext(): T | undefined;
+	peekPrevious(): T | undefined;
 }
 ```
 

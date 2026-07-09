@@ -130,11 +130,16 @@ Fires once, in order, during `setup()`. Each stage has a paired `<stage>Error` e
 
 ## Cues, audio track, chapters, cast
 
-Subtitle-specific rows (`subtitleCue`, `subtitleStyle`, `subtitle`, `beforeSubtitle` / `subtitlePrevented`) live in `BaseEventMap` for shared-implementation reasons, but subtitles are a video-only concern, see [Reference: Events](/nomercy-video-player/reference/events) on the video player for that table.
+Subtitle-specific rows (`subtitleCue`, `subtitleStyle`, `subtitle`, `beforeSubtitle` / `subtitlePrevented`, `subtitles`) are typed in `BaseEventMap` at the core level for shared-implementation reasons, even though subtitles are a video-only concern in practice, see [Reference: Events](/nomercy-video-player/reference/events) on the video player for the full walkthrough.
 
 | Event | Payload |
 |---|---|
 | `cue:enter` / `cue:exit` | `CueEventPayload` |
+| `subtitleCue` | `SubtitleCueChange` — unified cue-change stream across sidecar VTT and native text tracks. |
+| `subtitleStyle` | `SubtitleStyle` — written by `subtitleStyle({...})`. |
+| `subtitle` | `{ track: number \| null }` |
+| `beforeSubtitle` / `subtitlePrevented` | `BeforeEvent<{ track: number \| null }>` / `{ reason, cause? }` |
+| `subtitles` | `{ tracks: ReadonlyArray<SubtitleTrack> }` — fires when `addSubtitleTrack()` / `removeSubtitleTrack()` changes the sidecar set. |
 | `audioTrack` | `{ id: number \| null }` |
 | `beforeAudioTrack` / `audioTrackPrevented` | `BeforeEvent<{ id }>` / `{ reason, cause? }` |
 | `chapter` | `{ index: number; title: string }` |

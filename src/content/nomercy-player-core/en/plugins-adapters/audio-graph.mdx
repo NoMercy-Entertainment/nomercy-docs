@@ -7,7 +7,7 @@ description: 'AudioGraphPlugin owns the Web Audio signal chain — AudioContext,
 
 # Plugin: Audio Graph
 
-`AudioGraphPlugin` (id `'audio-graph'`) owns the Web Audio signal chain: it creates or reuses the player's `AudioContext`, mounts a `MediaElementAudioSourceNode` from the backend, and wires `source → destination`. Every other audio-processing plugin in the kit (equalizer, mixer, spectrum, visualization) inserts itself into this same chain instead of building its own.
+`AudioGraphPlugin` (id `'audio-graph'`) owns the Web Audio signal chain: it creates or reuses the player's `AudioContext`, mounts a `MediaElementAudioSourceNode` from the backend, and wires `source → destination`. Every other audio-processing plugin in the kit builds on this same chain rather than creating its own, though not identically: the equalizer and mixer insert themselves into the serial chain via `insertEffect()` / `pre()` / `post()`, the spectrum plugin parallel-taps the shared `AnalyserNode` instead of joining the serial path, and the visualization plugin depends only on canvas and spectrum, it never touches `AudioGraphPlugin` directly.
 
 ## Options
 

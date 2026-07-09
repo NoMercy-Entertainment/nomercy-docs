@@ -26,7 +26,7 @@ Music adds `name: string` (required, aliases `title`) and `cover?: string` (alia
 
 | Type | Shape |
 |---|---|
-| `TimeState` | `{ position, duration, buffered, remaining, percentage }` — seconds except `percentage` (0-100). Returned by `timeData()`. |
+| `TimeState` | `{ time, position, duration, buffered, remaining, percentage }` — seconds except `percentage` (0-100); `time` aliases `position`. Returned by `timeData()`. |
 | `CanPlayResult` | `{ supported, smooth, powerEfficient }` — maps `MediaCapabilities.decodingInfo()`. |
 | `QualityLevel` | `{ bitrate, height?, width?, label, index, supported?, dynamicRange? }` — `dynamicRange` is `'sdr' \| 'hdr'`. |
 | `AudioTrack` | `{ id, language?, label, channels?, default? }` |
@@ -76,7 +76,7 @@ Every one of these is a real TypeScript `enum` (not a string union), returned by
 
 `DeviceCapabilities` (returned by `player.device()`): `isTv` / `isMobile` / `isDesktop` (mutually exclusive environment flags), `pipSupported` / `fullscreenSupported` / `webLocksSupported` (API availability), `autoplayAllowed` (`boolean | 'unknown'`), `preferred` (`'smooth' | 'powerEfficient'`, a decode-preference hint).
 
-`PlaybackMetrics` (returned by `player.metrics()`, emitted periodically as `playback:metrics`): `ttfb` and `avgBitrate` and `decoderStalls` are `number | null` (`null` means the active backend structurally can't report the counter, always guard before using), `ttff` / `rebufferRatio` / `joinTime` / `sessionDurationMs` are always `number`. An index signature `[customMetric: string]: number | null` lets plugins publish their own namespaced counters onto the same object.
+`PlaybackMetrics` (returned by `player.metrics()`, emitted periodically as `playback:metrics`): `ttfb` and `avgBitrate` and `decoderStalls` and `droppedFrames` are `number | null` (`null` means the active backend structurally can't report the counter, always guard before using), `ttff` / `rebufferRatio` / `joinTime` / `sessionDurationMs` are always `number`. An index signature `[customMetric: string]: number | null` lets plugins publish their own namespaced counters onto the same object.
 
 ## i18n & plugin declaration types
 

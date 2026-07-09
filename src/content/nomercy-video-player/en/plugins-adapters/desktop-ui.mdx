@@ -20,6 +20,7 @@ Everything on the [Build a Player](/nomercy-video-player/build/shell) tutorial i
 | `buttons` | `DesktopUiButtonOptions` | — | Per-button visibility overrides, see below. |
 | `buttonOrder` | `Array<keyof DesktopUiButtonOptions>` | — | Re-anchors named buttons to the end of the bar in the given order; unnamed buttons keep their natural position. |
 | `settingsItems` | `SettingsToggleItem[]` | — | Consumer toggle rows appended to the settings menu (an app's own auto-skip switch, for instance). |
+| `subtitleMenuActions` | `SubtitleMenuAction[]` | — | Consumer action row(s) appended to the subtitles sub-menu (a "Search subtitles online…" entry, for instance). Shown whenever provided, including when the current item has zero subtitle tracks, since that's exactly when an external-search action matters most. |
 | `buttonPriority` | `Array<keyof DesktopUiButtonOptions>` | see below | Responsive removal order, buttons at the end are hidden first as the container narrows. |
 | `breakpoints` | `Breakpoint[]` | — | Full custom breakpoint progression. Takes precedence over `collapseStages`. |
 | `collapseStages` | `[number, number, number]` | — | Shorthand for `hideAfterRank` at the sm/md/lg tiers, ignored when `breakpoints` is set. |
@@ -31,7 +32,7 @@ Everything on the [Build a Player](/nomercy-video-player/build/shell) tutorial i
 
 Default-on: `play`, `mute`, `volume`, `fullscreen`, `settings`, `chapterPrev`, `chapterNext` (chapter buttons hide automatically when the current item has none). `next` / `previous` show automatically whenever the queue has more than one item.
 
-Default-off (opt in via `buttons: { theater: true }`, etc.): `theater`, `pip`, `speed`, `quality`, `subtitles`, `audio`, `playlist`, `seekBack`, `seekForward`, `aspectRatio`. `seekBack`/`seekForward` default off because ±10s seek is already reachable through touch zones (double-tap) and the keyboard (`ArrowLeft`/`ArrowRight`), the control-bar buttons are a deliberate opt-in for a UI with no keyboard or touch input at all.
+Default-off (opt in via `buttons: { theater: true }`, etc.): `theater`, `pip`, `speed`, `quality`, `subtitles`, `audio`, `playlist`, `seekBack`, `seekForward`, `aspectRatio`. `seekBack`/`seekForward` default off because a quick seek is already reachable elsewhere: the keyboard's bare `ArrowLeft`/`ArrowRight` (5s, `KeyHandlerPlugin`'s default `rewind()`/`forward()` step) and touch zones' double-tap (10s by default, its own `seekSeconds` option), the control-bar buttons are a deliberate opt-in for a UI with no keyboard or touch input at all.
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';

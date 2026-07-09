@@ -1,21 +1,20 @@
 ---
 title: 'Reference: VideoPlayerConfig'
-description: 'Every field setup() accepts beyond the shared kit BasePlayerConfig: muted/autoPlay/controls, stretching, backendFactory, default track/quality selection, and autoAdvance.'
+description: 'Every field setup() accepts beyond the shared kit BasePlayerConfig: muted/autoPlay, stretching, backendFactory, default track/quality selection, and autoAdvance.'
 ---
 
 {/* Source: packages/nomercy-video-player/src/types.ts */}
 
 # Reference: VideoPlayerConfig
 
-`VideoPlayerConfig<T>` extends the kit's [`BasePlayerConfig`](/nomercy-player-core/reference/config) (`baseUrl`, `auth`, `playlist`, `storage`, `platform`, and the rest, shared with the music player). This page covers only the fields video adds.
+`VideoPlayerConfig<T>` extends the kit's [`BasePlayerConfig`](/nomercy-player-core/reference/config) (`baseUrl`, `auth`, `playlist`, `storage`, `platform`, and the rest, shared with the music player). This page covers only the fields video adds. One inherited field is worth flagging here even though video didn't add it: `controls` renders the native `<video controls>` bar, and loading `DesktopUiPlugin` or `TvKeyHandlerPlugin` alongside `controls: true` doubles the UI, pick one.
 
 ## Playback
 
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `muted` | `boolean` | — | Seeded onto the backend before any `play()` call, satisfies the browser's autoplay-with-sound policy. Call `unmute()` after a user gesture. |
-| `autoPlay` | `boolean` | — | Picks a start item once `ready()` resolves and starts playback. Progress-aware, see below. |
-| `controls` | `boolean` | — | Renders the native `<video controls>` bar. Loading `DesktopUiPlugin` or `TvKeyHandlerPlugin` alongside this doubles the UI, pick one. |
+| `autoPlay` | `boolean` | — | Whether the item `setup()` already primed also starts playing once `ready()` resolves. Every non-empty playlist primes a start item either way, see below. |
 | `playbackRates` | `number[]` | — | Available speeds, read by `playbackRates()` and the speed key bindings. |
 | `preload` | `HtmlPreloadMode` | — | `'auto'` / `'metadata'` / `'none'`, maps directly to the `<video>` element's `preload` attribute. |
 | `disableMediaControls` | `boolean` | `false` | Gates only the hardware `MediaX` key bindings, see [Plugin: Key Handler](/nomercy-video-player/plugins-adapters/key-handler). |
@@ -59,9 +58,9 @@ Video's `setup()` wrapper injects two defaults `BasePlayerConfig` alone doesn't 
 | `crossfadeEnabled` | `false` | A hard cut between items, unlike music's `true`. Preloading still happens, `preloadLeadSeconds` (kit default `10`) is unaffected. |
 | `transitionStrategy` | `GaplessTransitionStrategy` | Matches the hard-cut default above. |
 
-## What `autoPlay` does with progress
+## Start-item selection, and what `autoPlay` gates
 
-With `autoPlay: true`, the player reads each item's `progress` field ([`WatchProgress`](/nomercy-video-player/reference/types)) to pick the start item: most recently watched wins, over 90% watched rolls forward to the next item, otherwise resumes at the saved `time` (passed as `startAt`, so the backend fetches from the offset directly). See [Recipe: Persistence & Resume](/nomercy-video-player/recipes/resume-playback) for the full pattern, including saving progress in the first place.
+Every `setup()` call with a non-empty playlist primes a start item once `ready()` resolves, reading each item's `progress` field ([`WatchProgress`](/nomercy-video-player/reference/types)) to pick it: most recently watched wins, over 90% watched rolls forward to the next item, otherwise resumes at the saved `time` (passed as `startAt`, so the backend fetches from the offset directly). This runs regardless of `autoPlay`, a player without it still mounts paused on the right item and the right position instead of blank. `autoPlay: true` decides the one thing this selection doesn't do on its own: whether that primed item also starts playing. See [Recipe: Persistence & Resume](/nomercy-video-player/recipes/resume-playback) for the full pattern, including saving progress in the first place.
 
 ## Next steps
 

@@ -7,7 +7,7 @@ description: 'MediaSessionPlugin (music): the OS "Now Playing" surface, title/ar
 
 # Plugin: Media Session
 
-`MediaSessionPlugin` (id `'media-session'`) is a one-method specialization of the kit's [`MediaSessionPlugin`](/nomercy-player-core/plugins-adapters/media-session), which owns the actual `navigator.mediaSession` wiring: action handlers (`play`, `pause`, `seekto`, `nexttrack`, `previoustrack`), position-state sync, and artwork resolution through `resolveUrl(url, 'poster')`. This subclass only overrides `getMetadata()`, how a `MusicPlaylistItem` becomes the OS lock-screen / notification text.
+`MediaSessionPlugin` (id `'media-session'`) is a one-method specialization of the kit's [`MediaSessionPlugin`](/nomercy-player-core/plugins-adapters/media-session), which owns the actual `navigator.mediaSession` wiring: action handlers (`play`, `pause`, `stop`, `previoustrack`, `nexttrack`, `seekbackward`, `seekforward`, `seekto`), position-state sync, and artwork resolution through `resolveUrl(url, 'poster')`. This subclass only overrides `getMetadata()`, how a `MusicPlaylistItem` becomes the OS lock-screen / notification text.
 
 ## What the music subclass builds
 
@@ -17,7 +17,7 @@ description: 'MediaSessionPlugin (music): the OS "Now Playing" surface, title/ar
 | `artist` | `item.artist` (empty string when unset). |
 | `album` | `item.album` (empty string when unset). |
 
-Artwork comes from the kit base class, `item.cover` resolved through the same `resolveUrl` pipeline every other image on the item uses, nothing music-specific to configure there.
+Artwork comes from the kit base class's shared image priority, `image` → `poster` → `thumbnail` → `cover`, unchanged for music: `item.image` wins when set, falling back to the deprecated `item.cover` since `poster` and `thumbnail` are video-only fields a `MusicPlaylistItem` doesn't declare. Resolved through the same `resolveUrl` pipeline every other image on the item uses, nothing music-specific to configure there.
 
 ## Rules & restrictions
 

@@ -50,7 +50,7 @@ function escapeHtml(str: string): string;
 function perceptualGain(position01: number): number;
 ```
 
-Maps a linear 0..1 slider position to a linear 0..1 gain amplitude using a standard −60dB…0dB broadcast taper (`gain = 10^(3 × (position − 1))`), so equal slider increments sound like equal loudness increments instead of compressing all the audible range into the bottom third of the slider. Below 1% position snaps to exact silence. Called only at the point a backend writes a gain value (`GainNode.gain`, `element.volume`), the player's own `volume()` always stores and returns the raw 0-100 position, never a gain value.
+Maps a linear 0..1 slider position to a linear 0..1 gain amplitude using a quadratic power taper (`gain = position²`), the standard consumer volume-slider curve, so equal slider increments sound like equal loudness increments instead of compressing all the audible range into the bottom third of the slider. Position `0` maps to exact silence with no floor hack needed. This is deliberately not the −60dB…0dB taper professional DAW/mixing-console faders use, that range is built for fine gain-riding on a mix already at a sensible level, not a media player's master volume. Called only at the point a backend writes a gain value (`GainNode.gain`, `element.volume`), the player's own `volume()` always stores and returns the raw 0-100 position, never a gain value.
 
 ## Title-token interpolation
 
@@ -64,7 +64,7 @@ Replaces every `%<LETTER><digits>` token (e.g. `%S1%E3`) whose letter is a key i
 ## DOM element helpers
 
 ```ts
-function createElement<K extends keyof HTMLElementTagNameMap>(type: K, id: string, unique?: boolean): AddClasses<HTMLElementTagNameMap[K]>;
+function createElement<K extends keyof HTMLElementTagNameMap>(type: K, id: string, unique?: boolean): CreateElement<HTMLElementTagNameMap[K]>;
 function addClasses<T extends Element>(el: T, names: string[]): AddClasses<T>;
 function removeClasses<T extends Element>(el: T, names: string[]): T;
 function createSVG(id: string, viewBox: string): SVGSVGElement;

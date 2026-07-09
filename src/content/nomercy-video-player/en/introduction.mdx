@@ -1,57 +1,58 @@
 ---
-title: 'What is nomercy-music-player'
-description: 'A headless, plugin-driven audio engine with crossfade, a swappable audio backend, synced lyrics, and a Web Audio equalizer, built on nomercy-player-core.'
+title: 'What is nomercy-video-player'
+description: 'A headless, event-driven video engine with adaptive HLS streaming, VTT and ASS/SSA subtitle rendering, fullscreen/PiP/theater display modes, and a plugin system, built on nomercy-player-core.'
 ---
 
-{/* Source: packages/nomercy-music-player/src/index.ts, src/types.ts */}
+{/* Source: packages/nomercy-video-player/src/index.ts, src/types.ts */}
 
-# What is nomercy-music-player
+# What is nomercy-video-player
 
-`nomercy-music-player` is an audio engine that handles the hard parts for you. It supports gapless playback, crossfade between tracks, a swappable audio backend, synced lyrics, and a plugin system. It does not include any built-in UI. There is no play button, no timeline, no volume slider. You get the audio transport and a typed API, and you build the interface you want.
+`nomercy-video-player` is a video engine that handles the hard parts for you. It supports adaptive HLS streaming with automatic backend selection, subtitle rendering across two genuinely different formats (plain VTT and full embedded-font ASS/SSA), fullscreen, picture-in-picture, and theater display modes, quality selection on top of adaptive bitrate, chapters, scrub-preview thumbnails, segment playback, and a plugin system. It does not include any built-in UI. There is no play button, no scrubber, no settings menu baked into the bundle. You get the video transport and a typed API, and you build the interface you want, or drop in the official prebuilt one.
 
-It is built on `nomercy-player-core`, the shared foundation under the whole player trio. The core provides lifecycle, queueing, plugins, translations, and auth. `nomercy-music-player` adds the audio backend and the features that only make sense for listening such as crossfade, audio output device selection, and lyrics.
+It is built on `nomercy-player-core`, the shared foundation under the whole player trio. The core provides lifecycle, queueing, plugins, translations, and auth. `nomercy-video-player` adds the video backend and every method that only makes sense for watching, such as fullscreen and display-mode control, subtitle and audio track selection, quality, chapters, and segment windows.
 
 ## Who it's for
 
-Use `nomercy-music-player` when you are building a listening experience. This includes streaming apps, podcast or radio clients, or a music dashboard inside a larger product. It is for situations where you want full control over the UI instead of trying to restyle someone else’s player. If you are building a player that is not music or video, start with [`nomercy-player-core`](/nomercy-player-core/introduction).
+Use `nomercy-video-player` when you are building a video-watching experience. This includes a movie or show streaming client, a live-event page, or a video tile inside a larger dashboard. It is for situations where you want full control over the UI instead of trying to restyle someone else's player, or you want the official prebuilt overlay without writing one yourself. If you are building a player that is not video or music, start with [`nomercy-player-core`](/nomercy-player-core/introduction).
 
 ## Why it exists
 
-Listening has one challenge that is genuinely hard. You need to move from one track to the next without a gap or a click, and you need real overlap when the app wants a crossfade. `nomercy-music-player` solves this with a swappable audio backend. `AudioElementBackend` uses a normal `HTMLAudioElement`. `WebAudioBackend` uses a full `AudioContext` graph for sample accurate crossfades and a tap point for an equalizer or visualizer. Both backends use the same typed API, so `player.crossfadeTo(nextItem)` works the same way. Everything that is not specific to listening such as queueing, transport, volume, auth, and plugins comes from `nomercy-player-core`.
+Watching has a problem listening doesn't: playback is genuinely inconsistent across browsers and subtitle formats. HLS plays natively only in Safari, every other browser needs `hls.js` instead. A subtitle track can be a plain VTT cue, or a full ASS/SSA script carrying embedded fonts, positioning, and karaoke timing that no browser renders on its own. `nomercy-video-player` absorbs that inconsistency behind one typed surface. `Html5VideoBackend` picks native HLS or `hls.js` per browser, so `player.play()` never branches on user agent. `SubtitleOverlayPlugin` renders VTT out of the box, and `OctopusPlugin` brings in a real libass renderer the moment a track needs ASS/SSA. Everything that is not specific to watching, such as queueing, transport, volume, auth, and plugins, comes from `nomercy-player-core`.
 
 ## The setup, then freedom, model
 
-You create a player instance, call `setup(config)` once, wait for it to finish, and then you can build any UI you want. `nmplayer(id)` is the factory. It returns the existing instance for an id already in use, or mounts a new one into the `<div>` with that id and creates its own audio element inside it.
+You create a player instance, call `setup(config)` once, wait for it to finish, and then you can build any UI you want. `nmplayer(id)` is the factory. It returns the existing instance for an id already in use, or mounts a new one into the `<div>` with that id.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 
 const player = nmplayer('player-container')
   .setup({ /* ... */ });
 await player.ready();
 ```
 
-`setup()` is the only strict step. It runs a fixed sequence such as config snapshot, plugin registration, stream, auth, playlist, and media readiness. Calling it twice throws an error so you never end up with a half configured player. After `ready()` resolves, there is no required UI. Build your own controls using the typed methods, or add plugins for lyrics, cast, or media session integration. Every path uses the same `play()`, `pause()`, and `crossfadeTo()` methods.
+`setup()` is the only strict step. It runs a fixed sequence such as config snapshot, plugin registration, stream, auth, playlist, and media readiness, and primes a start item the moment the playlist isn't empty. Calling it twice throws an error so you never end up with a half configured player. After `ready()` resolves, there is no required UI. Build your own controls using the typed methods, or add plugins for a full control bar, touch input, cast, or media session integration. Every path uses the same `play()`, `pause()`, and `time()` methods.
 
 ## What you get
 
-- **`NMMusicPlayer<T>`** created through the `nmplayer(id)` factory, generic over your playlist item type.
-- **Swappable audio backend** `AudioElementBackend` by default, `WebAudioBackend` for sample accurate crossfades and a Web Audio graph tap. Selectable at setup or at runtime through `backend(kind)`.
-- **Crossfade between queue items** `crossfadeTo(item, opts)` with a configurable duration and curve. Music defaults to `crossfadeEnabled: true`.
-- **Audio output device selection** `audioOutputs()`, `selectAudioOutput()`, `audioOutput()` for routing playback to a specific speaker or Bluetooth device.
-- **Web Audio equalizer and audio graph** from the core’s `AudioGraphPlugin` chain. Available on both backends. `AudioElementBackend` creates the Web Audio source node the first time a plugin requests it.
-- **Synced lyrics** through the optional `LyricsPlugin`. It fetches `item.lyricsUrl`, parses it through the core’s cue parser registry, and fires line enter and line exit events for a karaoke style UI.
-- **Plugin system** media session, cast, key handler, scrobbling, and auto advance are available as opt-in plugins.
+- **`NMVideoPlayer<T>`** created through the `nmplayer(id)` factory, generic over your playlist item type.
+- **Adaptive HLS streaming** native HLS on Safari, `hls.js` everywhere else, dynamically imported so the bundle cost is zero on Safari, one call surface either way.
+- **Subtitle rendering across two formats** `SubtitleOverlayPlugin` renders VTT out of the box, `OctopusPlugin` brings in a libass renderer for embedded-font ASS/SSA.
+- **Display modes** `fullscreen()`, `pip()`, and `theater()`, plus aspect ratio control (`'uniform'` / `'fill'` / `'exactfit'` / `'none'`).
+- **Quality and ABR** `qualityLevels()` and `quality()` for manual selection on top of the backend's own adaptive bitrate engine.
+- **Chapters, thumbnails, and segments** typed chapter navigation, VTT-sprite scrub-preview thumbnails, and `playSegment()` for intro loops or chapter-range playback.
+- **A DRM hook** `DrmPlugin` coordinates EME license acquisition for Widevine, FairPlay, and PlayReady, degrading quietly in environments without EME.
+- **Plugin system** a complete prebuilt control bar (`DesktopUiPlugin`), touch input (`TouchZonesPlugin`), keyboard and remote-control bindings, cast, media session, and more are available as opt-in plugins.
 - **Everything from `nomercy-player-core`** lifecycle, queue, transport, volume, translations, and auth aware fetch.
 
 ## Where it sits
 
 <LayerStack layers={[
   { n: 3, name: 'Your application', pkg: 'Your app code', knows: 'Your UI, layout, and app logic, built on the player.' },
-  { n: 2, name: 'nomercy-music-player', pkg: 'You are here', knows: 'Listening-specific methods and events (IMusicPlayer<T>): backend, crossfade, lyrics, audio output.' },
+  { n: 2, name: 'nomercy-video-player', pkg: 'You are here', knows: 'Watching-specific methods and events (IVideoPlayer<T>): backend, fullscreen/pip/theater, subtitles, quality, chapters, segments.' },
   { n: 1, name: 'nomercy-player-core', pkg: 'Dependency', knows: 'Lifecycle, queue, transport, plugins, i18n, auth.' },
 ]} />
 
 ## Next steps
 
-- [Quick Start](/nomercy-music-player/quickstart) install the player and get a real song playing.
+- [Quick Start](/nomercy-video-player/quickstart) install the player and get a real video playing.

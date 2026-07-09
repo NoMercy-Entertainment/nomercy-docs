@@ -11,6 +11,8 @@ description: 'VideoEventMap in full: every video-specific event and payload, lay
 
 ## Playback signals
 
+`waiting` / `canplay` / `stalled` are video's own. `firstFrame` is not, it lives on the kit's `BaseEventMap` and fires identically for `nomercy-music-player`, listed here because it matters most in a video context.
+
 | Event | Payload | Fires when |
 |---|---|---|
 | `firstFrame` | `void` | The first decoded frame paints. |
@@ -36,6 +38,13 @@ These rows live on the kit's `BaseEventMap` for shared-implementation reasons, b
 | `subtitleStyle` | `SubtitleStyle` | `subtitleStyle(patch)` merged a style patch, the signal `SubtitleOverlayPlugin` repaints every active cue from. |
 | `subtitle` | `{ track: number \| null }` | `subtitle(idx)` changed the active track, `null` when subtitles are off. |
 | `beforeSubtitle` / `subtitlePrevented` | `BeforeEvent<{ track }>` / `{ reason, cause? }` | Fires before `subtitle(idx)` changes the active track, a listener can `preventDefault()` it. |
+
+Two more are genuinely video's own, unlike the four rows above: `KeyHandlerPlugin`'s `+`/`shift++`/`-` bindings request a subtitle-size step. No shipped plugin listens, wire your own listener (or a custom overlay) to step `subtitleStyle().fontSize`.
+
+| Event | Payload | Fires when |
+|---|---|---|
+| `subtitle-size-up` | `void` | `+` / `shift++` requested a larger subtitle size. |
+| `subtitle-size-down` | `void` | `-` requested a smaller subtitle size. |
 
 ## Display state
 

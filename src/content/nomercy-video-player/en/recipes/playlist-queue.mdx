@@ -11,7 +11,7 @@ description: 'Render queue() as an "up next" list that reacts to current and que
 
 ## Render on events, not polling
 
-`'item'` fires when the cursor moves, `'queue'` fires when the array itself changes (append, remove, reorder, replace). A panel that re-renders on both never drifts from the real state, and never needs a poll loop:
+`'item'` fires when the cursor moves. `'queue'` fires only on a full replace (`player.queue(items)`), append, remove, and reorder each fire their own event instead: `queue:append`, `queue:remove`, `queue:move`. A panel that re-renders on all four never drifts from the real state, and never needs a poll loop:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -25,6 +25,9 @@ function render() {
 
 player.on('item', render);
 player.on('queue', render);
+player.on('queue:append', render);
+player.on('queue:remove', render);
+player.on('queue:move', render);
 render(); // initial paint
 ```
 
@@ -44,7 +47,7 @@ player.queue().forEach((item) => {
 
 ## Mutating the queue from the panel
 
-Every mutation method fires its own typed event, so a panel that already re-renders on `'queue'` gets append/remove/reorder for free, no extra listener needed:
+Every mutation method fires its own typed event instead of the shared `'queue'` event, the listeners added above already cover them, so a panel wired the way the last section shows updates itself, no extra listener needed:
 
 ```ts
 import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
@@ -53,7 +56,7 @@ const addToQueueButton = document.querySelector<HTMLElement>('#add-to-queue')!;
 const newItem: VideoPlaylistItem = { id: 'cosmos-laundromat', title: 'Cosmos Laundromat', url: '/Cosmos.Laundromat.(2015)/Cosmos.Laundromat.(2015).NoMercy.m3u8' };
 
 addToQueueButton.addEventListener('click', () => {
-  player.queueAppend(newItem); // fires 'queue' — panel re-renders itself
+  player.queueAppend(newItem); // fires 'queue:append', panel re-renders itself
 });
 
 // Per-row remove button, rendered alongside each row in renderList() above.

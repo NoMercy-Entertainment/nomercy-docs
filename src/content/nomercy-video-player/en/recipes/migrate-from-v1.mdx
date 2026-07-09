@@ -7,7 +7,7 @@ description: 'Move a v1 video app onto v2 with the opt-in compatibility plugin: 
 
 # Migrating from v1
 
-`V1VideoCompatPlugin` (id `'v1-video-compat'`) attaches the old v1 method names (`seek()`, `speed()`, `playlist()`, `enterFullscreen()`, and around forty more) onto a v2 player instance. Every shim delegates to the real v2 method underneath and logs one deprecation line per call, nothing here is new behavior, it's a compatibility surface over the API this whole collection documents. It is entirely opt-in, a v2 app that never adds this plugin never carries the shim code or the deprecation logging at all.
+`V1VideoCompatPlugin` (id `'v1-video-compat'`) attaches the old v1 method names (`seek()`, `speed()`, `playlist()`, `enterFullscreen()`, and the rest of the v1 surface) onto a v2 player instance. Every shim delegates to the real v2 method underneath and logs one deprecation line per call, nothing here is new behavior, it's a compatibility surface over the API this whole collection documents. It is entirely opt-in, a v2 app that never adds this plugin never carries the shim code or the deprecation logging at all.
 
 ## Options
 
@@ -41,16 +41,17 @@ Grouped by concern, every entry maps directly to a v2 method already covered els
 
 | v1 method | v2 equivalent |
 |---|---|
-| `seek(seconds)`, `currentTime()` / `currentTime(seconds)` | `time(seconds)` |
+| `seek(seconds)`, `currentTime()` / `currentTime(seconds)`, `currentSrc()` | `time(seconds)`, `videoElement.currentSrc` / `videoElement.src` |
 | `speed()` / `speed(rate)`, `speeds()`, `hasSpeeds()` | `playbackRate()`, `playbackRates()` |
-| `muted()` / `muted(state)`, `gain()`, `isPlaying` | `volumeState()`, `mute()`/`unmute()`, `videoElement.volume`, `playState()` |
+| `muted()` / `muted(state)`, `gain()`, `isPlaying`, `state()` | `volumeState()`, `mute()`/`unmute()`, `videoElement.volume`, `playState()` |
 | `enterFullscreen()`, `exitFullscreen()`, `hasPIP()`, `setFloatingPlayer(active)` | `fullscreen(state)`, `platform().pip`, `pip(active)` |
 | `aspect()` / `aspect(value)`, `setAspect(value)`, `stretchOptions` | `aspectRatio()` / `aspectRatio(value)` |
+| `resize()`, `width()`, `height()`, `element()` | no-op (v2's `ResizeObserver` tracks size automatically), `container.clientWidth`, `container.clientHeight`, `container` |
 | `subtitleIndex()`, `subtitleIndexBy(lang)`, `hasSubtitles()` | `subtitle()?.index`, a `subtitles()` search, `subtitles().length > 0` |
 | `audioTrackIndex()`, `audioTrackIndexByLanguage(lang)`, `hasAudioTracks()` | the audio-track equivalents of the row above |
 | `hasQualities()` | `qualityLevels().length > 0` |
 | `chapterText(idx?)` | `chapter()?.title` / `chapters()[idx]?.title` |
-| `playlist()` / `playlist(items)`, `playlistItem()`, `playlistIndex()`, `setPlaylist(items)` | `queue()` / `queue(items)`, `item()`, `index()` |
+| `playlist()` / `playlist(items)`, `playlistItem()`, `playlistIndex()`, `setPlaylist(items)`, `loadSource(url)` | `queue()` / `queue(items)`, `item()`, `index()`, `load({ id, url })` |
 | `playVideo(target)` | `item(target, { autoplay: true })` |
 | `setEpisode(season, episode)` | find the index in `queue()` by `season`/`episode`, then `item(index)` |
 | `isFirstPlaylistItem()`, `isLastPlaylistItem()`, `hasPlaylists()` | derived from `index()` and `queueLength()` |
@@ -68,9 +69,17 @@ A handful of v1 methods throw `NotImplementedError` rather than silently no-oppi
 - `subtitleFile(url)`, `chapterFile(url)`, `skipFile(url)`, `skip()`: dynamic sidecar/skip-segment ingestion. Add the URL to the playlist item's `subtitles` / `chapters` field instead, or call `time(seconds)` at the boundary directly for skip segments.
 - `skippers()`: always returns an empty array, there is no v2 skip-segment data model yet.
 
+A second group keeps working exactly as it did in v1 (nothing throws), but has no v2 method to migrate onto, either because v2 solved the underlying problem structurally or because the behavior is a pure utility outside the player's typed surface. Delete these call sites when you remove the plugin, replicating them yourself if your app still needs them:
+
+- `allowFullscreen` / `setAllowFullscreen(allowed)`: gates `enterFullscreen()` only, `fullscreen()` itself is never gated in v2.
+- `doubleTap(el, callback, thresholdMs)`: a pure DOM double-tap detector, unrelated to player state.
+- `setTitle(title)`: writes `document.title` directly.
+- `tracks(kind)`: reads the item's raw v1 `tracks` field, v2's typed `subtitles()` / `audioTracks()` replace it for the formats they cover, there's no v2 generic-track equivalent.
+- `addTranslations(entries)` (the list-form, `{ key, value }[]`, overload): loops calling `translation(language(), entry.key, entry.value)` for you. The bundle-form overload, `addTranslations(bundle)`, is real v2 API and passes straight through to it, the plugin still logs the deprecation warning first even though that call needed no translation.
+
 ## Rules & restrictions
 
-- Every shim logs `[deprecated] player.<method>() is a v1 compatibility shim` through the player's logger on every call, so grepping logs during a migration surfaces exactly which call sites still need updating.
+- Every shim logs `@deprecated player.<method>() is a v1 compatibility shim — migrate to the v2 API before it is removed.` through the player's logger on every call, so grepping logs during a migration surfaces exactly which call sites still need updating.
 - Two events bridge automatically while this plugin is loaded: `'playbackRate'` also emits as `'speed'`, and `'queue'` also emits as `'playlist'`, matching the v1 event names a legacy listener might still be attached to.
 - Must be added before `setup()`, like any plugin, adding it after `ready()` misses the plugin's own `use()` call during the setup pipeline.
 

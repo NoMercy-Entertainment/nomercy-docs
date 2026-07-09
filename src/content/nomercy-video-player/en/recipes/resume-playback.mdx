@@ -60,9 +60,9 @@ player.setup({
 });
 ```
 
-## What autoPlay does with it
+## What setup() does with it, and what autoPlay gates
 
-With `autoPlay: true`, the player's own start-selection logic (the same v1 "continue watching" behavior) picks the start item from `progress` without any extra config: the most recently watched item (`progress.timestamp`) wins, over 90% watched rolls forward to the next item instead of replaying the credits, anything else resumes at `progress.time`. `startAt` rides the load down to the backend, so the stream begins fetching at the offset directly, no play-then-immediately-seek flash.
+Every `setup()` call with a non-empty playlist picks a start item from `progress` on its own, no extra config needed, and does it whether or not `autoPlay` is set: the most recently watched item (`progress.timestamp`) wins, over 90% watched rolls forward to the next item instead of replaying the credits, anything else resumes at `progress.time`. `startAt` rides the load down to the backend, so the stream begins fetching at the offset directly, no play-then-immediately-seek flash. `autoPlay: true` is the one thing this selection doesn't do by itself: it decides whether that primed item also starts playing, or the player mounts paused and ready on the right item and position instead.
 
 This means the *feed-in* half of the recipe is just: know the last-watched item and its `WatchProgress` before you call `setup()`. Everything else, picking which item, deciding whether to resume or roll forward, is already built.
 
@@ -79,7 +79,7 @@ player.item(item, { autoplay: true, startAt: saved?.time });
 
 ## See it running
 
-The badge shows the value read from `localStorage` on mount, then updates on every `'progress'` tick. Reload this page (or open it in a new tab) and the badge on mount reflects the position saved by your last visit here, this is the within-session proof of the exact mechanism `autoPlay` automates across a real reload.
+This demo proves the persistence half of the recipe, not the built-in `autoPlay`/`progress`/`startAt` path described above: it sets `autoPlay: false` and hand-rolls its own resume, reading `localStorage` on mount and calling `player.time(saved.time)` once `'mediaReady'` confirms the source is ready to seek, because a docs preview can't reload the page for you the way a real app's next visit would. The badge shows the value read from `localStorage` on mount, then updates on every `'progress'` tick. Reload this page (or open it in a new tab) and the badge on mount still reflects the position saved by your last visit, since it re-reads the same key.
 
 :::snippet{file="video-recipe-resume-playback"}
 :::

@@ -26,7 +26,7 @@ Same `CastSenderEvents` as the base: `cast:connected`, `cast:disconnected`, `cas
 | `item.name` | `title` |
 | `item.artist` (if set) | `artist` |
 | `item.album` (if set) | `albumName` |
-| `item.cover` (if set) | Resolved through `resolveUrl(item.cover, 'poster')` (auth-aware, respects `baseImageUrl`) and set as `images`. |
+| `item.image` (falls back to the deprecated `item.cover`) | Resolved through `resolveUrl(item.image ?? item.cover, 'poster')` (auth-aware, respects `baseImageUrl`) and set as `images`. |
 
 ## Translations
 
@@ -34,7 +34,7 @@ Cast Sender's UI strings (connect/disconnect prompts, error copy) are auto-disco
 
 ## Rules & restrictions
 
-- All the base plugin's restrictions apply unchanged: Chrome/Chromium Web Sender SDK only, requires `cast.framework` / `chrome.cast.media` already loaded on the page, volume forwarded on the SDK's native 0-100 scale.
+- All the base plugin's restrictions apply unchanged: Chrome/Chromium Web Sender SDK only, requires `cast.framework` / `chrome.cast.media` already loaded on the page, the player's 0-100 volume level is divided by 100 and clamped at the boundary to match the SDK's native 0-1 `volumeLevel` float.
 - Consumers carrying application-specific fields beyond the canonical `MusicPlaylistItem` (linked artist/album entities instead of plain strings, for instance) should subclass this plugin and override `buildMetadata()` themselves rather than expecting it to read fields it was never typed against.
 
 ## How to extend it

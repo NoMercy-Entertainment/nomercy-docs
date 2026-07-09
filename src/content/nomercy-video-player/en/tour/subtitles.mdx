@@ -7,7 +7,7 @@ description: 'subtitles(), subtitle(), subtitleStyle(), cycleSubtitles(), defaul
 
 # Subtitles & Text Tracks
 
-Subtitle *selection* and subtitle *rendering* are two separate concerns. Everything on this page, listing tracks, picking one, styling the text, is kit surface (`nomercy-player-core`'s `mediaTracksMethods`) that reads/writes state. Painting the cue text on screen is a plugin's job: `SubtitleOverlayPlugin` for VTT, `OctopusPlugin` for embedded-font ASS/SSA. [Build a Player: Selectors](/nomercy-video-player/build/selectors) hand-builds the picker UI that calls `subtitle(idx)`, pair it with `SubtitleOverlayPlugin` to actually render the cue text. Neither is loaded by default, so selecting a track with no renderer registered changes state correctly but paints nothing.
+Subtitle *selection* and subtitle *rendering* are two separate concerns. Most of what's on this page, listing tracks, picking one, styling the text, is kit surface (`nomercy-player-core`'s `mediaTracksMethods`) that reads/writes state; `cycleSubtitles()` and `subtitleState()` are the two video-only additions on top, called out below where they appear. Painting the cue text on screen is a plugin's job: `SubtitleOverlayPlugin` for VTT, `OctopusPlugin` for embedded-font ASS/SSA. [Build a Player: Selectors](/nomercy-video-player/build/selectors) hand-builds the picker UI that calls `subtitle(idx)`, pair it with `SubtitleOverlayPlugin` to actually render the cue text. Neither is loaded by default, so selecting a track with no renderer registered changes state correctly but paints nothing.
 
 ## Listing and selecting tracks
 
@@ -25,7 +25,7 @@ await player.subtitle(0); // select the first track
 await player.subtitle(null); // off
 ```
 
-`cycleSubtitles()` walks `off → 0 → 1 → ... → N-1 → off` in one call, the binding a keyboard shortcut or remote's "CC" button uses instead of resolving the next index by hand. `subtitleState()` (defined on the video player, not the kit) returns `SubtitleState.ON`/`OFF` for a UI that only needs to know whether *any* track is active, without caring which one.
+`cycleSubtitles()` (defined on the video player, not the kit) walks `off → 0 → 1 → ... → N-1 → off` in one call, the binding a keyboard shortcut or remote's "CC" button uses instead of resolving the next index by hand. `subtitleState()` (also video-only) returns `SubtitleState.ON`/`OFF` for a UI that only needs to know whether *any* track is active, without caring which one.
 
 ## Auto-selecting a language
 
