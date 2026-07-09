@@ -29,7 +29,7 @@ src/content/
 ├── nomercy-media-server/en/   # Server
 ├── nomercy-app-web/en/        # Web app
 ├── nomercy-app-android/en/    # Android
-├── nomercy-player-kit/en/     # Kit (base lib) — npm: @nomercy-entertainment/nomercy-player-core
+├── nomercy-player-core/en/    # Core (base lib) — npm: @nomercy-entertainment/nomercy-player-core
 ├── nomercy-video-player/en/   # Video — npm: @nomercy-entertainment/nomercy-video-player
 ├── nomercy-music-player/en/   # Music — npm: @nomercy-entertainment/nomercy-music-player
 └── nomercy-api/en|signalr/    # REST + SignalR reference
@@ -105,4 +105,4 @@ Code examples must use real, resolvable media — never invented hosts. See the 
 
 ## Accuracy
 
-Documented symbols, methods, options, events, and import paths must match the real package source in `packages/nomercy-player-kit/`, `packages/nomercy-video-player-v2/`, `packages/nomercy-music-player-v2/`. If a doc disagrees with the code, fix the doc to match the code — never add a "known broken / not implemented" disclaimer. If the doc reveals an actual code bug, report it; don't paper over it.
+Documented symbols, methods, options, events, and import paths must match the real package source in `packages/nomercy-player-core/`, `packages/nomercy-video-player/`, `packages/nomercy-music-player/`. `check:examples` and `check:doc-imports` enforce the mechanically checkable part of this rule. If a doc disagrees with the code, fix the doc to match the code — never add a "known broken / not implemented" disclaimer. If the doc reveals an actual code bug, report it; don't paper over it.
