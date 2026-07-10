@@ -27,7 +27,7 @@ await player.previous();
 await player.restart();
 ```
 
-Every one of these accepts `ActionOptions`: `{ source, silent }`. `source` defaults to `'user'` and gets stamped onto the emitted event, so a Connect plugin syncing playback across devices can tell its own remote-triggered `play()` apart from a real click.
+Every one of these accepts an `ActionOptions` bag `{ source, silent }` (`next()` and `previous()` take the wider `LoadOptions`, which extends it). `source` defaults to `'user'` and gets stamped onto the emitted event, so a Connect plugin syncing playback across devices can tell its own remote-triggered `play()` apart from a real click.
 
 ## Seeking through time()
 
@@ -38,7 +38,7 @@ const currentTime = player.time(); // seconds
 await player.time(120); // jump to 2:00
 ```
 
-`rewind(seconds?)` and `forward(seconds?)` compute a relative target from the current position and call `time()` internally; both default to a sane step size when called with no argument. `seekByPercentage(pct)` seeks to a position expressed as `0`–`100` percent of `duration()`, the calculation a progress bar's click handler would otherwise have to do by hand:
+`rewind(seconds?)` and `forward(seconds?)` compute a relative target from the current position and run it through the same `beforeSeek` → `seek` → `seeked` cycle; both default to a `5`-second step when called with no argument. `seekByPercentage(pct)` seeks to a position expressed as `0`–`100` percent of `duration()`, the calculation a progress bar's click handler would otherwise have to do by hand:
 
 ```ts
 await player.rewind(10); // -10s

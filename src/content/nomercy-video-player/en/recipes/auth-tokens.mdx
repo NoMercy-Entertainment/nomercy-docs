@@ -71,11 +71,11 @@ For a token that expires on a schedule you already know (a short-lived signed UR
 player.auth({ bearerToken: newToken }); // merges onto the existing AuthConfig
 ```
 
-`auth(config)` replaces the full config; `auth(partial)` merges. Passing just `{ bearerToken }` here only changes that field, `headers`, `credentials`, and the rest of the current config stay intact. `refreshAuth()` re-resolves and re-applies the current config's async fields without changing any of the values themselves, useful after an external token refresh you didn't route through `refreshOnUnauthenticated`.
+Any object argument shallow-merges onto the current config; `auth(null)` clears it entirely. Passing just `{ bearerToken }` here only changes that field, `headers`, `credentials`, and the rest of the current config stay intact. `refreshAuth()` runs the current config's `refreshOnUnauthenticated` handler on demand, outside the 401 path, then emits `auth:refreshed`; if that handler throws it emits `auth:failed` instead of throwing. Reach for it to trigger a refresh you know is due without waiting for a 401 to force one.
 
 ## Cookie-based auth instead of a bearer token
 
-When the media server relies on a session cookie rather than a header, skip `bearerToken` and set `credentials` instead, every request (`fetch`, and the HLS backend's own requests) includes the cookie automatically:
+When the media server relies on a session cookie rather than a header, skip `bearerToken` and set `credentials` instead. The kit applies it to its own `fetch()` calls (subtitles, chapters, thumbnails, playlist):
 
 {/* partial: an AuthConfig property to graft onto the setup() call above, not a standalone program */}
 
@@ -85,7 +85,7 @@ auth: {
 },
 ```
 
-This only works when `baseUrl` is same-site or the server sends the matching CORS headers (`Access-Control-Allow-Credentials: true` plus an explicit origin, never `*`), the browser enforces that regardless of anything this config does.
+The HLS backend is the exception: its hls.js manifest and segment requests carry cookies only when they are same-origin with the page, because the backend wires the bearer header but never sets `withCredentials`. So for a cross-origin media server, cookie auth covers the kit fetches but not adaptive streaming; reach for a bearer token or a same-origin proxy there. When a `fetch` is cross-origin, `credentials: 'include'` also needs the server's CORS headers to line up (`Access-Control-Allow-Credentials: true` plus an explicit origin, never `*`); the browser enforces that regardless of anything this config does.
 
 ## Next steps
 

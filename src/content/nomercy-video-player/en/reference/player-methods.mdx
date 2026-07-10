@@ -60,9 +60,9 @@ description: 'The IVideoPlayer-specific method surface: video element, geometry,
 
 Generic enough for intro loops, chapter-range playback, or a disc-menu's `skipToMark` equivalent, none of which are disc-specific in the primitive itself.
 
-## Playback overrides
+## Playback re-declarations
 
-`IVideoPlayer` narrows a handful of methods `IPlayer` marks optional (for cross-library compatibility with the music player) to required, since `NMVideoPlayer` always implements them: `time()`, `duration()`, `playbackRate()`, `togglePlayback()`, `toggleMute()`, `rewind()`, `forward()`, `playState()`, `volumeState()`, `volume()`, `buffered()`, `play()`, `pause()`, `stop()`, `next()`, `previous()`, `item()`, `queueLength()`, `index()`, `queue()`, `playbackRates()`. Signatures are unchanged from `IPlayer`, only the optionality is tightened, see the [Guided Tour](/nomercy-video-player/tour/transport) for behavior.
+`IVideoPlayer` re-declares a handful of methods that already belong to the shared player surface, so they read next to the video-specific methods for doc locality rather than adding anything new: `time()`, `duration()`, `playbackRate()`, `togglePlayback()`, `toggleMute()`, `rewind()`, `forward()`, `playState()`, `volumeState()`, `volume()`, `buffered()`, `play()`, `pause()`, `stop()`, `next()`, `previous()`, `item()`, `queueLength()`, `index()`, `queue()`, `playbackRates()`. They are already required on `IPlayer` (with `item()` supplied by the shared `WithCurrentItem` capability), so the re-declarations are redundant; the item-bearing ones re-type their playlist values with the concrete video item type `T`. Signatures and behavior are unchanged from `IPlayer`, see the [Guided Tour](/nomercy-video-player/tour/transport).
 
 ## Coming from v1
 

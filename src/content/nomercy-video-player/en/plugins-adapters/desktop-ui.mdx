@@ -15,8 +15,8 @@ Everything on the [Build a Player](/nomercy-video-player/build/shell) tutorial i
 |---|---|---|---|
 | `hideTitle` | `boolean` | `false` | Hide the top-bar title text. |
 | `disableClickToPause` | `boolean` | `false` | Stop a click on the video element from toggling playback. |
-| `inactivityMs` | `number` | — | Auto-hide delay for the overlay after the last pointer activity. |
-| `imageBaseUrl` | `string` | — | Base URL for chapter-marker thumbnails, separate from the player's own `baseImageUrl`. |
+| `inactivityMs` | `number` | `4000` | Auto-hide delay in milliseconds for the overlay after the last pointer activity. |
+| `imageBaseUrl` | `string` | — | Base URL prefix for relative playlist-menu thumbnail paths, separate from the player's own `baseImageUrl`. |
 | `buttons` | `DesktopUiButtonOptions` | — | Per-button visibility overrides, see below. |
 | `buttonOrder` | `Array<keyof DesktopUiButtonOptions>` | — | Re-anchors named buttons to the end of the bar in the given order; unnamed buttons keep their natural position. |
 | `settingsItems` | `SettingsToggleItem[]` | — | Consumer toggle rows appended to the settings menu (an app's own auto-skip switch, for instance). |
@@ -24,13 +24,13 @@ Everything on the [Build a Player](/nomercy-video-player/build/shell) tutorial i
 | `buttonPriority` | `Array<keyof DesktopUiButtonOptions>` | see below | Responsive removal order, buttons at the end are hidden first as the container narrows. |
 | `breakpoints` | `Breakpoint[]` | — | Full custom breakpoint progression. Takes precedence over `collapseStages`. |
 | `collapseStages` | `[number, number, number]` | — | Shorthand for `hideAfterRank` at the sm/md/lg tiers, ignored when `breakpoints` is set. |
-| `volumeSlider` | `'horizontal' \| 'vertical' \| 'auto'` | `'horizontal'` | Slider orientation; `'auto'` switches to vertical under 520px player width. |
+| `volumeSlider` | `'horizontal' \| 'vertical' \| 'auto'` | `'auto'` | Slider orientation; `'auto'` uses the vertical popup on touch devices and at 520px or narrower player width, horizontal otherwise. |
 
 ## Button visibility
 
 `DesktopUiButtonOptions` controls which control-bar buttons render at all, independent of the responsive priority system below.
 
-Default-on: `play`, `mute`, `volume`, `fullscreen`, `settings`, `chapterPrev`, `chapterNext` (chapter buttons hide automatically when the current item has none). `next` / `previous` show automatically whenever the queue has more than one item.
+Default-on: `play`, `mute`, `volume`, `fullscreen`, `settings`, `next`, `previous`, `chapterPrev`, `chapterNext`. Chapter buttons hide automatically when the current item has no chapters; `next` / `previous` stay rendered but go disabled at the first / last item and whenever the queue holds a single item.
 
 Default-off (opt in via `buttons: { theater: true }`, etc.): `theater`, `pip`, `speed`, `quality`, `subtitles`, `audio`, `playlist`, `seekBack`, `seekForward`, `aspectRatio`. `seekBack`/`seekForward` default off because a quick seek is already reachable elsewhere: the keyboard's bare `ArrowLeft`/`ArrowRight` (5s, `KeyHandlerPlugin`'s default `rewind()`/`forward()` step) and touch zones' double-tap (10s by default, its own `seekSeconds` option), the control-bar buttons are a deliberate opt-in for a UI with no keyboard or touch input at all.
 
@@ -93,7 +93,7 @@ player.addPlugin(DesktopUiPlugin, {
   buttons: { theater: true, quality: true },
   volumeSlider: 'auto',
   settingsItems: [
-    { label: 'Auto-skip intros', get: () => autoSkip.value, set: (v) => { autoSkip.value = v; } },
+    { id: 'auto-skip', label: () => 'Auto-skip intros', get: () => autoSkip.value, set: (v) => { autoSkip.value = v; } },
   ],
 });
 ```

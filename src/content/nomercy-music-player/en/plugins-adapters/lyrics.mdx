@@ -41,7 +41,7 @@ Namespaced onto the player's own bus as `plugin:lyrics:<event>`:
 - `item.lyricsUrl` is fetched exactly as given, it is **not** resolved against `baseUrl` the way `item.url` is. Store a fully-qualified URL, or resolve it yourself in a `getLyricsUrl` override, see [Lyrics: lyricsUrl isn't resolved against baseUrl](/nomercy-music-player/tour/lyrics#lyricsurl-isnt-resolved-against-baseurl).
 - A missing `item.lyricsUrl` (and no `getLyricsUrl` resolver returning one) clears plugin state silently, no fetch attempt, no error. A fetch or parse failure reports through the plugin's error channel (`plugin:lyrics/no-parser`, `plugin:lyrics/fetch-failed`) instead of throwing, a bad lyrics file never interrupts playback.
 - Parsing depends entirely on a cue parser being registered for the URL's format, a `.lrc` file resolves to the kit's built-in parser automatically; a custom format needs its own `ICueParser` registered via `player.registerCueParser()` first, see [Core: Cue Parsers](/nomercy-player-core/tour/cue-parsers).
-- Must be added before `setup()`, like any plugin, registering after `ready()` misses the plugin's own `use()` call during the setup pipeline.
+- Add it before `setup()` like any plugin, so its `use()` runs inside the setup pipeline and the `item` listener is wired before the first track primes. Added later, after `ready()`, the plugin still gets its `use()` invoked (post-setup registration runs inline, fire-and-forget), but the `item` listener attaches too late for the already-loaded track, so the current item's lyrics only start on the next `item` change or an explicit `fetchLyrics(url)` call.
 
 ## How to extend it
 

@@ -25,11 +25,11 @@ player.nextChapter();
 player.previousChapter();
 ```
 
-`chapter()` reads the chapter containing the current playback position, or `null` before the list resolves. `seekToChapter()` and the chapter-boundary crossing both emit `'chapter'` with `{ index, title }`, subscribe to that instead of diffing `chapter()` on every `'time'` tick.
+`chapter()` reads the chapter containing the current playback position, or `null` when no chapter covers it (before the list resolves, or in a gap the safety net has not backfilled yet). Only `seekToChapter()` emits `'chapter'` with `{ index, title }`, and `nextChapter()` / `previousChapter()` inherit it because they route through `seekToChapter()`. Playback crossing a boundary on its own does not fire it, so to follow the active chapter during ordinary playback, read `chapter()` on each `'time'` tick. The `'chapters'` event fires once the list resolves.
 
 `chapters()` returns `[]` for an item with no `chapters` field, a chapter-marker UI can render unconditionally and simply show nothing when the list is empty.
 
-Malformed lists get a safety net. Once the media duration is known, any span the list fails to cover (a lead-in before the first chapter, a hole between two chapters, or a tail after the last one) is backfilled with a synthetic chapter carrying a translated "Untitled" title and `synthetic: true`, so markers and `nextChapter()` always operate on a list that spans the whole timeline. A list that already covers the full duration passes through untouched, and an empty list stays empty; the net only catches lists that claim partial coverage.
+Malformed lists get a safety net. Once the media duration is known, any span the list fails to cover (a lead-in before the first chapter, a hole between two chapters, or a tail after the last one) is backfilled with a synthetic chapter carrying a translated fallback title (English "Chapter") and `synthetic: true`, so markers and `nextChapter()` always operate on a list that spans the whole timeline. A list that already covers the full duration passes through untouched, and an empty list stays empty; the net only catches lists that claim partial coverage.
 
 ## Arbitrary time windows
 

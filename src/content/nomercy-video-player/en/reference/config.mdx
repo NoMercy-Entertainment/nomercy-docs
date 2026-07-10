@@ -47,16 +47,17 @@ description: 'Every field setup() accepts beyond the shared kit BasePlayerConfig
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `autoAdvance` | `boolean` | `true` | Calls `next()` automatically when the current item ends. Set `false` when an external orchestrator (Cast sync, a WebSocket-driven session) drives `next()` itself, to avoid duplicate advances. |
-| `playlist` | `T[] \| string` | — | Same field as `BasePlayerConfig`, retyped here to `T extends VideoPlaylistItem` — the wire-format normalizer (`file`, `tracks[]`, `{time, date}` progress) applies to every item, canonical items pass through unchanged. |
+| `playlist` | `T[] \| string` | — | Same field as `BasePlayerConfig`, retyped here from `BasePlaylistItem[]` to `T[]` (`T` defaults to `VideoPlaylistItem`) — the wire-format normalizer (`file`, `tracks[]`, `{time, date}` progress) applies to every item, canonical items pass through unchanged. |
 
 ## Transition defaults
 
-Video's `setup()` wrapper injects two defaults `BasePlayerConfig` alone doesn't set, both overridable by passing your own value explicitly:
+Video's `setup()` wrapper injects three defaults `BasePlayerConfig` alone doesn't set, all overridable by passing your own value explicitly:
 
 | Field | Default for video | Notes |
 |---|---|---|
 | `crossfadeEnabled` | `false` | A hard cut between items, unlike music's `true`. Preloading still happens, `preloadLeadSeconds` (kit default `10`) is unaffected. |
 | `transitionStrategy` | `GaplessTransitionStrategy` | Matches the hard-cut default above. |
+| `preloadStrategy` | `VideoPreloadStrategy` | Prefetches the next item's video assets (HLS manifest, poster, sprite VTT, subtitle and chapter sidecars, ASS fonts) so the next item starts instantly on the hard cut. Extends the kit's `DefaultPreloadStrategy`. |
 
 ## Start-item selection, and what `autoPlay` gates
 

@@ -15,7 +15,7 @@ Translation is a swappable adapter like storage or the platform bundle, with a w
 
 `language()` reads the active tag; `language(lang)` dispatches `beforeLanguage` (cancellable and redirectable, same shape as every other `before*` event), switches the translator, and, for a real player with plugins registered, loads every plugin's translation bundle for the new tag and its BCP-47 parent chain before resolving. `addTranslations(bundle)` merges a bundle into the live table directly, last-write-wins per key.
 
-Swap the whole engine via `setup({ translator })` when you need pluralization, gender, or ICU MessageFormat: the kit forwards `translations` / `loadTranslations` / `language` config to whatever engine you supply, same as [Adapters & Dependency Injection](/nomercy-player-core/tour/adapters) describes for every other port.
+Swap the whole engine via `setup({ translator })` when you need pluralization, gender, or ICU MessageFormat. The kit uses your engine as-is and does not forward the `translations` or `loadTranslations` config to it; those seed only the built-in `DefaultTranslator`, so a custom engine owns its own bundle loading. The configured startup `language` still reaches it, since the player calls `language()` on whatever translator is active. This is the same DI seam [Adapters & Dependency Injection](/nomercy-player-core/tour/adapters) describes for every other port.
 
 ## Plugin translations
 

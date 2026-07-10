@@ -42,7 +42,7 @@ player.setup({
 });
 ```
 
-`crossfadeEnabled: false` is worth setting alongside `GaplessTransitionStrategy` even though the strategy itself already reports `shouldTransition() => false`, it also gates the `beforeCrossfade` dispatch path other plugins may be listening for, so a plugin written against "crossfade is on" doesn't fire for a catalogue that never crossfades.
+`crossfadeEnabled: false` is worth setting alongside `GaplessTransitionStrategy` even though the strategy itself already reports `shouldTransition() => false`, it also gates the automatic transition path other plugins may be listening for, so the `transitionStart` / `transitionProgress` / `transitionComplete` events never fire for a catalogue that never crossfades.
 
 ## Switching modes at runtime
 
@@ -60,7 +60,7 @@ function useGaplessMode(enabled: boolean): void {
 }
 ```
 
-The swap takes effect on the next boundary the preload pipeline evaluates, it does not retroactively change a transition already in flight.
+The swap cancels any transition already in flight, emitting `transitionCancelled` with reason `strategy-replaced`, and the new strategy takes effect from the next boundary the preload pipeline evaluates.
 
 ## Manual crossfadeTo() either way
 

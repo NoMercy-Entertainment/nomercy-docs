@@ -68,7 +68,7 @@ class MinimalKeyHandler extends KeyHandlerPlugin {
 player.addPlugin(MinimalKeyHandler);
 ```
 
-Set `disableControls: true` on `VideoPlayerConfig` when you don't want `KeyHandlerPlugin` at all, an app driving playback entirely from its own remote-control protocol, for instance. This is the same flag [`VideoPlayerConfig`](/nomercy-video-player/reference/config) exposes generally for media-control gating; `KeyHandlerPlugin`'s own `addDefaults()` checks it internally and no-ops when set, so leaving the plugin registered but flipping this field is equivalent to never adding it, useful when a shared setup path always calls `addPlugin(KeyHandlerPlugin)` and only some app configurations want it live.
+Set `disableControls: true` on `VideoPlayerConfig` when you don't want `KeyHandlerPlugin` at all, an app driving playback entirely from its own remote-control protocol, for instance. [`VideoPlayerConfig`](/nomercy-video-player/reference/config) declares this field, but `KeyHandlerPlugin` is its only consumer: `addDefaults()` checks it internally and returns before installing any binding group when set, so leaving the plugin registered but flipping this field is equivalent to never adding it, useful when a shared setup path always calls `addPlugin(KeyHandlerPlugin)` and only some app configurations want it live. If you instead only want to silence the W3C hardware media keys (`MediaPlay`, `MediaPause`, `MediaTrackNext`, and the rest) while keeping every other binding live, reach for the narrower `disableMediaControls` field, which gates just that group.
 
 ## Scoping bindings to the player, not the page
 

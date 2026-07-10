@@ -63,8 +63,8 @@ Two events bridge automatically while this plugin is loaded, matching the v1 eve
 ## Rules & restrictions
 
 - Every shim logs `@deprecated player.<method>() is a v1 compatibility shim — migrate to the v2 API before it is removed.` through the player's logger on every call, so grepping logs during a migration surfaces exactly which call sites still need updating.
-- Must be added before `setup()`, like any plugin, adding it after `ready()` misses the plugin's own `use()` call during the setup pipeline.
-- Unlike the video player's v1 shim, every method here has a direct v2 equivalent, none of the shims throw `NotImplementedError`, there's no legacy audio-specific feature (e.g. chapters-as-skip-segments) with no v2 data model to translate.
+- Add it like any plugin. Before or during `setup()` (the `idle` or `setup` phase) it is queued and installed when the setup pipeline drains its plugins, add it after `ready()` and it registers inline with its `use()` still running, so the shims attach either way. The one thing to avoid is calling a shimmed method before that `use()` has run.
+- Unlike the video player's v1 shim, every method here has a direct v2 equivalent, none of the shims throw `NotImplementedError`, there's no legacy audio-specific feature (e.g. skip-segment playback) with no v2 data model to translate.
 
 ## How to remove it
 

@@ -21,7 +21,7 @@ Call `setup()` a second time on the same instance and it throws `core:lifecycle/
 
 Underneath the pipeline sits a closed set of phases: `idle` → `setup` → `ready` → `loading` / `starting` / `playing` / `paused` / `buffering` / `seeking` / `ended` / `stopped` → `disposing` → `disposed`. `phase()` reads the current one; the `phase` event fires `{ from, to }` on every transition, so a UI layer or a plugin can drive an overlay off phase changes alone instead of piecing state together from a dozen separate flags.
 
-Two guard methods sit on top of the phase machine, and every transport and queue method calls the first one before doing anything else:
+Two guard methods sit on top of the phase machine, and every transport method (`play`, `pause`, `stop`, `next`, `previous`, and the rest) calls the first one before doing anything else:
 
 - `_assertReady()`: throws `core:player/not-ready` before `setup()` has run, or `core:player/disposed` after `dispose()`.
 - `setupState()`: a coarser read for UI gating, one of `SetupState.NOT_SETUP`, `SETTING_UP`, `READY`, `DISPOSED`.

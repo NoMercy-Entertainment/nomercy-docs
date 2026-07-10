@@ -9,7 +9,7 @@ description: 'Step 7 of 10: a right-aligned cluster with a playback-speed menu o
 
 Two controls on the right side of the button row: a speed menu, the first dropdown of the tutorial, and the fullscreen toggle. The icon table gains `speed`, `fullscreen`, and `exitFullscreen`.
 
-Two fields for the menu machinery, three calls, and one config addition:
+Two fields for the menu machinery and three calls:
 
 {/* partial */}
 
@@ -41,16 +41,7 @@ private createRightSpacer(): void {
 
 ## The speed menu
 
-`playbackRates()` reads the available speeds from config, so the menu never hardcodes them. That means the config now supplies them:
-
-{/* partial */}
-
-```ts
-const config: VideoPlayerConfig = {
-  // ...as before, plus:
-  playbackRates: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
-};
-```
+`playbackRates()` returns the kit's fixed set of speeds, so the menu reads the list from the player instead of hardcoding its own.
 
 The button rides the step-2 helper; the menu is a hidden dropdown anchored above the row:
 
@@ -157,7 +148,7 @@ With a single menu it looks like overkill; it is the shape that scales, and [ste
 
 ## Fullscreen
 
-`toggleFullscreen()` to act, the `fullscreen` event, payload `{ active }`, to react. The icon pair and the `aria-label` both follow the event, never a locally-tracked flag, so an Escape-key exit (which never went through the button) still updates both:
+`toggleFullscreen()` to act, the `fullscreen` event, payload `{ active }`, to react. The icon pair and the `aria-label` both follow the event, never a locally-tracked flag, so any call to `toggleFullscreen()`, not just this button's click, keeps both in sync:
 
 {/* partial */}
 

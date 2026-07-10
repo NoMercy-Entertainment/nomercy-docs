@@ -34,6 +34,7 @@ The plugin listens for the player's `'item'` event, when the incoming item carri
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DrmPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/drm';
 
 const player = nmplayer('player');
 
@@ -55,7 +56,7 @@ const licenseBlob = await drm?.fetchLicense(challengeBuffer);
 
 - `requestMediaKeySystemAccess` missing at registration time emits `unsupported` immediately and the plugin does nothing further, it does not throw and does not retry.
 - `fetchLicense()` throws `core:drm/license-url-missing` if `licenseUrl` was never configured, this is a real, addressable configuration error, not a soft failure.
-- All license network I/O goes through the kit's `Plugin.fetch()`, the same auth pipeline every other plugin uses, so `baseUrl` and `auth` from `setup()` already apply without extra config here.
+- All license network I/O goes through the kit's `Plugin.fetch()`, the same auth pipeline every other plugin uses, so the `auth` config from `setup()` (bearer token, custom headers, request signing) already applies without extra config here.
 - `mediaKeys()` returns `null` whenever EME isn't supported or the handshake hasn't completed, always guard before use.
 
 ## How to extend it

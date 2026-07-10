@@ -13,7 +13,7 @@ Every transport method the kit provides follows the same three-step shape: dispa
 
 `play()`, `pause()`, `stop()`, `next()`, and `previous()` each dispatch their matching `beforePlay` / `beforePause` / `beforeStop` / `beforeNext` / `beforePrevious` event first. A listener receives a `BeforeEvent<TData>`: it can read and mutate `event.data`, call `event.preventDefault()` to cancel the action outright, or call `event.delay(promise)` to hold the action until the promise settles. If the action is prevented, the method emits `<action>Prevented` with a `reason` and returns without ever calling the backend. Otherwise it applies the (possibly mutated) data, transitions the phase machine, emits the plain `<action>` event, and calls the backend method.
 
-`rewind(seconds)`, `forward(seconds)`, and `restart()` share the same `beforeSeek` → `seek` → `seeked` cycle that the `time()` setter uses (see [Time & State](/nomercy-player-core/tour/time-and-state)), just computing the target time from a delta instead of an absolute position.
+`rewind(seconds)`, `forward(seconds)`, and `restart()` share the same `beforeSeek` → `seek` → `seeked` cycle that the `time()` setter uses (see [Time & State](/nomercy-player-core/tour/time-and-state)), just computing the target time themselves (a delta from the current position for `rewind` and `forward`, a fixed `0` for `restart`) instead of taking an absolute position as an argument.
 
 Every action accepts `ActionOptions`: `source` (defaults to `'user'`, stamped onto every emitted event so a remote-sync plugin can filter out its own echoes), `silent` (skip the lifecycle event), and, on `load`-driving actions, `autoplay`.
 

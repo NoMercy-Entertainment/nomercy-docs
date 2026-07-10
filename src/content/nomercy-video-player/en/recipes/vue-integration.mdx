@@ -72,7 +72,7 @@ export function useVideoPlayer(containerId: string, config: VideoPlayerConfig) {
 
 ## Using it in a component
 
-`VideoPlayer.vue` below takes `baseUrl` and `playlist` as props instead of owning them, the same two values `useVideoPlayer`'s `config` already needs, just threaded one level up so whoever mounts the component supplies the real catalogue. `muted: true` + `autoPlay: true` are the constant part of the config (so playback starts without a user gesture, exactly like every other runnable example on this site) — only `baseUrl` and `playlist` vary by caller:
+`VideoPlayer.vue` below takes `baseUrl` and `playlist` as props instead of owning them, the same two values `useVideoPlayer`'s `config` already needs, just threaded one level up so whoever mounts the component supplies the real catalogue. `muted: true` + `autoPlay: false` are the constant part of the config (the player loads the first item on mount but waits for a user gesture to play it, exactly like every other runnable example on this site) — only `baseUrl` and `playlist` vary by caller:
 
 ```vue
 <!-- VideoPlayer.vue -->
@@ -121,7 +121,7 @@ function seek(event: MouseEvent) {
 </template>
 ```
 
-`player` is a top-level `<script setup>` ref, so the template above reads it unwrapped (`player?.togglePlayback()`, no `.value`) — Vue does that unwrapping automatically for refs returned from a composable and used directly in the template. Inside `<script>` itself (the `seek()` handler), it stays an explicit ref: `player.value?.time(...)`.
+`player` is a top-level `<script setup>` ref, so the template above reads it unwrapped (`player?.togglePlayback()`, no `.value`) — Vue does that unwrapping automatically for refs returned from a composable and used directly in the template. Inside `<script>` itself (the `seek()` handler), it stays an explicit ref: `player.value?.seekByPercentage(...)`.
 
 ## Mounting it
 

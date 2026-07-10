@@ -1,6 +1,6 @@
 ---
 title: 'Recipe: Playlist & Queue Panel'
-description: 'Render queue() as an "up next" list that reacts to current and queue events instead of polling, jump with playItem(), and mutate with queueAppend()/queueRemove().'
+description: 'Render queue() as an "up next" list that reacts to item and queue events instead of polling, jump with playItem(), and mutate with queueAppend()/queueRemove().'
 ---
 
 {/* Source: packages/nomercy-player-core/src/core/mixins/queue.ts, packages/nomercy-video-player/src/types.ts */}
@@ -11,7 +11,7 @@ description: 'Render queue() as an "up next" list that reacts to current and que
 
 ## Render on events, not polling
 
-`'item'` fires when the cursor moves. `'queue'` fires only on a full replace (`player.queue(items)`), append, remove, and reorder each fire their own event instead: `queue:append`, `queue:remove`, `queue:move`. A panel that re-renders on all four never drifts from the real state, and never needs a poll loop:
+`'item'` fires when the cursor moves. `'queue'` fires on every queue change: a full replace (`player.queue(items)`), and every append, remove, and reorder. Each mutation also fires its own typed event alongside `'queue'`: `queue:append`, `queue:remove`, `queue:move`. A panel that re-renders on these never drifts from the real state, and never needs a poll loop:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -47,7 +47,7 @@ player.queue().forEach((item) => {
 
 ## Mutating the queue from the panel
 
-Every mutation method fires its own typed event instead of the shared `'queue'` event, the listeners added above already cover them, so a panel wired the way the last section shows updates itself, no extra listener needed:
+Every mutation method fires its own typed event as well as the shared `'queue'` event, the listeners added above already cover them, so a panel wired the way the last section shows updates itself, no extra listener needed:
 
 ```ts
 import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';

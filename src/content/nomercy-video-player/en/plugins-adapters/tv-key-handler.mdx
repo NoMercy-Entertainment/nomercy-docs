@@ -36,7 +36,7 @@ New groups this plugin adds on top of the inherited set:
 
 - OSD messages route through `MessagePlugin` when it is mounted on the player, and always also emit `'display-message'` for consumers that prefer the event surface over adding `MessagePlugin`.
 - All bindings call local player methods directly. A NoMercy Connect integration that wants remote commands routed through a socket instead calls `keyHandler.replace(combo, fn)` (inherited from the kit base) to swap individual bindings, this plugin has no built-in awareness of Connect.
-- Translations (`Info` label text, and the rest of the OSD strings) are auto-discovered from the plugin's own `./i18n/*.ts` bundle, merged with the base `KeyHandlerPlugin`'s bundle at registration, each plugin in the chain ships only its own keys.
+- Translations (the Info OSD strings, aspect-ratio label, chapter labels) are auto-discovered from the plugin's own `./i18n/*.ts` bundle. The static `translations` field overrides the base `KeyHandlerPlugin`'s rather than extending it, so registering this plugin merges only its own keys into the player's shared translation table (namespaced under `plugin.tv-key-handler.*`, removed again on dispose).
 
 ## How to extend it
 

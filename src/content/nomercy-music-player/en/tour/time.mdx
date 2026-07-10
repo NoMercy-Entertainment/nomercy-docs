@@ -30,7 +30,7 @@ const { position, duration, percentage } = player.timeData();
 
 ## Relative seeks
 
-`rewind(seconds?)` and `forward(seconds?)` compute a relative target from the current position and call `time()` internally; both default to a sane step size when called with no argument. `restart()` seeks to `0` and resumes playback, an atomic intent, not a seek-then-play sequence, so a cancelled seek skips the resulting `play()` too:
+`rewind(seconds?)` and `forward(seconds?)` compute a relative target from the current position and run the same cancellable `beforeSeek` → `seek` → `seeked` cycle; both default to a 5 second step when called with no argument. `restart()` seeks to `0` and resumes playback, an atomic intent, not a seek-then-play sequence, so a cancelled seek skips the resulting `play()` too:
 
 ```ts
 await player.rewind(10); // -10s

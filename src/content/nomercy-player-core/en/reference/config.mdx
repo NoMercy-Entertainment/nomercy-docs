@@ -7,7 +7,7 @@ description: 'Every field setup() accepts, curated from BasePlayerConfig and the
 
 # Reference: BasePlayerConfig
 
-The object passed to `setup(config)`. `nomercy-video-player` and `nomercy-music-player` each extend this with their own domain fields (video adds `muted`, `autoPlay`, `stretching`, `playbackRates`, `preload`, `disableMediaControls`, `disableControls`, `backendFactory`, `defaultSubtitleLanguage`, `defaultAudioLanguage`, `defaultQuality`, `theaterDefault`, and `autoAdvance`; music adds nothing beyond what's already here), everything below is shared by both.
+The object passed to `setup(config)`. `nomercy-video-player` and `nomercy-music-player` each extend this with their own domain fields (video adds `muted`, `autoPlay`, `stretching`, `playbackRates`, `preload`, `disableMediaControls`, `disableControls`, `backendFactory`, `defaultSubtitleLanguage`, `defaultAudioLanguage`, `defaultQuality`, `theaterDefault`, and `autoAdvance`; music adds `backend`, `backendFactory`, and `crossfadeDefaults`), everything below is shared by both.
 
 ## Core
 
@@ -22,6 +22,7 @@ The object passed to `setup(config)`. `nomercy-video-player` and `nomercy-music-
 | `transformPlaylistItem` | `(item) => item` | — | Reshape every item as it enters the queue, after built-in normalization. Keep it synchronous. |
 | `expose` | `boolean` | `false` | Attach the instance to `window.player` (and the factory to `window.nmplayer`) for console debugging. |
 | `clockSource` | `() => number` | `Date.now` | Timestamp source for distributed-sync plugins. |
+| `plugins` | `ReadonlyArray<PluginSpec>` | — | Declarative plugin registration, drained before the setup pipeline's `pluginsRegistering` stage. Sugar over `addPlugin()`, each entry a class ref or `{ plugin, opts }`. |
 
 ## Auth
 
@@ -58,6 +59,7 @@ The object passed to `setup(config)`. `nomercy-video-player` and `nomercy-music-
 |---|---|---|---|
 | `metricsIntervalMs` | `number` | `10000` | `playback:metrics` emit interval. `0` disables. |
 | `progressIntervalMs` | `number` | `5000` | Throttled `progress` emit interval, prefer over `time` for watch-position saves. |
+| `inactivityMs` | `number` | `4000` | Idle time (no pointer, touch, or key on the container) before `activity { active: false }` fires while playing, swapping the container's `.active` class for `.inactive`. Never fires while paused. `0` disables. |
 | `itemEndingSoonThreshold` | `number` | `10` | Seconds before natural end that `itemEndingSoon` fires. |
 | `preloadLeadSeconds` | `number` | `10` | Seconds before end that prefetch begins. `0` disables preloading. |
 | `crossfadeLeadSeconds` / `crossfadeTailSeconds` | `number` | `3` / `3` | Overlap window, only used when `crossfadeEnabled: true`. |
@@ -70,6 +72,7 @@ The object passed to `setup(config)`. `nomercy-video-player` and `nomercy-music-
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `pauseWhenHidden` | `boolean` | `false` | Pause when the document goes hidden. |
+| `controls` | `boolean` | `false` | Render the browser's native `<audio controls>` / `<video controls>` on the backing element. Doubles up if a UI plugin is also loaded, so use one or the other. |
 | `onOffline` | `'pause' \| 'continue-buffered' \| 'ignore'` | `'continue-buffered'` | Behavior on `network:offline`. |
 | `wakeLock` | `'auto' \| 'always' \| 'never'` | `'auto'` video / `'never'` music | Wake-lock policy. |
 | `cast` | `CastConfig` | — | `autoLoad`, `receiverApplicationId`, `autoJoinPolicy`, `resumeSavedSession`, `scriptUrl`, `loadTimeoutMs`. |
