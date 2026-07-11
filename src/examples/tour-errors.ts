@@ -11,8 +11,10 @@
  * string. Subclasses (`AuthError`, `DrmError`, `MediaFormatError`,
  * `NetworkError`, `StateError`, `StreamError`, ...) narrow the `code` /
  * `severity` / `scope` contract so a `catch` block can branch on `instanceof`
- * instead of parsing message text. `DEFAULT_RETRY_POLICY` maps error codes to
- * a retry shape the kit's fetch pipeline (and `Plugin.fetch`) applies automatically.
+ * instead of parsing message text. `DEFAULT_RETRY_POLICY` is a reference table of
+ * per-code retry shapes; pass an entry as the per-call `retry` option on
+ * `Plugin.fetch` (the fetch pipeline never consults it automatically, defaulting
+ * to `{ attempts: 0 }`).
  */
 
 import type { PlayerError } from '@nomercy-entertainment/nomercy-player-core';
