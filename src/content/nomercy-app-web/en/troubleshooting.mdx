@@ -6,8 +6,35 @@ draft: false
 
 # Common App Issues
 
-::Callout
+## Web app can't reach my server on my home network
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+If you open the web app on the same network as your server and it never connects, your browser is almost certainly blocking the request as a security precaution. This is not a server misconfiguration, and there's nothing to fix on the server.
 
-::
+### Symptoms
+
+- Playback never starts, and live features (the dashboard, live sessions, casting) never connect.
+- The browser console repeatedly logs something like:
+
+  ```
+  Cross-Origin Request Blocked: The Same Origin Policy disallows reading the
+  remote resource at https://192-168-2-60.<your-id>.srv.nomercy.tv/... (Reason:
+  CORS request did not succeed). Status code: (null).
+  ```
+
+- In Firefox, a "Local Network Access detected" permission banner appears, and the connection to the server reconnects rapidly in a loop instead of settling.
+
+### Why this happens
+
+app.nomercy.tv is served over the public internet. When you open it from a device on the same network as your server, DNS resolves your server's hostname (something like `192-168-2-60.<id>.srv.nomercy.tv`) straight to its private LAN address (`192.168.2.x`). Modern browsers treat any request from a public site into a private or local-network address as sensitive and hold it back until you grant permission. Chrome and Edge call this Private Network Access; Firefox calls it Local Network Access. It applies to every public site reaching into your LAN, not just NoMercy.
+
+Your server already does its part: it sends `Access-Control-Allow-Private-Network: true` on the CORS preflight and serves a valid public TLS certificate. The piece that's missing is the one-time permission your browser wants from you, not a fix on the server side.
+
+This only comes up when you're on the same network as your server. From outside your home network your traffic goes through the server's public tunnel instead of its LAN address, so there's no private-network prompt and nothing to allow.
+
+### Fix
+
+**Firefox** (version 149 and later, rolling out to everyone from Firefox 151): accept the Local Network Access prompt when it appears. If you dismissed it, go to **Settings → Privacy & Security → Permissions → Local network access** and allow `app.nomercy.tv`.
+
+**Chrome / Edge**: allow local network access when prompted. If you missed the prompt, open the site settings for `app.nomercy.tv` and enable **Local network access** (sometimes labeled **Insecure private network**).
+
+**Skip it entirely**: the NoMercy Android app and the InfiniFrame desktop app don't go through a browser, so this prompt never applies to them. Opening the web app from outside your home network avoids it too, since that traffic never touches your server's LAN address.
