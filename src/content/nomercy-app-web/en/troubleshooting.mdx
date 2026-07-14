@@ -21,7 +21,7 @@ If you open the web app on the same network as your server and it never connects
   CORS request did not succeed). Status code: (null).
   ```
 
-- In Firefox, a "Local Network Access detected" permission banner appears, and the connection to the server reconnects rapidly in a loop instead of settling.
+- In Firefox, a "Local Network Access detected" permission banner appears until you allow it.
 
 ### Why this happens
 
@@ -38,3 +38,11 @@ This only comes up when you're on the same network as your server. From outside 
 **Chrome / Edge**: allow local network access when prompted. If you missed the prompt, open the site settings for `app.nomercy.tv` and enable **Local network access** (sometimes labeled **Insecure private network**).
 
 **Skip it entirely**: the NoMercy Android app and the InfiniFrame desktop app don't go through a browser, so this prompt never applies to them. Opening the web app from outside your home network avoids it too, since that traffic never touches your server's LAN address.
+
+## Firefox reconnects to the server in a rapid loop
+
+If the web app reaches your server but then Firefox hammers it with a fast loop of failed connections (the console fills with repeated `deviceHub/negotiate` errors that end in `Status code: (null)`), that was a server-side problem with how the live connections rode over HTTP/2. Firefox is the only browser that carries WebSockets over HTTP/2, so it was the only one that looped; Chrome, Edge, the Android app, and the InfiniFrame desktop app were never affected.
+
+### Fix
+
+This is fixed on the server. Update your NoMercy Media Server to the latest version and the loop stops on its own, with no browser setting to change. If you can't update right away, the loop also stops if you set `network.http.http2.enabled` to `false` in Firefox's `about:config`, but updating the server is the real fix and you can turn that back on afterward.
