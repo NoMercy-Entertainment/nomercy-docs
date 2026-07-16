@@ -89,6 +89,17 @@ if (overlayRoot) {
 
 Returns `null` before `use()` has built the DOM, guard the call rather than assuming it's always populated.
 
+An overlay anchored to the top or bottom bar — a device picker under the cast button, say — must also stop those bars auto-hiding underneath it while it's open. `holdChrome()` pins them visible; `releaseChrome()` lets the countdown resume. The hold is counted, so independent holders compose and the chrome stays until the last release; call them in balanced pairs:
+
+```ts
+const ui = player.getPlugin(DesktopUiPlugin);
+ui?.holdChrome();   // opening your overlay
+// …
+ui?.releaseChrome(); // closing it
+```
+
+This plugin's own menus don't need it — they already pin internally. It's for UI that lives outside the plugin but leans on its chrome.
+
 ## Rules & restrictions
 
 - Loading `DesktopUiPlugin` alongside native `controls: true` or `TvKeyHandlerPlugin`'s own key bindings without disabling one results in doubled UI or conflicting handlers, pick one control surface per platform.
