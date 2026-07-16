@@ -60,6 +60,20 @@ player.addPlugin(DesktopUiPlugin, {
 
 `'layout:breakpoint'` fires on every transition with `{ from, to, visibleButtons, hiddenButtons }`, a consumer building its own overflow menu subscribes here instead of re-deriving visibility from container width itself.
 
+## Portrait
+
+Portrait fits about five or six controls whatever the priority list says, so a set is forced off there regardless of available width. Which set is yours to choose: `portraitHidden` replaces the default (`chapterPrev`, `chapterNext`, `previous`, `next`, `subtitles`, `audio`, `quality`, `playlist`) rather than merging with it, so name every button you want gone. An episodic app usually wants `next` and `chapterNext` to survive, since skipping an intro one-handed is the reason a phone viewer reaches for the controls at all:
+
+```ts
+player.addPlugin(DesktopUiPlugin, {
+  buttons: { chapterNext: true, next: true },
+  // Keep next/chapterNext in portrait, drop their backwards twins instead.
+  portraitHidden: ['chapterPrev', 'previous', 'subtitles', 'audio', 'quality', 'playlist'],
+});
+```
+
+Pass `[]` to force nothing off and let width alone decide. The override buys a button a seat in the priority walk, it does not exempt it: a button still disappears once the row runs out of room, so raise it in `buttonPriority` too if it must outlive the squeeze.
+
 ## The overlay() escape hatch
 
 Other plugins mount their own UI onto `DesktopUiPlugin`'s auto-hiding overlay root instead of the player container directly, so their elements inherit the same show/hide lifecycle rather than floating over a hidden chrome:
