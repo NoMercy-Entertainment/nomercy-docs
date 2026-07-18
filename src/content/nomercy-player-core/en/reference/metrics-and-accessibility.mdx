@@ -1,0 +1,58 @@
+---
+title: 'Reference: Metrics, Clock & Accessibility'
+description: 'metrics(), recordMetric(), now(), announce(), and the ABR trio bandwidth() / bandwidthEstimator() / canPlay(). Composed-only kit methods available on every NMVideoPlayer and NMMusicPlayer instance.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/metrics.ts, src/core/mixins/abr.ts, src/types/metrics.ts */}
+
+# Reference: Metrics, Clock & Accessibility
+
+These methods come from the `metrics` and `abr` mixin groups, two of the ten internal building blocks [Composition Primitives](/nomercy-player-core/reference/composition) lists as bundled into `playerCoreMethods` but not individually importable. Every `NMVideoPlayer` and `NMMusicPlayer` instance has them regardless, they're just not a separate `composeMixins()` call away for a narrower build.
+
+## Metrics
+
+`metrics()` reads a point-in-time snapshot; the same shape is also pushed periodically as the [`playback:metrics`](/nomercy-player-core/reference/events#plugins-network-metrics-activity) event on the interval set by `setup({ metricsIntervalMs })`. `recordMetric()` is the write side, backends call it to update their instrumented counters, and a plugin or consumer can use it for its own namespaced values.
+
+| Method | Signature | Notes |
+|---|---|---|
+| `metrics()` | `() => PlaybackMetrics` | Spreads the live counter map and appends a fresh `sessionDurationMs` computed from when the current item started. See [Reference: Domain Types](/nomercy-player-core/reference/types) for every `PlaybackMetrics` field and which backends report it. |
+| `recordMetric(name, value)` | `(name: string, value: number) => void` | Writes one named counter into the live store. `name` can be any string, an existing `PlaybackMetrics` key or a plugin's own namespaced one, the extension slot (`[customMetric: string]: number \| null`) exists for exactly that. |
+
+## Clock
+
+`now()` is the distributed-clock timestamp source plugins use to coordinate across machines (Connect-style sync, telemetry timestamps) instead of calling `Date.now()` directly, so a consumer-supplied `setup({ clockSource })` overrides every internal timestamp consistently.
+
+| Method | Signature | Notes |
+|---|---|---|
+| `now()` | `() => number` | Returns `options.clockSource()` when configured, `Date.now()` otherwise. |
+
+## Accessibility
+
+`announce()` is the player's ARIA-live primitive. It inserts a visually-hidden element with `role="status"` and the requested `aria-live` level under the player container, then removes it shortly after so the DOM doesn't accumulate stale nodes, screen readers pick up the text before the removal happens.
+
+| Method | Signature | Notes |
+|---|---|---|
+| `announce(text, level?)` | `(text: string, level?: AriaLiveLevel) => void` | `level` is `'polite'` (default) or `'assertive'`. No-ops server-side or before the container exists. |
+
+```ts
+// A UI plugin announcing a quality switch without stealing focus
+player.announce(`Quality switched to ${label}`);
+
+// A blocking state that should interrupt a screen reader mid-sentence
+player.announce('Playback error, retrying', 'assertive');
+```
+
+## Bandwidth & capability checks
+
+The same ABR primitives [Quality Levels](/nomercy-video-player/tour/quality) walks through for video apply unchanged to an adaptive-bitrate audio stream, they live here because both libraries compose the same `abrMethods` mixin.
+
+| Method | Signature | Notes |
+|---|---|---|
+| `bandwidth()` | `() => number` | Last-known throughput estimate in bits per second. A `bandwidthEstimator(fn)` override always wins over the active backend's own live estimate (hls.js's EWMA, for instance). Returns `0` when neither is available, never `NaN`, never a stale cache. |
+| `bandwidthEstimator()` / `bandwidthEstimator(fn)` | `() => (() => number) \| undefined`, `(fn: () => number) => void` | Read the current override, or replace it, useful for sharing one measurement across multiple players on the same page. |
+| `canPlay(profile)` | `(profile: { contentType: string; width?: number; height?: number; bitrate?: number; framerate?: number }) => Promise<CanPlayResult>` | Asks the platform's `MediaCapabilities` bridge whether a content profile is decodable before offering it in a manual quality menu. Resolves `{ supported, smooth, powerEfficient }`. |
+
+## Next steps
+
+- [Reference: Utility Functions](/nomercy-player-core/reference/utilities): the standalone, no-instance-required functions exported from the package root.
+- [Reference: Testing Utilities](/nomercy-player-core/reference/testing): the `/testing` subpath used to write tests against plugins and the `IPlayer` contract.

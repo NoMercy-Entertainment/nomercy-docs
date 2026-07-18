@@ -1,0 +1,150 @@
+---
+title: 'Reference: Testing Utilities'
+description: 'The /testing subpath: StubPlayer, describePlugin, describePluginAgainst, runIPlayerContract, the listener-leak harness, and mockFetch. A stable API surface for testing plugins and IPlayer implementations.'
+---
+
+{/* Source: packages/nomercy-player-core/src/testing/ */}
+
+# Reference: Testing Utilities
+
+Everything here ships under the `/testing` subpath, not the package root, so it never bloats a production bundle:
+
+```ts
+import {
+  describePlugin,
+  runIPlayerContract,
+  StubPlayer,
+  assertNoListenerLeak,
+} from '@nomercy-entertainment/nomercy-player-core/testing';
+```
+
+It exists because both `nomercy-video-player` and `nomercy-music-player`, and any third-party plugin, need a stable way to test against the `IPlayer` contract without depending on Vitest internals or hand-rolling a fake player per package. `describePlugin` / `describePluginAgainst` inject `describe` / `it` / `beforeEach` / `afterEach` from the Vitest globals at runtime, so a project using them needs `test.globals: true` in its Vitest config.
+
+## StubPlayer
+
+A lightweight `IPlayer` test double for plugin and unit tests, real enough to drive plugin lifecycles and event subscriptions without a browser, a media element, or a network stack. jsdom has no `<audio>` / `<video>` implementation and no `MediaSource` or `AudioContext`, a real `NMVideoPlayer` or `NMMusicPlayer` cannot be constructed in that environment at all, `StubPlayer` fills exactly that gap.
+
+| Export | Signature | Notes |
+|---|---|---|
+| `createStubPlayer(opts?)` | `(opts?: ConstructorParameters<typeof StubPlayer>[0]) => StubPlayer` | Factory form. |
+| `StubPlayer` | `class ... implements IPlayer<BaseEventMap>` | The class, for direct instantiation. |
+
+Provided: a real `EventEmitter` spine (`on` / `off` / `once` / `hasListeners` / `emit`), a `phase()` state machine advanced via `setPhase()`, the `dispatching()` stack via `pushDispatch()` / `popDispatch()`, the full i18n surface backed by an in-memory bundle table, a real cue parser registry, overloaded `baseUrl()` / `audioContext()` accessors, the `experimental.override` surface wired to an in-memory map, and `reset()` to clear all state between tests without constructing a new instance.
+
+Not provided, tests must not rely on these: plugin registration (`describePlugin` wires `addPlugin` itself, mock it per-test if a plugin's `use()` calls `player.addPlugin` internally), stream resolution or backend lifecycle, and auth-gated fetch (override `Plugin.fetch` in the test instead).
+
+## Layer 1: describePlugin (StubPlayer)
+
+The fast, isolated layer, every plugin's primary test suite. Wires a fresh `StubPlayer` and a fresh plugin instance per test, and asserts no listener leak after each one unless `skipLeakAssertion` is set.
+
+```ts
+import { describePlugin } from '@nomercy-entertainment/nomercy-player-core/testing';
+import { LyricsPlugin } from '../lyrics';
+
+describePlugin(LyricsPlugin, ({ player, plugin }) => {
+  it('emits plugin:lyrics:line on a time event', () => {
+    // player is a StubPlayer, plugin is a real LyricsPlugin instance
+  });
+});
+```
+
+| Export | Signature | Notes |
+|---|---|---|
+| `describePlugin(PluginClass, fn, opts?)` | `<C>(PluginClass: C, fn: (ctx: PluginTestContext<C>) => void, opts?: DescribePluginOptions<C>) => void` | `opts.opts` is the plugin's own options object, passed to `initialize()`. |
+| `PluginTestContext<C>` | `{ player: StubPlayer; plugin: InstanceType<C> }` | Handed to `fn`, reset between tests. |
+| `DescribePluginOptions<C>` | `{ opts?; skipLeakAssertion?: boolean }` | Set `skipLeakAssertion` only for a test that intentionally probes leak behavior. |
+
+## Layer 2: describePluginAgainst (a real player)
+
+Runs the same author tests as `describePlugin`, but against a real `NMMusicPlayer`, `NMVideoPlayer`, or any other `IPlayer` implementation, not `StubPlayer`. Use this to catch `StubPlayer` drift from real player behavior, plugin assumptions about real-player event timing or order, and real-player setup-ordering bugs `StubPlayer` structurally can't surface.
+
+```ts
+import { describePluginAgainst } from '@nomercy-entertainment/nomercy-player-core/testing';
+import { nmplayer } from '../../index';
+import { LyricsPlugin } from '../lyrics';
+
+describePluginAgainst(LyricsPlugin, ({ player, plugin }) => {
+  it('emits plugin:lyrics:line on a real time event', async () => {
+    // ...
+  });
+}, {
+  player: () => nmplayer('test').setup({}),
+});
+```
+
+| Export | Signature | Notes |
+|---|---|---|
+| `describePluginAgainst(PluginClass, fn, opts)` | `<C, P>(PluginClass: C, fn: (ctx: PluginAgainstTestContext<C, P>) => void, opts: DescribePluginAgainstOptions<C, P>) => void` | `opts.player` (a factory, required, no default) replaces `opts.opts` player construction. |
+| `PluginAgainstTestContext<C, P>` | `{ player: P; plugin: InstanceType<C> }` | `P` is whatever real player the `player` factory returns. |
+| `DescribePluginAgainstOptions<C, P>` | `{ player: () => P \| Promise<P>; teardown?; opts?; skipLeakAssertion? }` | `teardown` is optional, most players self-clean via `dispose()`. |
+
+Recommended pattern: write each plugin's tests once with `describePlugin`, then import the same suite body into a `describePluginAgainst` block to run it against the real player too. Watch mode only needs the layer-1 pass for iteration speed, CI runs both.
+
+## Layer 3: runIPlayerContract
+
+The shared `IPlayer` behavior contract suite, run against every concrete player implementation (`NMMusicPlayer`, `NMVideoPlayer`, `StubPlayer`, or your own `IPlayer` impl if you're building a custom backend) to prove that plugin code typed against `IPlayer` works uniformly against all of them.
+
+```ts
+import { runIPlayerContract } from '@nomercy-entertainment/nomercy-player-core/testing';
+import { NMVideoPlayer } from '../index';
+
+runIPlayerContract({
+  label: 'NMVideoPlayer',
+  create: () => new NMVideoPlayer({ container: document.createElement('div') }),
+  teardown: (player) => player.dispose(),
+});
+```
+
+| Export | Signature | Notes |
+|---|---|---|
+| `runIPlayerContract(opts)` | `<P>(opts: { create: () => P \| Promise<P>; label: string; teardown?: (player: P) => void \| Promise<void> }) => void` | Behavioral, not shape-only, every test invokes a method and asserts the real effect (return value, side effect, emitted event). A player whose method bodies still throw "not implemented" fails these tests, that's the point. |
+
+Scope is deliberately narrow: identity, the event bus, phase, `baseUrl`, `audioContext`, the experimental override surface, i18n, and the cue parser registry, the surface every `IPlayer` must support uniformly. Library-specific behavior (transport, queue, fullscreen, crossfade) belongs in each package's own tests instead.
+
+## Listener-leak harness
+
+Snapshots a player's live listener count before setup, after setup, and after teardown, then asserts the count returns to baseline. A plugin that adds a listener in `use()` and forgets to remove it in `dispose()` fails immediately instead of accumulating silently across a long-running session.
+
+```ts
+const result = await assertNoListenerLeak({
+  subjectId: 'lyrics',
+  player,
+  setup: () => player.addPlugin(LyricsPlugin),
+  exercise: async () => {
+    await player.load(track);
+  },
+  teardown: () => player.removePlugin(LyricsPlugin),
+});
+```
+
+| Export | Signature | Notes |
+|---|---|---|
+| `assertNoListenerLeak(opts)` | `(opts: { subjectId: string; player: IPlayer; setup: () => void \| Promise<void>; exercise?: () => void \| Promise<void>; teardown: () => void \| Promise<void> }) => Promise<LeakAssertionResult>` | Caller wires the lifecycle so the harness stays decoupled from how a subject is registered. |
+| `assertNoListenerLeakOverCycles(opts)` | `(opts: { ...same as above; cycles?: number }) => Promise<LeakAssertionResult[]>` | Repeats register / exercise / teardown to catch state-sensitive leaks (a handler added only every nth `play()`, for instance). `cycles` default `5`. |
+| `countAllListeners(player)` | `(player: IPlayer) => number` | The leak baseline. Returns `0` (zero reported leaks, no false positive) if the player object doesn't expose `listenerCount()`. |
+| `LeakAssertionResult` | `{ subjectId: string; listenersBefore: number; listenersAfterSetup: number; listenersAfterTeardown: number; leaked: number }` | `leaked > 0` means the subject retained listeners, timers, or observers after teardown, the test should fail. |
+
+## mockFetch
+
+A mock fetch function compatible with `Plugin.fetch`, for tests that need to assert on outgoing requests or return canned responses without hitting the network.
+
+```ts
+const { fetch, calls, respondWith } = mockFetch();
+plugin['fetch'] = fetch; // override the plugin's fetch
+
+respondWith({ status: 200, body: '{}' });
+await plugin.someMethodThatFetches();
+
+expect(calls[0].url).toBe('https://example.com/api');
+```
+
+| Export | Signature | Notes |
+|---|---|---|
+| `mockFetch()` | `() => MockFetch` | Returns a fresh mock with empty call history and an empty response queue. |
+| `MockFetch` | `{ fetch; calls: MockFetchCall[]; respondWith(body): void; reset(): void }` | `respondWith(body)` queues one response, consumed once in FIFO order, an exhausted queue resolves `undefined`. `reset()` clears both call history and the queue. |
+| `MockFetchCall` | `{ url: string; options: FetchOptions<unknown> \| undefined }` | One recorded call, in call order. |
+
+## Next steps
+
+- [Reference: Composition Primitives](/nomercy-player-core/reference/composition): why `metrics`, `abr`, and the other eight internal mixin groups aren't individually importable, only usable through the full `playerCoreMethods` aggregate `StubPlayer` and every real player compose.
+- [Build a Player: Wire a Backend Contract](/nomercy-player-core/build/backend-contract): writing a custom `IVideoBackend` / `IAudioBackend`, a different kind of contract test than the `IPlayer`-level one this page covers.

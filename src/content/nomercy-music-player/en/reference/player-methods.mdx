@@ -54,6 +54,9 @@ Shared kit mixin surface, narrowed to the required, audio-relevant shape here (e
 | `audioTrack()` / `audioTrack(idx)` | `() => CurrentAudioTrackSelection \| null`, `(idx: number) => Promise<void>` | |
 | `qualityLevels()` / `qualityLevels({ includeUnsupported: true })` | `() => ReadonlyArray<QualityLevel>` | Populated once the stream's manifest is parsed, for an adaptive-bitrate audio source. |
 | `quality()` / `quality(idx)` | `() => CurrentQualitySelection \| 'auto'`, `(idx: number \| 'auto') => void` | |
+| `bandwidth()` | `() => number` | Last-known throughput estimate in bits per second, the number ABR decides against. Shared kit surface, see [Reference: Metrics, Clock & Accessibility](/nomercy-player-core/reference/metrics-and-accessibility). |
+| `bandwidthEstimator()` / `bandwidthEstimator(fn)` | `() => (() => number) \| undefined`, `(fn: () => number) => void` | Override the estimator, useful for sharing one measurement across multiple players on the same page. |
+| `canPlay(profile)` | `(profile) => Promise<CanPlayResult>` | Asks the platform's `MediaCapabilities` bridge whether a content profile is decodable, before offering it in a manual quality menu. |
 | `chapters()` | `() => ReadonlyArray<Chapter>` | From the item's typed `chapters` field, an audiobook or podcast episode's chapter marks. |
 | `chapter()` / `chapter(idx)` | `() => Chapter \| null`, `(idx: number) => void` | |
 | `seekToChapter(idx, opts?)` / `nextChapter(opts?)` / `previousChapter(opts?)` | `(idx: number, opts?: ActionOptions) => void` | |
@@ -65,3 +68,4 @@ Method names that were removed or renamed in v2 are not part of the `IMusicPlaye
 ## Next steps
 
 - [Reference: MusicPlayerConfig](/nomercy-music-player/reference/config): the `setup(config)` fields specific to music, on top of the kit's shared config.
+- [Reference: Metrics, Clock & Accessibility](/nomercy-player-core/reference/metrics-and-accessibility): `metrics()`, `now()`, `announce()`, and the full ABR trio this page only lists inline above.

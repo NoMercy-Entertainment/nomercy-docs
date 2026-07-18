@@ -32,7 +32,9 @@ Everything on the [Build a Player](/nomercy-video-player/build/shell) tutorial i
 
 Default-on: `play`, `mute`, `volume`, `fullscreen`, `settings`, `next`, `previous`, `chapterPrev`, `chapterNext`. Chapter buttons hide automatically when the current item has no chapters; `next` / `previous` stay rendered but go disabled at the first / last item and whenever the queue holds a single item.
 
-Default-off (opt in via `buttons: { theater: true }`, etc.): `theater`, `pip`, `speed`, `quality`, `subtitles`, `audio`, `playlist`, `seekBack`, `seekForward`, `aspectRatio`. `seekBack`/`seekForward` default off because a quick seek is already reachable elsewhere: the keyboard's bare `ArrowLeft`/`ArrowRight` (5s, `KeyHandlerPlugin`'s default `rewind()`/`forward()` step) and touch zones' double-tap (10s by default, its own `seekSeconds` option), the control-bar buttons are a deliberate opt-in for a UI with no keyboard or touch input at all.
+Default-off (opt in via `buttons: { theater: true }`, etc.): `theater`, `pip`, `speed`, `quality`, `subtitles`, `audio`, `playlist`, `seekBack`, `seekForward`, `aspectRatio`, `cast`. `seekBack`/`seekForward` default off because a quick seek is already reachable elsewhere: the keyboard's bare `ArrowLeft`/`ArrowRight` (5s, `KeyHandlerPlugin`'s default `rewind()`/`forward()` step) and touch zones' double-tap (10s by default, its own `seekSeconds` option), the control-bar buttons are a deliberate opt-in for a UI with no keyboard or touch input at all.
+
+The top-bar `cast` button (`buttons: { cast: true }`, next to `back`/`close`) only emits the player's `'cast'` event on click, the same no-opinion pattern as `back`/`close`. Unlike those two, its visibility does not depend on a listener being registered, since it defaults off rather than on. Wire a listener to open your own device picker; never route the click through `CastSenderPlugin` or `session.loadMedia()` directly, that plugin drives an active cast session once a target is already chosen, it doesn't own device selection.
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -89,7 +91,7 @@ if (overlayRoot) {
 
 Returns `null` before `use()` has built the DOM, guard the call rather than assuming it's always populated.
 
-An overlay anchored to the top or bottom bar — a device picker under the cast button, say — must also stop those bars auto-hiding underneath it while it's open. `holdChrome()` pins them visible; `releaseChrome()` lets the countdown resume. The hold is counted, so independent holders compose and the chrome stays until the last release; call them in balanced pairs:
+An overlay anchored to the top or bottom bar, a device picker under the cast button, say, must also stop those bars auto-hiding underneath it while it's open. `holdChrome()` pins them visible; `releaseChrome()` lets the countdown resume. The hold is counted, so independent holders compose and the chrome stays until the last release; call them in balanced pairs:
 
 ```ts
 const ui = player.getPlugin(DesktopUiPlugin);
@@ -98,7 +100,7 @@ ui?.holdChrome();   // opening your overlay
 ui?.releaseChrome(); // closing it
 ```
 
-This plugin's own menus don't need it — they already pin internally. It's for UI that lives outside the plugin but leans on its chrome.
+This plugin's own menus don't need it, they already pin internally. It's for UI that lives outside the plugin but leans on its chrome.
 
 ## Rules & restrictions
 

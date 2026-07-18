@@ -28,99 +28,112 @@ export default defineConfig({
     // /player/kit/ → /nomercy-player-core/
     // -----------------------------------------------------------------------
     "/player/kit/": "/nomercy-player-core/",
-    "/player/kit/adapters": "/nomercy-player-core/adapters",
-    "/player/kit/auth-fetch": "/nomercy-player-core/auth-fetch",
-    "/player/kit/errors": "/nomercy-player-core/errors",
-    "/player/kit/event-system": "/nomercy-player-core/event-system",
-    "/player/kit/i18n": "/nomercy-player-core/i18n",
-    "/player/kit/lifecycle": "/nomercy-player-core/lifecycle",
-    "/player/kit/metrics": "/nomercy-player-core/metrics",
-    "/player/kit/plugins": "/nomercy-player-core/plugins",
+    "/player/kit/adapters": "/nomercy-player-core/tour/adapters",
+    "/player/kit/auth-fetch": "/nomercy-player-core/recipes/auth-fetch",
+    "/player/kit/errors": "/nomercy-player-core/tour/errors",
+    "/player/kit/event-system": "/nomercy-player-core/tour/event-bus",
+    "/player/kit/i18n": "/nomercy-player-core/tour/i18n",
+    "/player/kit/lifecycle": "/nomercy-player-core/tour/lifecycle",
+    "/player/kit/metrics": "/nomercy-player-core/reference/metrics-and-accessibility",
+    "/player/kit/plugins": "/nomercy-player-core/tour/plugin-base",
     "/player/kit/quickstart": "/nomercy-player-core/quickstart",
-    "/player/kit/testing": "/nomercy-player-core/testing",
+    "/player/kit/testing": "/nomercy-player-core/reference/testing",
 
     // -----------------------------------------------------------------------
     // /player/ root pages → /nomercy-player-core/
+    // No successor page exists for architecture / faq / migration-v1-v2 (core
+    // has no v1 compat plugin of its own) / troubleshooting / versioning —
+    // same "301 to section root" fallback used below for the protocol-template
+    // archive, rather than a redirect chain into a 404.
     // -----------------------------------------------------------------------
-    "/player/": "/nomercy-player-core/overview",
-    "/player/architecture": "/nomercy-player-core/architecture",
-    "/player/faq": "/nomercy-player-core/faq",
-    "/player/migration-v1-v2": "/nomercy-player-core/migration-v1-v2",
-    "/player/plugin-authoring": "/nomercy-player-core/plugin-authoring",
-    "/player/plugin-standard": "/nomercy-player-core/plugin-standard",
+    "/player/": "/nomercy-player-core/",
+    "/player/architecture": "/nomercy-player-core/reference/composition",
+    "/player/faq": "/nomercy-player-core/",
+    "/player/migration-v1-v2": "/nomercy-player-core/",
+    "/player/plugin-authoring": "/nomercy-player-core/build/add-a-plugin",
+    "/player/plugin-standard": "/nomercy-player-core/tour/plugin-base",
     "/player/quickstart": "/nomercy-player-core/quickstart",
-    "/player/troubleshooting": "/nomercy-player-core/troubleshooting",
-    "/player/versioning": "/nomercy-player-core/versioning",
+    "/player/troubleshooting": "/nomercy-player-core/",
+    "/player/versioning": "/nomercy-player-core/",
 
     // -----------------------------------------------------------------------
     // /player/video/ → /nomercy-video-player/
     // -----------------------------------------------------------------------
     "/player/video/": "/nomercy-video-player/",
-    "/player/video/api-methods": "/nomercy-video-player/api-methods",
-    "/player/video/cast-sender": "/nomercy-video-player/cast-sender",
-    "/player/video/chapters": "/nomercy-video-player/chapters",
-    "/player/video/configuration": "/nomercy-video-player/configuration",
-    "/player/video/desktop-ui": "/nomercy-video-player/desktop-ui",
-    "/player/video/events": "/nomercy-video-player/events",
-    "/player/video/framework-react": "/nomercy-video-player/framework-react",
-    "/player/video/framework-vue": "/nomercy-video-player/framework-vue",
-    "/player/video/hls": "/nomercy-video-player/hls",
-    "/player/video/migration-v1-v2": "/nomercy-video-player/migration-v1-v2",
-    "/player/video/plugin-development": "/nomercy-video-player/plugin-development",
+    "/player/video/api-methods": "/nomercy-video-player/reference/player-methods",
+    "/player/video/cast-sender": "/nomercy-video-player/plugins-adapters/cast-sender",
+    "/player/video/chapters": "/nomercy-video-player/tour/chapters",
+    "/player/video/configuration": "/nomercy-video-player/reference/config",
+    "/player/video/desktop-ui": "/nomercy-video-player/plugins-adapters/desktop-ui",
+    "/player/video/events": "/nomercy-video-player/reference/events",
+    "/player/video/framework-react": "/nomercy-video-player/recipes/react-integration",
+    "/player/video/framework-vue": "/nomercy-video-player/recipes/vue-integration",
+    "/player/video/hls": "/nomercy-video-player/plugins-adapters/adapter-video-backend",
+    "/player/video/migration-v1-v2": "/nomercy-video-player/recipes/migrate-from-v1",
+    "/player/video/plugin-development": "/nomercy-video-player/plugins-adapters/plugin-development",
     "/player/video/quickstart": "/nomercy-video-player/quickstart",
-    "/player/video/skipper": "/nomercy-video-player/skipper",
-    "/player/video/subtitle-overlay": "/nomercy-video-player/subtitle-overlay",
+    // v1's skip-segment feature has no v2 data model yet — see migrate-from-v1's
+    // "What has no v2 equivalent" section rather than a page that doesn't exist.
+    "/player/video/skipper": "/nomercy-video-player/recipes/migrate-from-v1",
+    "/player/video/subtitle-overlay": "/nomercy-video-player/plugins-adapters/subtitle-overlay",
 
     // -----------------------------------------------------------------------
     // /player/music/ → /nomercy-music-player/
     // -----------------------------------------------------------------------
     "/player/music/": "/nomercy-music-player/",
-    "/player/music/api-methods": "/nomercy-music-player/api-methods",
-    "/player/music/configuration": "/nomercy-music-player/configuration",
-    "/player/music/crossfade": "/nomercy-music-player/crossfade",
-    "/player/music/equalizer": "/nomercy-music-player/equalizer",
-    "/player/music/events": "/nomercy-music-player/events",
-    "/player/music/framework-react": "/nomercy-music-player/framework-react",
-    "/player/music/framework-vue": "/nomercy-music-player/framework-vue",
-    "/player/music/lyrics": "/nomercy-music-player/lyrics",
-    "/player/music/migration-v1-v2": "/nomercy-music-player/migration-v1-v2",
-    "/player/music/plugin-development": "/nomercy-music-player/plugin-development",
+    "/player/music/api-methods": "/nomercy-music-player/reference/player-methods",
+    "/player/music/configuration": "/nomercy-music-player/reference/config",
+    "/player/music/crossfade": "/nomercy-music-player/tour/crossfade",
+    "/player/music/equalizer": "/nomercy-music-player/tour/equalizer",
+    "/player/music/events": "/nomercy-music-player/reference/events",
+    "/player/music/framework-react": "/nomercy-music-player/recipes/react-integration",
+    "/player/music/framework-vue": "/nomercy-music-player/recipes/vue-integration",
+    "/player/music/lyrics": "/nomercy-music-player/tour/lyrics",
+    "/player/music/migration-v1-v2": "/nomercy-music-player/recipes/migrate-from-v1",
+    "/player/music/plugin-development": "/nomercy-music-player/plugins-adapters/plugin-development",
     "/player/music/quickstart": "/nomercy-music-player/quickstart",
 
     // -----------------------------------------------------------------------
     // /player/recipes/ — split by destination per R5 placements (git log)
     // -----------------------------------------------------------------------
-    "/player/recipes/": "/nomercy-player-core/recipes-index",
-    "/player/recipes/auth-and-tokens": "/nomercy-video-player/recipes/auth-and-tokens",
-    "/player/recipes/media-session": "/nomercy-video-player/recipes/media-session",
-    "/player/recipes/persistence": "/nomercy-video-player/recipes/persistence",
-    "/player/recipes/chapters": "/nomercy-video-player/recipes/chapters",
+    "/player/recipes/": "/nomercy-player-core/",
+    "/player/recipes/auth-and-tokens": "/nomercy-video-player/recipes/auth-tokens",
+    "/player/recipes/media-session": "/nomercy-video-player/plugins-adapters/media-session",
+    "/player/recipes/persistence": "/nomercy-video-player/recipes/resume-playback",
+    "/player/recipes/chapters": "/nomercy-video-player/tour/chapters",
     "/player/recipes/keyboard-shortcuts": "/nomercy-video-player/recipes/keyboard-shortcuts",
     "/player/recipes/quality-selection": "/nomercy-video-player/recipes/quality-selection",
-    "/player/recipes/subtitles": "/nomercy-video-player/recipes/subtitles",
-    "/player/recipes/playlist-and-queue": "/nomercy-video-player/recipes/playlist-and-queue",
-    "/player/recipes/crossfade-and-gapless": "/nomercy-music-player/recipes/crossfade-and-gapless",
-    "/player/recipes/lyrics-and-equalizer": "/nomercy-music-player/recipes/lyrics-and-equalizer",
+    "/player/recipes/subtitles": "/nomercy-video-player/tour/subtitles",
+    "/player/recipes/playlist-and-queue": "/nomercy-video-player/recipes/playlist-queue",
+    "/player/recipes/crossfade-and-gapless": "/nomercy-music-player/recipes/crossfade-gapless",
+    "/player/recipes/lyrics-and-equalizer": "/nomercy-music-player/recipes/lyrics-sync",
 
     // -----------------------------------------------------------------------
-    // /player/advanced/ — split by destination per git log
+    // /player/advanced/ — split by destination per git log. None of these
+    // sub-pages exist today; each points at the current page that covers the
+    // same ground (SSR-safety and multi-instance resolution both live in
+    // Composition Primitives, distributed playback's clock hook lives in
+    // Metrics/Clock/Accessibility) instead of a redirect chain into a 404.
     // -----------------------------------------------------------------------
-    "/player/advanced/": "/nomercy-player-core/advanced/",
-    "/player/advanced/custom-adapter": "/nomercy-player-core/advanced/custom-adapter",
-    "/player/advanced/custom-plugin": "/nomercy-player-core/advanced/custom-plugin",
-    "/player/advanced/multi-instance": "/nomercy-player-core/advanced/multi-instance",
-    "/player/advanced/custom-backend": "/nomercy-player-core/advanced/writing-a-backend",
-    "/player/advanced/distributed-playback": "/nomercy-video-player/advanced/distributed-playback",
-    "/player/advanced/embedding": "/nomercy-video-player/advanced/embedding",
-    "/player/advanced/migration-from-other-players": "/nomercy-video-player/advanced/migration-from-other-players",
-    "/player/advanced/performance": "/nomercy-video-player/advanced/performance",
-    "/player/advanced/server-side-rendering": "/nomercy-video-player/advanced/server-side-rendering",
+    "/player/advanced/": "/nomercy-player-core/",
+    "/player/advanced/custom-adapter": "/nomercy-player-core/recipes/swap-an-adapter",
+    "/player/advanced/custom-plugin": "/nomercy-player-core/build/add-a-plugin",
+    "/player/advanced/multi-instance": "/nomercy-player-core/reference/composition",
+    "/player/advanced/custom-backend": "/nomercy-player-core/build/backend-contract",
+    "/player/advanced/distributed-playback": "/nomercy-player-core/reference/metrics-and-accessibility",
+    "/player/advanced/embedding": "/nomercy-player-core/plugins-adapters/embed",
+    "/player/advanced/migration-from-other-players": "/nomercy-video-player/recipes/migrate-from-v1",
+    "/player/advanced/performance": "/nomercy-video-player/tour/quality",
+    "/player/advanced/server-side-rendering": "/nomercy-player-core/reference/composition",
 
     // -----------------------------------------------------------------------
     // Video plugin renames / removals (v2 API consolidation)
     // -----------------------------------------------------------------------
-    "/nomercy-video-player/plugins/tv-ui": "/nomercy-video-player/plugins/tv-key-handler",
-    "/nomercy-video-player/plugins/auto-advance": "/nomercy-video-player/recipes/playlist-and-queue",
+    "/nomercy-video-player/plugins/tv-ui": "/nomercy-video-player/plugins-adapters/tv-key-handler",
+    // video-player never had its own auto-advance plugin — the v1 concept is
+    // now the video-native `autoAdvance` config field; music's real
+    // AutoAdvancePlugin is a different library's page, not this one's target.
+    "/nomercy-video-player/plugins/auto-advance": "/nomercy-video-player/reference/config",
 
     // -----------------------------------------------------------------------
     // Trio introduction pages now render at the section base route
