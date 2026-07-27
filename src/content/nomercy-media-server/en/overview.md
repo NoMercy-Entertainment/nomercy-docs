@@ -5,7 +5,7 @@ description: Comprehensive overview of NoMercy MediaServer component.
 
 ## What is MediaServer?
 
-MediaServer is a core component of NoMercy that handles media file storage, organization, and streaming. It provides efficient management of your entertainment content library with powerful indexing and search capabilities.
+MediaServer is a core component of NoMercy that handles media file storage, organization, and streaming. It indexes your library as files arrive, matches them against metadata providers, and serves them to every NoMercy client.
 
 ## Key Features
 
