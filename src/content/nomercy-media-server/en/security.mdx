@@ -1,0 +1,84 @@
+---
+title: 'Blocking Abusive Traffic'
+description: 'How the server detects vulnerability scanners, bans them automatically, and publishes a deny-list your firewall can consume.'
+draft: false
+---
+
+# Blocking Abusive Traffic
+
+Any server reachable from the internet gets scanned. Within minutes of a new hostname appearing in the public certificate transparency logs, automated tools start asking it for WordPress admin pages, `.env` files and PHP shells. None of that exists on a NoMercy server, so every one of those requests is someone checking whether you are worth attacking.
+
+The server watches for that pattern and bans the address it comes from. Offences accumulate inside a rolling window, crossing the threshold produces a ban, and the ban expires on its own. If the same address comes back later, the next ban lasts longer. This is the same shape as fail2ban, running inside the server rather than beside it, which means it works whether you are reachable through a Cloudflare Tunnel or through a port forward on your router.
+
+## What counts as an offence
+
+Two things are treated as evidence.
+
+The first is a request for a path that belongs to software this server does not run. A request ending in `.php`, or containing `wp-admin`, `phpmyadmin`, `.git/`, `.env` or `cgi-bin`, is scored heavily. No NoMercy client, on any platform, ever asks for those.
+
+The second is a request for a path that never matched anything, from a caller who is not signed in. That is scored lightly, because a single one of those means very little on its own.
+
+Two things are deliberately **not** offences, because getting either wrong would lock out real people:
+
+- A rejected request that *did* match a real endpoint. A client holding an expired token hammers the API with failures, and none of them count. Your users cannot ban themselves by leaving a tab open over the weekend.
+- A missing static file. Browsers ask for stale bundles and old icons after every deploy, and those misses are ignored entirely.
+
+Addresses on your own network are never scored at all. That covers loopback, the private ranges (`10.x`, `172.16-31.x`, `192.168.x`), carrier-grade NAT and IPv6 link-local and unique-local addresses.
+
+## Settings
+
+Everything is in the dashboard under **Settings > Security**. There is nothing to put in a config file and no environment variable to set.
+
+| Setting | Default | What it does |
+|:--|:--|:--|
+| Enabled | on | Turns detection and enforcement off entirely when unchecked |
+| Offence threshold | `10` | Score that triggers a ban. A known exploit path scores `5`, an unmatched anonymous request scores `1` |
+| Window | `10` minutes | How long an offence stays on the tally |
+| Ban length | `60` minutes | Length of a first ban. Each repeat doubles it |
+| Longest ban | `7` days | Ceiling the doubling never passes |
+| Allowlist | empty | Addresses and CIDR ranges that are never scored |
+
+With the defaults, two exploit-path requests inside ten minutes are enough. Ten anonymous requests for paths that do not exist are also enough. A scanner reaches either in seconds; a person browsing your library reaches neither.
+
+The allowlist takes a comma separated list of addresses and ranges, for example `203.0.113.0/24, 198.51.100.7`. Use it for an office or a VPN exit you connect from, not for your LAN, which is already exempt.
+
+## Seeing and lifting bans
+
+**Settings > Security** lists every active ban with the address, why it was banned, the last path it asked for, how many offences it racked up, and when the ban lifts. Every ban has an undo button next to it.
+
+You can also ban an address by hand from the same screen. The server refuses to ban anything on your own network, so a slip of the keyboard cannot cut you off from your own dashboard.
+
+::Callout
+
+If you ever lock yourself out, the ban only affects the network path it came in on. Reach the server on its LAN address and the dashboard opens normally, because addresses on your own network are never banned.
+
+::
+
+## Feeding the list to pfSense
+
+When the server is reached through a Cloudflare Tunnel, Cloudflare is already blocking most of this traffic before it ever reaches your machine. When you use the regular port forwarding option instead, there is nothing in front of the server, so your firewall is the only place a bad address can be stopped before it costs you bandwidth.
+
+The server publishes its active bans as a plain text list, one address per line, at a URL that only you know. pfBlockerNG on pfSense can pull that URL on a schedule. You do not need SSH, an API key or any credential of ours on the firewall. It is one URL, pasted once.
+
+Copy the URL from **Settings > Security**, then in pfSense:
+
+1. Go to **Firewall > pfBlockerNG > IPv4** and press **Add**.
+2. Give the alias a name, for example `nomercy_bans`, and set **List Action** to `Deny Both`.
+3. Under **IPv4 Source Definitions**, paste the URL, set **Format** to `Auto` and **State** to `ON`.
+4. Set **Update Frequency** to `Every hour`.
+5. Save, then go to **Update**, choose **Force > Reload**, and run it.
+
+pfBlockerNG will now pick up new bans on its own schedule and drop expired ones when they leave the list.
+
+If the URL ever leaks, press **Rotate** on the same settings screen. The old URL stops working immediately, so update it in pfBlockerNG afterwards.
+
+::Callout
+
+The list contains addresses that attacked you, which is information worth keeping private. That is why the URL carries a secret token. Treat it like a password and do not post it anywhere public.
+
+::
+
+## Related
+
+- [Networking](/nomercy-media-server/networking) - port forwarding and tunnel setup
+- [Configuration](/nomercy-media-server/configuration) - startup flags and the web UI
