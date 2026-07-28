@@ -1,0 +1,20 @@
+---
+title: Music player events
+description: Every event the music surface announces, from ecosystem contract 2.0.2.
+---
+
+The music surface announces 5 events. Subscribe with the
+typed key rather than the string: the key carries the payload type, so a
+rename becomes a compile error instead of a listener that never fires.
+
+The `before` events are the cancellable seam. They are dispatched directly
+rather than through the emitter, so a firehose subscription does not see
+them and anything watching for one has to subscribe by name.
+
+| Event | Payload |
+| --- | --- |
+| `backend:changed` | `{ kind: AudioBackendKind }` |
+| `beforeCrossfade` | `BeforeEvent<{ from: T \| null; to: T; duration: number }>` |
+| `crossfadeComplete` | `{ item: T }` |
+| `crossfadePrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `crossfadeStart` | `{ from: T \| null; to: T; duration: number }` |

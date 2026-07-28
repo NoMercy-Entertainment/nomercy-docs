@@ -56,6 +56,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Recipes", pages: ['recipes/swap-an-adapter', 'recipes/custom-cue-parser', 'recipes/auth-fetch', 'recipes/custom-url-resolver'] },
     { group: "Plugins & Adapters", pages: ['plugins-adapters/audio-graph', 'plugins-adapters/equalizer', 'plugins-adapters/mixer', 'plugins-adapters/canvas', 'plugins-adapters/spectrum', 'plugins-adapters/visualization', 'plugins-adapters/cast-sender', 'plugins-adapters/embed', 'plugins-adapters/key-handler', 'plugins-adapters/media-session', 'plugins-adapters/message', 'plugins-adapters/tab-leader', 'plugins-adapters/adapter-storage', 'plugins-adapters/adapter-platform', 'plugins-adapters/adapter-stream-source', 'plugins-adapters/adapter-url-resolver', 'plugins-adapters/adapter-translator', 'plugins-adapters/adapter-cue-parser', 'plugins-adapters/adapter-preload-strategy', 'plugins-adapters/adapter-transition-strategy', 'plugins-adapters/adapter-shuffle-strategy', 'plugins-adapters/adapter-realtime-channel'] },
     { group: "Reference", pages: ['reference/composition', 'reference/config', 'reference/events', 'reference/types', 'reference/errors', 'reference/utilities', 'reference/metrics-and-accessibility', 'reference/testing'] },
+    { group: "Native (KMP)", pages: ['native/quickstart', 'native/migration', 'native/methods', 'native/events', 'native/errors'] },
   ],
   // v2 rebuild (see .rebuild/progress.md) — full 7-stage arc: introduction,
   // quickstart, tour, build, recipes, plugins-adapters, reference.
@@ -66,6 +67,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Recipes", pages: ['recipes/vue-integration', 'recipes/react-integration', 'recipes/svelte-integration', 'recipes/vanilla-integration', 'recipes/resume-playback', 'recipes/keyboard-shortcuts', 'recipes/quality-selection', 'recipes/playlist-queue', 'recipes/auth-tokens', 'recipes/migrate-from-v1'] },
     { group: "Plugins & Adapters", pages: ['plugins-adapters/plugin-development', 'plugins-adapters/desktop-ui', 'plugins-adapters/tv-key-handler', 'plugins-adapters/key-handler', 'plugins-adapters/cast-sender', 'plugins-adapters/subtitle-overlay', 'plugins-adapters/octopus', 'plugins-adapters/media-session', 'plugins-adapters/drm', 'plugins-adapters/touch-zones', 'plugins-adapters/adapter-video-backend', 'plugins-adapters/adapter-chapter-source', 'plugins-adapters/adapter-thumbnail-source', 'plugins-adapters/adapter-subtitle-style-store'] },
     { group: "Reference", pages: ['reference/config', 'reference/player-methods', 'reference/events', 'reference/types'] },
+    { group: "Native (KMP)", pages: ['native/quickstart', 'native/migration', 'native/methods', 'native/events'] },
   ],
   // v2 rebuild (see .rebuild/progress.md) — full 7-stage arc: introduction,
   // quickstart, tour, build, recipes, plugins-adapters, reference.
@@ -76,6 +78,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Recipes", pages: ['recipes/vue-integration', 'recipes/react-integration', 'recipes/svelte-integration', 'recipes/vanilla-integration', 'recipes/crossfade-gapless', 'recipes/lyrics-sync', 'recipes/equalizer-presets', 'recipes/scrobbling', 'recipes/queue-playlist', 'recipes/audio-output-switching', 'recipes/migrate-from-v1'] },
     { group: "Plugins & Adapters", pages: ['plugins-adapters/plugin-development', 'plugins-adapters/scrobble', 'plugins-adapters/auto-advance', 'plugins-adapters/lyrics', 'plugins-adapters/media-session', 'plugins-adapters/key-handler', 'plugins-adapters/cast-sender', 'plugins-adapters/adapter-audio-backend', 'plugins-adapters/adapter-similarity-engine'] },
     { group: "Reference", pages: ['reference/config', 'reference/player-methods', 'reference/events', 'reference/types'] },
+    { group: "Native (KMP)", pages: ['native/quickstart', 'native/migration', 'native/methods', 'native/events'] },
   ],
   'nomercy-api': [
     { group: "Getting Started", pages: ['overview'] },

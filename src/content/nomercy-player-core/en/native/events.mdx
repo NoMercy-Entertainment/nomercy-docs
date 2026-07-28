@@ -1,0 +1,167 @@
+---
+title: Core player events
+description: Every event the core surface announces, from ecosystem contract 2.0.2.
+---
+
+The core surface announces 152 events. Subscribe with the
+typed key rather than the string: the key carries the payload type, so a
+rename becomes a compile error instead of a listener that never fires.
+
+The `before` events are the cancellable seam. They are dispatched directly
+rather than through the emitter, so a firehose subscription does not see
+them and anything watching for one has to subscribe by name.
+
+| Event | Payload |
+| --- | --- |
+| `activity` | `{ active: boolean }` |
+| `audioTrack` | `{ id: number \| null }` |
+| `audioTrackPrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `audioTrackState` | `{ state: 'default' \| 'manual' }` |
+| `auth:failed` | `{ error: PlayerErrorEvent['error'] }` |
+| `auth:refreshed` | `{ tokenAcquiredAt: number }` |
+| `authReady` | `void` |
+| `authReadyError` | `PlayerErrorEvent` |
+| `backend:changed` | `{ kind: string }` |
+| `backend:error` | `{ error: PlayerErrorEvent['error']; kind: string }` |
+| `backend:loaded` | `{ url: string; kind: string; duration: number }` |
+| `backend:loading` | `{ url: string; kind: string }` |
+| `backend:ratechange` | `{ rate: number }` |
+| `backend:stalled` | `{ time: number }` |
+| `backend:waiting` | `void` |
+| `backlog` | `I[]` |
+| `backlog:append` | `{ items: I[] }` |
+| `backlog:clear` | `{ previousLength: number }` |
+| `backlog:remove` | `{ id: string \| number; index: number; item: I }` |
+| `beforeAudioTrack` | `BeforeEvent<{ id: number }>` |
+| `beforeDispose` | `BeforeEvent<void>` |
+| `beforeLanguage` | `BeforeEvent<{ lang: string }>` |
+| `beforeLoad` | `BeforeEvent<{ item: I; source?: ActionSource }>` |
+| `beforeMutation` | `BeforeEvent<{ 		method: string; 		args: ReadonlyArray<unknown>; 		phase: PlayerPhase; 		dispatchStack: ReadonlyArray<string>; 	}>` |
+| `beforeMute` | `BeforeEvent<{ muted: boolean }>` |
+| `beforeNext` | `BeforeEvent<ActionOptions>` |
+| `beforePause` | `BeforeEvent<ActionOptions>` |
+| `beforePlay` | `BeforeEvent<ActionOptions>` |
+| `beforePlaybackRate` | `BeforeEvent<{ rate: number }>` |
+| `beforePrevious` | `BeforeEvent<ActionOptions>` |
+| `beforeRepeat` | `BeforeEvent<{ state: RepeatState }>` |
+| `beforeSeek` | `BeforeEvent<{ time: number; source?: ActionSource }>` |
+| `beforeSetup` | `void` |
+| `beforeShuffle` | `BeforeEvent<{ state: ShuffleState }>` |
+| `beforeStop` | `BeforeEvent<ActionOptions>` |
+| `beforeSubtitle` | `BeforeEvent<{ track: number \| null }>` |
+| `beforeTransfer` | `BeforeEvent<{ target: CastTarget }>` |
+| `beforeVolume` | `BeforeEvent<{ level: number }>` |
+| `castState` | `{ state: CastState }` |
+| `chapter` | `{ index: number; title: string }` |
+| `chapters` | `{ chapters: ReadonlyArray<Chapter> }` |
+| `configResolved` | `{ config: BasePlayerConfig }` |
+| `configResolvedError` | `PlayerErrorEvent` |
+| `cue:enter` | `CueEventPayload` |
+| `cue:exit` | `CueEventPayload` |
+| `dispose` | `void` |
+| `disposePrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `duration` | `{ duration: number }` |
+| `ended` | `void` |
+| `error` | `PlayerErrorEvent` |
+| `fatal` | `PlayerErrorEvent` |
+| `fetch:complete` | `{ url: string; ok: boolean; status?: number; durationMs: number; pluginId?: string }` |
+| `fetch:retry` | `{ url: string; attempt: number; reason: 'unauthenticated' \| 'http-5xx' \| 'timeout' \| 'network'; delayMs: number; pluginId?: string }` |
+| `fetch:start` | `{ url: string; pluginId?: string }` |
+| `firstFrame` | `void` |
+| `info` | `PlayerErrorEvent` |
+| `item` | `{ item: I \| undefined; index: number }` |
+| `itemEndingSoon` | `{ remaining: number; item: I }` |
+| `language` | `{ lang: string }` |
+| `languagePrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `level-switched` | `{ level: number }` |
+| `listeners-changed` | `{ name: string; count: number }` |
+| `loadPrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `mediaReady` | `void` |
+| `mediaReadyError` | `PlayerErrorEvent` |
+| `mutationPrevented` | `{ method: string; reason: PreventedReason; cause?: unknown }` |
+| `mute` | `{ muted: boolean }` |
+| `mutePrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `network:offline` | `void` |
+| `network:online` | `void` |
+| `network:slow` | `{ rttMs: number \| undefined }` |
+| `next` | `ActionOptions` |
+| `nextPrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `pause` | `ActionOptions` |
+| `pausePrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `phase` | `{ from: PlayerPhase; to: PlayerPhase }` |
+| `play` | `ActionOptions` |
+| `playPrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `playback:metrics` | `PlaybackMetrics` |
+| `playbackRate` | `{ rate: number }` |
+| `playbackRatePrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `playing` | `void` |
+| `playlistError` | `{ url: string; error: Error; code: string }` |
+| `playlistReady` | `{ length: number }` |
+| `playlistResolveError` | `PlayerErrorEvent` |
+| `playlistResolving` | `{ url: string }` |
+| `plugin:disabled` | `{ id: string; reason?: string }` |
+| `plugin:disposed` | `{ id: string }` |
+| `plugin:enabled` | `{ id: string }` |
+| `plugin:error` | `PlayerErrorEvent` |
+| `plugin:failed` | `{ id: string; error: PlayerErrorEvent['error'] }` |
+| `plugin:installed` | `{ id: string; version: string }` |
+| `plugin:opts:changed` | `{ id: string; opts: unknown }` |
+| `plugin:warning` | `PlayerErrorEvent` |
+| `pluginsRegistered` | `void` |
+| `pluginsRegisteredError` | `PlayerErrorEvent` |
+| `pluginsRegistering` | `void` |
+| `pluginsRegisteringError` | `PlayerErrorEvent` |
+| `preloadComplete` | `{ item: I }` |
+| `preloadError` | `{ item: I; error: unknown }` |
+| `preloadProgress` | `{ item: I; loaded: number; total: number }` |
+| `preloadStart` | `{ item: I; assets: ReadonlyArray<{ url: string; category: string }> }` |
+| `previous` | `ActionOptions` |
+| `previousPrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `progress` | `{ time: number; duration: number; percentage: number }` |
+| `qualityState` | `{ state: 'auto' \| 'manual' }` |
+| `queue` | `I[]` |
+| `queue:append` | `{ items: I[]; from: number }` |
+| `queue:clear` | `{ previousLength: number }` |
+| `queue:exhausted` | `void` |
+| `queue:insert` | `{ items: I[]; index: number }` |
+| `queue:move` | `{ from: number; to: number }` |
+| `queue:prepend` | `{ items: I[] }` |
+| `queue:remove` | `{ id: string \| number; index: number; item: I }` |
+| `queue:shuffle` | `void` |
+| `queue:sort` | `void` |
+| `ready` | `void` |
+| `repeat` | `{ state: RepeatState }` |
+| `repeatPrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `seek` | `{ time: number; source?: ActionSource }` |
+| `seekPrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `seeked` | `{ time: number }` |
+| `setupStart` | `{ container: HTMLElement }` |
+| `setupStartError` | `PlayerErrorEvent` |
+| `shuffle` | `{ state: ShuffleState }` |
+| `shufflePrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `stop` | `ActionOptions` |
+| `stopPrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `stream:encrypted` | `{ initData: ArrayBuffer; initDataType: string }` |
+| `stream:error` | `{ details: string; fatal: boolean }` |
+| `stream:fragment-loaded` | `{ url: string; durationMs: number }` |
+| `stream:level-considered` | `{ candidate: number; decided: number; reason: string }` |
+| `stream:level-switched` | `{ level: number; label: string }` |
+| `stream:manifest-loaded` | `{ url: string }` |
+| `streamsReady` | `void` |
+| `streamsReadyError` | `PlayerErrorEvent` |
+| `subtitle` | `{ track: number \| null }` |
+| `subtitleCue` | `SubtitleCueChange` |
+| `subtitlePrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `subtitleStyle` | `SubtitleStyle` |
+| `subtitles` | `{ tracks: ReadonlyArray<SubtitleTrack> }` |
+| `time` | `TimeState` |
+| `transferPrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `transitionCancelled` | `{ reason: string }` |
+| `transitionComplete` | `{ from: I; to: I }` |
+| `transitionProgress` | `{ outgoing: I; incoming: I; fraction: number }` |
+| `transitionStart` | `{ outgoing: I; incoming: I }` |
+| `visibility:hidden` | `void` |
+| `visibility:visible` | `void` |
+| `volume` | `{ level: number }` |
+| `volumePrevented` | `{ reason: PreventedReason; cause?: unknown }` |
+| `warning` | `PlayerErrorEvent` |

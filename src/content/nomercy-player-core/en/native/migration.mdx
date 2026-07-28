@@ -1,0 +1,48 @@
+---
+title: Migrating to the native core
+description: Moving Kotlin or Swift code off a hand-rolled player state machine.
+---
+
+The code this replaces is rarely called a player. It is a view model holding a
+boolean and a position, a service holding a queue, and a screen holding the
+rules about which of the two wins. Splitting them was never a decision; they
+grew where they were needed.
+
+## What moves
+
+The state machine, the queue cursor, the event bus and the plugin runtime. Those
+four are what core is. Anything in your code doing one of them has a counterpart
+here, and keeping both is how the two come to disagree.
+
+The engine does not move. `MediaBackend` is a port with three implementations
+already written, and a fourth is a class you supply.
+
+## Kotlin
+
+```kotlin
+val player = ComposedPlayer(backend)
+```
+
+Replace reads first. A view model that exposed `isPlaying` exposes
+`player.stateFlow` instead, and everything binding to it keeps working. Replace
+writes second: a screen that flipped a boolean and told the engine now calls
+`player.play()` and lets the announcement do the telling.
+
+Replace the queue last, because it is the one with rules in it. Shuffle, repeat
+and what plays next are all here, and moving them one at a time leaves a window
+where both are deciding.
+
+## Swift
+
+`ComposedPlayer` arrives through the XCFramework with every Kotlin default
+argument spelled out, because defaults do not cross to Objective-C. The
+constructor takes twelve arguments and most of them are nil; the surface file in
+the repository writes them out in full so the cost is visible rather than
+described.
+
+## Verifying the move
+
+The testing kit is the thing that makes this safe to do incrementally. Register
+what you moved as a plugin, drive it with `testPlugin`, and the harness tells
+you whether it cleaned up after itself. A screen that used to hold state and now
+holds a subscription is exactly the shape that leaks.

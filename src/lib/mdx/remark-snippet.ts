@@ -15,10 +15,20 @@ import type { Root } from 'mdast';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const examplesDir = path.resolve(currentDir, '../../examples');
+// The native snippets, in their own directories because they are their own
+// languages: `check:examples` runs tsc over `src/examples` and would choke on a
+// .kt file sitting in it, and the Kotlin and Swift gates each need a directory
+// they can hand whole to a compiler.
+const kotlinExamplesDir = path.resolve(currentDir, '../../examples-kmp');
+const swiftExamplesDir = path.resolve(currentDir, '../../examples-swift');
 const mediaPath = path.join(examplesDir, 'media.ts');
 const prettierRcPath = path.resolve(currentDir, '../../../.prettierrc.json');
 
 const DIRECTIVE_NODE_TYPES = ['containerDirective', 'leafDirective'] as const;
+
+// What a snippet can be written in. The first two run in the browser and get a
+// live island; the last two are compiled by their own gates and shown as code.
+type SnippetLang = 'ts' | 'tsx' | 'kotlin' | 'swift';
 
 /**
  * Remark plugin: snippet directive
@@ -68,14 +78,30 @@ const DIRECTIVE_NODE_TYPES = ['containerDirective', 'leafDirective'] as const;
  * so a typo'd `file` attribute fails loudly instead of an opaque ENOENT deep
  * in the MDX/rollup pipeline.
  */
-function resolveExampleFile(file: string): { path: string; lang: 'ts' | 'tsx' } {
-  const tsPath = path.join(examplesDir, `${file}.ts`);
-  if (existsSync(tsPath)) return { path: tsPath, lang: 'ts' };
-  const tsxPath = path.join(examplesDir, `${file}.tsx`);
-  if (existsSync(tsxPath)) return { path: tsxPath, lang: 'tsx' };
+function resolveExampleFile(file: string): { path: string; lang: SnippetLang } {
+  const candidates: Array<{ path: string; lang: SnippetLang }> = [
+    { path: path.join(examplesDir, `${file}.ts`), lang: 'ts' },
+    { path: path.join(examplesDir, `${file}.tsx`), lang: 'tsx' },
+    // Kotlin and Swift come last so a name that exists in both worlds keeps
+    // resolving to the web one, which is what every existing page means.
+    { path: path.join(kotlinExamplesDir, `${file}.kt`), lang: 'kotlin' },
+    { path: path.join(swiftExamplesDir, `${file}.swift`), lang: 'swift' },
+  ];
+  const found = candidates.find((candidate) => existsSync(candidate.path));
+  if (found) return found;
   throw new Error(
-    `:::snippet{file="${file}"} — no example file found at either "${tsPath}" or "${tsxPath}".`,
+    `:::snippet{file="${file}"} — no example file found at any of:` +
+      candidates.map((candidate) => `
+  ${candidate.path}`).join(''),
   );
+}
+
+// A native snippet has no live island and never will: the preview mounts a real
+// browser player, and there is no browser in a Kotlin quickstart. The directive
+// still reads the real compiled file, which is the part that matters — what the
+// page shows is what the compiler checked.
+function isNative(lang: SnippetLang): boolean {
+  return lang === 'kotlin' || lang === 'swift';
 }
 
 /** Strip a leading SPDX/Copyright license comment block and the blank lines after it. */
@@ -417,7 +443,7 @@ function prettierOptions(): Record<string, unknown> {
 }
 
 /** Formats displayed code through the repo's own Prettier config so text-surgery (media inlining, runnable call-site rewriting) always renders with consistent indentation, regardless of the source position the inlined text was lifted from. Falls back to the unformatted string if Prettier can't parse it (should not happen for valid ts/tsx — fails loudly via the thrown reason logged to the console, rather than silently shipping a stack trace as page content). */
-async function formatDisplaySource(code: string, lang: 'ts' | 'tsx'): Promise<string> {
+async function formatDisplaySource(code: string, lang: SnippetLang): Promise<string> {
   try {
     const formatted = await prettierFormat(code, {
       ...prettierOptions(),
@@ -433,8 +459,12 @@ async function formatDisplaySource(code: string, lang: 'ts' | 'tsx'): Promise<st
 }
 
 /** License-stripped, `./media` inlined, and (when the directive marks it `runnable`) rewritten to copy-paste form — then run through Prettier so the displayed block always reads clean regardless of where its pieces were lifted from. */
-async function toDisplaySource(source: string, runnable: boolean, lang: 'ts' | 'tsx'): Promise<string> {
+async function toDisplaySource(source: string, runnable: boolean, lang: SnippetLang): Promise<string> {
   const stripped = stripLicenseHeader(source);
+  // Prettier has no Kotlin or Swift parser, and the media inlining below is
+  // about a TypeScript module's imports. A native snippet is shown exactly as
+  // it compiles.
+  if (isNative(lang)) return stripped;
   const deMedia = inlineMediaImports(stripped);
   const out = (runnable ? toRunnableSnippet(deMedia) : null) ?? deMedia;
   return formatDisplaySource(out, lang);
@@ -444,7 +474,7 @@ interface PendingSnippet {
   parent: any;
   index: number;
   file: string;
-  resolved: { path: string; lang: 'ts' | 'tsx' };
+  resolved: { path: string; lang: SnippetLang };
   live: boolean;
   runnable: boolean;
   playerFirst: boolean;
@@ -495,7 +525,11 @@ export function remarkSnippet() {
       const codeValue = await toDisplaySource(source, runnable, resolved.lang);
 
       const codeNode: any = { type: 'code', lang: resolved.lang, value: codeValue };
-      if (!live) {
+      // A native snippet never gets the island, whatever the directive said.
+      // The preview mounts a real browser player and there is no browser in a
+      // Kotlin quickstart; forcing it would leave a permanent error state on
+      // the page, which is a faked result rather than a missing one.
+      if (!live || isNative(resolved.lang)) {
         replacements.push({ parent, index, nodes: [codeNode] });
         continue;
       }

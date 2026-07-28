@@ -1,0 +1,57 @@
+---
+title: Migrating an app to the native player
+description: Moving a Kotlin or Swift app off its own embedded player.
+---
+
+Most apps arrive here with a player already in them: an ExoPlayer wired directly
+into a screen, or an AVPlayer with hand-drawn controls. The move is not a
+rewrite. The engine you have keeps decoding; what changes is who owns the state
+above it and who draws the controls.
+
+## What to delete
+
+The parts worth removing are the ones this library already answers for, and the
+list is longer than it looks. Anything tracking whether playback is running,
+anything converting a position into a progress fraction, anything remembering a
+selected subtitle across a track change, and anything deciding when the controls
+hide. Those are the four places two clients of the same server drift apart, and
+they are the four the library holds one answer for.
+
+Keep your engine setup, your data source, your auth headers and your surface.
+
+## Kotlin
+
+Wrap the engine you already build rather than replacing it.
+
+```kotlin
+val backend = ExoPlayerVideoBackend(context)
+val player = NMVideoPlayer(backend)
+```
+
+`NMVideoPlayer` is a `ComposedPlayer`, so everything the core reference lists is
+on it. Where your screen read `exoPlayer.isPlaying`, read `player.state()` or
+collect `player.stateFlow`. Where it called `exoPlayer.seekTo(ms)`, call
+`player.time(seconds)` and let the announcement reach anything else listening.
+
+Swap your controls last. `NMVideoPlayerView` takes the player and an optional
+surface, and a screen can mount it beside its own chrome while you move one
+control at a time.
+
+## Swift
+
+Conform what you have to `VideoEngine` rather than adopting a new engine. It is
+seven members: the `AVPlayer`, an observe callback, three transport calls and
+three selection calls. Hand that to `EngineVideoPlayer` and the chrome works
+over it.
+
+The engine adapter for the Kotlin core is not shipped yet. Until it is, an
+Apple app conforms its own AVFoundation code to `VideoEngine` and gets the full
+chrome over it, which is the path the quickstart shows.
+
+## What you gain by moving
+
+Plugins. Once the player owns the state, a feature is a plugin rather than a
+change to a screen: it registers, listens, contributes UI, and unregisters
+cleanly. The
+[plugin scaffold](https://github.com/NoMercy-Entertainment/nomercy-player-core-kmp/tree/master/templates/plugin)
+is a working one to copy, and the shipped testing kit tests it without a device.

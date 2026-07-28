@@ -1,0 +1,64 @@
+---
+title: Native quickstart
+description: One dependency and one view, on Android, the desktop, iOS and tvOS.
+---
+
+The native music player is the same library as the web one, ported rather than
+reimplemented: the same method names, the same events, the same error codes, all
+generated from one contract and checked against it on every build. What differs
+is the toolkit underneath. Android and the desktop draw in Compose, Apple draws
+in SwiftUI, and both mount the same engine.
+
+## Android and desktop
+
+One coordinate for the engine, one for the chrome. An application that already
+draws its own controls takes the first and leaves the second.
+
+```kotlin
+dependencies {
+    implementation("tv.nomercy:nomercy-music-player-kmp:2.0.0-rc.1")
+    implementation("tv.nomercy:nomercy-music-player-compose:2.0.0-rc.1")
+}
+```
+
+Then the two surfaces a music app needs. `MiniPlayer` is the bar that sits at
+the edge of every screen; `FullPlayerScreen` is what it expands into. Both read
+one `MusicChromeState` and send one set of commands, so the two can never
+disagree about what is playing.
+
+```kotlin
+val player = NMMusicPlayer(backend)
+val chrome = rememberMusicChrome(player)
+
+MiniPlayer(state = chrome.state, commands = chrome.commands)
+```
+
+## iOS and tvOS
+
+Add the Swift package and take the drop-in product.
+
+```swift
+.package(url: "https://github.com/NoMercy-Entertainment/nomercy-music-player-kmp.git", from: "2.0.0")
+```
+
+The SwiftUI half mirrors the Compose one name for name: `MiniPlayer` and
+`FullPlayerScreen` over the same state, with `MusicScrubber` and `QueueList` as
+the pieces underneath. Apple gets SwiftUI rather than Compose because an
+application already drawing its chrome in SwiftUI does not want a second toolkit
+in the process.
+
+## Writing a plugin
+
+Scrobbling, lyrics and auto-advance are plugins rather than player features, and
+so is whatever you need that this list does not have. The scaffold is a working
+plugin to copy:
+
+:::snippet{file="plugin-authoring"}
+:::
+
+## Next
+
+The [methods reference](/nomercy-music-player/native/methods) lists every call
+the music surface answers for, and the
+[migration guide](/nomercy-music-player/native/migration) covers moving an app
+off its own embedded player.

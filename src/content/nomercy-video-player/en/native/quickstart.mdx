@@ -1,0 +1,58 @@
+---
+title: Native quickstart
+description: One dependency and one view, on Android, the desktop, iOS and tvOS.
+---
+
+The native video player is the same library as the web one, ported rather than
+reimplemented: the same method names, the same events, the same error codes, all
+generated from one contract and checked against it on every build. What differs
+is the toolkit underneath. Android and the desktop draw in Compose, Apple draws
+in SwiftUI, and both mount the same engine.
+
+## Android and desktop
+
+One coordinate for the engine, one for the chrome. An application that already
+draws its own controls takes the first and leaves the second.
+
+```kotlin
+dependencies {
+    implementation("tv.nomercy:nomercy-video-player-kmp:2.0.0-rc.1")
+    implementation("tv.nomercy:nomercy-video-player-compose:2.0.0-rc.1")
+}
+```
+
+Then one view. `NMVideoPlayerView` reads the device it is on and mounts the
+touch chrome or the focus chrome accordingly, so the same call is a phone player
+and a television player with different hands on it.
+
+:::snippet{file="kotlin-quickstart"}
+:::
+
+The engine is `ExoPlayerVideoBackend` on Android and `VlcjVideoBackend` on the
+desktop. Both implement the same `VideoBackend`, so everything above the seam is
+identical and the only per-platform line is the one that constructs the engine.
+
+## iOS and tvOS
+
+Add the Swift package and take the drop-in product.
+
+```swift
+.package(url: "https://github.com/NoMercy-Entertainment/nomercy-video-player-kmp.git", from: "2.0.0")
+```
+
+`NMVideoChromeView` draws the controls and reads everything it shows off the
+object you hand it. `EngineVideoPlayer` is the projection it observes, and it
+forwards to anything conforming to `VideoEngine`, which is seven members.
+
+:::snippet{file="swift-quickstart"}
+:::
+
+Apple gets SwiftUI rather than Compose because an application already drawing
+its chrome in SwiftUI does not want a second toolkit in the process.
+
+## Next
+
+The [methods reference](/nomercy-video-player/native/methods) lists every
+call the video surface answers for, and the
+[migration guide](/nomercy-video-player/native/migration) covers moving an
+app off its own embedded player.
