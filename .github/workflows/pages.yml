@@ -22,6 +22,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # The generated API reference is written from the ecosystem contract, and
+      # the coverage gate measures against the same file. It lives in its own
+      # repository, which a standalone docs checkout does not have.
+      - name: Fetch the ecosystem contract
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --filter=blob:none --quiet \
+            "https://github.com/NoMercy-Entertainment/nomercy-player-contract.git" \
+            .player-contract
+          echo "PLAYER_CONTRACT=$PWD/.player-contract/contract/contract.json" >> "$GITHUB_ENV"
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -46,6 +57,41 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
+  # The Kotlin snippets, compiled against the real coordinates.
+  #
+  # A separate job rather than a step in `npm run build`, and that is a decision
+  # rather than an oversight. `check:examples` is tsc and needs only node; this
+  # needs a JDK, the Android SDK and the three player libraries resolvable.
+  # Putting all of that in the command a docs writer runs to see their page is
+  # how a gate gets deleted.
+  #
+  # Until the libraries are on Central they are published to the runner's local
+  # repository first, which is the same thing the acceptance consumers do.
+  native-snippets:
+    runs-on: [self-hosted, Linux, X64, beast-unit]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Publish the player libraries locally
+        run: |
+          set -euo pipefail
+          for repo in nomercy-player-core-kmp nomercy-video-player-kmp nomercy-music-player-kmp; do
+            git clone --depth 1 --quiet \
+              "https://github.com/NoMercy-Entertainment/$repo.git" ".native/$repo"
+            (cd ".native/$repo" && ./gradlew publishToMavenLocal --console=plain -q)
+          done
+
+      - name: Every Kotlin snippet compiles
+        run: node scripts/check-examples-kmp.mjs
 
   deploy:
     needs: build

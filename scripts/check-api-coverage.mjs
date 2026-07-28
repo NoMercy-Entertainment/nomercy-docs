@@ -20,9 +20,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const monorepo = path.resolve(root, '..', '..');
 
 const CONTRACT_CANDIDATES = [
+  // An explicit path wins, so CI can clone the contract wherever it likes
+  // rather than having to reproduce the monorepo's directory layout around a
+  // standalone checkout.
+  process.env.PLAYER_CONTRACT,
   path.join(monorepo, 'tools', 'player-contract', 'contract', 'contract.json'),
   path.join(monorepo, 'packages-native', 'nomercy-player-core-kmp', 'contract', 'contract.json'),
-];
+].filter(Boolean);
 
 const COLLECTIONS = [
   'nomercy-player-core',
