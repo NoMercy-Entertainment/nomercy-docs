@@ -44,6 +44,17 @@ const result = spawnSync(wrapper, ['assemble', '--console=plain', '-q'], {
   shell: process.platform === 'win32',
 });
 
+// The wrapper failing to launch and a snippet failing to compile are different
+// problems with the same exit code, and the first one prints nothing at all.
+// It has happened twice now — a gradlew and a check.sh both committed without
+// their executable bit — and both times the log read as broken code.
+if (result.error) {
+  console.error(`could not run ${wrapper}: ${result.error.message}`);
+  console.error('If this is a permission error, the wrapper lost its executable bit:');
+  console.error('  git update-index --chmod=+x native-examples/gradlew');
+  process.exit(2);
+}
+
 if (result.status !== 0) {
   console.error('\nA Kotlin snippet under src/examples-kmp does not compile.');
   console.error('The page renders that file verbatim, so what a reader copies would not build either.');
