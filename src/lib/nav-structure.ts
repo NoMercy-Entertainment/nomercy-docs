@@ -18,7 +18,7 @@ export interface NavGroupDef {
 export const navStructure: Record<string, NavGroupDef[]> = {
   'nomercy-media-server': [
     { group: "Getting Started", pages: ['installation-guide', 'overview', 'installation/windows', 'installation/linux-deb', 'installation/linux-rpm', 'installation/linux-arch', 'installation/macos', 'installation/docker', 'installation/nas', 'first-run'] },
-    { group: "Plugins", pages: ['plugins/overview', 'plugins/installing', 'plugins/trusted-publishers', 'plugins/developing'] },
+    { group: "Plugins", pages: ['plugins/overview', 'plugins/installing', 'plugins/repository-index', 'plugins/trusted-publishers', 'plugins/developing'] },
     { group: "Configuration", pages: ['configuration', 'libraries', 'users', 'storage', 'networking', 'security'] },
     { group: "The CLI", pages: ['cli/overview', 'cli/start-stop', 'cli/logs', 'cli/config', 'cli/plugins-cli', 'cli/queue', 'cli/update', 'cli/autostart'] },
     { group: "Media", pages: ['media/scanning', 'media/metadata', 'media/specials', 'media/optical'] },

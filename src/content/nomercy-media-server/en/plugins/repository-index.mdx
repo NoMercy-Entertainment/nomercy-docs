@@ -1,0 +1,111 @@
+---
+title: 'Publishing a Plugin Repository'
+description: 'The index file a repository serves, and what the server does with it.'
+draft: false
+---
+
+# Publishing a Plugin Repository
+
+A repository is one JSON file on a web server. The media server fetches that URL, reads the
+plugins it lists, and shows them in the catalogue. There is nothing else to run and nothing
+to register with us: if you can serve a file over https, you can publish plugins.
+
+## The index
+
+The server asks for the URL you gave it and expects this document back.
+
+```json
+{
+  "name": "Example Plugins",
+  "url": "https://plugins.example.com",
+  "plugins": [
+    {
+      "id": "6f9619ff-8b86-d011-b42d-00cf4fc964ff",
+      "name": "Example.Plugin",
+      "description": "What this plugin does, in one line.",
+      "author": "Your name",
+      "projectUrl": "https://github.com/you/example-plugin",
+      "versions": [
+        {
+          "version": "1.2.0",
+          "targetAbi": "1.0",
+          "downloadUrl": "https://plugins.example.com/example-plugin/1.2.0/Example.Plugin.dll",
+          "checksum": "sha256-of-the-dll-in-lowercase-hex",
+          "changelog": "What changed in this version.",
+          "timestamp": "2026-07-30T00:00:00Z"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Field names are matched case-insensitively, trailing commas are allowed, and comments are
+skipped, so a hand-maintained index is not a trap.
+
+### Repository fields
+
+The two top-level strings are for humans. Only `plugins` changes what the server does.
+
+| Field | Required | What it is |
+|---|---|---|
+| `name` | yes | The repository's own name. Shown nowhere yet; kept so an index identifies itself. |
+| `url` | no | A homepage for the repository. |
+| `plugins` | yes | Every plugin this repository offers. An empty list is valid and means you publish nothing today. |
+
+### Plugin fields
+
+One entry per plugin, not per version. The `id` is the identity the server matches against
+what is installed, so it has to be the same GUID the plugin's own manifest declares.
+
+| Field | Required | What it is |
+|---|---|---|
+| `id` | yes | The plugin's GUID, identical to the `id` in its `plugin.json`. |
+| `name` | yes | The plugin's name. The server names the downloaded assembly after this. |
+| `description` | yes | One line, shown in the catalogue. |
+| `author` | no | Shown beside the name. |
+| `projectUrl` | no | Where someone reads more before installing. |
+| `versions` | yes | Every version you still offer, in any order. |
+
+### Version fields
+
+The server picks the highest version it can parse, so a version that does not parse sorts
+below every one that does rather than breaking the entry.
+
+| Field | Required | What it is |
+|---|---|---|
+| `version` | yes | Dotted numeric, for example `1.2.0`. This is what gets compared. |
+| `downloadUrl` | yes | A direct link to the `.dll`. The server fetches this; a browser never sees it. |
+| `targetAbi` | no | The plugin platform version this build targets. |
+| `checksum` | no | SHA-256 of the file at `downloadUrl`. See below. |
+| `changelog` | no | What changed. |
+| `timestamp` | no | When this version was published. |
+
+## Checksums
+
+Publish one. The server verifies the file it downloaded against `checksum` before anything
+is copied into the plugins folder, and a mismatch aborts the install.
+
+A version without a checksum still installs. The catalogue marks it unverified and the
+owner is told, in the confirmation prompt, that nothing can be checked before it lands. That
+is a choice you are making on their behalf, so make the other one.
+
+## What the server will not do
+
+Your index says where a download lives, and that is the only place an install from your
+repository can reach. The dashboard sends a plugin id and a version, never a URL, so nobody
+using the web app can point an install somewhere you did not publish.
+
+Listing a plugin does not grant it anything. Every plugin still declares its capabilities in
+its own manifest, still installs disabled when it asks for more than the baseline, and still
+waits for the server owner to approve what it asked for. A repository is a place to find
+plugins, not a way to skip consent.
+
+## Serving it
+
+Static hosting is enough. The server issues a plain GET and reads the body, so object
+storage, GitHub Pages, a raw file from a Git host, or nginx serving a directory all work.
+
+Two things to get right. Serve it over https, because the server refuses any other scheme
+when a repository is added. And set your cache headers deliberately: the catalogue is only
+as fresh as what your host hands back when the owner presses Refresh.

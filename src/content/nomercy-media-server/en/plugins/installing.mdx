@@ -6,8 +6,74 @@ draft: false
 
 # Installing and Managing Plugins
 
-::Callout
+Everything here lives on one screen, under Dashboard > Plugins. It is owner-only on every
+client, because approving what a plugin may do is the server owner's decision and nobody
+else's.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Two ways in
 
-::
+You can hand the server a file, or point it at a repository and pick from what that
+repository offers. Both end in the same place: the plugin is on disk, disabled, waiting for
+you to look at what it asked for.
+
+**A file you already have.** Press Install on the plugins page and pick the plugin's `.dll`.
+The upload is staged outside the plugins folder and only moves in once it passes
+verification, so a file the server rejects is never left somewhere it would be found on the
+next start.
+
+**A repository.** Open the catalogue, add a repository by name and index URL, then install
+from the list. The server resolves the download against its own copy of that index, so the
+browser never names a URL. If the repository published a checksum it is checked before
+anything is copied into place, and if it did not, the prompt says so before you agree.
+
+Publishing your own index is one JSON file. See
+[Publishing a Plugin Repository](/nomercy-media-server/plugins/repository-index).
+
+## Approving what a plugin asked for
+
+A plugin declares what it needs before it runs: outbound hosts, hooks, whether it serves
+REST or a socket, and which screens it contributes. Anything past the baseline installs
+disabled and cannot start itself.
+
+The plugin's page shows that declaration in full, hosts included, rather than the word
+"network". Approving is one action that records your consent, records the grants that came
+with it, and starts the plugin. Withdrawing takes all of that back and stops the plugin, and
+you can approve again later.
+
+Some plugins ask for something afterwards that their manifest could not know up front, such
+as a host they only learn about at runtime. Those requests sit at the top of the plugins
+page until you allow or deny them, because a plugin waiting on you is a plugin not doing its
+job.
+
+## Turning one off
+
+Disable stops the plugin and leaves it installed with its configuration intact. Use it to
+find out whether a plugin is behind something you are seeing.
+
+Some changes need the server restarted before they take effect. The plugin's row says so
+when that is the case, and says why. When it says nothing, the change is already live.
+
+## Removing one
+
+Uninstall removes the plugin and its files from the server. Anything it stored goes with it
+and is not recovered, so the dashboard asks first.
+
+## Updates
+
+The catalogue compares what each repository offers against what is installed, and puts
+anything newer at the top of its own page. The comparison happens on the server, so every
+client agrees about whether an update exists.
+
+Updating is the same operation as installing, against a newer version.
+
+## When a plugin fails to load
+
+A plugin that broke on startup is listed apart from the ones you turned off. It is not off,
+because nobody chose this, and enabling it again fails the same way until the cause is
+fixed. The server log says what went wrong.
+
+## Configuring one
+
+A plugin's settings live inside the plugin, on the screens it registered. Those appear on
+its page and in the sidebar once it is enabled, and the server hands each screen back to the
+plugin to draw.
