@@ -32,6 +32,20 @@ The engine is `ExoPlayerVideoBackend` on Android and `VlcjVideoBackend` on the
 desktop. Both implement the same `VideoBackend`, so everything above the seam is
 identical and the only per-platform line is the one that constructs the engine.
 
+## What the desktop needs installed
+
+Nothing. The desktop engine decodes through libVLC, and libVLC arrives with the
+dependency rather than from the machine: the first time a player is constructed,
+the library fetches the prebuilt runtime for that operating system and
+architecture, checks it against the digest it was published with, and unpacks it
+into a per-user cache. Later runs read the unpacked copy.
+
+A VLC that happens to be installed is used only when there is no payload for the
+platform yet, so the same build behaves the same way on every machine instead of
+inheriting whichever version somebody installed. If you want to supply your own
+build, point `nomercy.player.natives.libvlc.dir` at a directory holding it and
+that one is taken instead, digest check and download skipped.
+
 ## iOS and tvOS
 
 Add the Swift package and take the drop-in product.
