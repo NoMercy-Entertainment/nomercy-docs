@@ -1,0 +1,108 @@
+---
+title: "Building a dashboard"
+description: "How a plugin builds a real screen out of components, targets each surface, and ships its own translations."
+---
+
+A plugin does not ship markup. It returns a tree of components and the client
+draws it, which is what lets one plugin work on a desktop browser, a phone and a
+television without knowing anything about any of them.
+
+## Building the tree
+
+The server side is a fluent builder. Every call hands the component back, so a
+tree is written the way it is read: outside in, one decision per call.
+
+```csharp
+NmComponent card = Nm.Card("movie")
+    .Pad("4")
+    .Gap("2")
+    .Color("plum")
+    .Add(
+        Nm.Badge("quality").Text("4K"),
+        Nm.Button("play").AriaLabel("Play")
+    );
+```
+
+Anything a component is not told keeps its own default. A prop left unset is
+absent from the payload rather than sent as null, which matters because a client
+obeys a null: sending one would replace the component's default with nothing.
+
+Every component accepts children through `Add`, including the ones that look
+like leaves. A brick that cannot hold other bricks is not a brick.
+
+## Targeting a surface
+
+The view request carries the surface that is asking, one of `web`, `mobile` or
+`tv`. There are two ways to use it, and they answer different problems.
+
+When the difference is small, build one tree and let the components drop
+themselves. This keeps a single code path, which is usually what you want.
+
+```csharp
+Nm.Table("files")
+    .Box(new() { HiddenOn = [PluginSurface.Tv] })
+```
+
+When the page is genuinely a different page, branch. A television at four metres
+showing a grid of posters is not a narrow version of a desktop table, and
+pretending otherwise produces something that is wrong on both.
+
+```csharp
+public Task<PluginView> GetViewAsync(PluginViewRequest request, CancellationToken ct)
+{
+    return Task.FromResult(request.Surface switch
+    {
+        PluginSurface.Tv => TelevisionView(),
+        PluginSurface.Mobile => PhoneView(),
+        _ => DesktopView(),
+    });
+}
+```
+
+The names are the same ones the components use for hiding themselves, so a
+plugin branching on a surface and a component hiding on one always mean the same
+thing.
+
+## Shipping translations
+
+A plugin supplies the text inside the components it builds, so the client has no
+way to translate what it has never seen. Bundle the strings with the plugin the
+same way the player libraries do.
+
+Declare them on the manifest:
+
+```json
+{
+  "translations": {
+    "source": "en",
+    "locales": ["en", "nl"],
+    "path": "lang"
+  }
+}
+```
+
+Then ship one flat file per locale beside the assembly, at `lang/en.json` and
+`lang/nl.json`:
+
+```json
+{
+  "library.title": "Library",
+  "library.empty": "Nothing here yet"
+}
+```
+
+Reference them by key when you build the view, and the client resolves them
+under your plugin's own namespace, so two plugins both using `title` never
+collide.
+
+Every locale is checked against the source when the plugin loads. A key you
+forgot to translate, a value left empty, and a key left behind by a rename are
+all reported there rather than discovered by a viewer. A viewer whose language
+you do not ship reads the plugin in the language you wrote it in.
+
+## What to reach for
+
+Start from the component reference for the props each brick takes, the box page
+for spacing and layout, and the theming page for colour. A dashboard is mostly
+those three things arranged, and the payload page describes the envelope they
+travel in.

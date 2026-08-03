@@ -1,0 +1,77 @@
+---
+title: "Theming"
+description: "How a component follows the theme the app is set to, and how a payload overrides it for one component."
+---
+
+A component never names a colour family. It names a role, and a generated layer
+maps those roles onto whichever family the app is currently set to. That
+indirection is the whole design: change the app's accent and all 56 components
+follow, without any of them knowing what changed.
+
+## The five roles
+
+Every component draws from the same small set. Naming them is what lets one
+family serve everything.
+
+| Role | Step | Used for |
+| --- | --- | --- |
+| `fill` | a3 | A tinted background |
+| `edge` | a7 | A border or divider |
+| `solid` | 9 | A filled control |
+| `hover` | 10 | That control under the pointer |
+| `text` | 11 | Text that has to read as accented |
+
+Chrome needs more of the scale than an accent does, so the surface family is
+projected across every step: `--nm-surface-1` through `--nm-surface-12` and the
+alpha steps beside them. A page background, a card, a divider and body text are
+all neutral decisions, and inventing a role name for each would be a vocabulary
+nobody asked for.
+
+## Following the app
+
+On the web the app writes a class on the document, and the theme layer answers
+it. Nothing has to tell the components what the theme is.
+
+```html
+<html class="theme-violet surface-gray scheme-dark">
+```
+
+On Compose the same idea is a composition local. Wrap the app once:
+
+```kotlin
+NMThemeProvider(accent = "violet", surface = "gray") {
+    // every NM component below here follows
+}
+```
+
+Leaving the theme unset means following the system rather than falling through
+to dark. An app that writes no preference must not decide for the viewer.
+
+## Naming a colour for one component
+
+A payload can name a family per component. Any family the palette ships is
+accepted, not only the handful a given component lists in its own reference
+page: those are the designer's recommendation rather than the limit.
+
+```json
+{
+  "component": "NMBadge",
+  "props": { "text": "4K", "color": "plum" }
+}
+```
+
+On the web this writes the five role properties inline, where the cascade puts
+them above the app layer, so the override reaches that component and its
+children and nothing else. On Compose the same resolution happens through the
+palette. A family the palette does not ship falls back to the app's rather than
+resolving to nothing, because a component drawn in no colour at all is worse
+than one drawn in the wrong one.
+
+## Colours that carry meaning
+
+A few families are not preferences and stay fixed whatever the app is themed to.
+Destructive is red, success is green, an away marker is orange, and a star
+rating is gold. Theming those would remove the only information they carry.
+
+Everything else routes through the roles. A component that names a family
+directly is a bug, and the build refuses it.

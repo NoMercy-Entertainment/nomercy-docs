@@ -6,7 +6,7 @@
 import type { NavGroupDef } from './nav-structure';
 
 export const nmComponentsNav: NavGroupDef[] = [
-  { group: "Getting Started", pages: ['overview', 'box', 'payloads'] },
+  { group: "Getting Started", pages: ['overview', 'box', 'payloads', 'theming', 'dashboards'] },
   { group: "Atoms", pages: ['components/avatar', 'components/badge', 'components/divider', 'components/form-label', 'components/helper', 'components/image', 'components/link', 'components/progress', 'components/skeleton', 'components/spinner', 'components/tag'] },
   { group: "Controls", pages: ['components/button', 'components/checkbox', 'components/input', 'components/radio', 'components/rating', 'components/slider', 'components/textarea', 'components/toggle'] },
   { group: "Groups", pages: ['components/badge-group', 'components/breadcrumb', 'components/button-group', 'components/checkbox-group', 'components/pagination', 'components/radio-group', 'components/segmented', 'components/step-indicator', 'components/toggles'] },
