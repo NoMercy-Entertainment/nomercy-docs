@@ -27,7 +27,8 @@ export type Product =
   | 'nomercy-player-core'
   | 'nomercy-video-player'
   | 'nomercy-music-player'
-  | 'nomercy-api';
+  | 'nomercy-api'
+  | 'nm-components';
 
 export interface ProductNavigation {
   product: Product;
@@ -50,6 +51,7 @@ const PRODUCTS: Array<{ product: Product; label: string; collection: string; hre
   { product: 'nomercy-video-player',  label: 'Video',     collection: 'nomercy-video-player',   href: '/nomercy-video-player/',   order: 5 },
   { product: 'nomercy-music-player',  label: 'Music',     collection: 'nomercy-music-player',   href: '/nomercy-music-player/',   order: 6 },
   { product: 'nomercy-api',           label: 'API',       collection: 'nomercy-api',            href: '/nomercy-api/overview',            order: 7 },
+  { product: 'nm-components',         label: 'Components', collection: 'nm-components',         href: '/nm-components/overview',          order: 8 },
 ];
 
 export async function getNavigation(): Promise<NavigationResult> {

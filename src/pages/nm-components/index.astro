@@ -1,0 +1,21 @@
+---
+import { getEntry, render } from 'astro:content';
+import MarkdownLayout from '../../layouts/MarkdownLayout.astro';
+import * as mdxComponents from '../../components/protocol';
+
+const doc = await getEntry('nm-components', 'en/overview');
+if (!doc) return Astro.redirect('/');
+
+const { Content, headings } = await render(doc);
+const sections = doc.data.sections || headings
+  .filter((h: any) => h.depth === 2)
+  .map((h: any) => ({ id: h.slug, title: h.text }));
+---
+
+<MarkdownLayout
+  title={doc.data.title}
+  description={doc.data.description}
+  sections={sections}
+>
+  <Content components={mdxComponents} />
+</MarkdownLayout>
