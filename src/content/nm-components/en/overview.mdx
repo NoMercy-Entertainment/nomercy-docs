@@ -1,0 +1,64 @@
+---
+title: NM Components
+description: Build a dashboard once as JSON and have it render on web, mobile and television.
+---
+
+An NM component is something your server describes and the client draws. You send JSON, and the
+same JSON becomes a real interface on the web app, on the phone and on the television. You are not
+writing three interfaces and hoping they agree, because there is only one description and all three
+read it.
+
+This matters most for plugins. A plugin cannot ship its own Vue app to a television, and nobody
+wants to write the same settings screen three times. Describing it once is the whole point.
+
+## What a component looks like
+
+Every component arrives in the same envelope. The `component` field says which one it is, and
+`props` is everything about it.
+
+```json
+{
+  "id": "welcome",
+  "component": "NMCard",
+  "props": {
+    "id": "welcome",
+    "box": { "padding": { "all": "4" }, "gap": { "all": "3" } },
+    "items": [
+      { "id": "t", "component": "NMBadge", "props": { "id": "t", "color": "teal" } },
+      { "id": "s", "component": "NMSpinner", "props": { "id": "s", "size": "lg" } }
+    ]
+  }
+}
+```
+
+Two things are worth noticing there. The card holds other components under `items`, and it never
+says what they are, so anything can go inside anything. And the spacing lives in `box`, which every
+component accepts, so you position a component from outside it rather than by editing it.
+
+## Bricks, not screens
+
+The set is built so components stack. A card does not know it is in a grid. A badge does not know
+it is in a card. Whatever contains a component decides where it sits and how much room it gets, and
+the component decides how its own contents are arranged.
+
+That split is what lets you build a layout you were never specifically given a component for.
+
+## Everything is a token, never a value
+
+You will not find a colour or a pixel length anywhere in a payload. Spacing is a step on a scale and
+colours are names from the design system. `"padding": { "all": "4" }` means step four, and each
+platform resolves it to its own unit.
+
+This is not tidiness. A pixel written into a payload cannot survive the trip to a platform that does
+not measure in pixels, and a hex colour renders correctly in one theme and wrongly in the other, and
+does not change when the viewer switches. Naming the token instead means one payload is right
+everywhere.
+
+## Accessibility comes with the component
+
+Every component ships its roles, its labels and its keyboard behaviour, and every keyboard behaviour
+has a D-pad equivalent for television. You do not add it and you cannot forget it. Each component's
+page lists what it does so you know what you would be breaking if you overrode it.
+
+Where to go next: [the box](/nm-components/box) is the vocabulary for placing things, and
+[payloads](/nm-components/payloads) covers building a real dashboard out of them.

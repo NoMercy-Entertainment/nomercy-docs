@@ -1,0 +1,96 @@
+---
+title: Carousel
+description: Contained carousel showing one slide at a time with smooth transitions
+---
+
+`NMCarousel` is the component your server names when it wants a carousel.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "carousel-1",
+  "component": "NMCarousel",
+  "props": {
+    "id": "carousel-1",
+    "size": "full",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Contained carousel showing one slide at a time with smooth transitions
+- Four sizes: sm, md, lg, and full affecting container dimensions
+- Navigation arrows with automatic disable at boundaries
+- Morphing pill pagination dots with smooth animations
+- Transform-based sliding with no gaps between slides
+- Centered content with background container and rounded corners
+- Semantic <section> with aria-roledescription="carousel"
+- Full accessibility with ARIA labels and keyboard navigation
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `navOutside` | `true` , `false` | `false` | Position nav arrows outside viewport |
+| `showDots` | `true` , `false` | `true` | Show dot pagination |
+| `showNav` | `true` , `false` | `true` | Show navigation arrows |
+| `size` | `sm` , `md` , `lg` , `full` | `md` | Carousel size |
+| `snap` | `true` , `false` | `false` | Enable scroll snap |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `slideChange` | { index: number } | Fired when slide changes |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `aria-roledescription="carousel"` | Identifies the section as a carousel to assistive technology |
+| `role="group"` | Each slide has role group for logical grouping |
+| `aria-label on slides` | Each slide has aria-label (e.g., "Slide 1 of 5") for context |
+| `aria-label on nav buttons` | Prev/Next buttons have aria-label="Previous slide" and "Next slide" |
+| `role="tablist"` | Pagination container has role tablist for dot indicators |
+| `aria-live="polite"` | Viewport uses aria-live so slide changes are announced to screen readers |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Tab` | Moves focus between prev/next buttons and pagination dots |
+| `Enter / Space` | Activates focused button (prev, next, or dot) |
+| `Arrow Left / Arrow Right` | Moves to the previous / next slide when the carousel is focused |
+| `Click / Tap` | Primary interaction for navigation arrows and pagination dots |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

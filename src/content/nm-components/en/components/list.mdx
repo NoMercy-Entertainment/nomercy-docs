@@ -1,0 +1,73 @@
+---
+title: List
+description: List is part of the NM component set.
+---
+
+`NMList` is the component your server names when it wants a list.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "list-1",
+  "component": "NMList",
+  "props": {
+    "id": "list-1",
+    "bullet": "dash",
+    "order": "upper-roman",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `bullet` | `disc` , `circle` , `square` , `dash` | `disc` | Bullet style for unordered lists |
+| `horizontal` | `true` , `false` | `false` | Horizontal layout |
+| `order` | `decimal` , `decimal-leading-zero` , `lower-alpha` , `upper-alpha` , `lower-roman` , `upper-roman` | `decimal` | Numbering style for ordered lists |
+| `size` | `sm` , `md` , `lg` | `md` | List size |
+| `type` | `unordered` , `ordered` , `icon` | `unordered` | List type |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `<ul> / <ol>` | Semantic list container: <ul> for unordered/icon lists, <ol> for ordered lists |
+| `<li>` | Semantic list item; each item must be a direct child of the list |
+| `aria-hidden="true"` | Applied to decorative icons in icon lists so they are not announced by screen readers |
+| `Proper nesting` | Items must be direct children of ul/ol; content wrapped in mom-list__content for structure |
+| `list-style-type` | Bullet and numbering styles conveyed via CSS; semantic order preserved in markup |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Tab` | Moves focus through any interactive elements within list items (e.g. links, buttons) |
+| `Shift + Tab` | Moves focus backward through focusable elements |
+| `Enter` | Activates links or buttons when focused |
+| `Space` | Activates buttons when focused |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

@@ -1,0 +1,105 @@
+---
+title: Dropdown
+description: Three sizes: sm, md, and lg for compact to spacious density
+---
+
+`NMDropdown` is the component your server names when it wants a dropdown.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "dropdown-1",
+  "component": "NMDropdown",
+  "props": {
+    "id": "dropdown-1",
+    "size": "lg",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Three sizes: sm, md, and lg for compact to spacious density
+- Items with optional icons, labels, and descriptions
+- Keyboard shortcuts display for power users
+- Disabled items for non-interactive options
+- Separators to visually group related actions
+- Section titles for logical grouping
+- Check marks for selected or active items
+- Destructive styling for dangerous actions (e.g. Delete)
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `itemCount` | number | `5` | Number of items to display |
+| `showCheck` | `true` , `false` | `false` | Show check marks for active items |
+| `showDesc` | `true` , `false` | `false` | Show item descriptions |
+| `showDestructive` | `true` , `false` | `true` | Destructive item |
+| `showDisabled` | `true` , `false` | `false` | Disabled item |
+| `showHeader` | `true` , `false` | `false` | Header |
+| `showIcons` | `true` , `false` | `true` | Show item icons |
+| `showSectionTitles` | `true` , `false` | `false` | Section titles |
+| `showSeparator` | `true` , `false` | `true` | Show separator between groups |
+| `showShortcuts` | `true` , `false` | `true` | Show keyboard shortcuts |
+| `size` | `sm` , `md` , `lg` | `md` | Dropdown size |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `select` | { value: string } | Fired when item is selected |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="menu"` | Applied to the dropdown container to identify it as a menu |
+| `role="menuitem"` | Applied to each actionable item within the menu |
+| `role="separator"` | Applied to divider elements between groups |
+| `aria-label` | Provides accessible name for the menu (e.g. "Actions menu") |
+| `aria-disabled` | Set on disabled items to announce non-interactive state to screen readers |
+| `aria-keyshortcuts` | Exposes keyboard shortcuts for items to assistive technologies |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Enter / Space` | Activates the focused menu item |
+| `Arrow Down` | Moves focus to the next menu item (wraps to first) |
+| `Arrow Up` | Moves focus to the previous menu item (wraps to last) |
+| `Home` | Moves focus to the first menu item |
+| `End` | Moves focus to the last menu item |
+| `Escape` | Closes the dropdown menu and returns focus to trigger |
+| `Type character` | Typeahead: moves focus to the next item starting with the typed character |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

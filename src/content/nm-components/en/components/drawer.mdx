@@ -1,0 +1,109 @@
+---
+title: Drawer
+description: Four positions: left, right, top, and bottom edge anchoring
+---
+
+`NMDrawer` is the component your server names when it wants a drawer.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "drawer-1",
+  "component": "NMDrawer",
+  "props": {
+    "id": "drawer-1",
+    "position": "bottom",
+    "size": "full",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Four positions: left, right, top, and bottom edge anchoring
+- Four sizes: sm (280px), md (400px), lg (560px), and full (100%)
+- Header with title and close button always visible
+- Scrollable body content area
+- Optional footer with action buttons
+- Overlay backdrop for focus and context
+- Slide-in animation from the anchored edge
+- role="dialog" with aria-modal="true" for assistive technology
+- aria-labelledby references the title for accessible name
+- Focus trap keeps keyboard navigation within the drawer
+- Rendered inline in viewer for demonstration purposes
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `bodyText` | text | `` | Body content text |
+| `hasOverlay` | `true` , `false` | `true` | Show backdrop overlay |
+| `isOpen` | `true` , `false` | `true` | Open |
+| `position` | `left` , `right` , `top` , `bottom` | `right` | Edge to anchor the drawer |
+| `showFooter` | `true` , `false` | `false` | Show footer with action buttons |
+| `size` | `sm` , `md` , `lg` , `full` | `md` | Drawer width (left/right) or height (top/bottom) |
+| `title` | text | `Drawer` | Header title text |
+
+## Children
+
+Anything you nest under `items` renders inside. The design system also names these places to put content:
+
+| Slot | What goes there |
+| --- | --- |
+| `header` | Header with title and close button |
+| `body` | Scrollable body content area |
+| `footer` | Optional footer with action buttons |
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `open` | void | Fired when drawer opens |
+| `close` | void | Fired when drawer is closed |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="dialog"` | Identifies the drawer as a dialog to assistive technologies |
+| `aria-modal="true"` | Indicates the drawer blocks interaction with background content |
+| `aria-labelledby` | References the title element to provide an accessible name |
+| `aria-label="Close"` | On the close button for screen reader announcement |
+| `tabindex="-1"` | On the drawer panel to allow programmatic focus |
+| `aria-hidden` | Set on background content when drawer is open |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Escape` | Closes the drawer and returns focus to the trigger element |
+| `Tab` | Moves focus to the next focusable element within the drawer (focus trap) |
+| `Shift + Tab` | Moves focus to the previous focusable element within the drawer |
+| `Enter` | Activates the focused button in header or footer |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

@@ -1,0 +1,96 @@
+---
+title: Tag
+description: Three sizes: sm, md, and lg (Figma-aligned)
+---
+
+`NMTag` is the component your server names when it wants a tag.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "tag-1",
+  "component": "NMTag",
+  "props": {
+    "id": "tag-1",
+    "size": "lg",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Three sizes: sm, md, and lg (Figma-aligned)
+- Optional leading checkbox for selectable tags
+- Optional leading icon or avatar slot
+- Optional count pill for numeric indicators
+- Removable with x-close button
+- aria-label on close button includes tag name for screen readers
+- aria-hidden on count for accessible announcements
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `avatar` | `true` , `false` | `false` | Show leading avatar |
+| `checkbox` | `true` , `false` | `false` | Show leading checkbox |
+| `count` | `true` , `false` | `false` | Show count pill |
+| `countText` | text | `0` | Count value |
+| `icon` | `true` , `false` | `false` | Show leading icon |
+| `size` | `sm` , `md` , `lg` | `sm` | Tag size |
+| `text` | text | `Label` | Tag label text |
+| `xclose` | `true` , `false` | `false` | Show close button |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `close` | void | Fired when close button is clicked |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `aria-label` | Required on close button; include tag name (e.g., "Remove Filter tag") |
+| `aria-hidden="true"` | Use on count element so screen readers do not announce redundant numeric info |
+| `aria-hidden="true"` | Use on decorative icons and close icon SVG |
+| `aria-hidden` | Applied to checkbox when used as visual slot within tag |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Tab` | Moves focus to the next focusable element (close button) |
+| `Shift + Tab` | Moves focus to the previous focusable element |
+| `Enter` | Activates close button when focused |
+| `Space` | Activates close button or toggles checkbox when focused |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

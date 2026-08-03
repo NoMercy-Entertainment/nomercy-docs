@@ -1,0 +1,85 @@
+---
+title: Chat
+description: Three message variants: sent, received, and system
+---
+
+`NMChat` is the component your server names when it wants a chat.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "chat-1",
+  "component": "NMChat",
+  "props": {
+    "id": "chat-1",
+    "messageCount": "6",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Three message variants: sent, received, and system
+- Sent bubbles align right with the avatar on the far-right edge
+- Received bubbles align left with the avatar on the far-left edge
+- Optional avatars using the mom-avatar xs component
+- Optional timestamps using semantic <time> elements
+- Scrollable message log with the composer pinned to the bottom
+- Composer uses mom-input and mom-btn--primary components
+- role="log" on the message list for accessible live region
+- role="article" on user messages with aria-label for sender
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `messageCount` | `3` , `4` , `5` , `6` | `4` | Messages |
+| `showAvatars` | `true` , `false` | `true` | Show avatar circles next to messages |
+| `showInput` | `true` , `false` | `true` | Show the composer area |
+| `showTimestamps` | `true` , `false` | `true` | Show timestamps inside bubbles |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="log"` | On the message list , identifies it as an automatically-updating log |
+| `role="article"` | On sent/received messages , self-contained unit with sender aria-label |
+| `role="status"` | On system messages , politely announces join/leave events |
+| `aria-label` | On each user message , "Message from You" or "Message from Other user" |
+| `<time datetime>` | Machine-readable timestamps for screen readers |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Tab` | Move focus to the input field or Send button |
+| `Shift + Tab` | Move focus to the previous focusable element |
+| `Enter` | Submit when focus is on the Send button |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

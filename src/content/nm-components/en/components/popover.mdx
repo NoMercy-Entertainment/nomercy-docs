@@ -1,0 +1,104 @@
+---
+title: Popover
+description: Four positions: top, right, bottom, and left for flexible placement
+---
+
+`NMPopover` is the component your server names when it wants a popover.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "popover-1",
+  "component": "NMPopover",
+  "props": {
+    "id": "popover-1",
+    "position": "left",
+    "size": "lg",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Four positions: top, right, bottom, and left for flexible placement
+- Three sizes: sm (240px), md (320px), and lg (420px) width
+- Optional header with title text
+- Optional close button for explicit dismissal
+- Optional arrow/tail pointing to the trigger element
+- Click-triggered (not hover) for intentional interaction
+- role="dialog" for assistive technology
+- aria-labelledby links to title for accessible name
+- aria-haspopup and aria-expanded on trigger for state
+- Uses design tokens for consistent styling
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `content` | text | `` | Body content text |
+| `isOpen` | `true` , `false` | `true` | Open |
+| `position` | `top` , `right` , `bottom` , `left` | `bottom` | Popover position relative to trigger |
+| `showArrow` | `true` , `false` | `true` | Show arrow pointing to trigger |
+| `showClose` | `true` , `false` | `true` | Show close button |
+| `size` | `sm` , `md` , `lg` | `md` | Popover panel width |
+| `title` | text | `` | Optional header title text |
+| `triggerText` | text | `Click me` | Trigger button text |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `open` | void | Fired when popover is opened |
+| `close` | void | Fired when popover is closed |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="dialog"` | Applied to the popover content panel to identify it as a dialog |
+| `aria-labelledby` | References the title element to provide an accessible name for the dialog |
+| `aria-haspopup="dialog"` | On the trigger button to indicate it opens a dialog |
+| `aria-expanded` | On the trigger button to announce open/closed state |
+| `aria-controls` | On the trigger button, references the popover content panel id |
+| `aria-label="Close"` | On the close button for screen reader announcement |
+| `aria-hidden="true"` | On the decorative arrow element |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Enter / Space` | Opens the popover when trigger is focused |
+| `Escape` | Closes the popover and returns focus to trigger |
+| `Tab` | Moves focus through focusable elements within the popover |
+| `Shift + Tab` | Moves focus backward through focusable elements |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

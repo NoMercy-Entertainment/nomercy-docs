@@ -1,0 +1,89 @@
+---
+title: Building a dashboard
+description: Putting components together into something a plugin can ship.
+---
+
+A dashboard is one tree of components. There is no separate page format and no layout language to
+learn: the same envelope nests inside itself, and containers are components like everything else.
+
+## Start with the shape
+
+Decide the arrangement first, then fill it. Here is a settings panel: a heading, a row of controls,
+and a footer, laid out in a column with even spacing.
+
+```json
+{
+  "id": "settings",
+  "component": "NMContainer",
+  "props": {
+    "id": "settings",
+    "box": { "direction": "column", "gap": { "all": "5" }, "padding": { "all": "6" } },
+    "items": [
+      {
+        "id": "heading",
+        "component": "NMContentHeader",
+        "props": { "id": "heading" }
+      },
+      {
+        "id": "controls",
+        "component": "NMContainer",
+        "props": {
+          "id": "controls",
+          "box": { "direction": "row", "gap": { "all": "3" }, "wrap": "wrap" },
+          "items": []
+        }
+      }
+    ]
+  }
+}
+```
+
+The outer container says how its children stack. Each child says nothing about where it is. Move one
+into the row and it simply flows there.
+
+## Responding to what the user does
+
+Components report events. You answer them with an `action`, which names an intent and never carries
+code. A client that does not recognise an action ignores it, which is what lets a newer server talk
+to an older client without breaking it.
+
+```json
+"action": {
+  "kind": "mutate",
+  "target": "/api/v1/settings/theme",
+  "body": { "theme": "dark" },
+  "confirm": "Switch to the dark theme?"
+}
+```
+
+Set `confirm` and the client asks before acting, in its own way on each platform, which on a
+television is a dialog you can reach with a remote.
+
+## Keeping it fresh
+
+A component can refresh itself. Put an `update` next to `props` and say when.
+
+```json
+"update": { "when": "online", "link": "/api/v1/dashboard/status" }
+```
+
+## Fitting different screens
+
+The same tree serves all three surfaces. Where something genuinely does not belong, remove it with
+`hidden_on` rather than building a second tree.
+
+```json
+"box": { "hidden_on": ["tv"] }
+```
+
+Reach for that sparingly. A dashboard that needs a lot of it is usually one that was designed for a
+mouse and then sent to a remote.
+
+## What not to put in a payload
+
+No pixel lengths and no hex colours. Both look correct where you wrote them and wrong somewhere else,
+and neither follows the theme. Name the token and every platform resolves it.
+
+No z-index numbers. Use a named layer, so nothing you send can end up on top of the video player.
+
+No user-facing strings that have not been localised. Anything you send is shown as it arrives.

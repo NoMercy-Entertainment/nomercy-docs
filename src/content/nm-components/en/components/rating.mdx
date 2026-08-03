@@ -1,0 +1,101 @@
+---
+title: Rating
+description: Readonly mode for displaying existing scores
+---
+
+`NMRating` is the component your server names when it wants a rating.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "rating-1",
+  "component": "NMRating",
+  "props": {
+    "id": "rating-1",
+    "color": "orange",
+    "mode": "interactive",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Readonly mode for displaying existing scores
+- Interactive mode for collecting user input
+- Half-star support for fractional values (e.g. 3.5)
+- Three sizes: sm (16px), md (20px), and lg (28px)
+- Three color variants: accent (teal), yellow, and orange
+- Optional value label with review count
+- Disabled state with reduced opacity
+- Scale-on-hover animation for interactive stars
+- CSS hover trick highlights all stars up to hovered one
+- Keyboard accessible with button role in interactive mode
+- Screen reader label announces current rating
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `color` | `accent` , `yellow` , `orange` | `yellow` | Star fill color |
+| `count` | number | `null` | Review count shown in parentheses next to label |
+| `disabled` | `true` , `false` | `false` | Disable interaction |
+| `max` | `3` , `4` , `5` , `6` , `7` , `10` | `5` | Maximum rating (number of stars) |
+| `mode` | `readonly` , `interactive` | `readonly` | Read-only display or interactive input |
+| `showLabel` | `true` , `false` | `true` | Show numeric value label |
+| `size` | `sm` , `md` , `lg` | `md` | Star icon size |
+| `value` | `0` , `0.5` , `1` , `1.5` , `2` , `2.5` , `3` , `3.5` , `4` , `4.5` , `5` | `3` | Current rating value (supports 0.5 increments) |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `change` | { value: number } | Fired when a star is clicked in interactive mode |
+| `hover` | { value: number } | Fired when hovering over a star |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="group"` | Wraps the rating to group stars as a related set |
+| `aria-label="Rating: N out of M"` | Provides the current score to screen readers |
+| `aria-label="N star(s)"` | On each interactive star button |
+| `aria-hidden="true"` | On decorative readonly star spans |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Tab` | Moves focus to the rating widget (interactive mode) |
+| `Enter / Space` | Selects the focused star |
+| `Arrow Left / Right` | Decrements or increments the rating by one star |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

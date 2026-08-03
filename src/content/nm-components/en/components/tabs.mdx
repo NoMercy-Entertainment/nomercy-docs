@@ -1,0 +1,99 @@
+---
+title: Tabs
+description: Three variants: line (default), pill, and enclosed
+---
+
+`NMTabs` is the component your server names when it wants a tabs.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "tabs-1",
+  "component": "NMTabs",
+  "props": {
+    "id": "tabs-1",
+    "size": "lg",
+    "variant": "enclosed",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Three variants: line (default), pill, and enclosed
+- Three sizes: sm, md, lg
+- ARIA tablist pattern for screen reader support
+- Keyboard navigation: Arrow keys, Home, End
+- Active state management with aria-selected
+- Unique IDs for aria-controls and tabpanel relationships
+- tabindex management (0 for active, -1 for inactive)
+- Focus management on keyboard navigation
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `activeIndex` | `0` , `1` , `2` | `0` | Currently active tab index |
+| `ariaLabel` | text | `Tabs` | Accessible name for the tablist |
+| `size` | `sm` , `md` , `lg` | `md` | Tab size |
+| `tabLabels` | text | `['Tab 1', 'Tab 2', 'Tab 3']` | Array of tab labels |
+| `tablistId` | text | `a generated id` | Base id for the tabs. Pass one and each tab gets aria-controls="{tablistId}-panel-{index}", which is the id your panel needs |
+| `variant` | `line` , `pill` , `enclosed` | `line` | Tab visual style |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `change` | { index: number } | Fired when active tab changes |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="tablist"` | Container role identifying the tab group |
+| `role="tab"` | Each tab button has role tab |
+| `role="tabpanel"` | Each content panel should have role tabpanel (in your panel markup) |
+| `aria-selected` | Indicates which tab is currently active (true/false) |
+| `aria-controls` | Links each tab to its panel, as {tablistId}-panel-{index}. Emitted only when you pass a tablistId, since the panel ids have to be ones you can match |
+| `aria-label` | Provides accessible name for the tablist container |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Arrow Left / Arrow Right` | Moves focus between tabs (with wrap at ends) |
+| `Home` | Moves focus to the first tab |
+| `End` | Moves focus to the last tab |
+| `Tab` | Moves focus into the active panel content |
+| `Shift + Tab` | Moves focus to the previous focusable element |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

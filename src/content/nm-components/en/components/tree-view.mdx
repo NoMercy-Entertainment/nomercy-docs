@@ -1,0 +1,94 @@
+---
+title: Tree View
+description: Branch (folder) items expand/collapse child groups
+---
+
+`NMTreeView` is the component your server names when it wants a tree view.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "tree-view-1",
+  "component": "NMTreeView",
+  "props": {
+    "id": "tree-view-1",
+    "size": "lg",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Branch (folder) items expand/collapse child groups
+- Leaf items are selectable items with no children
+- Chevron rotates 0° (collapsed) to down (expanded)
+- Optional indent guide lines for deep hierarchies
+- Selected state with accent background and border
+- Disabled state with reduced opacity
+- Three sizes: sm, md, and lg controlling spacing and icon size
+- role="tree" / role="treeitem" ARIA pattern
+- aria-expanded on branch rows for screen reader state
+- Keyboard navigation: Arrow keys, Enter, Space
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `showLines` | `true` , `false` | `true` | Show vertical indent guide lines |
+| `size` | `sm` , `md` , `lg` | `md` | Row spacing and icon size |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `select` | { item: TreeNode } | Fired when a leaf item is selected |
+| `toggle` | { item: TreeNode, expanded: boolean } | Fired when a branch is expanded or collapsed |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="tree"` | On the root ul element |
+| `aria-label` | On the root ul describing the tree purpose |
+| `aria-expanded` | On branch button rows to announce open/closed state |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Enter / Space` | Toggles a branch open/closed or selects a leaf |
+| `Arrow Right` | Expands a collapsed branch or moves to first child |
+| `Arrow Left` | Collapses an expanded branch or moves to parent |
+| `Arrow Down / Up` | Moves focus to next or previous visible item |
+| `Home / End` | Moves focus to first or last visible item |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

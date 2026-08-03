@@ -1,0 +1,91 @@
+---
+title: The box
+description: How a component is placed, and who decides what.
+---
+
+Every component accepts a `box`. It is how you place something without editing it, and it is the
+reason you can drop any component into any layout and have it behave.
+
+The box splits into two halves by who owns them, and keeping them apart is what makes components
+stack predictably.
+
+## The parent decides where it sits
+
+Margin, width, height, how it grows or shrinks, how it aligns itself, what order it appears in, how
+many columns it spans. A parent sets these on a child it is placing. The child does not know they
+were set.
+
+```json
+"box": {
+  "margin": { "y": "4" },
+  "width": "1/2",
+  "align_self": "center",
+  "column_span": 2
+}
+```
+
+## The component decides its own contents
+
+Padding, gap, direction, alignment, wrapping, column count. A component sets these on itself,
+describing how whatever you nested inside it is arranged.
+
+```json
+"box": {
+  "padding": { "all": "4" },
+  "direction": "row",
+  "gap": { "all": "3" },
+  "align": "center"
+}
+```
+
+## Your value always wins
+
+Components have their own defaults. When your payload names something, your value is applied last
+and takes effect. You never have to know what a component's default was in order to change it.
+
+## Spacing
+
+Spacing is a step on the design system's scale, written as a string. `"4"` is step four. There are
+also half steps, written the way they read.
+
+Every side can be set on its own, and the more specific value wins:
+
+```json
+"padding": { "all": "4", "x": "2", "left": "8" }
+```
+
+That is step four everywhere, overridden to step two on both horizontal sides, overridden again to
+step eight on the leading side. `left` and `right` are reading-direction aware, so a right to left
+locale mirrors the layout and your payload does not change.
+
+## Sizes
+
+A size is a step on the same scale, a fraction of the parent written as `1/2` or `2/3`, or one of a
+few words. `full` fills the parent, `content` shrinks to fit what is inside, `auto` lets the platform
+decide.
+
+Anything else is ignored rather than passed through. A raw length in a payload would look right
+until the first platform that does not measure that way.
+
+## Layers
+
+Stacking is named, not numbered: `base`, `raised`, `sticky`, `overlay`, `modal`, `toast`, `tooltip`.
+The vocabulary is closed on purpose. A payload free to pick its own number would eventually pick one
+that covers the video player, and afterwards there would be nothing to point at.
+
+## Hiding per surface
+
+`hidden_on` takes any of `web`, `mobile` or `tv`, and removes the component on those surfaces.
+
+It removes rather than hides. On a television an invisible component would still take focus, and
+somebody would be pressing right through something they cannot see.
+
+## Appearance
+
+Backgrounds, borders, corners, shadows and opacity live in `surface`, next to `box` rather than
+inside it, so you can restyle a component without relaying it out. Colours are token names, never
+hex, so they follow the theme.
+
+```json
+"surface": { "background": "surface-1", "radius": "lg", "shadow": "md" }
+```

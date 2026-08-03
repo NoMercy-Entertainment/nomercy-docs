@@ -1,0 +1,90 @@
+---
+title: Ctrl + K
+description: Keyboard-driven interface for quick command access (Ctrl+K)
+---
+
+`NMCommandPalette` is the component your server names when it wants a ctrl + k.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "command-palette-1",
+  "component": "NMCommandPalette",
+  "props": {
+    "id": "command-palette-1",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Keyboard-driven interface for quick command access (Ctrl+K)
+- Search input with role="combobox" for filtering commands
+- Grouped items with role="group" and aria-labelledby for logical sections
+- Optional icons and keyboard shortcuts per item
+- Active item highlight (mom-cmdk__item--active) for keyboard focus
+- role="dialog" on container for accessible modal behavior
+- role="listbox" on results container and role="option" on each item
+- aria-expanded, aria-controls, aria-selected for combobox semantics
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `searchText` | text | `` | Search input value |
+| `showGroups` | `true` , `false` | `true` | Show grouped sections |
+| `showIcons` | `true` , `false` | `true` | Show item icons |
+| `showShortcuts` | `true` , `false` | `true` | Show keyboard shortcuts |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="dialog"` | Applied to the container to identify it as a dialog overlay |
+| `role="combobox"` | Applied to the search input to indicate it controls a list of options |
+| `role="listbox"` | Applied to the results container for the list of commands |
+| `role="option"` | Applied to each command item within the listbox |
+| `aria-expanded` | Indicates whether the listbox is expanded (true when open) |
+| `aria-controls` | Links the combobox input to the listbox by ID |
+| `aria-autocomplete="list"` | On the input; results are filtered as you type |
+| `aria-activedescendant` | On the input; points to the highlighted command without moving focus |
+| `aria-selected` | Indicates the currently focused/active option for screen readers |
+| `role="group" + aria-labelledby` | Groups commands under their section label; empty groups hide while filtering |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Arrow Down / Up` | Moves the highlight to the next / previous command across all groups |
+| `Home / End` | Moves the highlight to the first / last command |
+| `Enter` | Runs the highlighted command |
+| `Escape` | Closes the command palette |
+| `Type to search` | Filters the command list as the user types |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

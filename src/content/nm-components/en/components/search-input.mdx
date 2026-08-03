@@ -1,0 +1,99 @@
+---
+title: Search Input
+description: Search icon in leading slot for immediate recognition
+---
+
+`NMSearchInput` is the component your server names when it wants a search input.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "search-input-1",
+  "component": "NMSearchInput",
+  "props": {
+    "id": "search-input-1",
+    "inputState": "disabled",
+    "size": "lg",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Search icon in leading slot for immediate recognition
+- Clear (×) button appears only when there is a value to clear
+- Three sizes: sm, md, and lg matching the input scale
+- Inherits all input states: hover, focus, filled, disabled
+- type="search" suppresses browser autocomplete and history
+- Browser-native search cancel button hidden via CSS
+- Teal accent on icon when field is focused
+- Transition on icon and field border for smooth state changes
+- Optional label and hint text slots
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `hint` | text | `` | Optional helper text below the field |
+| `inputState` | `default` , `hover` , `focus` , `disabled` | `default` | Visual state override |
+| `label` | text | `` | Optional label above the field |
+| `placeholder` | text | `Search...` | Placeholder text |
+| `size` | `sm` , `md` , `lg` | `md` | Field height and font size |
+| `value` | text | `` | Current input value , shows clear button when non-empty |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `input` | { value: string } | Fired on every keystroke |
+| `clear` | void | Fired when clear button is clicked |
+| `search` | { value: string } | Fired on Enter key or search action |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `type="search"` | On the input to announce search purpose to screen readers |
+| `aria-label` | On the input with the placeholder text as fallback name |
+| `aria-hidden="true"` | On the decorative search icon span |
+| `aria-label="Clear search"` | On the clear button for screen reader announcement |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Type` | Filter / search as the user types |
+| `Enter` | Triggers search action |
+| `Escape` | Clears input in some browser implementations |
+| `Tab` | Moves focus to clear button when visible |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

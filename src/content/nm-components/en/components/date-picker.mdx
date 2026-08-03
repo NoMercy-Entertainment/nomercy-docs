@@ -1,0 +1,97 @@
+---
+title: Date Picker
+description: Four modes: single date, range selection, year-month picker, and dual calendar
+---
+
+`NMDatePicker` is the component your server names when it wants a date picker.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "date-picker-1",
+  "component": "NMDatePicker",
+  "props": {
+    "id": "date-picker-1",
+    "mode": "dual",
+    "size": "lg",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Four modes: single date, range selection, year-month picker, and dual calendar
+- Three sizes: sm (28px cells), md (32px), lg (44px)
+- Month and year navigation via header controls
+- Range selection with start, end, and in-range styling
+- Today indicator with visual ring on current date
+- role="grid" on calendar for screen reader semantics
+- aria-label on date buttons and role="columnheader" on weekdays
+- Keyboard navigation (Arrow keys) for date selection
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `mode` | `single` , `range` , `year-month` , `dual` | `single` | Date picker mode |
+| `size` | `sm` , `md` , `lg` | `md` | Calendar size |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `select` | { date: Date } | Fired when date is selected |
+| `rangeSelect` | { start: Date, end: Date } | Fired when range is selected |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="group"` | Groups the day buttons under one accessible name. Not role="grid": that requires rows between the grid and its cells, and the day buttons are the CSS grid items |
+| `aria-label="Calendar"` | Provides accessible name for the group of days |
+| `aria-label on date buttons` | Full date string (e.g. "April 15, 2026") for screen readers |
+| `aria-current="date"` | Marks the current day (today) for orientation |
+| `aria-pressed` | Indicates the selected date or range. aria-selected is not permitted on a button |
+| `aria-hidden="true"` | On the weekday letters: single letters read aloud add nothing over day buttons that announce their full date |
+| `roving tabindex` | One day is in the tab order (the selected day, else today, else the first); arrows move focus among the rest |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Arrow Left / Right` | Moves focus to the previous / next day (skips disabled days) |
+| `Arrow Up / Down` | Moves focus to the same weekday in the previous / next week |
+| `Home / End` | Moves focus to the first / last day of the month |
+| `Page Up / Page Down` | Requests the previous / next month |
+| `Enter / Space` | Selects the focused date |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

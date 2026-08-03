@@ -1,0 +1,87 @@
+---
+title: Metrics
+description: Three variants: default, card (bordered container), and compact (dense layout)
+---
+
+`NMMetrics` is the component your server names when it wants a metrics.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "metrics-1",
+  "component": "NMMetrics",
+  "props": {
+    "id": "metrics-1",
+    "trend": "neutral",
+    "variant": "compact",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Three variants: default, card (bordered container), and compact (dense layout)
+- Label, value, and change indicator for KPI display
+- Trend direction: up (green), down (red), or neutral (gray)
+- Optional left icon for visual context (e.g. currency, users)
+- role="region" with descriptive aria-label for landmark identification
+- Comprehensive aria-label includes value and trend (e.g. "Revenue: $42,580, increased by +12.5%")
+- aria-hidden on decorative elements (trend arrow, icon) to avoid redundant announcements
+- Design tokens for typography, color, spacing, and radius
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `change` | text | `+12.5%` | Change indicator |
+| `label` | text | `Revenue` | Metric label |
+| `showIcon` | `true` , `false` | `false` | Show decorative icon |
+| `trend` | `up` , `down` , `neutral` | `up` | Trend direction |
+| `value` | text | `$42,580` | Metric value |
+| `variant` | `default` , `card` , `compact` | `default` | Metric visual style |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="region"` | Identifies the metric as a landmark region for screen reader navigation |
+| `aria-label` | Comprehensive label including metric name, value, and trend (e.g. "Revenue: $42,580, increased by +12.5%") |
+| `aria-label on change span` | Describes trend direction and change value (e.g. "increased by +12.5%", "decreased by -0.4%") |
+| `aria-hidden="true"` | Use on trend arrow (↑/↓) and optional icon so screen readers rely on aria-label instead |
+| `Non-interactive` | Metric is read-only; no focus or keyboard interaction required |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Tab` | Metric is not in tab order; focus moves to next focusable element |
+| `Shift + Tab` | Focus moves to previous focusable element |
+| `Enter / Space` | Not applicable; metrics are read-only display components |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

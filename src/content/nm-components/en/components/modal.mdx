@@ -1,0 +1,119 @@
+---
+title: Modal
+description: Dialog overlay with backdrop for focus and context
+---
+
+`NMModal` is the component your server names when it wants a modal.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "modal-1",
+  "component": "NMModal",
+  "props": {
+    "id": "modal-1",
+    "footerVariant": "helper",
+    "size": "lg",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Dialog overlay with backdrop for focus and context
+- Multiple sizes: sm (400px), md (560px), lg (720px)
+- ContentHeader with icon, title, subtitle, and close button
+- Optional cover image for visual context
+- Description text with optional body content
+- Footer actions (primary, secondary, destructive) or helper variant
+- Focus trap keeps keyboard navigation within modal
+- Backdrop click to close (when implemented)
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `coverImage` | text | `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&h=300&fit=crop` | Cover image URL |
+| `descriptionText` | text | `Lorem ipsum dolor sit amet consectetur. Cras mi in arcu imperdiet cursus et.` | Body description text |
+| `field1Label` | text | `Label` | Field 1 label |
+| `field1Placeholder` | text | `Placeholder Text` | Field 1 placeholder |
+| `field2Label` | text | `Label` | Field 2 label |
+| `field2Placeholder` | text | `Placeholder Text` | Field 2 placeholder |
+| `footerVariant` | `actions` , `helper` | `actions` | Footer variant |
+| `hasCover` | `true` , `false` | `false` | Show cover image |
+| `hasDescription` | `true` , `false` | `true` | Show description |
+| `hasDestructive` | `true` , `false` | `true` | Footer destructive |
+| `hasField1` | `true` , `false` | `true` | Show first field |
+| `hasField2` | `true` , `false` | `true` | Show second field |
+| `hasHelper` | `true` , `false` | `true` | Footer helper |
+| `hasIcon` | `true` , `false` | `true` | Header icon |
+| `hasSecondary` | `true` , `false` | `true` | Footer secondary |
+| `hasSubtitle` | `true` , `false` | `true` | Header subtitle |
+| `primaryText` | text | `Main action` | Primary button text |
+| `showFooter` | `true` , `false` | `true` | Show footer section |
+| `showHeader` | `true` , `false` | `true` | Show header section |
+| `size` | `sm` , `md` , `lg` | `md` | Modal width |
+| `subtitle` | text | `Sub title` | Optional subtitle |
+| `title` | text | `` | Modal title |
+
+## Children
+
+Anything you nest under `items` renders inside. The design system also names these places to put content:
+
+| Slot | What goes there |
+| --- | --- |
+| `header` | ContentHeader component with icon, title, subtitle, close |
+| `body` | Modal body with cover, description, and form fields |
+| `footer` | ContentFooter component with actions |
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `close` | void | Fired when modal is closed |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role` | Set to "dialog" to identify the element as a dialog to screen readers |
+| `aria-modal` | Set to "true" to indicate the dialog blocks interaction with background content |
+| `aria-labelledby` | References the title element to provide an accessible name for the dialog |
+| `aria-describedby` | References the description element to provide additional context |
+| `aria-hidden` | Set on background content when modal is open to hide from screen readers |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Escape` | Closes the modal and returns focus to the trigger element |
+| `Tab` | Moves focus to the next focusable element within the modal (focus trap) |
+| `Shift + Tab` | Moves focus to the previous focusable element within the modal |
+| `Enter` | Activates the focused button or submits the form |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

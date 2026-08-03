@@ -1,0 +1,94 @@
+---
+title: Stepper
+description: Horizontal and vertical orientations
+---
+
+`NMStepper` is the component your server names when it wants a stepper.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "stepper-1",
+  "component": "NMStepper",
+  "props": {
+    "id": "stepper-1",
+    "orientation": "vertical",
+    "size": "lg",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Horizontal and vertical orientations
+- Three sizes: sm (24px), md (32px), and lg (40px) circles
+- Numbered steps with checkmark icon for completed steps
+- Connector lines between steps (filled accent for completed)
+- Active step has accent background with glow ring
+- Optional step descriptions below each label
+- role="list" with aria-current="step" for screen readers
+- State classes: --active and --completed for styling control
+- Accent color from design tokens for consistent theming
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `activeIndex` | `0` , `1` , `2` , `3` | `0` | Zero-based index of the current active step |
+| `orientation` | `horizontal` , `vertical` | `horizontal` | Layout direction |
+| `showDesc` | `true` , `false` | `true` | Show step descriptions |
+| `size` | `sm` , `md` , `lg` | `md` | Circle and text size |
+| `steps` | text | `[]` | Array of step objects with label and optional description |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `stepClick` | { index: number } | Fired when a completed step is clicked |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `aria-label="Progress"` | On the ol element to describe the landmark |
+| `aria-current="step"` | On the currently active step li element |
+| `aria-label on li` | Includes step name and state (completed / current step) |
+| `aria-hidden="true"` | On the decorative connector div |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Tab` | Moves focus through clickable completed steps if made interactive |
+| `Enter / Space` | Activates a clickable completed step |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

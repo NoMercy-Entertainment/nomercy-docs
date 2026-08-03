@@ -1,0 +1,102 @@
+---
+title: Accordion
+description: Two variants: default (unified) and bordered/ghost (separated)
+---
+
+`NMAccordion` is the component your server names when it wants a accordion.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "accordion-1",
+  "component": "NMAccordion",
+  "props": {
+    "id": "accordion-1",
+    "size": "lg",
+    "variant": "ghost",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Two variants: default (unified) and bordered/ghost (separated)
+- Three sizes: sm, md, and lg
+- Collapsible sections with expand/collapse animation
+- Keyboard navigation: Arrow keys, Home, and End
+- Optional chevron indicator (can be hidden)
+- Disabled items for non-interactive sections
+- Single or multiple open items (allowMultiple)
+- Full ARIA support: role="heading", role="region", aria-expanded, aria-controls
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `allowMultiple` | `true` , `false` | `false` | Allow Multiple Open |
+| `content` | text | `[]` | Array of content for each item |
+| `disabledItems` | text | `{}` | Object mapping item indices to disabled state |
+| `disableSecond` | `true` , `false` | `false` | Disable Second Item |
+| `openItems` | text | `{}` | Object mapping item indices to open state |
+| `showChevron` | `true` , `false` | `true` | Show chevron indicator |
+| `size` | `sm` , `md` , `lg` | `md` | Accordion size |
+| `variant` | `default` , `bordered` , `ghost` | `default` | Accordion visual style |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `toggle` | { index: number, open: boolean } | Fired when item is toggled |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="heading"` | Wrapper (h3) provides heading semantics for each trigger |
+| `role="region"` | Applied to content panel for landmark identification |
+| `aria-expanded` | Indicates whether the panel is expanded (true) or collapsed (false) |
+| `aria-controls` | Links trigger button to the content panel by ID |
+| `aria-labelledby` | Links content panel to its trigger for accessible name |
+| `aria-disabled` | Set on disabled items to announce non-interactive state |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Enter` | Activates the trigger to expand or collapse |
+| `Space` | Activates the trigger to expand or collapse |
+| `Arrow Down` | Moves focus to the next accordion trigger |
+| `Arrow Up` | Moves focus to the previous accordion trigger |
+| `Home` | Moves focus to the first accordion trigger |
+| `End` | Moves focus to the last accordion trigger |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

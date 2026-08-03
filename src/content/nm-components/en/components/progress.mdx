@@ -1,0 +1,87 @@
+---
+title: Progress
+description: Three sizes: sm (4px), md (8px), and lg (12px) track height
+---
+
+`NMProgress` is the component your server names when it wants a progress.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "progress-1",
+  "component": "NMProgress",
+  "props": {
+    "id": "progress-1",
+    "color": "purple",
+    "labelPos": "tooltip-below",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Three sizes: sm (4px), md (8px), and lg (12px) track height
+- Multiple colors: accent (teal), blue, red, orange, and purple
+- Flexible label positions: none, left, right, above-left, above-right, tooltip-above, tooltip-below
+- role="progressbar" for assistive technology
+- aria-valuenow, aria-valuemin, and aria-valuemax for screen reader announcements
+- aria-label for accessible name when context is needed
+- aria-hidden on visual labels to avoid duplicate announcements
+- Gradient fill with slate-a4 track background
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `ariaLabel` | text | `Progress` | Accessible label |
+| `color` | `accent` , `blue` , `red` , `orange` , `purple` | `accent` | Fill color |
+| `labelPos` | `none` , `label-left` , `label-right` , `label-above-left` , `label-above-right` , `tooltip-above` , `tooltip-below` | `none` | Label position |
+| `size` | `sm` , `md` , `lg` | `md` | Track height |
+| `value` | number | `0` | Progress value (0-100) |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="progressbar"` | Identifies the element as a progress bar to assistive technology |
+| `aria-valuenow` | Current progress value (0–100). Required for determinate progress bars |
+| `aria-valuemin` | Minimum value (typically 0) |
+| `aria-valuemax` | Maximum value (typically 100) |
+| `aria-label` | Provides an accessible name when the context needs description (e.g., "Upload progress") |
+| `aria-hidden="true"` | Use on visual label and tooltip spans so screen readers rely on aria-valuenow instead |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Tab` | Progress bar is not in tab order; focus moves to next focusable element |
+| `Shift + Tab` | Focus moves to previous focusable element |
+| `Enter / Space` | Not applicable; progress bars are read-only indicators |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

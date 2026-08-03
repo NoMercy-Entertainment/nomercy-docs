@@ -15,7 +15,13 @@ export interface NavGroupDef {
   pages: string[];
 }
 
+import { nmComponentsNav } from './nav-structure.nm';
+
 export const navStructure: Record<string, NavGroupDef[]> = {
+  // Generated from the component manifest, so a new component cannot be added
+  // to the system and left out of the docs.
+  'nm-components': nmComponentsNav,
+
   'nomercy-media-server': [
     { group: "Getting Started", pages: ['installation-guide', 'overview', 'installation/windows', 'installation/linux-deb', 'installation/linux-rpm', 'installation/linux-arch', 'installation/macos', 'installation/docker', 'installation/nas', 'first-run'] },
     { group: "Plugins", pages: ['plugins/overview', 'plugins/installing', 'plugins/repository-index', 'plugins/trusted-publishers', 'plugins/developing'] },

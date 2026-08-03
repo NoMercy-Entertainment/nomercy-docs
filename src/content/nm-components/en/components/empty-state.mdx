@@ -1,0 +1,86 @@
+---
+title: Empty States
+description: Three variants: default, compact, and card for different layout contexts
+---
+
+`NMEmptyState` is the component your server names when it wants a empty states.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "empty-state-1",
+  "component": "NMEmptyState",
+  "props": {
+    "id": "empty-state-1",
+    "variant": "card",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Three variants: default, compact, and card for different layout contexts
+- Decorative icon (box, search, folder, file) with aria-hidden for accessibility
+- Title and description text for clear messaging
+- Optional action buttons (primary and tertiary) for next steps
+- Semantic <section> with role="region" and aria-label="Empty state"
+- Proper heading hierarchy with <h3> for title
+- Integrates with Button component for actions
+- Design tokens for typography, spacing, and card styling
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `descriptionText` | text | `Get started by creating your first item.` | Description text |
+| `icon` | `box` , `search` , `folder` , `file` | `box` | Decorative icon |
+| `showActions` | `true` , `false` | `true` | Show action buttons |
+| `titleText` | text | `No items yet` | Title text |
+| `variant` | `default` , `compact` , `card` | `default` | Empty state layout variant |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `<section> role="region"` | Semantic landmark for the empty state content area |
+| `aria-label="Empty state"` | Provides accessible name for the region |
+| `aria-hidden="true"` | Applied to decorative icon so it is not announced by screen readers |
+| `<h3> for title` | Proper heading hierarchy; ensure page context has h1/h2 above |
+| `aria-label on buttons` | Provide descriptive labels on action buttons when icon-only or context is unclear |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Tab` | Moves focus to the next focusable element (action buttons when present) |
+| `Shift + Tab` | Moves focus to the previous focusable element |
+| `Enter` | Activates the focused action button |
+| `Space` | Activates the focused action button |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

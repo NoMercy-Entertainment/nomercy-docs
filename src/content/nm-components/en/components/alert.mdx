@@ -1,0 +1,105 @@
+---
+title: Notification
+description: Four severity variants: info, success, warning, error
+---
+
+`NMAlert` is the component your server names when it wants a notification.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "alert-1",
+  "component": "NMAlert",
+  "props": {
+    "id": "alert-1",
+    "color": "amber",
+    "severity": "error",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Four severity variants: info, success, warning, error
+- Two sizes: full (default) and compact
+- Two styles: default (neutral) and accent (colored)
+- Optional icon, title, body text, and timestamp
+- Action buttons for primary and secondary actions
+- Closable with dismiss button
+- Glow effect for accent style
+- Accessible with role and aria-live based on severity
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `bodyText` | text | `If you need a description for the alert make sure to put it in here.` | Alert body text (full size only) |
+| `closable` | `true` , `false` | `true` | Show close button |
+| `color` | `teal` , `red` , `green` , `amber` | `teal` | Accent color (when style="accent") |
+| `glow` | `true` , `false` | `false` | Enable glow effect (accent style only) |
+| `severity` | `info` , `error` | `info` | Semantic severity level |
+| `showActions` | `true` , `false` | `true` | Actions |
+| `showBody` | `true` , `false` | `true` | Body text |
+| `showIcon` | `true` , `false` | `true` | Show leading icon |
+| `showTime` | `true` , `false` | `true` | Timestamp |
+| `size` | `full` , `compact` | `full` | Alert size |
+| `style` | `default` , `accent` | `default` | Visual style |
+| `timeText` | text | `88min ago` | Timestamp |
+| `titleText` | text | `` | Alert title |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `close` | void | Fired when close button is clicked |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="alert"` | For error and warning severity , interrupts screen reader to announce immediately |
+| `role="status"` | For info and success severity , announced when user is idle |
+| `aria-live` | "assertive" for error/warning, "polite" for info/success |
+| `aria-atomic="true"` | Ensures the entire message is read as a single unit |
+| `aria-label` | Required on close button (e.g., "Dismiss notification") and action buttons |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Tab` | Moves focus to the next focusable element (actions, close button) |
+| `Shift + Tab` | Moves focus to the previous focusable element |
+| `Enter` | Activates focused button (action or close) |
+| `Space` | Activates focused button (action or close) |
+| `Escape` | Dismisses the alert (if closable and handler is implemented) |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

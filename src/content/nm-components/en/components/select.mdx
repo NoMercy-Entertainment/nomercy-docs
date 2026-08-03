@@ -1,0 +1,125 @@
+---
+title: Select
+description: Three sizes: sm (32px), md (40px), lg (48px)
+---
+
+`NMSelect` is the component your server names when it wants a select.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "select-1",
+  "component": "NMSelect",
+  "props": {
+    "id": "select-1",
+    "helperStatus": "disabled",
+    "labelMarker": "custom",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Three sizes: sm (32px), md (40px), lg (48px)
+- Custom styled dropdown with native select fallback
+- Multiple states: default, hover, focus, filled, open, disabled
+- Optional leading icon for visual context
+- Label with required/optional markers
+- Helper text with error state support
+- ARIA combobox pattern for screen readers
+- Keyboard navigation (Arrow keys, Enter, Escape)
+- Check mark indicator for selected option
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `disabled` | `true` , `false` | `false` | Whether the select is disabled |
+| `error` | `true` , `false` | `false` | Whether the select has a validation error |
+| `helperIcon` | `true` , `false` | `false` | Helper icon |
+| `helperIconTooltip` | text | x | Helper icon tooltip |
+| `helperStatus` | `default` , `error` , `disabled` | `default` | Helper status |
+| `helperText` | text | `Select your country of residence.` | Helper text |
+| `iconLeft` | `true` , `false` | `false` | Leading icon HTML |
+| `labelDisabled` | `true` , `false` | `false` | Label disabled |
+| `labelInfoIcon` | `true` , `false` | `false` | Label info icon |
+| `labelInfoTooltip` | text | `More info about this field` | Label info tooltip |
+| `labelMarker` | `none` , `required` , `custom` | `required` | Marker |
+| `labelMarkerText` | text | `(Optional)` | Marker text |
+| `labelText` | text | `Country` | Label text |
+| `options` | text | `[]` | Array of selectable options |
+| `placeholder` | text | `Select...` | Placeholder text shown when no option is selected |
+| `selectedValue` | `apple` , `banana` , `cherry` , `mango` , `pineapple` | `banana` | Selected value |
+| `showHelper` | `true` , `false` | `true` | Helper |
+| `showLabel` | `true` , `false` | `true` | Label |
+| `showMenu` | `true` , `false` | `false` | Show menu panel |
+| `size` | `sm` , `md` , `lg` | `md` | The size of the select field |
+
+## Children
+
+Anything you nest under `items` renders inside. The design system also names these places to put content:
+
+| Slot | What goes there |
+| --- | --- |
+| `label` | Label component with required/optional markers |
+| `helper` | Helper text component with error state support |
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `change` | { value: string } | Fired when the selected value changes |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="combobox"` | Applied to the trigger button |
+| `aria-expanded` | Indicates whether the dropdown menu is open |
+| `aria-haspopup="listbox"` | Indicates the popup is a listbox |
+| `aria-controls` | Links trigger to the dropdown menu by ID |
+| `aria-activedescendant` | On the trigger; points to the highlighted option id while navigating |
+| `role="listbox"` | Applied to the dropdown menu container |
+| `role="option"` | Applied to each menu item |
+| `aria-selected` | Indicates the currently selected option |
+| `aria-invalid` | Set to "true" when select has validation errors |
+| `data-state` | Set to "open" or "closed" for styling hooks |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Space / Enter` | Opens the menu when closed; selects the highlighted option when open |
+| `Arrow Down / Up` | Opens menu (when closed) or navigates between options (when open) |
+| `Home` | Moves focus to first option (when menu is open) |
+| `End` | Moves focus to last option (when menu is open) |
+| `Escape` | Closes the dropdown and returns focus to trigger |
+| `Tab` | Closes menu and moves focus to next element |
+| `Type character` | Typeahead: jumps to option starting with typed character(s) |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

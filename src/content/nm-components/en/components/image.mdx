@@ -1,0 +1,91 @@
+---
+title: Image
+description: Multiple aspect ratios: auto, square, video (16:9), portrait (3:4), landscape
+---
+
+`NMImage` is the component your server names when it wants a image.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "image-1",
+  "component": "NMImage",
+  "props": {
+    "id": "image-1",
+    "aspectRatio": "landscape",
+    "fit": "none",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Multiple aspect ratios: auto, square, video (16:9), portrait (3:4), landscape
+- Object fit options: cover, contain, fill, none
+- Border radius: none, sm, md, lg, xl, full
+- Shadows: none, sm, md, lg, xl for elevation
+- Loading state with fallback placeholder
+- Error state with fallback when image fails to load
+- Optional border for definition
+- Clickable variant with hover zoom effect
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `alt` | text | `` | Alt text for accessibility |
+| `aspectRatio` | `auto` , `square` , `video` , `portrait` , `landscape` | `auto` | Image aspect ratio |
+| `border` | `true` , `false` | `false` | Show border |
+| `clickable` | `true` , `false` | `false` | Enable hover zoom effect |
+| `fit` | `cover` , `contain` , `fill` , `none` | `cover` | Object fit behavior |
+| `rounded` | `none` , `sm` , `md` , `lg` , `xl` , `full` | `lg` | Border radius |
+| `shadow` | `none` , `sm` , `md` , `lg` , `xl` | `none` | Shadow elevation |
+| `src` | text | `` | Image source URL |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `alt` | Required for meaningful images; describe the image content concisely |
+| `aria-busy="true"` | Applied to container during loading state to indicate content is loading |
+| `role="img"` | Applied to container in error state with aria-label="Image failed to load" |
+| `role="presentation"` | Use on img when image is purely decorative (empty alt) |
+| `aria-hidden="true"` | Applied to fallback content (placeholder icon) so screen readers skip it |
+| `aria-label` | Loading state uses aria-label="Loading image"; error state uses aria-label="Image failed to load" |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Tab` | When image is wrapped in a link or button, focus moves to the interactive element |
+| `Enter` | Activates parent link or button when image is clickable |
+| `Space` | Activates parent button when image is inside a button |
+| `Shift + Tab` | Moves focus to the previous focusable element |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

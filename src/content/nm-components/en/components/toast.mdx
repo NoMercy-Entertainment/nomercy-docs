@@ -1,0 +1,104 @@
+---
+title: Toast
+description: Four variants: info, success, warning, and error
+---
+
+`NMToast` is the component your server names when it wants a toast.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "toast-1",
+  "component": "NMToast",
+  "props": {
+    "id": "toast-1",
+    "position": "bottom-right",
+    "variant": "error",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Four variants: info, success, warning, and error
+- Six positions: top-left, top-center, top-right, bottom-left, bottom-center, bottom-right
+- Auto-dismiss timer with configurable duration
+- Optional action button for undo or secondary actions
+- Closable with dismiss button
+- Stacking support for multiple toasts
+- Progress bar indicates remaining time; pauses on hover
+- Accessible with role and aria-live based on variant severity
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `actionText` | text | `Action` | Action button text |
+| `closable` | `true` , `false` | `true` | Show close button |
+| `duration` | number | `5000` | Auto-dismiss duration (ms) |
+| `message` | text | `` | Toast message |
+| `position` | `top-left` , `top-center` , `top-right` , `bottom-left` , `bottom-center` , `bottom-right` | `bottom-right` | Screen position |
+| `showAction` | `true` , `false` | `false` | Show action button |
+| `showIcon` | `true` , `false` | `true` | Show variant icon |
+| `showProgress` | `true` , `false` | `true` | Show progress bar |
+| `title` | text | `Success` | Toast title |
+| `variant` | `default` , `info` , `success` , `warning` , `error` | `success` | Toast variant |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## What it reports
+
+These are the moments the component tells the client about. In a payload you respond to them
+with an `action`, which names an intent rather than carrying code.
+
+| Event | Carries | When |
+| --- | --- | --- |
+| `close` | void | Fired when toast is closed |
+| `action` | void | Fired when action button is clicked |
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `role="alert"` | For error and warning variants , interrupts screen reader to announce immediately |
+| `role="status"` | For info and success variants , announced when user is idle |
+| `aria-live` | "assertive" for error/warning, "polite" for info/success |
+| `aria-atomic="true"` | Ensures the entire message is read as a single unit |
+| `aria-label` | Required on close button (e.g., "Dismiss notification") and action buttons with descriptive labels |
+| `aria-hidden="true"` | On decorative icons so screen readers skip them |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Tab` | Moves focus to the next focusable element (action button, close button) |
+| `Shift + Tab` | Moves focus to the previous focusable element |
+| `Enter` | Activates focused button (action or close) |
+| `Space` | Activates focused button (action or close) |
+| `Escape` | Dismisses the toast when it has keyboard focus |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.

@@ -1,0 +1,84 @@
+---
+title: ContentHeader
+description: Title and optional subtitle for modal or card headers
+---
+
+`NMContentHeader` is the component your server names when it wants a contentheader.
+Like every NM component it accepts children and takes its box from the payload, so you can place
+one inside a dashboard without it needing to know where it was placed.
+
+## Sending one
+
+A component arrives inside the standard envelope. The `component` field names it and `props` is
+everything below.
+
+```json
+{
+  "id": "content-header-1",
+  "component": "NMContentHeader",
+  "props": {
+    "id": "content-header-1",
+    "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
+  }
+}
+```
+
+## What it does
+
+These are the behaviours the design system specifies for it, so you can rely on all of them
+being present on web, on mobile and on television.
+
+- Title and optional subtitle for modal or card headers
+- Optional decorative icon (grab-dots) for visual context
+- Optional close button (X) using Button component
+- Flex layout with content on left, close button on right
+- Supports aria-labelledby for dialog accessibility
+- Uses design tokens for typography and spacing
+
+## Options
+
+Every option is optional. Leave one out and the component uses the default in the last column,
+which is the same default on every platform.
+
+| Option | Accepts | Default | What it does |
+| --- | --- | --- | --- |
+| `canClose` | `true` , `false` | `false` | Show close button |
+| `hasIcon` | `true` , `false` | `false` | Show decorative icon |
+| `hasSubtitle` | `true` , `false` | `false` | Show subtitle |
+| `subtitle` | text | `` | Header subtitle |
+| `title` | text | `Content title` | Header title |
+| `titleId` | text | x | id put on the title, for a dialog to reference with aria-labelledby |
+
+## Children
+
+Anything you nest under `items` renders inside it.
+
+## Accessibility
+
+You do not have to do anything to get this. It is built in, and the list is here so you know what
+you can count on and what you would be breaking if you overrode it.
+
+| Attribute | Why |
+| --- | --- |
+| `aria-labelledby` | Reference the title id for dialog aria-labelledby to provide accessible name |
+| `aria-hidden="true"` | Use on decorative icon so it is not announced by screen readers |
+| `aria-label` | Close button requires aria-label (e.g., "Close dialog") for icon-only buttons |
+| `id` | Title element should have an id for aria-labelledby reference |
+
+### Keyboard and remote
+
+Each of these works with a keyboard on web and with a D-pad on television.
+
+| Key | What happens |
+| --- | --- |
+| `Tab` | Moves focus between close button and other focusable elements |
+| `Shift + Tab` | Moves focus to previous focusable element |
+| `Enter` | Activates close button when focused |
+| `Space` | Activates close button when focused |
+| `Escape` | Typically closes the dialog (implement in parent) |
+
+## Placing it
+
+Padding, margin, width, alignment and order all come from `box`, which every component accepts.
+A parent decides where this component sits and how much room it takes; the component decides how
+its own children are arranged. See [the box](/nm-components/box) for the full vocabulary.
