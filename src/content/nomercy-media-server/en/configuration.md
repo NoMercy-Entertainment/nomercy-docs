@@ -1,6 +1,6 @@
 ---
 title: MediaServer Configuration
-description: How to configure NoMercy MediaServer using startup flags, environment variables, and the in-app web UI.
+description: How to configure NoMercy MediaServer using startup flags, environment variables, and the dashboard.
 ---
 
 ## There Is No Config File
@@ -8,7 +8,7 @@ description: How to configure NoMercy MediaServer using startup flags, environme
 NoMercy MediaServer has no configuration file. There is no `.conf`, `.ini`, `.yaml`, or `.json` file to edit. Settings are controlled in two places:
 
 - **Startup flags** (or environment variables) — port, IP address, log level, and a few launch-time options
-- **Web UI** — everything else: libraries, users, encoder settings, and general preferences
+- **Dashboard** — everything else: libraries, users, encoder settings, and general preferences
 
 Open `http://<your-server-ip>:7626` after the server starts to reach the dashboard.
 
@@ -28,7 +28,6 @@ Pass flags directly when launching the server binary. Flags are processed by `No
 | `--service` | | off | Run as a platform service (Windows SCM, Linux systemd, macOS launchd). Sets working directory to the executable's location. |
 | `--pipe-name` | | platform default | Named pipe (Windows) or Unix socket filename used for the `nomercy` CLI IPC channel |
 | `--dev` | `-d` | off | Development mode — points the server at `api-dev.nomercy.tv` and `auth-dev.nomercy.tv` instead of production |
-| `--seed` | | off | Seeds the database with sample data on first start |
 
 **Example:**
 
@@ -54,7 +53,6 @@ Every flag has a matching environment variable. Environment variables are applie
 | `NOMERCY_EXTERNAL_IP` | `--external-ip` | `1.2.3.4` |
 | `NOMERCY_LOG_LEVEL` | `--loglevel` | `Debug` |
 | `NOMERCY_DEV` | `--dev` | `true` |
-| `NOMERCY_SEED` | `--seed` | `true` |
 | `NOMERCY_PIPE_NAME` | `--pipe-name` | `nomercy-ipc` |
 
 ---

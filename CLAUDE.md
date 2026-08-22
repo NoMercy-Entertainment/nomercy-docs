@@ -22,16 +22,17 @@ npm run preview      # build + preview
 
 ### Content collections
 
-All pages live under `src/content/<product>/<locale>/…` as `.mdx`. The locale is currently always `en/`. The seven collections (registered in `src/content.config.ts`):
+All pages live under `src/content/<product>/<locale>/…` as `.mdx`. The locale is currently always `en/`. The eight collections (registered in `src/content.config.ts`):
 
 ```
 src/content/
 ├── nomercy-media-server/en/   # Server
 ├── nomercy-app-web/en/        # Web app
-├── nomercy-app-android/en/    # Android
+├── nomercy-app-android/en/    # Android (retired, superseded by nomercy-app-kmp; see audit/ALIGNMENT.md)
 ├── nomercy-player-core/en/    # Core (base lib) — npm: @nomercy-entertainment/nomercy-player-core
 ├── nomercy-video-player/en/   # Video — npm: @nomercy-entertainment/nomercy-video-player
 ├── nomercy-music-player/en/   # Music — npm: @nomercy-entertainment/nomercy-music-player
+├── nm-components/en/          # Moooom design-system components
 └── nomercy-api/en|signalr/    # REST + SignalR reference
 ```
 
