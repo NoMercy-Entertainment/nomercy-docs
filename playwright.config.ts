@@ -44,7 +44,7 @@ export default defineConfig({
   // preview` — so the gate below asserts against actual build output, not a
   // dev-mode approximation of it.
   webServer: {
-    command: `npm run preview -- --port ${PORT}`,
+    command: `node scripts/preview-foreground.mjs --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 300_000,

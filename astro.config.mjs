@@ -2,8 +2,11 @@
 import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
 import mdx from "@astrojs/mdx";
+import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { unified } from "@astrojs/markdown-remark";
 
 import { remarkPlugins } from "./src/lib/mdx/remark.ts";
 import { rehypePlugins } from "./src/lib/mdx/rehype.ts";
@@ -234,8 +237,6 @@ export default defineConfig({
       include: ["**/react/**", "**/*.{tsx,jsx}"],
     }),
     mdx({
-      remarkPlugins,
-      rehypePlugins,
       recmaPlugins,
       // optimize: true pre-renders MDX to static HTML and bypasses the
       // `components` prop on <Content components={...} />. That kills every
@@ -252,8 +253,18 @@ export default defineConfig({
   markdown: {
     // Completely disable Shiki - we handle syntax highlighting in rehype
     syntaxHighlight: "prism",
+    // Astro 7 runs Markdown through Saetteri by default and no longer applies
+    // `remarkPlugins` on the mdx() integration. The unified processor keeps the
+    // pipeline this site is built on - directives, snippet blocks, the heading
+    // anchors - and MDX inherits it from here.
+    processor: unified({
+      remarkPlugins,
+      rehypePlugins,
+      syntaxHighlight: "prism",
+    }),
   },
   vite: {
+    plugins: [tailwindcss()],
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
