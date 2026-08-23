@@ -25,7 +25,6 @@ const COLLECTIONS = [
   'nomercy-music-player',
   'nomercy-media-server',
   'nomercy-app-web',
-  'nomercy-app-android',
   'nomercy-api',
 ];
 

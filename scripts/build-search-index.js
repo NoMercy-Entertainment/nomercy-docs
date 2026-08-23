@@ -14,7 +14,6 @@ const contentDirs = [
   { dir: './src/content/nomercy-music-player',  baseUrl: '/nomercy-music-player',  product: 'nomercy-music-player' },
   { dir: './src/content/nomercy-media-server',  baseUrl: '/nomercy-media-server',  product: 'nomercy-media-server' },
   { dir: './src/content/nomercy-app-web',       baseUrl: '/nomercy-app-web',       product: 'nomercy-app-web' },
-  { dir: './src/content/nomercy-app-android',   baseUrl: '/nomercy-app-android',   product: 'nomercy-app-android' },
   { dir: './src/content/nomercy-api',           baseUrl: '/nomercy-api',           product: 'nomercy-api' },
 ];
 
@@ -29,7 +28,6 @@ const productLabels = {
   'nomercy-music-player': 'Music Player',
   'nomercy-media-server': 'Media Server',
   'nomercy-app-web':      'Web App',
-  'nomercy-app-android':  'Android',
   'nomercy-api':          'API',
 };
 

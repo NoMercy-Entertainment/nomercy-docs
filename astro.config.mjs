@@ -160,6 +160,56 @@ export default defineConfig({
     "/app/index": "/nomercy-app-web/",
 
     // -----------------------------------------------------------------------
+    // /nomercy-app-android/ → / (section archived 2026-08: app retired,
+    // superseded by nomercy-app-kmp, which has no docs-site section yet; same
+    // "301 to /" fallback as the protocol-template archive below)
+    // -----------------------------------------------------------------------
+    "/nomercy-app-android": "/",
+    "/nomercy-app-android/connecting": "/",
+    "/nomercy-app-android/dashboard/devices": "/",
+    "/nomercy-app-android/dashboard/libraries": "/",
+    "/nomercy-app-android/dashboard/logs": "/",
+    "/nomercy-app-android/dashboard/overview": "/",
+    "/nomercy-app-android/dashboard/server-info": "/",
+    "/nomercy-app-android/dashboard/users": "/",
+    "/nomercy-app-android/foreground-service": "/",
+    "/nomercy-app-android/home": "/",
+    "/nomercy-app-android/info": "/",
+    "/nomercy-app-android/install/phone": "/",
+    "/nomercy-app-android/install/tv": "/",
+    "/nomercy-app-android/libraries": "/",
+    "/nomercy-app-android/library": "/",
+    "/nomercy-app-android/music/cards": "/",
+    "/nomercy-app-android/music/cast": "/",
+    "/nomercy-app-android/music/genres": "/",
+    "/nomercy-app-android/music/home": "/",
+    "/nomercy-app-android/music/list": "/",
+    "/nomercy-app-android/music/mini-player": "/",
+    "/nomercy-app-android/music/player": "/",
+    "/nomercy-app-android/music/queue": "/",
+    "/nomercy-app-android/notifications": "/",
+    "/nomercy-app-android/overview": "/",
+    "/nomercy-app-android/person": "/",
+    "/nomercy-app-android/preferences/about": "/",
+    "/nomercy-app-android/preferences/devices": "/",
+    "/nomercy-app-android/preferences/display": "/",
+    "/nomercy-app-android/preferences/profile": "/",
+    "/nomercy-app-android/search": "/",
+    "/nomercy-app-android/setup/auth-handoff": "/",
+    "/nomercy-app-android/setup/login-phone": "/",
+    "/nomercy-app-android/setup/login-tv": "/",
+    "/nomercy-app-android/setup/name-device": "/",
+    "/nomercy-app-android/setup/select-server": "/",
+    "/nomercy-app-android/setup/server-offline": "/",
+    "/nomercy-app-android/troubleshooting": "/",
+    "/nomercy-app-android/watch": "/",
+    "/nomercy-app-android/watch/cast": "/",
+    "/nomercy-app-android/watch/quality": "/",
+    "/nomercy-app-android/watch/remote-control": "/",
+    "/nomercy-app-android/watch/subtitles": "/",
+    "/nomercy-app-android/watch/tv-remote": "/",
+
+    // -----------------------------------------------------------------------
     // Protocol-template archive pages → root (410 semantics not available in
     // Astro redirects; 301 to / is the safe fallback for SEO)
     // -----------------------------------------------------------------------

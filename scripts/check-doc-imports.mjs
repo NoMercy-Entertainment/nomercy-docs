@@ -20,7 +20,7 @@
 // `*` pattern — fails the build with file, line, and the bad specifier.
 //
 // Scope is deliberately the trio collections only (same list as
-// check-docs.mjs): the media-server / app-web / app-android trees don't
+// check-docs.mjs): the media-server / app-web trees don't
 // document these npm packages and are outside this contract.
 
 import { existsSync, readFileSync } from 'node:fs';

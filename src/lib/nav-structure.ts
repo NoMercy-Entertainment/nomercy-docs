@@ -42,17 +42,6 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Dashboard (Admin)", pages: ['dashboard/overview', 'dashboard/libraries', 'dashboard/users', 'dashboard/encoder-profiles', 'dashboard/hardware', 'dashboard/storage', 'dashboard/devices', 'dashboard/dlna', 'dashboard/ripper', 'dashboard/specials', 'dashboard/recommendations', 'dashboard/content-analysis', 'dashboard/distribution', 'dashboard/plugins', 'dashboard/logs', 'dashboard/schedule', 'dashboard/notifications', 'dashboard/live-sessions', 'dashboard/metadata', 'dashboard/activity'] },
     { group: "Troubleshooting", pages: ['troubleshooting'] },
   ],
-  'nomercy-app-android': [
-    { group: "Getting Started", pages: ['overview', 'install/phone', 'install/tv', 'connecting'] },
-    { group: "Setup", pages: ['setup/name-device', 'setup/select-server', 'setup/server-offline', 'setup/login-phone', 'setup/login-tv', 'setup/auth-handoff'] },
-    { group: "Browsing", pages: ['home', 'libraries', 'library', 'search', 'info', 'person'] },
-    { group: "Watching Video", pages: ['watch', 'watch/subtitles', 'watch/quality', 'watch/cast', 'watch/remote-control', 'watch/tv-remote'] },
-    { group: "Listening to Music", pages: ['music/home', 'music/cards', 'music/list', 'music/genres', 'music/player', 'music/mini-player', 'music/queue', 'music/cast'] },
-    { group: "Preferences", pages: ['preferences/display', 'preferences/profile', 'preferences/devices', 'preferences/about'] },
-    { group: "Dashboard (Admin)", pages: ['dashboard/overview', 'dashboard/libraries', 'dashboard/users', 'dashboard/devices', 'dashboard/server-info', 'dashboard/logs'] },
-    { group: "Notifications & Background", pages: ['notifications', 'foreground-service'] },
-    { group: "Troubleshooting", pages: ['troubleshooting'] },
-  ],
   // v2 rebuild (see .rebuild/progress.md) — full 7-stage arc: introduction,
   // quickstart, tour, build, recipes, plugins-adapters, reference.
   'nomercy-player-core': [

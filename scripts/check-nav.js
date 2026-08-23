@@ -20,7 +20,6 @@ const contentDir = path.join(root, 'src', 'content');
 const COLLECTIONS = [
   'nomercy-media-server',
   'nomercy-app-web',
-  'nomercy-app-android',
   'nomercy-player-core',
   'nomercy-video-player',
   'nomercy-music-player',
