@@ -4,7 +4,7 @@ Guidance for Claude Code when working in the **NoMercy Documentation Site**.
 
 ## What this is
 
-A static documentation site built with **Astro 6**, **React 18** (islands), **Tailwind CSS v4** (CSS-based config, no `tailwind.config.ts`), and a **custom MDX dialect**. Content is authored as `.mdx`, navigation is generated from frontmatter, and search is a build-time static index. The site is its own git repository (nested inside the monorepo) — run git from `docs/nomercy-docs/`.
+A static documentation site built with **Astro 7**, **React 18** (islands), **Tailwind CSS v4** (CSS-based config, no `tailwind.config.ts`), and a **custom MDX dialect**. Content is authored as `.mdx`, navigation is generated from frontmatter, and search is a build-time static index. The site is its own git repository (nested inside the monorepo) — run git from `docs/nomercy-docs/`.
 
 ## Commands
 
