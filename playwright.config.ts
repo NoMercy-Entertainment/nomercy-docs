@@ -47,7 +47,10 @@ export default defineConfig({
     command: `node scripts/preview-foreground.mjs --port ${PORT}`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
-    timeout: 300_000,
+    // The web server builds the site before it serves it, and a cold build on
+    // a CI runner takes longer than five minutes - the gate was timing out
+    // waiting for a build that was still going.
+    timeout: 900_000,
     stdout: 'pipe',
     stderr: 'pipe',
   },
