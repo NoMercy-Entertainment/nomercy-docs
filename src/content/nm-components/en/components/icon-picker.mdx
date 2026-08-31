@@ -1,9 +1,9 @@
 ---
-title: "Radio"
-description: "Radio is part of the NM component set."
+title: "Icon Picker"
+description: "Icon Picker is part of the NM component set."
 ---
 
-`NMRadio` is the component your server names when it wants a radio.
+`NMIconPicker` is the component your server names when it wants a icon picker.
 Like every NM component it accepts children and takes its box from the payload, so you can place
 one inside a dashboard without it needing to know where it was placed.
 
@@ -14,10 +14,10 @@ everything below.
 
 ```json
 {
-  "id": "radio-1",
-  "component": "NMRadio",
+  "id": "icon-picker-1",
+  "component": "NMIconPicker",
   "props": {
-    "id": "radio-1",
+    "id": "icon-picker-1",
     "size": "md",
     "box": { "margin": { "y": "4" }, "padding": { "all": "3" } }
   }
@@ -27,15 +27,15 @@ everything below.
 The same thing from a server, or from a plugin, using the generated builder:
 
 ```csharp
-NMRadioProps props = new()
+NMIconPickerProps props = new()
 {
-    Id = "radio-1",
+    Id = "icon-picker-1",
     Size = "md",
     Box = new() { Margin = new() { Y = NmSpace.X4 }, Padding = new() { All = NmSpace.X3 } },
 };
 
 // In a plugin, the record becomes a node the client draws:
-PluginComponent node = PluginDesign.Node("radio-1", props);
+PluginComponent node = PluginDesign.Node("icon-picker-1", props);
 ```
 
 ## Options
@@ -45,14 +45,12 @@ which is the same default on every platform.
 
 | Option | Accepts | Default | What it does |
 | --- | --- | --- | --- |
-| `ariaLabel` | text | x | Accessible name, used when there is no labelText |
-| `checked` | `true` , `false` | `false` | Whether the radio is selected |
-| `disabled` | `true` , `false` | `false` | Whether the radio is disabled |
-| `helperText` | text | x | Optional helper text below label |
-| `labelText` | text | x | Optional label text |
-| `name` | text | x | Group name for mutual exclusivity |
-| `size` | `sm` , `md` | `md` | The size of the radio button |
-| `value` | text | x | Value submitted with form |
+| `dataIconsUrl` | text | x | Where the icons source fetches its icon data (JSON) |
+| `dataSources` | text | `emoji` | Comma list of built-in sources: icons, emoji |
+| `dataValue` | text | `` | Current value, an icon path or an emoji glyph |
+| `disabled` | `true` , `false` | `false` | Whether the picker is disabled |
+| `placeholder` | text | `Select an icon or emoji…` | Placeholder |
+| `size` | `sm` , `md` | `md` | Trigger size |
 
 ## Children
 
@@ -65,7 +63,8 @@ with an `action`, which names an intent rather than carrying code.
 
 | Event | Carries | When |
 | --- | --- | --- |
-| `change` | `{ value: string }` | Fired when radio selection changes |
+| `mom:change` | `{ value, label, source }` | Fired when a symbol is picked |
+| `mom:open / mom:close` | x | Panel opened / closed |
 
 ## Accessibility
 
@@ -74,11 +73,10 @@ you can count on and what you would be breaking if you overrode it.
 
 | Attribute | Why |
 | --- | --- |
-| `role="radio"` | Implicit from input type="radio" |
-| `name` | Groups radios together - only one can be selected per group |
-| `aria-label` | Required when no visible label text is present |
-| `aria-hidden` | Applied to decorative visual elements (circle) |
-| `disabled` | Native HTML attribute prevents interaction |
+| `aria-haspopup="dialog"` | On the trigger |
+| `aria-expanded` | Reflects the open panel |
+| `role="listbox"` | The results grid; each cell is a selectable option |
+| `role="tablist" / role="tab"` | Source tabs, when more than one source |
 
 ### Keyboard and remote
 
@@ -86,10 +84,10 @@ Each of these works with a keyboard on web and with a D-pad on television.
 
 | Key | What happens |
 | --- | --- |
-| `Arrow Keys` | Move focus and selection between radio buttons in the same group |
-| `Space` | Selects the focused radio button |
-| `Tab` | Moves focus into the group, then out to the next focusable element |
-| `Shift + Tab` | Moves focus to the previous focusable element |
+| `Enter / Space / ↓` | Open the panel (focuses search) |
+| `Arrow keys` | Move the highlight across the grid from the search field |
+| `Enter` | Pick the highlighted symbol |
+| `Escape` | Close and return focus to the trigger |
 
 ## Placing it
 
