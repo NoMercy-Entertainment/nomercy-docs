@@ -11,9 +11,15 @@
  * incoming one fades in, over a duration this config sets as the default.
  * beforeCrossfade / crossfadeStart / crossfadeComplete drive the status line
  * below instead of guessing at timing from the outside.
+ *
+ * DOM construction (`createElement`/`createButton`) lives on the plugin, not
+ * the player — `this.createElement(...)` inside `use()`, never
+ * `player.createElement(...)` from the outside. `this.mount('root')` claims
+ * an auto-cleaned wrapper so nothing has to be torn down by hand.
  */
 
 import type { IMusicPlayer, MusicPlaylistItem, MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { MUSIC_BASE, songs } from './media';
 
 const config: MusicPlayerConfig = {
@@ -22,48 +28,48 @@ const config: MusicPlayerConfig = {
 	crossfadeDefaults: { duration: 4, curve: 'equal-power' },
 };
 
-function buildBar(player: IMusicPlayer, container: HTMLElement): HTMLDivElement {
-	const bar = player.createElement('div', 'nm-tour-crossfade-bar').appendTo(container).get();
-	bar.style.cssText
-		= 'display:flex;align-items:center;gap:.75rem;height:100%;padding:0 1.25rem;color:#fff;font-family:system-ui,sans-serif;';
-	return bar;
+class CrossfadeTourPlugin extends Plugin<IMusicPlayer> {
+	static override readonly id = 'nm-tour-crossfade';
+	static override readonly description = 'Manual crossfade button + status line for the Crossfade tour page.';
+
+	private status!: HTMLSpanElement;
+
+	override use(): void {
+		const bar = this.createElement('div', 'nm-tour-crossfade-bar').appendTo(this.mount('root')).get();
+		bar.style.cssText
+			= 'display:flex;align-items:center;gap:.75rem;height:100%;padding:0 1.25rem;color:#fff;font-family:system-ui,sans-serif;';
+
+		const crossfadeButton = this.createButton('nm-tour-crossfade-button', 'Crossfade to the next track', () => {
+			const upNext = this.player.peekNext();
+			if (upNext)
+				void this.player.crossfadeTo(upNext);
+		});
+		crossfadeButton.textContent = 'Crossfade to next track';
+		crossfadeButton.style.cssText
+			= 'height:2.25rem;padding:0 .9rem;border:0;border-radius:9999px;background:#fff;'
+				+ 'color:#000;font-size:.8rem;font-weight:600;cursor:pointer;flex:none;';
+
+		this.status = this.createElement('span', 'nm-tour-crossfade-status').appendTo(bar).get();
+		this.status.style.cssText = 'font-size:.85rem;opacity:.8;';
+
+		bar.append(crossfadeButton, this.status);
+
+		this.on('item', ({ item }) => {
+			this.status.textContent = item ? `Playing: ${item.name}` : '';
+		});
+		this.on('crossfadeStart', ({ to }: { to: MusicPlaylistItem }) => {
+			this.status.textContent = `Crossfading to ${to.name}…`;
+		});
+	}
 }
 
-function onReady(player: IMusicPlayer, container: HTMLElement): () => void {
-	const bar = buildBar(player, container);
+function configure(player: IMusicPlayer): void {
+	player.addPlugin(CrossfadeTourPlugin);
+}
 
-	const crossfadeButton = player.createButton('nm-tour-crossfade-button', 'Crossfade to the next track', () => {
-		const upNext = player.peekNext();
-		if (upNext)
-			void player.crossfadeTo(upNext);
-	});
-	crossfadeButton.textContent = 'Crossfade to next track';
-	crossfadeButton.style.cssText
-		= 'height:2.25rem;padding:0 .9rem;border:0;border-radius:9999px;background:#fff;'
-			+ 'color:#000;font-size:.8rem;font-weight:600;cursor:pointer;flex:none;';
-
-	const status = player.createElement('span', 'nm-tour-crossfade-status').appendTo(bar).get();
-	status.style.cssText = 'font-size:.85rem;opacity:.8;';
-
-	bar.append(crossfadeButton, status);
-
-	const onItem = ({ item }: { item?: MusicPlaylistItem }): void => {
-		status.textContent = item ? `Playing: ${item.name}` : '';
-	};
-	const onCrossfadeStart = ({ to }: { to: MusicPlaylistItem }): void => {
-		status.textContent = `Crossfading to ${to.name}…`;
-	};
-	player.on('item', onItem);
-	player.on('crossfadeStart', onCrossfadeStart);
-
+function onReady(player: IMusicPlayer): void {
 	void player.mute();
 	player.item(0, { autoplay: true });
-
-	return () => {
-		player.off('item', onItem);
-		player.off('crossfadeStart', onCrossfadeStart);
-		bar.remove();
-	};
 }
 
-export default { config, onReady, player: 'music' as const };
+export default { config, configure, onReady, player: 'music' as const };

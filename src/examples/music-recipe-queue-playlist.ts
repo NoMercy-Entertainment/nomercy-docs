@@ -13,9 +13,15 @@
  * uses `playItem(id)`, which closes the `item(); play()` race described in
  * The Queue — a plain `item(id)` here would risk `play()` reaching the
  * backend before the new source is set.
+ *
+ * DOM construction (`createElement`/`createButton`) lives on the plugin, not
+ * the player — `this.createElement(...)` inside `use()`, never
+ * `player.createElement(...)` from the outside. `this.mount('root')` claims
+ * an auto-cleaned wrapper so nothing has to be torn down by hand.
  */
 
 import type { IMusicPlayer, MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { MUSIC_BASE, songs } from './media';
 
 const config: MusicPlayerConfig = {
@@ -23,21 +29,33 @@ const config: MusicPlayerConfig = {
 	playlist: songs,
 };
 
-function onReady(player: IMusicPlayer, container: HTMLElement): () => void {
-	if (!container.style.position)
-		container.style.position = 'relative';
+class QueuePanelPlugin extends Plugin<IMusicPlayer> {
+	static override readonly id = 'nm-recipe-queue-panel';
+	static override readonly description = 'Up Next queue panel for the Queue / Up Next recipe.';
 
-	const panel = player.createElement('div', 'nm-recipe-queue-panel').appendTo(container).get();
-	panel.style.cssText
-		= 'position:absolute;top:1rem;right:1rem;width:13rem;max-height:70%;overflow:auto;'
-			+ 'border-radius:.6rem;background:rgba(0,0,0,.72);padding:.35rem;';
+	private panel!: HTMLDivElement;
 
-	const render = (): void => {
-		panel.replaceChildren();
-		const activeId = player.item()?.id;
-		player.queue().forEach((item, index) => {
-			const row = player.createButton(`nm-recipe-queue-row-${index}`, `${item.name}${item.artist ? ` — ${item.artist}` : ''}`, () => {
-				player.playItem(item.id);
+	override use(): void {
+		const container = this.player.container;
+		if (!container.style.position)
+			container.style.position = 'relative';
+
+		this.panel = this.createElement('div', 'nm-recipe-queue-panel').appendTo(this.mount('root')).get();
+		this.panel.style.cssText
+			= 'position:absolute;top:1rem;right:1rem;width:13rem;max-height:70%;overflow:auto;'
+				+ 'border-radius:.6rem;background:rgba(0,0,0,.72);padding:.35rem;';
+
+		this.on('item', () => this.render());
+		this.on('queue', () => this.render());
+		this.render();
+	}
+
+	private render(): void {
+		this.panel.replaceChildren();
+		const activeId = this.player.item()?.id;
+		this.player.queue().forEach((item, index) => {
+			const row = this.createButton(`nm-recipe-queue-row-${index}`, `${item.name}${item.artist ? ` — ${item.artist}` : ''}`, () => {
+				this.player.playItem(item.id);
 			});
 			row.textContent = `${index + 1}. ${item.name}`;
 			row.style.cssText
@@ -46,22 +64,18 @@ function onReady(player: IMusicPlayer, container: HTMLElement): () => void {
 					+ 'font:600 .78rem system-ui,sans-serif;cursor:pointer;';
 			if (item.id === activeId)
 				row.style.background = 'rgba(255,255,255,.2)';
-			panel.appendChild(row);
+			this.panel.appendChild(row);
 		});
-	};
-
-	player.on('item', render);
-	player.on('queue', render);
-	render();
-
-	void player.mute();
-	player.item(0, { autoplay: true });
-
-	return () => {
-		player.off('item', render);
-		player.off('queue', render);
-		panel.remove();
-	};
+	}
 }
 
-export default { config, onReady, player: 'music' as const };
+function configure(player: IMusicPlayer): void {
+	player.addPlugin(QueuePanelPlugin);
+}
+
+function onReady(player: IMusicPlayer): void {
+	void player.mute();
+	player.item(0, { autoplay: true });
+}
+
+export default { config, configure, onReady, player: 'music' as const };

@@ -36,10 +36,10 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	private bottomBar!: HTMLDivElement;
 
 	override use(): void {
-		this.player.addClasses(this.player.container, ['group']);
+		this.addClasses(this.player.container, ['group']);
 
 		this.overlay = this.mount('overlay');
-		this.player.addClasses(this.overlay, [
+		this.addClasses(this.overlay, [
 			'overlay',
 			'absolute',
 			'inset-0',
@@ -51,7 +51,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createTopBar(): void {
-		this.topBar = this.player
+		this.topBar = this
 			.createElement('div', 'top-bar')
 			.addClasses([
 				'absolute',
@@ -80,7 +80,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createBottomBar(): void {
-		this.bottomBar = this.player
+		this.bottomBar = this
 			.createElement('div', 'bottom-bar')
 			.addClasses([
 				'absolute',

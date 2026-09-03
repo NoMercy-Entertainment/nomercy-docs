@@ -15,43 +15,57 @@ Earlier versions of this tutorial rebuilt play/pause, seeking, and volume as a c
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 
-const player = nmplayer('player');
-const list = document.querySelector<HTMLElement>('#track-list')!;
+class TrackListPlugin extends Plugin {
+  static override readonly id = 'track-list';
+  private list!: HTMLDivElement;
 
-function addOption(label: string, active: boolean, onSelect: () => void): void {
-  const button = player.createButton(`track-${label}`, label, onSelect);
-  button.textContent = label;
-  if (active) button.setAttribute('aria-current', 'true');
-  list.appendChild(button);
-}
+  override use(): void {
+    this.list = this.createElement('div', 'track-list').appendTo(this.player.container).get();
+  }
 
-function renderList() {
-  list.replaceChildren();
-  const items = player.queue();
-  const activeIndex = player.index();
+  private addOption(label: string, active: boolean, onSelect: () => void): void {
+    const button = this.createButton(`track-${label}`, label, onSelect);
+    button.textContent = label;
+    if (active) button.setAttribute('aria-current', 'true');
+    this.list.appendChild(button);
+  }
 
-  items.forEach((item, index) => {
-    addOption(item.name, index === activeIndex, () => {
-      player.item(index, { autoplay: true });
+  renderList(): void {
+    this.list.replaceChildren();
+    const items = this.player.queue();
+    const activeIndex = this.player.index();
+
+    items.forEach((item, index) => {
+      this.addOption(item.name, index === activeIndex, () => {
+        this.player.item(index, { autoplay: true });
+      });
     });
-  });
+  }
 }
+
+const player = nmplayer('player').addPlugin(TrackListPlugin);
 ```
 
-Each option button is built with `createButton`, `nomercy-player-core`'s accessible DOM helper, so every entry gets a real `aria-label` for free.
+Each option button is built with `this.createButton`, `Plugin`'s accessible DOM helper — every entry gets a real `aria-label` for free. DOM construction is a plugin concern, not a player one: `this.createElement`/`this.createButton` live on the plugin you write, not on the `player` instance you talk to.
 
 ## Keeping the highlight in sync
 
 A track can change without a click on this menu at all — `next()`, `previous()`, or a manual [`crossfadeTo()`](/nomercy-music-player/tour/crossfade) all move the cursor. Re-render whenever the queue's `item` event fires and the list happens to be open, instead of only updating on a click inside the menu itself:
 
+{/* partial */}
 ```ts
-let menuIsOpen = false;
+override use(): void {
+  // ...panel setup from above...
 
-player.on('item', () => {
-  if (menuIsOpen) renderList();
-});
+  this.on('item', () => {
+    if (this.menuIsOpen) this.renderList();
+  });
+}
 ```
+
+`this.on(...)` (not `this.player.on(...)`) — the plugin-scoped listener form auto-disposes on teardown, so there's no matching `off()` to remember.
 
 ## See it running
 

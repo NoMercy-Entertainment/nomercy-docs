@@ -29,10 +29,10 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
   private bottomBar!: HTMLDivElement;
 
   override use(): void {
-    this.player.addClasses(this.player.container, ['group']);
+    this.addClasses(this.player.container, ['group']);
 
     this.overlay = this.mount('overlay');
-    this.player.addClasses(this.overlay, [
+    this.addClasses(this.overlay, [
       'overlay',
       'absolute',
       'inset-0',
@@ -47,7 +47,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 
 ::Callout
 
-Notice the two kinds of `this` already in play. `this.mount()` is the plugin's own helper, bare `this.*`, because `this` is the plugin you are writing. `this.player.addClasses()` reaches the player, the collaborator this plugin extends. That split, what you *are* versus what you *talk to*, is the organising rule of the whole trio and decides where every behaviour lives. [Player and Plugin](/nomercy-player-core/tour/composition-boundary) is the short read.
+DOM-construction helpers (`createElement`, `createButton`, `createSVG`, `addClasses`, `removeClasses`) live on the `Plugin` base class, not the player, so every call here is bare `this.*`: `this.mount()` claims the wrapper, `this.addClasses()` styles it. `this.player.container` is the one place `this.player` shows up, reaching the collaborator this plugin extends to read its DOM node. That split, what you *are* versus what you *talk to*, is the organising rule of the whole trio and decides where every behaviour lives. [Player and Plugin](/nomercy-player-core/tour/composition-boundary) is the short read.
 
 ::
 
@@ -57,13 +57,13 @@ The first line marks the player container as a Tailwind `group` parent. Every st
 
 ## Build the bars
 
-`player.createElement(tag, id)` returns a chainable builder, so you read the construction straight down: create it, style it, append it, and `.get()` unwraps the real element into the field:
+`this.createElement(tag, id)` returns a chainable builder, so you read the construction straight down: create it, style it, append it, and `.get()` unwraps the real element into the field:
 
 {/* partial */}
 
 ```ts
 private createTopBar(): void {
-  this.topBar = this.player
+  this.topBar = this
     .createElement('div', 'top-bar')
     .addClasses([
       'absolute',
@@ -98,7 +98,7 @@ The bottom bar is the same shape flipped, `bottom-0` and `bg-gradient-to-t`, wit
 
 ```ts
 private createBottomBar(): void {
-  this.bottomBar = this.player
+  this.bottomBar = this
     .createElement('div', 'bottom-bar')
     .addClasses([
       'absolute',

@@ -70,10 +70,10 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	private playbackButton!: HTMLButtonElement;
 
 	override use(): void {
-		this.player.addClasses(this.player.container, ['group']);
+		this.addClasses(this.player.container, ['group']);
 
 		this.overlay = this.mount('overlay');
-		this.player.addClasses(this.overlay, [
+		this.addClasses(this.overlay, [
 			'overlay',
 			'absolute',
 			'inset-0',
@@ -89,7 +89,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createTopBar(): void {
-		this.topBar = this.player
+		this.topBar = this
 			.createElement('div', 'top-bar')
 			.addClasses([
 				'absolute',
@@ -118,7 +118,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createBottomBar(): void {
-		this.bottomBar = this.player
+		this.bottomBar = this
 			.createElement('div', 'bottom-bar')
 			.addClasses([
 				'absolute',
@@ -148,7 +148,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createUiButton(parent: HTMLElement, id: string, label: string): HTMLButtonElement {
-		const button = this.player
+		const button = this
 			.createElement('button', id)
 			.addClasses([
 				'w-10',
@@ -171,7 +171,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createCenterButton(): void {
-		this.centerButton = this.player
+		this.centerButton = this
 			.createElement('button', 'center-play')
 			.addClasses([
 				'absolute',
@@ -213,7 +213,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createSpinner(): void {
-		this.spinner = this.player
+		this.spinner = this
 			.createElement('div', 'spinner')
 			.addClasses([
 				'absolute',
@@ -234,7 +234,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createBottomRow(): void {
-		this.bottomRow = this.player
+		this.bottomRow = this
 			.createElement('div', 'bottom-row')
 			.addClasses([
 				'flex',
@@ -249,13 +249,13 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	private createPlaybackButton(): void {
 		this.playbackButton = this.createUiButton(this.bottomRow, 'playback', 'Play');
 
-		const playIcon = this.player
+		const playIcon = this
 			.createElement('span', 'playback-play')
 			.appendTo(this.playbackButton)
 			.get();
 		playIcon.innerHTML = svgFromIcon(icons.play);
 
-		const pauseIcon = this.player
+		const pauseIcon = this
 			.createElement('span', 'playback-pause')
 			.appendTo(this.playbackButton)
 			.get();

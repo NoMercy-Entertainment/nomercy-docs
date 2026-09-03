@@ -12,10 +12,17 @@
  * is visible immediately. bufferState()/networkState() have no dedicated
  * push event on this library, so this polls them on a short interval
  * instead of subscribing.
+ *
+ * DOM construction (`createElement`/`createButton`) lives on the plugin, not
+ * the player — `this.createElement(...)` inside `use()`, never
+ * `player.createElement(...)` from the outside. `this.mount('root')` claims
+ * an auto-cleaned wrapper, and `this.interval()` cancels itself on dispose,
+ * so nothing has to be torn down by hand.
  */
 
 import type { IMusicPlayer, MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';
 import { PlayState } from '@nomercy-entertainment/nomercy-music-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { MUSIC_BASE, songs } from './media';
 
 const config: MusicPlayerConfig = {
@@ -23,54 +30,58 @@ const config: MusicPlayerConfig = {
 	playlist: songs,
 };
 
-function buildBar(player: IMusicPlayer, container: HTMLElement): HTMLDivElement {
-	const bar = player.createElement('div', 'nm-tour-state-bar').appendTo(container).get();
-	bar.style.cssText
-		= 'display:flex;align-items:center;gap:.75rem;height:100%;padding:0 1.25rem;color:#fff;font-family:system-ui,sans-serif;';
-	return bar;
+class StateEventsTourPlugin extends Plugin<IMusicPlayer> {
+	static override readonly id = 'nm-tour-state-events';
+	static override readonly description = 'Play/pause button plus polled state readout for the Playback state & events tour page.';
+
+	private playPause!: HTMLButtonElement;
+	private status!: HTMLSpanElement;
+
+	override use(): void {
+		const bar = this.createElement('div', 'nm-tour-state-bar').appendTo(this.mount('root')).get();
+		bar.style.cssText
+			= 'display:flex;align-items:center;gap:.75rem;height:100%;padding:0 1.25rem;color:#fff;font-family:system-ui,sans-serif;';
+
+		this.playPause = this.createButton('nm-tour-state-play-pause', 'Play', () => {
+			void this.player.togglePlayback();
+		});
+		this.playPause.style.cssText
+			= 'width:2.25rem;height:2.25rem;border:0;border-radius:9999px;background:#fff;'
+				+ 'color:#000;font-size:.9rem;line-height:1;cursor:pointer;flex:none;';
+
+		this.status = this.createElement('span', 'nm-tour-state-status').appendTo(bar).get();
+		this.status.style.cssText = 'font-size:.8rem;opacity:.8;font-family:monospace;';
+
+		bar.append(this.playPause, this.status);
+
+		this.on('play', () => this.syncPlayPause());
+		this.on('pause', () => this.syncPlayPause());
+		this.on('playing', () => this.syncPlayPause());
+		this.syncPlayPause();
+
+		this.interval(() => this.renderStatus(), 1000);
+	}
+
+	private renderStatus(): void {
+		this.status.textContent
+			= `play:${this.player.playState()} buffer:${this.player.bufferState()} network:${this.player.networkState()}`;
+	}
+
+	private syncPlayPause(): void {
+		const playing = this.player.playState() === PlayState.PLAYING;
+		this.playPause.textContent = playing ? '⏸' : '▶';
+		this.playPause.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+		this.renderStatus();
+	}
 }
 
-function onReady(player: IMusicPlayer, container: HTMLElement): () => void {
-	const bar = buildBar(player, container);
+function configure(player: IMusicPlayer): void {
+	player.addPlugin(StateEventsTourPlugin);
+}
 
-	const playPause = player.createButton('nm-tour-state-play-pause', 'Play', () => {
-		void player.togglePlayback();
-	});
-	playPause.style.cssText
-		= 'width:2.25rem;height:2.25rem;border:0;border-radius:9999px;background:#fff;'
-			+ 'color:#000;font-size:.9rem;line-height:1;cursor:pointer;flex:none;';
-
-	const status = player.createElement('span', 'nm-tour-state-status').appendTo(bar).get();
-	status.style.cssText = 'font-size:.8rem;opacity:.8;font-family:monospace;';
-
-	bar.append(playPause, status);
-
-	const renderStatus = (): void => {
-		status.textContent = `play:${player.playState()} buffer:${player.bufferState()} network:${player.networkState()}`;
-	};
-	const syncPlayPause = (): void => {
-		const playing = player.playState() === PlayState.PLAYING;
-		playPause.textContent = playing ? '⏸' : '▶';
-		playPause.setAttribute('aria-label', playing ? 'Pause' : 'Play');
-		renderStatus();
-	};
-	player.on('play', syncPlayPause);
-	player.on('pause', syncPlayPause);
-	player.on('playing', syncPlayPause);
-	syncPlayPause();
-
-	const pollId = window.setInterval(renderStatus, 1000);
-
+function onReady(player: IMusicPlayer): void {
 	void player.mute();
 	player.item(0, { autoplay: true });
-
-	return () => {
-		player.off('play', syncPlayPause);
-		player.off('pause', syncPlayPause);
-		player.off('playing', syncPlayPause);
-		window.clearInterval(pollId);
-		bar.remove();
-	};
 }
 
-export default { config, onReady, player: 'music' as const };
+export default { config, configure, onReady, player: 'music' as const };

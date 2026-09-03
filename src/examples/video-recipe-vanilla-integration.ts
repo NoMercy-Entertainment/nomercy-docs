@@ -13,10 +13,15 @@
  * wrapper (Vue composable, React hook, Svelte store) is built around
  * underneath — see Recipes: Vue / React / Svelte for the same pattern
  * adapted to each framework's own reactivity primitive.
+ *
+ * DOM construction (`createElement`/`createButton`) lives on the plugin, not
+ * the player — `this.createElement(...)` inside `use()`, never
+ * `player.createElement(...)` from the outside.
  */
 
 import type { IVideoPlayer, VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
 import { PlayState } from '@nomercy-entertainment/nomercy-video-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { FILMS_BASE, films } from './media';
 
 const config: VideoPlayerConfig = {
@@ -35,98 +40,92 @@ interface PlayerSnapshot {
 }
 
 /**
- * Owns one player instance plus every listener it needs, and exposes a
- * single `onChange` callback instead of a reactive object — the lowest
- * common denominator every framework's reactivity system can wrap. Returns
- * one `destroy()` that unwinds every listener it added, the same contract
- * `onUnmounted` (Vue), a cleanup function (React `useEffect`), or `onDestroy`
- * (Svelte) all call into.
- */
-function createPlayerController(player: IVideoPlayer, onChange: (snapshot: PlayerSnapshot) => void): () => void {
-	const emit = (): void => {
-		onChange({
-			playing: player.playState() === PlayState.PLAYING,
-			title: player.item()?.title ?? '',
-			currentTime: player.time(),
-			duration: player.duration(),
-		});
-	};
-
-	player.on('play', emit);
-	player.on('pause', emit);
-	player.on('playing', emit);
-	player.on('ended', emit);
-	player.on('item', emit);
-	player.on('time', emit);
-	player.on('duration', emit);
-	emit();
-
-	return () => {
-		player.off('play', emit);
-		player.off('pause', emit);
-		player.off('playing', emit);
-		player.off('ended', emit);
-		player.off('item', emit);
-		player.off('time', emit);
-		player.off('duration', emit);
-	};
-}
-
-/**
  * Builds the title, progress slider, and play/pause button directly on the
- * player's own container — the same three controls every framework recipe in
+ * player's container — the same three controls every framework recipe in
  * this section renders, here addressed as plain DOM nodes instead of bound
- * through a template.
+ * through a template. Listens to the same events the lowest common
+ * denominator every framework's reactivity system wraps: `onUnmounted`
+ * (Vue), a cleanup function (React `useEffect`), or `onDestroy` (Svelte) —
+ * here it's simply `use()`'s own scope, torn down automatically on dispose.
  */
-function onReady(player: IVideoPlayer, container: HTMLElement): () => void {
-	if (!container.style.position)
-		container.style.position = 'relative';
+class VanillaControlsPlugin extends Plugin<IVideoPlayer> {
+	static override readonly id = 'nm-vanilla-controls';
+	static override readonly description = 'Title, progress bar, and play/pause button for the Vanilla Integration recipe.';
 
-	const title = player.createElement('div', 'nm-vanilla-title').appendTo(container).get();
-	title.style.cssText
-		= 'position:absolute;left:1rem;top:1rem;padding:.35rem .6rem;border-radius:.5rem;'
-			+ 'background:rgba(0,0,0,.65);color:#fff;font:600 .8rem system-ui,sans-serif;pointer-events:none;';
+	private title!: HTMLDivElement;
+	private bar!: HTMLDivElement;
+	private fill!: HTMLDivElement;
+	private button!: HTMLButtonElement;
 
-	const bar = player.createElement('div', 'nm-vanilla-progress').appendTo(container).get();
-	bar.style.cssText
-		= 'position:absolute;left:1rem;right:1rem;bottom:3.5rem;height:.35rem;border-radius:999px;'
-			+ 'background:rgba(255,255,255,.25);cursor:pointer;';
-	bar.setAttribute('role', 'slider');
-	bar.setAttribute('aria-valuemin', '0');
-	bar.setAttribute('aria-valuemax', '100');
-	bar.tabIndex = 0;
+	override use(): void {
+		const container = this.player.container;
+		if (!container.style.position)
+			container.style.position = 'relative';
 
-	const fill = player.createElement('div', 'nm-vanilla-progress-fill').appendTo(bar).get();
-	fill.style.cssText = 'height:100%;border-radius:999px;background:#fff;width:0%;';
+		const root = this.mount('root');
 
-	const button = player.createButton('nm-vanilla-toggle', 'Play', () => void player.togglePlayback());
-	button.style.cssText
-		= 'position:absolute;left:1rem;bottom:1rem;padding:.35rem .75rem;border-radius:.5rem;border:0;'
-			+ 'background:rgba(0,0,0,.65);color:#fff;font:600 .8rem system-ui,sans-serif;cursor:pointer;';
-	container.appendChild(button);
+		this.title = this.createElement('div', 'nm-vanilla-title').appendTo(root).get();
+		this.title.style.cssText
+			= 'position:absolute;left:1rem;top:1rem;padding:.35rem .6rem;border-radius:.5rem;'
+				+ 'background:rgba(0,0,0,.65);color:#fff;font:600 .8rem system-ui,sans-serif;pointer-events:none;';
 
-	function seek(event: MouseEvent): void {
-		const ratio = event.offsetX / bar.clientWidth;
-		player.seekByPercentage(ratio * 100);
+		this.bar = this.createElement('div', 'nm-vanilla-progress').appendTo(root).get();
+		this.bar.style.cssText
+			= 'position:absolute;left:1rem;right:1rem;bottom:3.5rem;height:.35rem;border-radius:999px;'
+				+ 'background:rgba(255,255,255,.25);cursor:pointer;';
+		this.bar.setAttribute('role', 'slider');
+		this.bar.setAttribute('aria-valuemin', '0');
+		this.bar.setAttribute('aria-valuemax', '100');
+		this.bar.tabIndex = 0;
+
+		this.fill = this.createElement('div', 'nm-vanilla-progress-fill').appendTo(this.bar).get();
+		this.fill.style.cssText = 'height:100%;border-radius:999px;background:#fff;width:0%;';
+
+		this.button = this.createButton('nm-vanilla-toggle', 'Play', () => void this.player.togglePlayback());
+		this.button.style.cssText
+			= 'position:absolute;left:1rem;bottom:1rem;padding:.35rem .75rem;border-radius:.5rem;border:0;'
+				+ 'background:rgba(0,0,0,.65);color:#fff;font:600 .8rem system-ui,sans-serif;cursor:pointer;';
+		root.appendChild(this.button);
+
+		this.listen(this.bar, 'click', (event) => this.seek(event as MouseEvent));
+
+		const emit = (): void => this.render(this.snapshot());
+		this.on('play', emit);
+		this.on('pause', emit);
+		this.on('playing', emit);
+		this.on('ended', emit);
+		this.on('item', emit);
+		this.on('time', emit);
+		this.on('duration', emit);
+		emit();
 	}
-	bar.addEventListener('click', seek);
 
-	const destroyController = createPlayerController(player, (snapshot) => {
-		title.textContent = snapshot.title || 'Nothing playing';
+	private snapshot(): PlayerSnapshot {
+		return {
+			playing: this.player.playState() === PlayState.PLAYING,
+			title: this.player.item()?.title ?? '',
+			currentTime: this.player.time(),
+			duration: this.player.duration(),
+		};
+	}
+
+	private seek(event: MouseEvent): void {
+		const ratio = event.offsetX / this.bar.clientWidth;
+		this.player.seekByPercentage(ratio * 100);
+	}
+
+	private render(snapshot: PlayerSnapshot): void {
+		this.title.textContent = snapshot.title || 'Nothing playing';
 		const progress = snapshot.duration > 0 ? (snapshot.currentTime / snapshot.duration) * 100 : 0;
-		fill.style.width = `${progress}%`;
-		bar.setAttribute('aria-valuenow', String(progress));
-		button.textContent = snapshot.playing ? 'Pause' : 'Play';
-		button.setAttribute('aria-label', snapshot.playing ? 'Pause' : 'Play');
-	});
-
-	return () => {
-		destroyController();
-		bar.removeEventListener('click', seek);
-		title.remove();
-		bar.remove();
-		button.remove();
-	};
+		this.fill.style.width = `${progress}%`;
+		this.bar.setAttribute('aria-valuenow', String(progress));
+		this.button.textContent = snapshot.playing ? 'Pause' : 'Play';
+		this.button.setAttribute('aria-label', snapshot.playing ? 'Pause' : 'Play');
+	}
 }
 
-export default { config, onReady };
+function configure(player: IVideoPlayer): void {
+	player.addPlugin(VanillaControlsPlugin);
+}
+
+export default { config, configure };

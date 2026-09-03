@@ -12,10 +12,15 @@
  * default, an overlapping fade) and `GaplessTransitionStrategy` (a hard cut,
  * video's default) via `setTransitionStrategy()`, and exposes a manual
  * `crossfadeTo()` call independent of whichever mode is active.
+ *
+ * DOM construction (`createElement`/`createButton`) lives on the plugin, not
+ * the player — `this.createElement(...)` inside `use()`, never
+ * `player.createElement(...)` from the outside. `this.mount('root')` claims
+ * an auto-cleaned wrapper so nothing has to be torn down by hand.
  */
 
 import type { IMusicPlayer, MusicPlaylistItem, MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';
-import { CrossfadeTransitionStrategy, GaplessTransitionStrategy } from '@nomercy-entertainment/nomercy-player-core';
+import { CrossfadeTransitionStrategy, GaplessTransitionStrategy, Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { MUSIC_BASE, songs } from './media';
 
 const config: MusicPlayerConfig = {
@@ -24,68 +29,69 @@ const config: MusicPlayerConfig = {
 	crossfadeDefaults: { duration: 4, curve: 'equal-power' },
 };
 
-function buildBar(player: IMusicPlayer, container: HTMLElement): HTMLDivElement {
-	const bar = player.createElement('div', 'nm-recipe-fade-bar').appendTo(container).get();
-	bar.style.cssText
-		= 'display:flex;align-items:center;gap:.6rem;height:100%;padding:0 1.25rem;color:#fff;font-family:system-ui,sans-serif;';
-	return bar;
+class CrossfadeTogglePlugin extends Plugin<IMusicPlayer> {
+	static override readonly id = 'nm-recipe-crossfade-toggle';
+	static override readonly description = 'Crossfade/gapless mode toggle for the Crossfade & Gapless Playback recipe.';
+
+	private gapless = false;
+	private modeButton!: HTMLButtonElement;
+	private status!: HTMLSpanElement;
+
+	override use(): void {
+		const bar = this.createElement('div', 'nm-recipe-fade-bar').appendTo(this.mount('root')).get();
+		bar.style.cssText
+			= 'display:flex;align-items:center;gap:.6rem;height:100%;padding:0 1.25rem;color:#fff;font-family:system-ui,sans-serif;';
+
+		this.modeButton = this.createButton('nm-recipe-fade-mode', 'Toggle transition mode', () => {
+			this.gapless = !this.gapless;
+			this.player.setTransitionStrategy(
+				this.gapless
+					? new GaplessTransitionStrategy()
+					: new CrossfadeTransitionStrategy({ leadSeconds: 3, tailSeconds: 3, curve: 'equal-power' }),
+			);
+			this.syncMode();
+		});
+		this.modeButton.style.cssText
+			= 'height:2.25rem;padding:0 .9rem;border:0;border-radius:9999px;background:#fff;'
+				+ 'color:#000;font-size:.8rem;font-weight:600;cursor:pointer;flex:none;';
+
+		const crossfadeButton = this.createButton('nm-recipe-fade-now', 'Crossfade to the next track now', () => {
+			const upNext = this.player.peekNext();
+			if (upNext)
+				void this.player.crossfadeTo(upNext, { duration: 3, curve: 'equal-power' });
+		});
+		crossfadeButton.textContent = 'Crossfade now';
+		crossfadeButton.style.cssText
+			= 'height:2.25rem;padding:0 .9rem;border:0;border-radius:9999px;background:rgba(255,255,255,.15);'
+				+ 'color:#fff;font-size:.8rem;font-weight:600;cursor:pointer;flex:none;';
+
+		this.status = this.createElement('span', 'nm-recipe-fade-status').appendTo(bar).get();
+		this.status.style.cssText = 'font-size:.8rem;opacity:.85;';
+
+		bar.append(this.modeButton, crossfadeButton, this.status);
+
+		this.syncMode();
+
+		this.on('item', ({ item }) => {
+			this.status.textContent = item ? `Playing: ${item.name}` : '';
+		});
+		this.on('crossfadeStart', ({ to }: { to: MusicPlaylistItem }) => {
+			this.status.textContent = `Crossfading to ${to.name}…`;
+		});
+	}
+
+	private syncMode(): void {
+		this.modeButton.textContent = this.gapless ? 'Mode: Gapless (hard cut)' : 'Mode: Crossfade';
+	}
 }
 
-function onReady(player: IMusicPlayer, container: HTMLElement): () => void {
-	const bar = buildBar(player, container);
+function configure(player: IMusicPlayer): void {
+	player.addPlugin(CrossfadeTogglePlugin);
+}
 
-	let gapless = false;
-
-	const modeButton = player.createButton('nm-recipe-fade-mode', 'Toggle transition mode', () => {
-		gapless = !gapless;
-		player.setTransitionStrategy(
-			gapless
-				? new GaplessTransitionStrategy()
-				: new CrossfadeTransitionStrategy({ leadSeconds: 3, tailSeconds: 3, curve: 'equal-power' }),
-		);
-		syncMode();
-	});
-	modeButton.style.cssText
-		= 'height:2.25rem;padding:0 .9rem;border:0;border-radius:9999px;background:#fff;'
-			+ 'color:#000;font-size:.8rem;font-weight:600;cursor:pointer;flex:none;';
-
-	const crossfadeButton = player.createButton('nm-recipe-fade-now', 'Crossfade to the next track now', () => {
-		const upNext = player.peekNext();
-		if (upNext)
-			void player.crossfadeTo(upNext, { duration: 3, curve: 'equal-power' });
-	});
-	crossfadeButton.textContent = 'Crossfade now';
-	crossfadeButton.style.cssText
-		= 'height:2.25rem;padding:0 .9rem;border:0;border-radius:9999px;background:rgba(255,255,255,.15);'
-			+ 'color:#fff;font-size:.8rem;font-weight:600;cursor:pointer;flex:none;';
-
-	const status = player.createElement('span', 'nm-recipe-fade-status').appendTo(bar).get();
-	status.style.cssText = 'font-size:.8rem;opacity:.85;';
-
-	bar.append(modeButton, crossfadeButton, status);
-
-	const syncMode = (): void => {
-		modeButton.textContent = gapless ? 'Mode: Gapless (hard cut)' : 'Mode: Crossfade';
-	};
-	syncMode();
-
-	const onItem = ({ item }: { item?: MusicPlaylistItem }): void => {
-		status.textContent = item ? `Playing: ${item.name}` : '';
-	};
-	const onCrossfadeStart = ({ to }: { to: MusicPlaylistItem }): void => {
-		status.textContent = `Crossfading to ${to.name}…`;
-	};
-	player.on('item', onItem);
-	player.on('crossfadeStart', onCrossfadeStart);
-
+function onReady(player: IMusicPlayer): void {
 	void player.mute();
 	player.item(0, { autoplay: true });
-
-	return () => {
-		player.off('item', onItem);
-		player.off('crossfadeStart', onCrossfadeStart);
-		bar.remove();
-	};
 }
 
-export default { config, onReady, player: 'music' as const };
+export default { config, configure, onReady, player: 'music' as const };

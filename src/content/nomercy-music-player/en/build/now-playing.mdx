@@ -15,13 +15,22 @@ description: 'Step 5 of 5: a now-playing panel (cover, title, artist) plus a syn
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 
-const player = nmplayer('player');
-const panel = document.querySelector<HTMLElement>('#now-playing')!;
+class NowPlayingPanelPlugin extends Plugin {
+  static override readonly id = 'now-playing-panel';
+  private cover!: HTMLImageElement;
 
-const cover = player.createElement('img', 'my-cover').appendTo(panel).get();
-const current = player.item();
-cover.src = current?.image ?? current?.cover ?? '';
+  override use(): void {
+    const panel = document.querySelector<HTMLElement>('#now-playing')!;
+    this.cover = this.createElement('img', 'my-cover').appendTo(panel).get();
+
+    const current = this.player.item();
+    this.cover.src = current?.image ?? current?.cover ?? '';
+  }
+}
+
+const player = nmplayer('player').addPlugin(NowPlayingPanelPlugin);
 ```
 
 ## Registering the plugin
@@ -39,22 +48,33 @@ await player.ready();
 
 ## Wiring the panel
 
-`item` updates the cover, title, and artist together, since they all come from the same track. The lyric line is separate, driven by the plugin's own namespaced event:
+`item` updates the cover, title, and artist together, since they all come from the same track. The lyric line is separate, driven by `LyricsPlugin`'s own namespaced event — subscribed through the typed class-form listener rather than a raw `'plugin:lyrics:lineEnter'` string, so `static readonly requires` (declared with `optional: true`, since the panel still renders without lyrics) guarantees `LyricsPlugin` is loaded before this reads it:
 
+{/* partial */}
 ```ts
-const title = panel.querySelector<HTMLElement>('.title')!;
-const artist = panel.querySelector<HTMLElement>('.artist')!;
-const lyricLine = panel.querySelector<HTMLElement>('.lyric-line')!;
+static override readonly requires = [{ plugin: LyricsPlugin, optional: true }];
 
-player.on('item', ({ item }) => {
-  cover.src = item?.image ?? item?.cover ?? '';
-  title.textContent = item?.name ?? '';
-  artist.textContent = item?.artist ?? '';
-  lyricLine.textContent = ''; // clear until the new track's lyrics resolve
-});
-player.on('plugin:lyrics:lineEnter', ({ text }) => {
-  lyricLine.textContent = text;
-});
+private title!: HTMLElement;
+private artist!: HTMLElement;
+private lyricLine!: HTMLElement;
+
+override use(): void {
+  // ...cover setup from above...
+  const panel = this.cover.parentElement!;
+  this.title = panel.querySelector<HTMLElement>('.title')!;
+  this.artist = panel.querySelector<HTMLElement>('.artist')!;
+  this.lyricLine = panel.querySelector<HTMLElement>('.lyric-line')!;
+
+  this.on('item', ({ item }) => {
+    this.cover.src = item?.image ?? item?.cover ?? '';
+    this.title.textContent = item?.name ?? '';
+    this.artist.textContent = item?.artist ?? '';
+    this.lyricLine.textContent = ''; // clear until the new track's lyrics resolve
+  });
+  this.on(LyricsPlugin, 'lineEnter', ({ text }) => {
+    this.lyricLine.textContent = text;
+  });
+}
 ```
 
 ## What you built

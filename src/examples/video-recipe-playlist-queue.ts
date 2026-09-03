@@ -13,9 +13,15 @@
  * uses `playItem(id)`, which closes the `item(); play()` race described in
  * The Queue & Playlist — a plain `item(id)` here would risk `play()` reaching
  * the backend before the new source is set.
+ *
+ * DOM construction (`createElement`) lives on the plugin, not the player —
+ * `this.createElement(...)` inside `use()`, never `player.createElement(...)`
+ * from the outside. `this.mount('root')` claims an auto-cleaned wrapper so
+ * nothing has to be torn down by hand.
  */
 
 import type { IVideoPlayer, VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { FILMS_BASE, films } from './media';
 
 const config: VideoPlayerConfig = {
@@ -27,19 +33,31 @@ const config: VideoPlayerConfig = {
 	playlist: films,
 };
 
-function onReady(player: IVideoPlayer, container: HTMLElement): () => void {
-	if (!container.style.position)
-		container.style.position = 'relative';
+class QueuePanelPlugin extends Plugin<IVideoPlayer> {
+	static override readonly id = 'nm-recipe-queue-panel';
+	static override readonly description = 'Up Next queue panel for the Queue & Playlist recipe.';
 
-	const panel = player.createElement('div', 'nm-queue-panel').appendTo(container).get();
-	panel.style.cssText
-		= 'position:absolute;top:1rem;right:1rem;width:13rem;max-height:70%;overflow:auto;'
-			+ 'border-radius:.6rem;background:rgba(0,0,0,.72);padding:.35rem;';
+	private panel!: HTMLDivElement;
 
-	const render = (): void => {
-		panel.replaceChildren();
-		const activeId = player.item()?.id;
-		player.queue().forEach((item, index) => {
+	override use(): void {
+		const container = this.player.container;
+		if (!container.style.position)
+			container.style.position = 'relative';
+
+		this.panel = this.createElement('div', 'nm-queue-panel').appendTo(this.mount('root')).get();
+		this.panel.style.cssText
+			= 'position:absolute;top:1rem;right:1rem;width:13rem;max-height:70%;overflow:auto;'
+				+ 'border-radius:.6rem;background:rgba(0,0,0,.72);padding:.35rem;';
+
+		this.on('item', () => this.render());
+		this.on('queue', () => this.render());
+		this.render();
+	}
+
+	private render(): void {
+		this.panel.replaceChildren();
+		const activeId = this.player.item()?.id;
+		this.player.queue().forEach((item, index) => {
 			const row = document.createElement('button');
 			row.type = 'button';
 			row.textContent = `${index + 1}. ${item.title ?? String(item.id)}`;
@@ -49,20 +67,14 @@ function onReady(player: IVideoPlayer, container: HTMLElement): () => void {
 					+ 'font:600 .78rem system-ui,sans-serif;cursor:pointer;';
 			if (item.id === activeId)
 				row.style.background = 'rgba(255,255,255,.2)';
-			row.addEventListener('click', () => player.playItem(item.id));
-			panel.appendChild(row);
+			this.listen(row, 'click', () => this.player.playItem(item.id));
+			this.panel.appendChild(row);
 		});
-	};
-
-	player.on('item', render);
-	player.on('queue', render);
-	render();
-
-	return () => {
-		player.off('item', render);
-		player.off('queue', render);
-		panel.remove();
-	};
+	}
 }
 
-export default { config, onReady };
+function configure(player: IVideoPlayer): void {
+	player.addPlugin(QueuePanelPlugin);
+}
+
+export default { config, configure };

@@ -13,9 +13,15 @@
  * the source is ready. This is the same mechanism `autoPlay` + `item.progress`
  * automate across a real page reload — this example proves it within one
  * mounted session since the docs preview can't reload the page for you.
+ *
+ * DOM construction (`createElement`) lives on the plugin, not the player —
+ * `this.createElement(...)` inside `use()`, never `player.createElement(...)`
+ * from the outside. `this.mount('root')` claims an auto-cleaned wrapper so
+ * nothing has to be torn down by hand.
  */
 
 import type { IVideoPlayer, VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { FILMS_BASE, sintel } from './media';
 
 const STORAGE_KEY = 'nm-docs-recipe-resume:sintel';
@@ -45,39 +51,40 @@ function readSavedProgress(): SavedProgress | null {
 	}
 }
 
-function onReady(player: IVideoPlayer, container: HTMLElement): () => void {
-	if (!container.style.position)
-		container.style.position = 'relative';
+class ResumeBadgePlugin extends Plugin<IVideoPlayer> {
+	static override readonly id = 'nm-recipe-resume-badge';
+	static override readonly description = 'Resume-position badge for the Persistence & Resume recipe.';
 
-	const badge = player.createElement('div', 'nm-resume-badge').appendTo(container).get();
-	badge.style.cssText
-		= 'position:absolute;right:1rem;top:1rem;padding:.35rem .6rem;border-radius:.5rem;'
-			+ 'background:rgba(0,0,0,.65);color:#fff;font:600 .75rem system-ui,sans-serif;pointer-events:none;';
+	override use(): void {
+		const container = this.player.container;
+		if (!container.style.position)
+			container.style.position = 'relative';
 
-	const saved = readSavedProgress();
-	badge.textContent = saved ? `Resuming at ${Math.round(saved.time)}s` : 'No saved position yet';
+		const badge = this.createElement('div', 'nm-resume-badge').appendTo(this.mount('root')).get();
+		badge.style.cssText
+			= 'position:absolute;right:1rem;top:1rem;padding:.35rem .6rem;border-radius:.5rem;'
+				+ 'background:rgba(0,0,0,.65);color:#fff;font:600 .75rem system-ui,sans-serif;pointer-events:none;';
 
-	// mediaReady is the kit's signal that the backend accepted the source and
-	// duration is known — seeking any earlier can be silently dropped.
-	const resumeOnce = (): void => {
-		if (saved && saved.time > 0)
-			void player.time(saved.time);
-		player.off('mediaReady', resumeOnce);
-	};
-	player.on('mediaReady', resumeOnce);
+		const saved = readSavedProgress();
+		badge.textContent = saved ? `Resuming at ${Math.round(saved.time)}s` : 'No saved position yet';
 
-	const onProgress = ({ time, percentage }: { time: number; duration: number; percentage: number }): void => {
-		const record: SavedProgress = { time, percentage, timestamp: Date.now() };
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
-		badge.textContent = `Saved at ${Math.round(time)}s (${Math.round(percentage)}%)`;
-	};
-	player.on('progress', onProgress);
+		// mediaReady is the kit's signal that the backend accepted the source and
+		// duration is known — seeking any earlier can be silently dropped.
+		this.once('mediaReady', () => {
+			if (saved && saved.time > 0)
+				void this.player.time(saved.time);
+		});
 
-	return () => {
-		player.off('mediaReady', resumeOnce);
-		player.off('progress', onProgress);
-		badge.remove();
-	};
+		this.on('progress', ({ time, percentage }) => {
+			const record: SavedProgress = { time, percentage, timestamp: Date.now() };
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
+			badge.textContent = `Saved at ${Math.round(time)}s (${Math.round(percentage)}%)`;
+		});
+	}
 }
 
-export default { config, onReady };
+function configure(player: IVideoPlayer): void {
+	player.addPlugin(ResumeBadgePlugin);
+}
+
+export default { config, configure };

@@ -13,9 +13,16 @@
  * menu in sync when ABR itself changes the rendition, not just when the user
  * picks one. `DesktopUiPlugin`'s own quality menu (see Plugin: Desktop UI)
  * is built from the exact same three primitives.
+ *
+ * DOM construction (`createElement`) lives on the plugin, not the player —
+ * `this.createElement(...)` inside `use()`, never `player.createElement(...)`
+ * from the outside. `this.mount('root')` claims an auto-cleaned wrapper, and
+ * `this.listen()` detaches its DOM listener on dispose, so nothing has to be
+ * torn down by hand.
  */
 
 import type { IVideoPlayer, QualityLevel, VideoPlayerConfig } from '@nomercy-entertainment/nomercy-video-player';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { FILMS_BASE, sintel } from './media';
 
 const config: VideoPlayerConfig = {
@@ -32,51 +39,55 @@ function labelFor(level: QualityLevel): string {
 	return level.height ? `${level.height}p` : level.label;
 }
 
-function onReady(player: IVideoPlayer, container: HTMLElement): () => void {
-	if (!container.style.position)
-		container.style.position = 'relative';
+class QualitySelectPlugin extends Plugin<IVideoPlayer> {
+	static override readonly id = 'nm-recipe-quality-select';
+	static override readonly description = 'Manual quality selector for the Manual Quality Selection recipe.';
 
-	const menu = player.createElement('select', 'nm-quality-select').appendTo(container).get();
-	menu.style.cssText = 'position:absolute;right:1rem;bottom:1rem;padding:.3rem .5rem;border-radius:.4rem;';
-	menu.setAttribute('aria-label', 'Quality');
+	private menu!: HTMLSelectElement;
 
-	const renderOptions = (levels: readonly QualityLevel[]): void => {
-		menu.replaceChildren();
+	override use(): void {
+		const container = this.player.container;
+		if (!container.style.position)
+			container.style.position = 'relative';
+
+		this.menu = this.createElement('select', 'nm-quality-select').appendTo(this.mount('root')).get();
+		this.menu.style.cssText = 'position:absolute;right:1rem;bottom:1rem;padding:.3rem .5rem;border-radius:.4rem;';
+		this.menu.setAttribute('aria-label', 'Quality');
+
+		this.on('levels', ({ levels }) => this.renderOptions(levels));
+		this.renderOptions(this.player.qualityLevels());
+
+		this.on('level-switched', () => this.syncSelection());
+		this.syncSelection();
+
+		this.listen(this.menu, 'change', () => {
+			const value = this.menu.value;
+			this.player.quality(value === 'auto' ? 'auto' : Number(value));
+		});
+	}
+
+	private renderOptions(levels: readonly QualityLevel[]): void {
+		this.menu.replaceChildren();
 		const autoOption = document.createElement('option');
 		autoOption.value = 'auto';
 		autoOption.textContent = 'Auto';
-		menu.appendChild(autoOption);
+		this.menu.appendChild(autoOption);
 		for (const level of levels) {
 			const option = document.createElement('option');
 			option.value = String(level.index);
 			option.textContent = labelFor(level);
-			menu.appendChild(option);
+			this.menu.appendChild(option);
 		}
-	};
+	}
 
-	const onLevels = ({ levels }: { levels: QualityLevel[] }): void => renderOptions(levels);
-	player.on('levels', onLevels);
-	renderOptions(player.qualityLevels());
-
-	const syncSelection = (): void => {
-		const current = player.quality();
-		menu.value = current === 'auto' ? 'auto' : String(current.index);
-	};
-	player.on('level-switched', syncSelection);
-	syncSelection();
-
-	const onChange = (): void => {
-		const value = menu.value;
-		player.quality(value === 'auto' ? 'auto' : Number(value));
-	};
-	menu.addEventListener('change', onChange);
-
-	return () => {
-		player.off('levels', onLevels);
-		player.off('level-switched', syncSelection);
-		menu.removeEventListener('change', onChange);
-		menu.remove();
-	};
+	private syncSelection(): void {
+		const current = this.player.quality();
+		this.menu.value = current === 'auto' ? 'auto' : String(current.index);
+	}
 }
 
-export default { config, onReady };
+function configure(player: IVideoPlayer): void {
+	player.addPlugin(QualitySelectPlugin);
+}
+
+export default { config, configure };

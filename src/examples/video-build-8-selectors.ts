@@ -138,10 +138,10 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	private qualityMenu: HTMLDivElement | null = null;
 
 	override use(): void {
-		this.player.addClasses(this.player.container, ['group']);
+		this.addClasses(this.player.container, ['group']);
 
 		this.overlay = this.mount('overlay');
-		this.player.addClasses(this.overlay, [
+		this.addClasses(this.overlay, [
 			'overlay',
 			'absolute',
 			'inset-0',
@@ -168,7 +168,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createTopBar(): void {
-		this.topBar = this.player
+		this.topBar = this
 			.createElement('div', 'top-bar')
 			.addClasses([
 				'absolute',
@@ -197,7 +197,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createBottomBar(): void {
-		this.bottomBar = this.player
+		this.bottomBar = this
 			.createElement('div', 'bottom-bar')
 			.addClasses([
 				'absolute',
@@ -227,7 +227,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createUiButton(parent: HTMLElement, id: string, label: string): HTMLButtonElement {
-		const button = this.player
+		const button = this
 			.createElement('button', id)
 			.addClasses([
 				'w-10',
@@ -250,7 +250,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createCenterButton(): void {
-		this.centerButton = this.player
+		this.centerButton = this
 			.createElement('button', 'center-play')
 			.addClasses([
 				'absolute',
@@ -292,7 +292,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createSpinner(): void {
-		this.spinner = this.player
+		this.spinner = this
 			.createElement('div', 'spinner')
 			.addClasses([
 				'absolute',
@@ -313,7 +313,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createBottomRow(): void {
-		this.bottomRow = this.player
+		this.bottomRow = this
 			.createElement('div', 'bottom-row')
 			.addClasses([
 				'flex',
@@ -328,13 +328,13 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	private createPlaybackButton(): void {
 		this.playbackButton = this.createUiButton(this.bottomRow, 'playback', 'Play');
 
-		const playIcon = this.player
+		const playIcon = this
 			.createElement('span', 'playback-play')
 			.appendTo(this.playbackButton)
 			.get();
 		playIcon.innerHTML = svgFromIcon(icons.play);
 
-		const pauseIcon = this.player
+		const pauseIcon = this
 			.createElement('span', 'playback-pause')
 			.appendTo(this.playbackButton)
 			.get();
@@ -357,7 +357,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createProgressBar(): void {
-		this.sliderBar = this.player
+		this.sliderBar = this
 			.createElement('div', 'slider-bar')
 			.addClasses([
 				'relative',
@@ -374,7 +374,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			.appendTo(this.bottomBar)
 			.get();
 
-		const sliderBuffer = this.player
+		const sliderBuffer = this
 			.createElement('div', 'slider-buffer')
 			.addClasses([
 				'absolute',
@@ -388,7 +388,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			.appendTo(this.sliderBar)
 			.get();
 
-		const sliderProgress = this.player
+		const sliderProgress = this
 			.createElement('div', 'slider-progress')
 			.addClasses([
 				'absolute',
@@ -402,7 +402,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			.appendTo(this.sliderBar)
 			.get();
 
-		const sliderNipple = this.player
+		const sliderNipple = this
 			.createElement('div', 'slider-nipple')
 			.addClasses([
 				'absolute',
@@ -493,7 +493,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createTimeDisplay(): void {
-		this.currentTimeLabel = this.player
+		this.currentTimeLabel = this
 			.createElement('span', 'current-time')
 			.addClasses([
 				'text-white',
@@ -505,7 +505,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			.get();
 		this.currentTimeLabel.textContent = '0:00';
 
-		const separator = this.player
+		const separator = this
 			.createElement('span', 'time-separator')
 			.addClasses([
 				'text-white/50',
@@ -516,7 +516,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			.get();
 		separator.textContent = '/';
 
-		this.durationLabel = this.player
+		this.durationLabel = this
 			.createElement('span', 'duration')
 			.addClasses([
 				'text-white',
@@ -534,7 +534,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createVolumeControl(): void {
-		const volumeContainer = this.player
+		const volumeContainer = this
 			.createElement('div', 'volume-container')
 			.addClasses([
 				'flex',
@@ -547,20 +547,20 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 
 		const volumeButton = this.createUiButton(volumeContainer, 'volume', 'Mute');
 
-		const volHigh = this.player
+		const volHigh = this
 			.createElement('span', 'vol-high')
 			.appendTo(volumeButton)
 			.get();
 		volHigh.innerHTML = svgFromIcon(icons.volumeHigh);
 
-		const volLow = this.player
+		const volLow = this
 			.createElement('span', 'vol-low')
 			.appendTo(volumeButton)
 			.get();
 		volLow.innerHTML = svgFromIcon(icons.volumeLow);
 		volLow.style.display = 'none';
 
-		const volMuted = this.player
+		const volMuted = this
 			.createElement('span', 'vol-muted')
 			.appendTo(volumeButton)
 			.get();
@@ -572,7 +572,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			this.player.toggleMute();
 		});
 
-		this.volumeSlider = this.player
+		this.volumeSlider = this
 			.createElement('div', 'volume-slider')
 			.addClasses([
 				'relative',
@@ -596,7 +596,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			.appendTo(volumeContainer)
 			.get();
 
-		const volumeProgress = this.player
+		const volumeProgress = this
 			.createElement('div', 'volume-progress')
 			.addClasses([
 				'absolute',
@@ -610,7 +610,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			.appendTo(this.volumeSlider)
 			.get();
 
-		const volumeNipple = this.player
+		const volumeNipple = this
 			.createElement('div', 'volume-nipple')
 			.addClasses([
 				'absolute',
@@ -709,7 +709,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createTitle(): void {
-		this.titleLabel = this.player
+		this.titleLabel = this
 			.createElement('div', 'title-display')
 			.addClasses([
 				'text-white',
@@ -740,7 +740,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createRightSpacer(): void {
-		this.player
+		this
 			.createElement('div', 'spacer')
 			.addClasses(['flex-1'])
 			.appendTo(this.bottomRow);
@@ -755,7 +755,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			this.toggleMenu('speed');
 		});
 
-		this.speedMenu = this.player
+		this.speedMenu = this
 			.createElement('div', 'speed-menu')
 			.addClasses([
 				'absolute',
@@ -775,7 +775,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 		this.menus.set('speed', this.speedMenu);
 		const rates = this.player.playbackRates();
 		for (const rate of rates) {
-			const option = this.player
+			const option = this
 				.createElement('button', `speed-${rate}`)
 				.addClasses([
 					'text-white',
@@ -832,13 +832,13 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	private createFullscreenButton(): void {
 		const button = this.createUiButton(this.bottomRow, 'fullscreen', 'Fullscreen');
 
-		const enterIcon = this.player
+		const enterIcon = this
 			.createElement('span', 'fs-enter')
 			.appendTo(button)
 			.get();
 		enterIcon.innerHTML = svgFromIcon(icons.fullscreen);
 
-		const exitIcon = this.player
+		const exitIcon = this
 			.createElement('span', 'fs-exit')
 			.appendTo(button)
 			.get();
@@ -858,7 +858,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	}
 
 	private createMenuPanel(id: string): HTMLDivElement {
-		return this.player
+		return this
 			.createElement('div', id)
 			.addClasses([
 				'absolute',
@@ -887,7 +887,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 	): void {
 		menu.innerHTML = '';
 		labels.forEach((label, index) => {
-			const option = this.player
+			const option = this
 				.createElement('button', `${menu.id}-option-${index}`)
 				.addClasses([
 					'text-white',

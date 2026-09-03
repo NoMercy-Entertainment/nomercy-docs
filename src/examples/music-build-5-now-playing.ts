@@ -18,10 +18,18 @@
  * field first, falling back to the deprecated `cover`, matching how
  * `MusicPreloadStrategy`/`CastSenderPlugin` resolve it inside the package
  * itself (see the [Quickstart](/nomercy-music-player/quickstart)).
+ *
+ * DOM construction (`createElement`) lives on the plugin, not the player —
+ * `this.createElement(...)` inside `use()`, never `player.createElement(...)`
+ * from the outside. `this.mount('root')` claims an auto-cleaned wrapper so
+ * nothing has to be torn down by hand, and `this.on(LyricsPlugin, 'lineEnter', ...)`
+ * subscribes to the sibling plugin's namespaced event through the typed
+ * class-form listener instead of a raw `'plugin:lyrics:lineEnter'` string.
  */
 
 import type { IMusicPlayer, MusicPlayerConfig, MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/lyrics';
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { MUSIC_BASE, songs } from './media';
 
 const config: MusicPlayerConfig = {
@@ -30,62 +38,67 @@ const config: MusicPlayerConfig = {
 	playlist: songs,
 };
 
-function configure(player: IMusicPlayer): void {
-	player.addPlugin(LyricsPlugin);
+class NowPlayingPanelPlugin extends Plugin<IMusicPlayer> {
+	static override readonly id = 'nm-build-now-playing';
+	static override readonly description = 'Now-playing panel + synced lyric line for the Build a Player tutorial.';
+	static override readonly requires = [{ plugin: LyricsPlugin, optional: true }];
+
+	private cover!: HTMLImageElement;
+	private title!: HTMLSpanElement;
+	private artist!: HTMLSpanElement;
+	private lyricLine!: HTMLSpanElement;
+
+	override use(): void {
+		const container = this.player.container;
+		if (!container.style.position)
+			container.style.position = 'relative';
+
+		const nowPlaying = this.createElement('div', 'nm-build-now-playing').appendTo(container).get();
+		nowPlaying.style.cssText
+			= 'position:absolute;left:.75rem;top:.75rem;right:3.5rem;display:flex;align-items:center;'
+				+ 'gap:.75rem;color:#fff;font-family:system-ui,sans-serif;';
+
+		this.cover = this.createElement('img', 'nm-build-cover').appendTo(nowPlaying).get();
+		this.cover.style.cssText = 'width:2.75rem;height:2.75rem;border-radius:.4rem;object-fit:cover;flex:none;';
+		this.cover.alt = '';
+
+		const meta = this.createElement('div', 'nm-build-meta').appendTo(nowPlaying).get();
+		meta.style.cssText = 'display:flex;flex-direction:column;gap:.15rem;min-width:0;';
+
+		this.title = this.createElement('span', 'nm-build-title').appendTo(meta).get();
+		this.title.style.cssText = 'font-size:.9rem;font-weight:600;';
+
+		this.artist = this.createElement('span', 'nm-build-artist').appendTo(meta).get();
+		this.artist.style.cssText = 'font-size:.75rem;opacity:.75;';
+
+		this.lyricLine = this.createElement('span', 'nm-build-lyric-line').appendTo(meta).get();
+		this.lyricLine.style.cssText = 'font-size:.75rem;opacity:.9;font-style:italic;';
+
+		this.on('item', ({ item }) => this.renderNowPlaying(item));
+		this.on(LyricsPlugin, 'lineEnter', ({ text }) => {
+			this.lyricLine.textContent = text;
+		});
+		this.renderNowPlaying();
+	}
+
+	private renderNowPlaying(item?: MusicPlaylistItem): void {
+		const current = item ?? this.player.item();
+		const art = current?.image ?? current?.cover ?? '';
+		this.cover.src = art;
+		this.cover.style.visibility = art ? 'visible' : 'hidden';
+		this.title.textContent = current?.name ?? '';
+		this.artist.textContent = current?.artist ?? '';
+		this.lyricLine.textContent = '';
+	}
 }
 
-function onReady(player: IMusicPlayer, container: HTMLElement): () => void {
-	if (!container.style.position)
-		container.style.position = 'relative';
+function configure(player: IMusicPlayer): void {
+	player.addPlugin(LyricsPlugin);
+	player.addPlugin(NowPlayingPanelPlugin);
+}
 
-	const nowPlaying = player.createElement('div', 'nm-build-now-playing').appendTo(container).get();
-	nowPlaying.style.cssText
-		= 'position:absolute;left:.75rem;top:.75rem;right:3.5rem;display:flex;align-items:center;'
-			+ 'gap:.75rem;color:#fff;font-family:system-ui,sans-serif;';
-
-	const cover = player.createElement('img', 'nm-build-cover').appendTo(nowPlaying).get();
-	cover.style.cssText = 'width:2.75rem;height:2.75rem;border-radius:.4rem;object-fit:cover;flex:none;';
-	cover.alt = '';
-
-	const meta = player.createElement('div', 'nm-build-meta').appendTo(nowPlaying).get();
-	meta.style.cssText = 'display:flex;flex-direction:column;gap:.15rem;min-width:0;';
-
-	const title = player.createElement('span', 'nm-build-title').appendTo(meta).get();
-	title.style.cssText = 'font-size:.9rem;font-weight:600;';
-
-	const artist = player.createElement('span', 'nm-build-artist').appendTo(meta).get();
-	artist.style.cssText = 'font-size:.75rem;opacity:.75;';
-
-	const lyricLine = player.createElement('span', 'nm-build-lyric-line').appendTo(meta).get();
-	lyricLine.style.cssText = 'font-size:.75rem;opacity:.9;font-style:italic;';
-
-	const renderNowPlaying = (item?: MusicPlaylistItem): void => {
-		const current = item ?? player.item();
-		const art = current?.image ?? current?.cover ?? '';
-		cover.src = art;
-		cover.style.visibility = art ? 'visible' : 'hidden';
-		title.textContent = current?.name ?? '';
-		artist.textContent = current?.artist ?? '';
-		lyricLine.textContent = '';
-	};
-	const onItem = ({ item }: { item?: MusicPlaylistItem }): void => renderNowPlaying(item);
-	// LyricsPlugin's own events are auto-namespaced onto the player's event
-	// bus as `plugin:lyrics:<event>` — there's no separate emitter on the
-	// plugin instance to subscribe to directly.
-	const onLyricLine = (payload: { text: string }): void => {
-		lyricLine.textContent = payload.text;
-	};
-	player.on('item', onItem);
-	player.on('plugin:lyrics:lineEnter', onLyricLine);
-	renderNowPlaying();
-
+function onReady(player: IMusicPlayer): void {
 	void player.item(0);
-
-	return () => {
-		player.off('item', onItem);
-		player.off('plugin:lyrics:lineEnter', onLyricLine);
-		nowPlaying.remove();
-	};
 }
 
 export default { config, configure, onReady, player: 'music' as const };
