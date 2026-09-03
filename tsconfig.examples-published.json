@@ -1,0 +1,19 @@
+{
+  // The same gate as tsconfig.examples.json, with the workspace `paths`
+  // mapping turned off so resolution falls through to node_modules — the
+  // published packages a reader actually installs.
+  //
+  // Both are needed. The mapped one proves the examples against the trio at
+  // HEAD, before a release. This one proves them against what is on the
+  // registry right now, which is what CI resolves in a standalone checkout.
+  // Without it a local run maps to workspace source, passes, and hides that
+  // the published package the docs depend on does not have the API yet — the
+  // exact gap that let a broken examples set reach CI green-in-hand.
+  //
+  // Run via `npm run check:examples:published`.
+  "extends": "./tsconfig.examples.json",
+  "compilerOptions": {
+    "paths": {}
+  },
+  "include": ["src/examples/**/*"]
+}
