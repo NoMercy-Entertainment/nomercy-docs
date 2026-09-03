@@ -18,7 +18,7 @@
  * an auto-cleaned wrapper so nothing has to be torn down by hand.
  */
 
-import type { IMusicPlayer, MusicPlaylistItem, MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';
+import type { IMusicPlayer, MusicPlaylistItem, MusicPlayerConfig, NMMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { MUSIC_BASE, songs } from './media';
 
@@ -28,7 +28,7 @@ const config: MusicPlayerConfig = {
 	crossfadeDefaults: { duration: 4, curve: 'equal-power' },
 };
 
-class CrossfadeTourPlugin extends Plugin<IMusicPlayer> {
+class CrossfadeTourPlugin extends Plugin<NMMusicPlayer> {
 	static override readonly id = 'nm-tour-crossfade';
 	static override readonly description = 'Manual crossfade button + status line for the Crossfade tour page.';
 

@@ -19,7 +19,7 @@
  * an auto-cleaned wrapper so nothing has to be torn down by hand.
  */
 
-import type { IMusicPlayer, MusicPlaylistItem, MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';
+import type { IMusicPlayer, MusicPlaylistItem, MusicPlayerConfig, NMMusicPlayer } from '@nomercy-entertainment/nomercy-music-player';
 import { CrossfadeTransitionStrategy, GaplessTransitionStrategy, Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import { MUSIC_BASE, songs } from './media';
 
@@ -29,7 +29,7 @@ const config: MusicPlayerConfig = {
 	crossfadeDefaults: { duration: 4, curve: 'equal-power' },
 };
 
-class CrossfadeTogglePlugin extends Plugin<IMusicPlayer> {
+class CrossfadeTogglePlugin extends Plugin<NMMusicPlayer> {
 	static override readonly id = 'nm-recipe-crossfade-toggle';
 	static override readonly description = 'Crossfade/gapless mode toggle for the Crossfade & Gapless Playback recipe.';
 
