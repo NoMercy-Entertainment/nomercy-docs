@@ -26,10 +26,16 @@ jobs:
       # the coverage gate measures against the same file. It lives in its own
       # repository, which a standalone docs checkout does not have.
       - name: Fetch the ecosystem contract
+        env:
+          # The self-hosted runner's git prompts for credentials even on a public
+          # repo, which fails non-interactively. The workflow token is always
+          # present, so authenticate the clone rather than relying on anonymous
+          # access working on whichever runner picks the job up.
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           git clone --depth 1 --filter=blob:none --quiet \
-            "https://github.com/NoMercy-Entertainment/nomercy-player-contract.git" \
+            "https://x-access-token:${GH_TOKEN}@github.com/NoMercy-Entertainment/nomercy-player-contract.git" \
             .player-contract
           echo "PLAYER_CONTRACT=$PWD/.player-contract/contract/contract.json" >> "$GITHUB_ENV"
 
@@ -82,11 +88,13 @@ jobs:
       - uses: android-actions/setup-android@v3
 
       - name: Publish the player libraries locally
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           for repo in nomercy-player-core-kmp nomercy-video-player-kmp nomercy-music-player-kmp; do
             git clone --depth 1 --quiet \
-              "https://github.com/NoMercy-Entertainment/$repo.git" ".native/$repo"
+              "https://x-access-token:${GH_TOKEN}@github.com/NoMercy-Entertainment/$repo.git" ".native/$repo"
             (cd ".native/$repo" && ./gradlew publishToMavenLocal --console=plain -q)
           done
 
