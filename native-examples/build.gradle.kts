@@ -38,10 +38,10 @@ kotlin {
         androidMain {
             kotlin.srcDir("../src/examples-kmp")
             dependencies {
-                implementation("tv.nomercy:nomercy-video-player-kmp:2.0.0-rc.1")
-                implementation("tv.nomercy:nomercy-video-player-compose:2.0.0-rc.1")
-                implementation("tv.nomercy:nomercy-music-player-kmp:2.0.0-rc.1")
-                implementation("tv.nomercy:nomercy-music-player-compose:2.0.0-rc.1")
+                implementation("tv.nomercy:nomercy-video-player-kmp:0.1.0")
+                implementation("tv.nomercy:nomercy-video-player-compose:0.1.0")
+                implementation("tv.nomercy:nomercy-music-player-kmp:0.1.0")
+                implementation("tv.nomercy:nomercy-music-player-compose:0.1.0")
                 implementation(compose.runtime)
                 implementation(compose.foundation)
                 implementation(compose.ui)
