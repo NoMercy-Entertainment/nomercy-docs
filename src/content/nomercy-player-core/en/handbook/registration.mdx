@@ -1,0 +1,128 @@
+---
+title: 'Registration'
+description: 'addPlugin() before and after setup(), getPlugin() vs getPluginById(), the requires/replaces/priority/minCoreVersion statics with their error codes, the use() timeout, and derive/clone/export.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/plugin-registration.ts, src/core/plugin/base.ts */}
+
+# Core: Registration
+
+Registration is where the kit validates a plugin's contract: id uniqueness, dependencies, versions. Everything here throws early and loudly at `addPlugin()` time, not later in playback.
+
+## `player.addPlugin(PluginClass, opts?)`
+
+{/* partial */}
+```ts
+addPlugin<P extends Plugin<any, any, any>>(
+	PluginClass: PluginCtorWithId & (new () => P),
+	opts?: P['opts'],
+): this;
+```
+
+`opts` is type-bound to the plugin's `O` generic, so the inline literal gets autocomplete and checking.
+
+Timing decides the path. Before or during `setup()`, the plugin is queued; the `pluginsRegistering` pipeline stage drains the queue before `ready` fires. After setup, registration runs inline and fire-and-forget: listen for `plugin:installed` or `plugin:failed` (bare and id-namespaced) to know when it settled, or call `ready()` again, which waits for in-flight registrations.
+
+Each registration instantiates the class, calls `initialize()`, merges [static translations](/nomercy-player-core/handbook/i18n), then awaits `use()`. A failure at any of those steps does not throw at you: the kit disposes the half-registered instance, emits `plugin:failed`, and disables dependents with reason `dep-failed:<id>`.
+
+Validation, by contrast, throws synchronously from `addPlugin()`:
+
+- `core:lifecycle/use-plugin-after-dispose`: the player is disposing or disposed.
+- `core:plugin/duplicate-id`: the id is already registered or queued.
+- `core:plugin/missing-dep`: a required dependency is absent.
+- `core:plugin/version-mismatch`: a dependency is older than a declared `minVersion`.
+- `core:plugin/incompatible-core-version`: the running kit is older than `minCoreVersion`.
+
+## `getPlugin(PluginClass)` and `getPluginById(id)`
+
+{/* partial */}
+```ts
+getPlugin<P extends object>(PluginClass: PluginCtorWithId & (new () => P)): P | undefined;
+getPluginById<P extends object = object>(id: string): P | undefined;
+```
+
+Both return the live instance or `undefined` when not registered. Prefer the class form whenever the class is in scope: the result is fully typed. The string form is for discovery when the class is not importable; the generic is a caller-supplied cast, not an inference.
+
+Neither creates anything, so there is nothing to release. A disposed or removed plugin stops being returned.
+
+## `static requires`
+
+{/* partial */}
+```ts
+static readonly requires?: ReadonlyArray<RequireSpec>;
+```
+
+Class refs are the canonical form. The object form adds two knobs per dependency:
+
+{/* partial */}
+```ts
+static override readonly requires = [
+	AudioGraphPlugin,
+	{ plugin: MediaSessionPlugin, optional: true },
+	{ plugin: SpectrumPlugin, minVersion: '2.1.0' },
+];
+```
+
+A missing required dependency throws `core:plugin/missing-dep`; a missing optional one logs and the plugin runs anyway. `minVersion` compares semver, pre-release tags included, and throws `core:plugin/version-mismatch` when the registered version is older. The check looks across registered and queued plugins, so pre-setup call order between `addPlugin` calls satisfies it as long as the dependency was added first.
+
+Removal walks the same graph in reverse: `removePlugin` cascades through dependents by default, or throws `core:plugin/has-dependents` with `{ cascade: false }`.
+
+Skipping `requires` and grabbing a peer with `getPluginById` anyway means no load-order guarantee, no version check, and no cascade on removal.
+
+## `static replaces`
+
+{/* partial */}
+```ts
+static readonly replaces?: string;
+```
+
+Opt-in same-id or same-role swap. When the named plugin is registered, it is disposed first (firing `plugin:disposed`); when it is still queued, the queue entry is dropped. When it is absent, registration proceeds as a fresh install. Without `replaces`, a second plugin with an already-taken id throws `core:plugin/duplicate-id`.
+
+## `static priority`
+
+{/* partial */}
+```ts
+static readonly priority: number = 0;
+```
+
+Orders `enabledPlugins()`: higher values sort first, ties keep registration order, negatives sort after the default-priority plugins. Consumers iterating that list for capability negotiation see a deterministic order. It does not reorder listeners on a single event.
+
+## `static minCoreVersion`
+
+{/* partial */}
+```ts
+static readonly minCoreVersion?: string;
+```
+
+The kit compares its own build version against this semver at `addPlugin()` time and throws `core:plugin/incompatible-core-version` when the running kit is older. Declare it when the plugin depends on a helper that newer kit versions added.
+
+## The `use()` promise and `pluginInitTimeoutMs`
+
+`use()` may return a promise; the player awaits it before `ready` fires. Each plugin's wait is capped by `setup({ pluginInitTimeoutMs })`, default 30 seconds. Passing the cap fails the registration with `core:plugin/init-timeout` through the normal `plugin:failed` path; it does not hang `ready()` forever.
+
+## `derive()`, `clone()`, `export()`
+
+{/* partial */}
+```ts
+static derive<C extends typeof Plugin<any, any, any>>(this: C, opts: Partial<InstanceType<C>['opts']>, newId?: string): C;
+clone(): typeof Plugin;
+export(): O;
+```
+
+`derive()` produces a new plugin class with options pre-baked; consumer opts at registration still win a shallow merge. Pass `newId` to register the preset beside the original instead of replacing it.
+
+`export()` returns a deep-cloned JSON snapshot of the current options. Override it when runtime state beyond `opts` should round-trip.
+
+`clone()` combines the two: it captures `export()` from a live instance and derives a class with that snapshot baked in, so overriding `export()` automatically enriches clones.
+
+## Worked example
+
+Two plugins with a version-pinned dependency register pre-setup, a third registers inline post-setup, and `derive()` bakes a preset class.
+
+:::snippet{file="handbook-registration" live="false"}
+:::
+
+## Next steps
+
+- [The Plugin Base](/nomercy-player-core/tour/plugin-base): the full helper surface a registered plugin gets.
+- [Errors and State](/nomercy-player-core/handbook/errors-state): what a failed registration emits and how dependents react.

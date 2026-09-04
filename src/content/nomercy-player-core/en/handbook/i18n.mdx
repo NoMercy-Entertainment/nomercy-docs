@@ -1,0 +1,86 @@
+---
+title: 'Plugin i18n'
+description: 'The t() helper and its plugin.<id>.* namespacing, static translation bundles, variable interpolation, BCP-47 fallback resolution, and the loadTranslations() runtime hook.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/plugin/base.ts, src/core/plugin-translations.ts, src/core/mixins/i18n.ts, src/adapters/translator/translator.ts */}
+
+# Core: Plugin i18n
+
+Plugin strings live in the player's one translation table, namespaced per plugin so they never collide. The base class gives you a scoped lookup, a static bundle field, and an async loading hook.
+
+## `t(key, vars?)`
+
+{/* partial */}
+```ts
+protected t(key: string, vars?: Record<string, string>): string;
+```
+
+Translates a plugin-scoped key. The helper prepends `plugin.<id>.`, so a plugin with `id = 'lyrics-panel'` calling `this.t('empty')` looks up `plugin.lyrics-panel.empty`. When the player has no translator yet, the helper returns the namespaced key itself.
+
+Nothing to clean up; it is a pure lookup against the player's translator.
+
+{/* partial */}
+```ts
+label.textContent = this.t('line-of', { current: '3', total: '42' });
+```
+
+Calling `player.t('empty')` directly skips the namespace and misses your keys. The player-side class form, `player.t(PluginClass, key, vars?)`, adds the same prefix for consumers.
+
+### Variable interpolation
+
+Templates use `{name}` placeholders. `vars` supplies the values; a placeholder with no matching entry stays in the output as `{name}`, which makes a missing variable visible instead of silent.
+
+### Fallback resolution
+
+The default translator resolves a key by walking the active language's BCP-47 chain, most specific first: `pt-BR`, then `pt`. The configured `fallbackLanguage` (default `'en'`, opt out with `null`) is appended when the chain misses it. A key absent from every bundle falls through to `setup({ onMissingTranslation })` when configured, and finally to the key itself.
+
+Plugin keys get no special treatment here: `plugin.<id>.*` entries sit in the same table and walk the same chain. Swap the whole engine with `setup({ translator })` for ICU or pluralization; `t()` keeps working because it only forwards to `player.t`.
+
+## `static translations`
+
+{/* partial */}
+```ts
+static readonly translations?: Translations;
+```
+
+Bundles shipped with the plugin, keyed by language tag. Keys must carry the full `plugin.<id>.` prefix inside the bundle:
+
+{/* partial */}
+```ts
+static override readonly translations: Translations = {
+	en: { 'plugin.lyrics-panel.empty': 'No lyrics available' },
+	nl: { 'plugin.lyrics-panel.empty': 'Geen songtekst beschikbaar' },
+};
+```
+
+Merging happens at registration, before `use()` runs, so `this.t()` works from the first line of `use()`. The kit walks the constructor's prototype chain, so a subclass ships only its own keys and every ancestor's bundle still merges; the subclass wins a same-key collision.
+
+On `dispose()` (or `removePlugin`), the kit removes every key under `plugin.<id>.` again. Register bundles only through this field or the hook below; keys added by hand through `player.addTranslations` are not removed with the plugin.
+
+Bundles built with `translationsFromGlob` load lazily per language: only the active tag and its BCP-47 parents are fetched, at registration and again on each `language()` switch.
+
+## `loadTranslations(lang)`
+
+{/* partial */}
+```ts
+protected loadTranslations?(lang: string): Promise<Record<string, string> | undefined>;
+```
+
+The runtime hook for bundles that live outside the source tree, fetched from an API or dynamic-imported. The player calls it after `use()` resolves and on every `language(lang)` switch, at most once per plugin and language pair.
+
+Returned keys are bare; the kit namespaces them under `plugin.<id>.` for you. Return `undefined` when a language has no bundle; the fallback chain covers the gap.
+
+The default is a no-op. The static field and this hook are independent sources; a plugin may ship both.
+
+## Worked example
+
+`LyricsPanelPlugin` ships static English and Dutch bundles, interpolates variables, and fetches runtime bundles per language switch. The consumer flips languages and reads the namespaced keys back.
+
+:::snippet{file="handbook-i18n" live="false"}
+:::
+
+## Next steps
+
+- [Errors and State](/nomercy-player-core/handbook/errors-state): the `suggestion` strings you surface are prose too; translate them the same way.
+- [Registration](/nomercy-player-core/handbook/registration): where in the pipeline bundles merge and unmerge.

@@ -1,0 +1,150 @@
+---
+title: 'Timing'
+description: 'Timers, animation-frame loops, abort controllers, and observers that the lifecycle registry cancels for you: timeout, interval, frame, abortable, and lifecycle.observe.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/plugin/base.ts, src/adapters/lifecycle-registry/default.ts */}
+
+# Core: Timing
+
+Anything time-based a plugin starts must stop when the plugin does. Five helpers guarantee that: each one registers itself with the lifecycle registry, and a single dispose cancels them all.
+
+## timeout()
+
+{/* partial */}
+```ts
+protected timeout(fn: () => void, ms: number): number
+```
+
+Schedules a one-shot callback. Wraps `setTimeout` with two additions: the timer is cancelled automatically on dispose, and an error thrown inside `fn` is caught and logged instead of escaping into the player.
+
+Returns the numeric timer id, the same shape `setTimeout` returns. Keep it only when you may need `clearTimeout` early; most callers discard it. After dispose, the call returns `-1` and schedules nothing.
+
+{/* partial */}
+```ts
+override use(): void {
+	this.on('play', () => {
+		this.timeout(() => this.hideOverlay(), 3_000);
+	});
+}
+```
+
+A raw `setTimeout` fires after the plugin is gone. The callback then touches disposed state, or throws into whatever code happens to be on the stack.
+
+## interval()
+
+{/* partial */}
+```ts
+protected interval(fn: () => void, ms: number): number
+```
+
+Schedules a repeating callback. Wraps `setInterval`, cancelled automatically on dispose. Errors are caught per tick, so a single failing run logs and the interval keeps going.
+
+Returns the numeric interval id for early cancellation; `-1` after dispose.
+
+{/* partial */}
+```ts
+override use(): void {
+	this.interval(() => {
+		this.storage.setJSON('progress', this.snapshot());
+	}, 30_000);
+}
+```
+
+A raw `setInterval` is the worst version of the timer leak: it never stops, ticking against a dead plugin for the life of the page.
+
+## frame()
+
+{/* partial */}
+```ts
+protected frame(fn: (deltaMs: number, time: number) => void): () => void
+```
+
+Starts an auto-cancelled `requestAnimationFrame` loop. You write the render callback; the kit owns the loop, the delta accounting, and the cancellation. Visualization plugins use this exclusively.
+
+The callback receives two arguments each frame. `deltaMs` is the elapsed milliseconds since the previous frame, so animation speed stays correct across display refresh rates. `time` is the frame timestamp, the same value `requestAnimationFrame` hands its callback.
+
+The return value is a stop function. Calling it cancels this one loop and nothing else: other frame loops keep running, and the registry stays alive. Dispose cancels every outstanding loop anyway, so the stop function is only for ending one loop early.
+
+A thrown frame is caught and logged; the loop continues. In an environment without `requestAnimationFrame` (Node, SSR), no loop starts and the returned stop function is a no-op.
+
+{/* partial */}
+```ts
+private stopSpin?: () => void;
+
+override use(): void {
+	let angle = 0;
+	this.stopSpin = this.frame((deltaMs) => {
+		angle = (angle + deltaMs * 0.09) % 360;
+		this.render(angle);
+	});
+
+	this.on('pause', () => this.stopSpin?.());
+}
+```
+
+A hand-rolled RAF loop needs its own cancellation flag, its own delta math, and its own dispose wiring, and forgetting any of the three burns CPU on a player that no longer exists.
+
+## abortable()
+
+{/* partial */}
+```ts
+protected abortable(): AbortController
+```
+
+Creates an `AbortController` whose signal fires automatically on dispose. Pass `controller.signal` to any abort-aware API.
+
+The plugin's own `fetch()` helper already wires this internally; reach for `abortable()` when integrating third-party or platform APIs that accept a signal but know nothing about the plugin lifecycle.
+
+Called after dispose, it returns a controller that is already aborted, so downstream APIs refuse to start instead of running unowned.
+
+{/* partial */}
+```ts
+override use(): void {
+	const controller = this.abortable();
+
+	thirdPartyDecoder.start({
+		signal: controller.signal,
+	});
+}
+```
+
+Without it, the in-flight work you started keeps running after teardown, and its completion callback lands on a disposed plugin.
+
+## lifecycle.observe()
+
+{/* partial */}
+```ts
+observe<O extends { disconnect(): void }>(observer: O): O
+```
+
+Registers a `ResizeObserver`, `MutationObserver`, `IntersectionObserver`, or any object with a `disconnect()` method, and disconnects it on dispose. This one lives on `this.lifecycle` directly rather than as a wrapper method on the plugin.
+
+It returns the observer unchanged, so the registration chains straight into the observe call:
+
+{/* partial */}
+```ts
+override use(): void {
+	const root = this.mount('overlay');
+
+	this.lifecycle.observe(new ResizeObserver((entries) => {
+		this.relayout(entries[0]?.contentRect);
+	})).observe(root);
+}
+```
+
+After dispose the call still returns the observer, but registers nothing.
+
+An unregistered observer keeps watching its targets forever. A `ResizeObserver` on the player container holds the container, the callback, and the plugin in memory after every other reference is gone.
+
+## Example
+
+One plugin exercising all five: a delayed overlay hide, a periodic save, a frame loop with its stop function, an abortable signal, and a resize observer.
+
+:::snippet{file="handbook-timing" live="false"}
+:::
+
+## Next steps
+
+- [Listening](/nomercy-player-core/handbook/listening): the event surface these timers usually drive.
+- [The Plugin Base](/nomercy-player-core/tour/plugin-base): the one-page overview of every helper.

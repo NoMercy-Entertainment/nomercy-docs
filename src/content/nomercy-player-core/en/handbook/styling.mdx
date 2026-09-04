@@ -1,0 +1,115 @@
+---
+title: 'Styling'
+description: 'How a plugin ships CSS: appendStyles for a stylesheet URL, appendInlineStyles for CSS text, and the styleId contract that makes both safe to call twice.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/plugin/base.ts */}
+
+# Core: Styling
+
+A plugin ships its CSS through two helpers. One links a stylesheet by URL. The other injects CSS text directly. Both land in `document.head`, and both dedupe on a `styleId` you choose.
+
+## appendStyles()
+
+{/* partial */}
+```ts
+protected appendStyles(href: string, styleId: string): void
+```
+
+Appends a `<link rel="stylesheet">` to `document.head` with `id` set to `styleId` and `href` resolved to an absolute URL.
+
+Resolution order: when the plugin declares `static moduleUrl`, the `href` resolves against it. Otherwise it resolves against `document.baseURI`. Pass a pre-resolved absolute URL and resolution changes nothing.
+
+Dedupe: before touching the DOM, the helper looks up `document.getElementById(styleId)`. If any element with that id exists, the call is a no-op. First call wins; a second call with the same `styleId` does nothing, even with a different `href`.
+
+Nothing is registered for cleanup. The `<link>` stays in `document.head` after the plugin disposes. That is deliberate: stylesheets are cheap, plugin class names are namespaced, and the dedupe means a plugin registered again on a new player finds the sheet already present.
+
+In an environment without `document` (Node, SSR), the call returns without doing anything.
+
+For Vite builds, the literal expression matters. Vite's static analyzer only emits and hashes the CSS asset when the `new URL(...)` expression appears in the plugin source file itself:
+
+{/* partial */}
+```ts
+override use(): void {
+	this.appendStyles(new URL('./styles.css', import.meta.url).href, 'plugin-myplugin-styles');
+}
+```
+
+Passing `static moduleUrl` or any runtime variable as the base does not trigger asset emission.
+
+A raw `document.head.appendChild(link)` without the id check stacks a duplicate `<link>` every time the plugin registers, one per player instance on the page.
+
+## appendInlineStyles()
+
+{/* partial */}
+```ts
+protected appendInlineStyles(cssText: string, styleId: string): void
+```
+
+Injects `cssText` into `document.head` as a `<style>` element with `id` set to `styleId`.
+
+Same contract as `appendStyles` on every other point: the `getElementById(styleId)` dedupe, no removal on dispose, and the silent return when `document` is missing.
+
+The difference is timing. A `<style>` element applies before the next paint. A `<link>` waits for a network round trip. Inline styles are how a plugin guarantees its UI never renders an unstyled frame.
+
+{/* partial */}
+```ts
+override use(): void {
+	this.appendInlineStyles(`
+		.nmplayer-badge-overlay { position: absolute; inset-block-start: 1rem; }
+	`, 'plugin-badge-inline');
+}
+```
+
+## URL or inline: which to use
+
+Write the URL form in source when the CSS lives in a sibling file. The dev server, the testbed, and vitest serve the file directly, and published dist builds are rewritten by `scripts/inline-css-assets.mjs`: the `appendStyles(new URL(...))` call in source becomes `appendInlineStyles('<embedded css>', id)` in dist. You get file-based CSS while developing and zero-round-trip styles in production, from one call site.
+
+Write the inline form directly for small rule sets that belong next to the code: a handful of rules for one overlay, styles computed at runtime, or a plugin that ships as a single file.
+
+Choose a `styleId` that is stable and plugin-specific (`plugin-<id>-styles`). Reusing another plugin's id silences your own styles through the dedupe check.
+
+## Styling against player state
+
+The player stamps its state onto the container element as plain CSS classes, so a stylesheet can react to playback without a single line of JavaScript. The container always carries `nomercyplayer`, plus:
+
+| Class | Meaning | Driven by |
+| --- | --- | --- |
+| `playing` / `paused` / `stopped` / `ended` / `buffering` | One resting play state at a time; `waiting` and `stalled` add `buffering`, `canplay` and an advancing `time` clear it | `play`, `playing`, `pause`, `stop`, `ended`, `waiting`, `stalled`, `canplay`, `time` |
+| `loading` | The phase system's load state, swapped by `phase` events | `phase` |
+| `active` / `inactive` | User activity, exactly one present | `activity` |
+| `muted` | Toggled with the mute state | `mute` |
+| `fullscreen` / `pip` / `theater` | Each toggled with its display state | `fullscreen`, `pip`, `theater` |
+
+Selectors ride these directly. Plain CSS:
+
+```css
+.nomercyplayer.inactive .my-overlay {
+	opacity: 0;
+}
+```
+
+With Tailwind, mark the container as a `group` and use the arbitrary group variant. This is the pattern every step of the video build tutorial rides for its show and hide behavior:
+
+```ts
+this.player.container.classList.add('group');
+this.addClasses(overlay, [
+	'opacity-0',
+	'group-[&.nomercyplayer.active]:opacity-100',
+	'transition-opacity',
+]);
+```
+
+The class swap is the player's own contract, not a plugin convention: reacting to `inactive` in CSS costs nothing per frame, where a `listen` handler doing the same work runs script on every activity flip.
+
+## Example
+
+The example injects inline rules for a mount point, then shows that a second call with the same `styleId` changes nothing.
+
+:::snippet{file="handbook-styling" live="false"}
+:::
+
+## Next steps
+
+- [Building DOM](/nomercy-player-core/handbook/building-dom): the elements these styles target.
+- [Anatomy of a Plugin](/nomercy-player-core/handbook/anatomy): where `moduleUrl` and the other statics live.

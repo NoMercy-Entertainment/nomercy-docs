@@ -1,182 +1,232 @@
 ---
 title: 'Plugin Development'
-description: 'Writing plugins for nomercy-music-player v2: the plugin catalog, typing against IMusicPlayer, music-specific events and methods, and the memory-safe patterns the lint rules enforce.'
+description: 'Writing plugins for nomercy-music-player v2: the music-only surface a plugin can reach, the audio graph and analyser taps, equalizer and crossfade hooks, output devices, lyrics data, and where UI mounts live.'
 ---
 
-{/* Source: packages/nomercy-music-player/src/types.ts, packages/nomercy-player-core/src/core/plugin/base.ts, packages/nomercy-player-core/src/types/events.ts */}
+{/* Source: packages/nomercy-music-player/src/index.ts, src/types.ts, src/plugins/, src/adapters/audio-backend/IAudioBackend.ts, packages/nomercy-player-core/src/plugins/{audio-graph,equalizer,mixer,spectrum,visualization,canvas} */}
 
 # Plugin Development: Music Player
 
-Plugins for `nomercy-music-player` follow the same contract as the player core's plugin system. This page covers the music-player-specific patterns. For the base plugin contract, every helper on `this`, the lifecycle, and the registration pipeline, see [The Plugin Base](/nomercy-player-core/tour/plugin-base) and [Player and Plugin](/nomercy-player-core/tour/composition-boundary).
+Music plugins are core plugins. The shared toolkit on `this`, the lifecycle, DOM building, styling, events, timers, networking, i18n, errors, and registration are all in the [Plugin Handbook](/nomercy-player-core/handbook/anatomy). This page covers only what the music player adds on top: the audio backend, the audio graph, crossfade, output devices, and lyrics.
+
+Handbook pages for the shared toolkit:
+
+- [Anatomy of a plugin](/nomercy-player-core/handbook/anatomy)
+- [Building DOM](/nomercy-player-core/handbook/building-dom) and [Styling](/nomercy-player-core/handbook/styling)
+- [Listening to events](/nomercy-player-core/handbook/listening) and [Emitting your own](/nomercy-player-core/handbook/emitting)
+- [Timing helpers](/nomercy-player-core/handbook/timing)
+- [Network requests](/nomercy-player-core/handbook/network)
+- [Translations](/nomercy-player-core/handbook/i18n)
+- [Errors and state](/nomercy-player-core/handbook/errors-state)
+- [Registration](/nomercy-player-core/handbook/registration)
 
 ## Built-in plugin catalog
 
-All built-in plugins are importable from `@nomercy-entertainment/nomercy-music-player/plugins`.
+The music-specific plugins are importable from `@nomercy-entertainment/nomercy-music-player/plugins`.
 
 | Plugin | Plugin id | What it does |
 | ------ | --------- | ------------ |
-| [`AutoAdvancePlugin`](/nomercy-music-player/plugins-adapters/auto-advance) | `'auto-advance'` | Advances the queue on `ended`; optionally preloads and crossfades as an item nears its end |
+| [`AutoAdvancePlugin`](/nomercy-music-player/plugins-adapters/auto-advance) | `'auto-advance'` | Advances the queue on `ended`; optionally preloads and crossfades on `itemEndingSoon` |
 | [`LyricsPlugin`](/nomercy-music-player/plugins-adapters/lyrics) | `'lyrics'` | Fetches and time-syncs lyrics via the cue parser registry; fires `line` / `lineEnter` / `lineExit` |
-| [`ScrobblePlugin`](/nomercy-music-player/plugins-adapters/scrobble) | `'scrobble'` | Reports plays to a scrobbling service on the standard threshold |
-| [`CastSenderPlugin`](/nomercy-music-player/plugins-adapters/cast-sender) | `'cast-sender'` | Chromecast sender with music metadata and `audio/mpeg` content type |
-| [`MediaSessionPlugin`](/nomercy-music-player/plugins-adapters/media-session) | `'media-session'` | Publishes track metadata and artwork to the OS Media Session (lock screen, notifications) |
-| [`KeyHandlerPlugin`](/nomercy-music-player/plugins-adapters/key-handler) | `'key-handler'` | Keyboard shortcuts: space, arrows, mute, plus music-specific bindings |
+| [`ScrobblePlugin`](/nomercy-music-player/plugins-adapters/scrobble) | `'scrobble'` | Reports plays to an `IScrobbler` backend on the 50%-or-4-minute rule |
+| [`CastSenderPlugin`](/nomercy-music-player/plugins-adapters/cast-sender) | `'cast-sender'` | Chromecast sender with music track metadata and `audio/mpeg` content type |
+| [`MediaSessionPlugin`](/nomercy-music-player/plugins-adapters/media-session) | `'media-session'` | Publishes track metadata and artwork to the OS Media Session |
+| [`KeyHandlerPlugin`](/nomercy-music-player/plugins-adapters/key-handler) | `'key-handler'` | Core bindings plus `n` next, `p` previous, `r` repeat cycle, `s` shuffle |
+
+The same entry point re-exports the core audio plugins for convenience: `audioGraphPlugin`, `equalizerPlugin`, `mixerPlugin`, `spectrumPlugin`, `canvasPlugin`, `VisualizationPlugin`, `volumeMemoryPlugin`, plus `embedPlugin`, `messagePlugin`, and `tabLeaderPlugin`. None of them allocate an `AudioContext`, canvas, or animation frame unless you register them.
 
 ## Typing against the music player
 
-Use `IMusicPlayer` as the `P` generic. `IMusicPlayer` is the stable public interface for the music player, it is the correct type for plugins and consumer functions. `NMMusicPlayer` is the concrete class (implementation detail); prefer `IMusicPlayer` so your plugin does not depend on the class hierarchy.
-
-When a plugin needs to read the active item with `this.player.item()`, add `& WithCurrentItem<YourItemType>` to the `P` generic. Plugins that only call transport methods or `metrics()` can omit it, those are on `IPlayer` directly.
+Use `IMusicPlayer` as the `P` generic. It is the stable public contract and adds the music methods (`backend`, `crossfadeTo`, `isTransitioning`, `setTransitionStrategy`) plus the `MusicPlaylistItem`-typed queue and cursor. `NMMusicPlayer` is the concrete class; prefer the interface so your plugin does not depend on the class hierarchy.
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
-import type { WithCurrentItem } from '@nomercy-entertainment/nomercy-player-core';
 import type { IMusicPlayer, MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
 
-interface NowPlayingOptions {
-  endpoint: string;
-}
+export class MyMusicPlugin extends Plugin<IMusicPlayer> {
+	static override readonly id = 'nomercy:my-music-plugin';
 
-export class NowPlayingPlugin extends Plugin<
-  IMusicPlayer & WithCurrentItem<MusicPlaylistItem>,
-  NowPlayingOptions
-> {
-  static override readonly id = 'nomercy:now-playing';
-  static override readonly version = '1.0.0';
-  static override readonly description = 'Reports the current track to a now-playing endpoint';
-
-  override use(): void {
-    this.on('item', ({ item }) => {
-      if (!item) return;
-      // this.fetch runs the player's auth pipeline and aborts on dispose —
-      // never the global fetch inside a plugin.
-      void this.fetch(this.opts.endpoint, {
-        method: 'POST',
-        responseType: 'json',
-        body: JSON.stringify({ name: item.name, artist: item.artist }),
-      });
-    });
-  }
+	override use(): void {
+		this.on('item', ({ item }) => {
+			if (!item)
+				return;
+			// item is typed as MusicPlaylistItem: name, artist, album, image, lyricsUrl
+		});
+	}
 }
 ```
 
-Registration:
+`MusicPlaylistItem` gives every plugin `name`, and the optional `artist`, `album`, `url`, `lyricsUrl`, and `duration` fields. Cover art is the inherited `image` field; the shipped plugins read `image` first and fall back to the legacy `cover` field.
+
+## Music-specific events
+
+`MusicEventMap` extends the core `BaseEventMap` with:
+
+- `backend:changed`, after a runtime `backend(kind)` swap. Payload: `{ kind }`.
+- `beforeCrossfade`, cancellable. `preventDefault()` stops the fade before any buffer is touched.
+- `crossfadePrevented`, fired instead of `crossfadeStart` when a listener cancels.
+- `crossfadeStart`, payload `{ from, to, duration }` with `duration` in milliseconds.
+- `crossfadeComplete`, payload `{ item }` once the swap has settled.
+
+Everything else, including `item`, `time`, `ended`, and `itemEndingSoon`, is the core event map. See [Listening to events](/nomercy-player-core/handbook/listening).
 
 {/* partial */}
-
 ```ts
-player.addPlugin(NowPlayingPlugin, { endpoint: 'https://api.example.com/now-playing' });
-```
-
-## Accessing music-specific methods
-
-Inside a plugin, `this.player` is typed as `IMusicPlayer`. Music-specific methods are available directly:
-
-{/* partial */}
-
-```ts
-use(): void {
-  this.on('item', ({ item }) => {
-    if (!item) return;
-    if (this.player.isTransitioning()) return; // mid-crossfade, skip
-    const output = this.player.backend().outputNode(this.audioContext);
-    this.wireGraph(output);
-  });
+override use(): void {
+	this.on('crossfadeStart', ({ from, to, duration }) => {
+		this.showTransition(from?.name, to.name, duration);
+	});
+	this.on('itemEndingSoon', ({ remaining, item }) => {
+		this.prepare(item, remaining);
+	});
 }
 ```
 
-- `this.player.backend()`, the active `IAudioBackend` (audio-element or Web Audio).
-- `this.player.crossfadeTo(item, opts?)`, start a dual-buffer crossfade to another item.
-- `this.player.isTransitioning()`, whether a crossfade is in progress.
+## The audio backend
 
-## Listening to music-specific events
+This is the biggest thing a music plugin can reach that a bare core plugin cannot. `this.player.backend()` returns the active `IAudioBackend`. Two implementations ship:
 
-{/* partial */}
+- `AudioElementBackend` (`'audio-element'`), an `<audio>` element with a lazily created media element source. Its crossfade ramp runs on an animation frame loop and is not sample-accurate.
+- `WebAudioBackend` (`'webaudio'`), an `<audio>` element routed through an `AudioContext` gain and analyser graph. Sample-accurate transitions.
+
+The backend surface a plugin cares about:
 
 ```ts
-use(): void {
-  // Crossfade lifecycle:
-  this.on('crossfadeStart', ({ from, to, duration }) => {
-    this.logCrossfade(from?.name, to.name, duration);
-  });
-  this.on('crossfadeComplete', ({ item }) => {
-    this.onSettled(item);
-  });
+const backend = this.player.backend();
 
-  // An item is nearing its end — the cross-library "ending soon" signal:
-  this.on('itemEndingSoon', ({ remaining, item }) => {
-    this.preload(item, remaining);
-  });
+backend.mediaElement(); // the raw HTMLMediaElement. Cast SDKs bind here.
+backend.captureStream(); // MediaStream capture for clip and record plugins
+backend.outputNode(ctx); // tail of the backend's internal graph, chain entry point
+backend.analyserSource(ctx); // node to tap for analysis
+backend.analysisNode?.(ctx); // pre-volume raw source, WebAudioBackend only
+backend.supportsCrossfade(); // both built-ins return true
+```
+
+`analysisNode` is optional on the contract. When the backend has one, analyser taps placed there read magnitudes before the volume gain, so FFT data does not shrink when the user turns the volume down. `AudioElementBackend` omits it; consumers fall back to `outputNode`.
+
+A runtime swap is `await this.player.backend('webaudio')`. The old backend is disposed, the new one is wired, and the player emits `backend:changed`.
+
+The backend also emits its own events, separate from the player's. `backend.on('backend:sourceswap', fn)` fires after a crossfade promotes the secondary element. The payload carries the new `sourceNode` and, when available, the new `analysisNode`.
+
+Any plugin that holds a reference to a backend audio node must re-mount on this event. Otherwise it ends up wired to a dead node. `AudioGraphPlugin` does exactly this. `IAudioBackend` and the backend event types are exported from `@nomercy-entertainment/nomercy-music-player/adapters`.
+
+## Tapping the analyser and spectrum data
+
+Do not build your own analyser chain. The core audio plugins layer on top of the backend, and the music player re-exports all of them:
+
+```ts
+player
+	.addPlugin(audioGraphPlugin, { fftSize: 2048 })
+	.addPlugin(spectrumPlugin)
+	.addPlugin(canvasPlugin)
+	.addPlugin(MyVisualization);
+```
+
+`AudioGraphPlugin` is the foundation. It owns the `AudioContext` and the signal chain, and every other audio plugin declares it in `requires`. On a `WebAudioBackend` it reuses the backend's context; that is the single-context invariant, backend context, player context, and plugin context are the same object. It taps its shared `AnalyserNode` on the backend's pre-volume `analysisNode` when one exists.
+
+`SpectrumPlugin` reads that analyser once per animation frame and emits a `frame` event. The payload is a full `VisualizationFrame`: byte and float FFT data, waveform samples, band energies (bass, mid, treble), peak-hold values, `sampleRate`, `binHz`, and `peakHz`. Your plugin consumes it with the typed plugin-to-plugin listener:
+
+```ts
+import { SpectrumPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
+
+export class BeatFlashPlugin extends Plugin<IMusicPlayer> {
+	static override readonly id = 'nomercy:beat-flash';
+	static override readonly requires = [SpectrumPlugin];
+
+	override use(): void {
+		this.on(SpectrumPlugin, 'frame', ({ frame, energy }) => {
+			if (energy.bass > 0.8)
+				this.flash();
+		});
+	}
 }
 ```
 
-`itemEndingSoon` is a core event shared by both players (the video player fires the same one), it replaces v1's track-specific ending signal.
+For raw access, `this.player.getPlugin(SpectrumPlugin)` exposes `analyser()`, `currentFrame()`, and `bandEnergy(loHz, hiHz)`. For custom effect nodes, `getPlugin(AudioGraphPlugin)` exposes `insertEffect(node, 'pre' | 'post')`, `removeEffect(node)`, and `route(from, to)`; every inserted node is disconnected on dispose. Visual output goes through `CanvasPlugin` renderers or a `VisualizationPlugin` subclass, so you never run your own animation frame loop.
 
-## Best practices
+## Equalizer and mixer hooks
 
-### Memory-safe cleanup
+`EqualizerPlugin` inserts a pre-gain node and a bank of peaking filters into the graph. `MixerPlugin` adds master gain and stereo pan at the tail. Both require `AudioGraphPlugin` and both persist through the plugin storage facade when given a `persistKey`.
 
-The lifecycle helpers all register their own cleanup: `this.on`, `this.listen`, `this.timeout`, `this.interval`, `this.frame`, `this.websocket`, `this.mount`, `this.lifecycle.observe`.
-
-That is why most plugins need no `dispose()`. There is nothing left to release by hand.
-
-Override `dispose()` only for a resource none of them track: a third-party library instance, or a raw `AudioNode` graph you built outside the backend.
-
-A `ResizeObserver` is tracked: wrap it with `this.lifecycle.observe`, which disconnects it on dispose and returns the observer so you chain the `observe(el)` straight on:
-
-{/* partial */}
+A plugin that reacts to EQ changes listens the same way as above:
 
 ```ts
-this.lifecycle
-  .observe(new ResizeObserver(() => this.relayout()))
-  .observe(this.player.container);
+this.on(EqualizerPlugin, 'change', ({ bands, selectedPreset }) => {
+	this.syncUi(bands, selectedPreset);
+});
 ```
 
-A raw `new ResizeObserver` that you store and disconnect by hand works, but it is the pattern `this.lifecycle.observe` exists to remove, and the `@nomercy-entertainment/eslint-plugin-player` rules flag it, alongside raw `setTimeout` / `addEventListener`, a raw `throw`, and the global `fetch`.
+An EQ control surface calls the instance instead: `band(freq, gain)`, `preGain(gain)`, `preset(name)`, `presets()`, `reset()`, `addCustomPreset(preset)`, plus the `bandSliderMin` / `bandSliderMax` / `bandSliderStep` / `bandSliderValue` helpers for building sliders. The mixer instance exposes `gain(dB)`, `pan(value)`, and `muted(value)`.
 
-### Use the scoped helpers, not the raw primitives
+## Crossfade awareness
 
-`this.listen(target, event, handler)` wraps `addEventListener` and removes it on dispose. `this.fetch(url, options?)` runs the player's auth pipeline and aborts on teardown. `this.throw(payload)` surfaces a structured error.
+Crossfade is on by default. The music `setup()` wrapper injects `crossfadeEnabled: true`, a `MusicPreloadStrategy`, and a `CrossfadeTransitionStrategy` with an equal-power curve unless your config supplies its own. `crossfadeDefaults` in the config sets the fallback duration and curve for every fade.
 
-Reaching past these to the raw form leaks a listener, sends an unauthenticated request, or drops an error off the contract. That is why the lint rules flag each one.
+What a plugin gets:
 
-A genuine exception, such as a public URL that must not carry auth, takes an `eslint-disable-next-line` with a one-line reason.
+- `this.player.crossfadeTo(item, opts?)` starts a dual-buffer fade. It resolves the item URL through the player's URL resolver pipeline, the same seam `load()` uses, so hand it a raw item with a relative URL.
+- `this.player.isTransitioning()` is `true` while a fade is in flight. Calls to `crossfadeTo` during that window return without doing anything.
+- The four crossfade events above, plus `itemEndingSoon` as the trigger signal.
+- A `beforeCrossfade` listener may swap `data.to` for a different item; the fade then targets the swapped item.
 
-### Inter-plugin communication via events, not direct references
+`crossfadeTo` throws `StateError('core:player/crossfade-unsupported')` when the active backend reports `supportsCrossfade() === false`. After the fade completes the player moves its cursor to the new item, so `item` fires and downstream plugins follow.
 
-Use `this.emit()` to broadcast from a plugin and `this.on(PluginClass, event, fn)` to receive from a specific plugin. This keeps plugins decoupled and independently testable. Direct references, calling methods on another plugin instance, create hidden load-order dependencies.
+`AutoAdvancePlugin` is the reference pattern. It listens to `itemEndingSoon` and resolves what plays next, from queue order or a custom `IPlaylistGenerator`. It optionally preloads that item into the next slot with `load(next, { slot: 'next' })`, then hands off to `crossfadeTo`.
+
+## Audio output devices
+
+The output device surface lives on the player, so any plugin can build a device picker:
+
+- `audioOutputs()` enumerates devices of kind `audiooutput`. Browsers gate the labels behind a permission grant.
+- `selectAudioOutput()` opens the browser's own picker (Chrome 105 and later) and triggers that grant. Returns `null` when the user cancels.
+- `audioOutput()` reads the current sink id, `null` for the system default. `audioOutput(deviceId)` routes audio via `setSinkId` on the backend's media element.
+
+Unsupported browsers get a structured `BrowserPolicyError`, not a silent no-op. There is no player event for a device switch; a picker plugin updates its own UI after its `audioOutput(deviceId)` call resolves.
+
+## Lyrics data
+
+`LyricsPlugin` is the lyrics surface. On every `item` event it resolves the track's `lyricsUrl`, or asks a custom `getLyricsUrl` resolver. It fetches the file through the auth-aware plugin fetch and parses it through the player's cue parser registry. Then it attaches a `CueTracker` to the clock.
+
+Consume it from another plugin:
 
 ```ts
-// Emitting plugin: declares its own event map as the third generic
-interface QueueMenuEvents {
-  selected: { index: number };
-}
-
-export class QueueMenuPlugin extends Plugin<IMusicPlayer, unknown, QueueMenuEvents> {
-  static override readonly id = 'nomercy:queue-menu';
-
-  private choose(index: number): void {
-    this.emit('selected', { index }); // scoped to plugin:nomercy:queue-menu:selected
-  }
-}
-
-// Receiving plugin
-export class QueuePanelPlugin extends Plugin<IMusicPlayer> {
-  static override readonly id = 'nomercy:queue-panel';
-  static override readonly requires = [QueueMenuPlugin];
-
-  use(): void {
-    // on(PluginClass, event, fn) — auto-cleaned, fully typed
-    this.on(QueueMenuPlugin, 'selected', ({ index }) => {
-      this.highlightRow(index);
-    });
-  }
-}
+this.on(LyricsPlugin, 'line', ({ text }) => {
+	this.renderLine(text);
+});
 ```
 
-`this.on(PluginClass, event, fn)` is the typed form for listening to another plugin's events. The consumer-facing string form is `on('plugin:<id>:<event>', fn)` on the player object itself, use the class form inside plugins.
+Or pull state from the instance: `current()` is the active line payload, `all()` is the full cue list, `fetchLyrics(url)` loads explicitly, and `clear()` drops the tracker without disposing the plugin. `lineEnter` and `lineExit` bracket each line; `loaded` fires once per track with the cue count.
+
+The registry side is core: `player.registerCueParser(parser)` adds a format, and the handbook's [network page](/nomercy-player-core/handbook/network) covers the fetch pipeline the plugin uses. `MusicPreloadStrategy` also lists the lyrics sidecar as a preload asset, next to the media and the cover art, so lyrics for the upcoming track are usually warm.
+
+## Where UI mounts live
+
+The music player is headless. There is no video surface and no overlay stack; `player.container` is the element you handed to `nmplayer(id)`, and the backend's `<audio>` element lives inside it.
+
+- Plugin UI mounts into `this.player.container` through the handbook's [DOM helpers](/nomercy-player-core/handbook/building-dom).
+- `CanvasPlugin` mounts its `<canvas>` into the player container by default, or anywhere else via its `mount` option (a CSS selector or an element). It sets `pointer-events: none` so a visualizer never blocks the app.
+- `setup({ controls: true })` flips on the native `<audio controls>` bar, which is useful before any UI plugin exists.
+
+## Patterns from the shipped plugins
+
+Three patterns cover most music plugins:
+
+**Subclass the core plugin.** `MediaSessionPlugin`, `KeyHandlerPlugin`, and `CastSenderPlugin` are thin subclasses of their core counterparts. Each overrides one or two protected hooks:
+
+- `getMetadata(item)` maps `name` / `artist` / `album` into OS metadata.
+- `addMediaKeys()` adds bindings on top of the inherited set.
+- `defaultContentType()` and `buildMetadata(item, ctors)` shape the Cast payload.
+
+Copy this shape when you need a variant of an existing plugin rather than a new one.
+
+**Accept a port, ship a no-op.** `ScrobblePlugin` does no I/O itself. It tracks listened seconds against `time` / `item` / `ended` and calls an `IScrobbler` you supply in options. The default is `NoopScrobbler`, so the plugin is inert until a real backend (Last.fm, ListenBrainz, the NoMercy server) is wired in. `AutoAdvancePlugin` does the same with `IPlaylistGenerator` for custom queue ordering. Both ports are exported.
+
+**Guard the item type.** Plugin `item` payloads are typed against the base item when the plugin's generic is free. The shipped plugins narrow with a small predicate (`'name' in item`) before touching music fields. One internal detail worth knowing: the scrobble tracker only counts time deltas under two seconds, so seeks and track changes never inflate listened time.
+
+The player class internals (`WireInternals`, the phase fields, `_dispatchBefore`) are not exported and not a plugin surface. If you find yourself needing them, the hook you want is almost always one of the `before*` events or a strategy (`setTransitionStrategy`, `setPreloadStrategy`) instead.
 
 ## Next steps
 
-- [The Plugin Base](/nomercy-player-core/tour/plugin-base): every helper on `this`, the lifecycle, and how registration wires a plugin to its player.
-- [Player and Plugin](/nomercy-player-core/tour/composition-boundary): the `this`-versus-`this.player` boundary the lint rules enforce.
+- [Plugin Handbook](/nomercy-player-core/handbook/anatomy) for everything on `this`: lifecycle, DOM, events, timing, network, i18n, errors, registration.
+- [Audio backend adapter](/nomercy-music-player/plugins-adapters/adapter-audio-backend) for writing a custom `IAudioBackend`.
+- The per-plugin pages linked in the catalog above for full options and events.

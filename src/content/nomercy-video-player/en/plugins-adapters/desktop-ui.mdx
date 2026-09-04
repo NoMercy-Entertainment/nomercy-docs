@@ -1,17 +1,17 @@
 ---
 title: 'Plugin: Desktop UI'
-description: 'DesktopUiPlugin: the official prebuilt overlay, full control bar, menus, responsive button collapsing, scrub-preview sprites, still entirely restylable CSS.'
+description: 'DesktopUiPlugin: the official prebuilt overlay, full control bar, menus, responsive button collapsing, scrub-preview sprites, still entirely restylable CSS, and how every machinery group inside it works.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/plugins/desktop-ui/index.ts */}
+{/* Source: packages/nomercy-video-player/src/plugins/desktop-ui/ (index.ts, internals.ts, helpers/, mixins/, styles.css) */}
 
 # Plugin: Desktop UI
 
-`DesktopUiPlugin` (id `'desktop-ui'`) is the prebuilt overlay: top bar, centre play button, bottom bar with scrubber and transport, a settings menu, and an auto-hide cycle.
+`DesktopUiPlugin` (id `'desktop-ui'`) is the prebuilt overlay: top bar, center play button, bottom bar with scrubber and transport, a settings menu, and an auto-hide cycle.
 
 It is not a black box. It is built from the same public methods you would use yourself, `play()`, `subtitle()`, `quality()`, and it restyles with plain CSS.
 
-The alternative is writing it yourself, which is what [Build a Player](/nomercy-video-player/build/shell) walks through.
+The alternative is writing it yourself, which is what [Build a Player](/nomercy-video-player/build/shell) walks through. The second half of this page explains how the shipped plugin actually does it, one machinery group at a time.
 
 ## Options
 
@@ -25,16 +25,20 @@ The alternative is writing it yourself, which is what [Build a Player](/nomercy-
 | `buttonOrder` | `Array<keyof DesktopUiButtonOptions>` | — | Re-anchors named buttons to the end of the bar in the given order; unnamed buttons keep their natural position. |
 | `settingsItems` | `SettingsToggleItem[]` | — | Consumer toggle rows appended to the settings menu (an app's own auto-skip switch, for instance). |
 | `subtitleMenuActions` | `SubtitleMenuAction[]` | — | Consumer action row(s) appended to the subtitles sub-menu (a "Search subtitles online…" entry, for instance). Shown whenever provided, including when the current item has zero subtitle tracks, since that's exactly when an external-search action matters most. |
+| `settingsMenuActions` | `SubtitleMenuAction[]` | — | Consumer action row(s) appended to the main settings menu, after any `settingsItems` toggle rows (a "Cast to device…" entry, say). Same row shape as `subtitleMenuActions`; only the mount point differs. |
 | `buttonPriority` | `Array<keyof DesktopUiButtonOptions>` | see below | Responsive removal order, buttons at the end are hidden first as the container narrows. |
+| `portraitHidden` | `Array<keyof DesktopUiButtonOptions>` | see Portrait | Buttons forced off in portrait regardless of width; replaces the default set entirely. |
 | `breakpoints` | `Breakpoint[]` | — | Full custom breakpoint progression. Takes precedence over `collapseStages`. |
 | `collapseStages` | `[number, number, number]` | — | Shorthand for `hideAfterRank` at the sm/md/lg tiers, ignored when `breakpoints` is set. |
 | `volumeSlider` | `'horizontal' \| 'vertical' \| 'auto'` | `'auto'` | Slider orientation; `'auto'` uses the vertical popup on touch devices and at 520px or narrower player width, horizontal otherwise. |
+
+The plugin emits three events of its own, under the `plugin:desktop-ui:` namespace: `shortcuts-toggle` (toggle the keybinds dialog), `layout:breakpoint` (see Responsive collapsing), and `opts:changed` (see Live option changes below).
 
 ## Button visibility
 
 `DesktopUiButtonOptions` controls which control-bar buttons render at all, independent of the responsive priority system below.
 
-Default-on: `play`, `mute`, `volume`, `fullscreen`, `settings`, `next`, `previous`, `chapterPrev`, `chapterNext`. Chapter buttons hide automatically when the current item has no chapters; `next` / `previous` stay rendered but go disabled at the first / last item and whenever the queue holds a single item.
+Default-on: `play`, `mute`, `volume`, `fullscreen`, `settings`, `next`, `previous`, `chapterPrev`, `chapterNext`. Chapter buttons hide automatically when the current item has no chapters. `next` / `previous` stay rendered but go disabled at the first / last item, and whenever the queue holds a single item.
 
 Default-off, opt in with `buttons: { theater: true }` and so on: `theater`, `pip`, `speed`, `quality`, `subtitles`, `audio`, `playlist`, `seekBack`, `seekForward`, `aspectRatio`, `cast`.
 
@@ -42,7 +46,7 @@ Default-off, opt in with `buttons: { theater: true }` and so on: `theater`, `pip
 
 The buttons are the opt-in for a UI with neither keyboard nor touch.
 
-The top-bar `cast` button sits next to `back` and `close`, and emits the player's `'cast'` event on click. Nothing else. That is the same no-opinion pattern as its neighbours.
+The top-bar `cast` button sits next to `back` and `close`, and emits the player's `'cast'` event on click. Nothing else. That is the same no-opinion pattern as its neighbors.
 
 Unlike them, its visibility does not depend on a listener being registered, because it defaults off.
 
@@ -56,7 +60,7 @@ import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 const player = nmplayer('player');
 
 player.addPlugin(DesktopUiPlugin, {
-  buttons: { theater: true, subtitles: true, audio: true },
+	buttons: { theater: true, subtitles: true, audio: true },
 });
 ```
 
@@ -69,9 +73,12 @@ The default order:
 ```text
 play -> mute -> volume -> fullscreen -> settings
   -> next -> previous -> chapterPrev -> chapterNext
-  -> seekBack -> seekForward -> theater -> pip -> speed
-  -> quality -> subtitles -> audio -> aspectRatio -> playlist
+  -> seekForward -> quality -> subtitles -> audio
+  -> seekBack -> theater -> pip -> speed
+  -> aspectRatio -> playlist
 ```
+
+Subtitles and audio outrank the framing and pacing controls on purpose. A narrow bar that keeps a picture-in-picture button and drops the subtitle menu has kept a convenience. It lost the control some viewers cannot watch without.
 
 `collapseStages: [2, 4, 6]` is shorthand for hiding after rank 2, 4 and 6 at the sm, md and lg breakpoints. `xs` always shows rank 1 only, `xl` always shows everything.
 
@@ -79,11 +86,11 @@ play -> mute -> volume -> fullscreen -> settings
 
 ```ts
 player.addPlugin(DesktopUiPlugin, {
-  breakpoints: [
-    { name: 'xs', maxWidth: 320, hideAfterRank: 1 },
-    { name: 'sm', maxWidth: 480, hideAfterRank: 4 },
-    { name: 'lg', maxWidth: Infinity, hideAfterRank: Infinity },
-  ],
+	breakpoints: [
+		{ name: 'xs', maxWidth: 320, hideAfterRank: 1 },
+		{ name: 'sm', maxWidth: 480, hideAfterRank: 4 },
+		{ name: 'lg', maxWidth: Infinity, hideAfterRank: Infinity },
+	],
 });
 ```
 
@@ -99,24 +106,24 @@ An episodic app usually keeps `next` and `chapterNext`. Skipping an intro one-ha
 
 ```ts
 player.addPlugin(DesktopUiPlugin, {
-  buttons: { chapterNext: true, next: true },
-  // Keep next/chapterNext in portrait, drop their backwards twins instead.
-  portraitHidden: ['chapterPrev', 'previous', 'subtitles', 'audio', 'quality', 'playlist'],
+	buttons: { chapterNext: true, next: true },
+	// Keep next/chapterNext in portrait, drop their backwards twins instead.
+	portraitHidden: ['chapterPrev', 'previous', 'subtitles', 'audio', 'quality', 'playlist'],
 });
 ```
 
-Pass `[]` to force nothing off and let width alone decide. The override buys a button a seat in the priority walk, it does not exempt it: a button still disappears once the row runs out of room, so raise it in `buttonPriority` too if it must outlive the squeeze.
+Pass `[]` to force nothing off and let width alone decide. The override buys a button a seat in the priority walk, it does not exempt it. A button still disappears once the row runs out of room, so raise it in `buttonPriority` too if it must outlive the squeeze.
 
 ## The overlay() escape hatch
 
-Other plugins mount their own UI onto `DesktopUiPlugin`'s auto-hiding overlay root instead of the player container directly, so their elements inherit the same show/hide lifecycle rather than floating over a hidden chrome:
+Other plugins mount their own UI onto `DesktopUiPlugin`'s auto-hiding overlay root instead of the player container directly. Their elements then inherit the same show/hide lifecycle rather than floating over a hidden chrome:
 
 ```ts
 const myCustomBadge = document.createElement('div'); // your own overlay element
 
 const overlayRoot = player.getPlugin(DesktopUiPlugin)?.overlay(); // HTMLElement | null
 if (overlayRoot) {
-  overlayRoot.appendChild(myCustomBadge);
+	overlayRoot.appendChild(myCustomBadge);
 }
 ```
 
@@ -133,29 +140,240 @@ ui?.releaseChrome(); // closing it
 
 This plugin's own menus don't need it, they already pin internally. It's for UI that lives outside the plugin but leans on its chrome.
 
+## How it is built
+
+Everything below is the plugin's internal machinery. None of it is exported from the package except the plugin class itself and the two consumer row types (`SettingsToggleItem`, `SubtitleMenuAction`).
+
+Read these sections as patterns to copy into your own UI plugin, not as an API to import. The shared toolkit each one leans on, `mount`, `listen`, `timeout`, `on`, `emit`, `fetch`, `t`, `storage`, is the [Plugin Handbook](/nomercy-player-core/handbook/anatomy)'s subject.
+
+The class itself is thin: static metadata, field declarations, lifecycle overrides, and the public `overlay()` / `holdChrome()` / `releaseChrome()` surface. The method bodies live in nine mixin objects. `composeMixins(DesktopUiPlugin.prototype, ...)` stamps them onto the prototype, the same primitive `NMVideoPlayer` is composed from.
+
+An `internals.ts` interface (`DesktopUiInternals`) is the typed `this` contract between the class fields and the mixin bodies. Under the mixins sit plain free-function helpers (`helpers/activity.ts`, `helpers/menus.ts`, and so on). Those take their state as parameters, so each concern is testable without a plugin instance.
+
+The overlay DOM the plugin builds:
+
+```text
+overlay                       one mount(), z-index 20, pointer-events none
+  top-bar                     back / cast / close + title + show-info
+  center                      spinner + center play button + message line
+  bottom-bar
+    slider-bar                buffer, hover, progress, chapter markers, nipple, pop
+    bottom-row                transport buttons, volume, time labels, feature buttons
+  menu-frame-dialog           a <dialog>, main menu + sub-menu panes
+  keybinds dialog             the ? shortcuts overlay
+```
+
+### Activity and auto-hide
+
+The player has a built-in activity tracker, and this plugin turns it off. The first thing `use()` does is `player.activityTracking(false)`, taking over as the sole emitter of the `activity` event. A lifecycle cleanup hands ownership back on dispose.
+
+The reason: the built-in tracker only sees DOM input. This plugin's chrome must also stay up while a menu is open, while the pointer hovers the bars, and while a scrub is in flight.
+
+The state machine is a small bag (`ActivityState`) plus three moves:
+
+- `bumpActivity()` shows the chrome (`activity { active: true }`) and re-arms a `timeout` for `inactivityMs` (default 4000).
+- `maybeHide()` runs when the timer fires. It refuses to hide when playback is not `'playing'`, a menu is open, a `holdChrome()` count is outstanding, or a mouse pointer is over the bottom bar or menu frame.
+- `dismissOverlay()` is the deliberate paused-state dismiss, used when the user clicks the empty overlay background. It bypasses the playing-only guard but still refuses while a menu is open, a hold is outstanding, or a scrub is releasing.
+
+What counts as activity:
+
+- container `mousemove`, with a 2 pixel threshold so sub-pixel jitter does not keep the chrome alive
+- `mousedown`, `pointerdown`, `touchstart`, `keydown`
+- every control interaction
+
+Pausing cancels the timer outright and pins the chrome visible. Hover pinning listens to `pointerenter` / `pointerleave` on the bars and only counts `pointerType === 'mouse'`. A finger resting after a tap pins nothing.
+
+The `activity` event only fires when the state actually flips, with one desync guard. When showing, the emit is forced if the container has lost its `.active` class even though the flag says active. So a direct `player.emit('activity', ...)` from outside cannot wedge the chrome hidden.
+
+`disable(reason?)` hides the overlay outright, not just its handlers, cancels the inactivity timer, and emits one final `activity: false`. That is how a peer that owns the screen (a disc-menu interpreter) takes over without doubled chrome. `enable()` restores the overlay and re-arms the cycle.
+
+### The top bar
+
+`helpers/topBar.ts` builds two columns. The left column holds three buttons that each emit one player event and do nothing else: `back`, `cast`, `close`. The right column holds two text lines: the primary title and a secondary show-info line.
+
+Visibility rules differ per button:
+
+- `back` and `close` appear only while the player has a listener registered for their event. The `listeners-changed` player event keeps that live, so wiring `player.on('back', ...)` after mount makes the button appear.
+- `cast` is gated by the `buttons.cast` option instead, never by listener presence, because an app may want the button rendered before its Cast SDK finishes probing.
+- All three hide in PiP, where floating chrome would act on the wrong window.
+
+The title composition mirrors the Android app's top bar. The primary line is the show name for series content, otherwise the item title. The secondary line is `S{n}E{n} • {episodeTitle}` for TV, an Extras label for season-0 specials, and blank for movies.
+
+Labels come from the plugin's i18n table, so season and episode tokens localize. `hideTitle` hides the right column only; the left column's buttons must stay reachable either way.
+
+### Menus and menu control
+
+Menus are two files with a deliberate split: `helpers/menus.ts` renders, `helpers/menuControl.ts` orchestrates. The frame is a real `<dialog>` element (`popover="manual"`), holding a main menu (category buttons plus consumer rows) and seven sub-menu panes: `language`, `subtitles`, `quality`, `speed`, `playlist`, `subtitleSettings`, `aspectRatio`.
+
+Menu state is owned in one place, a `MenuControlState` bag. It holds which menu is open, the cached active subtitle / audio / quality indexes, and whether the user pinned a quality manually. Buttons and menu panes both read from this one bag, so the bottom-bar subtitle icon and the checkmark in the subtitles pane can never disagree.
+
+The pointer path: each trigger button opens its pane via `openSubMenu(id)`, and pressing the same trigger again closes it, a toggle. Without that, the only way out would be clicking elsewhere, because triggers stop propagation and never reach the outside-click closer. A document-level click outside the frame closes everything. `aria-expanded` is managed on every trigger on each transition.
+
+The keyboard path: `ArrowUp` / `ArrowDown` inside the frame cycle focus through the open pane's visible, enabled buttons, wrapping at the ends. The keys stop propagation, so the player's seek and volume handlers cannot fire while a menu is open. `Escape` closes all menus.
+
+Panes are repainted from live player data, not built once. Each has a `repaint*IfOpen()` guard called from the matching player event (`subtitle`, `audioTrack`, `quality:requested`, `level-switched`, `backend:ratechange`, `item`, `mediaReady`). So a selection made anywhere, a keyboard shortcut, another plugin, repaints an open pane too.
+
+Picking a row closes the whole menu for one-shot choices (quality, subtitles, audio, playlist). It keeps the pane open for compare-and-adjust choices (speed, aspect ratio).
+
+The cached indexes reconcile with the player's canonical state at `mediaReady`. The sync reads `subtitle()`, `audioTrack()`, and `quality()` first, because those cover plugin-rendered tracks (ASS via Octopus) that never appear in the backend's native lists. It falls back to a default-track heuristic only when the player has no selection yet.
+
+Repaints never re-run that sync, or a user's manual pick would be overwritten.
+
+Opening a menu also sets `menuOpen` on the activity state, which is what pins the chrome while any menu is up.
+
+### Tooltips
+
+`helpers/tooltips.ts` owns one primitive, `addTooltip(btn, getText, ...)`, applied to every control-bar button. `getText` is evaluated lazily on each hover, so dynamic labels stay current. The next-button tooltip shows the next queue item's title. The chapter buttons show the previous or next chapter's title, with the same one-second tolerance the navigation uses.
+
+The tooltip appears after a 500 ms delay, shared through one debounce token across all buttons, and dismisses on click or `mouseleave`. It is clamped horizontally against the slider-bar's bounding rect, the same fence the scrub preview uses, so it never escapes the player's edge. The clamp also shifts the arrow so it keeps pointing at the button.
+
+One structural detail worth copying: icons render into a `.btn-icon` child span, not the button itself, so `innerHTML` icon swaps never destroy the `.tooltip` span living next to it.
+
+### The progress bar
+
+`helpers/progressBar.ts` builds the slider-bar subtree: a buffer fill, a hover fill, a progress fill, a chapter layer, the nipple, and the pop. The pop is the preview bubble holding a thumbnail, a chapter title line, and a timestamp. The bar carries `role="slider"` with `aria-valuenow` kept in sync as a percentage.
+
+Scrubbing is a three-phase state machine in the `wireSliderBar()` mixin method:
+
+1. Arm. `mousedown` / `touchstart` set the scrub flag on the activity state, so the chrome cannot hide mid-drag.
+2. Paint. `mousemove` / `touchmove` paint the pop (timestamp, sprite thumbnail, covering chapter title) and move the hover fill. While armed they also drag the nipple, without seeking yet.
+3. Seek once, at release. A `mouseup` on `document`, a `touchend`, or a click computes the time from the pointer position and calls `player.time(seconds)`. The `mouseup` lives on `document`, not the bar, so a drag that ends outside still finalizes.
+
+While scrubbing, the `time` event handler skips its progress updates so the clock cannot yank the nipple back.
+
+The buffered fill is `player.buffered() / duration`, repainted on every `time` event, wrapped in a try/catch because a detaching SourceBuffer can throw mid-read.
+
+Chapters change the rendering mode. With chapters present, the bar gains `has-chapters`, the single buffer fill hides, and each chapter gets its own marker div holding four layers: background, buffer, hover, and progress. A marker spans `calc(width% - 2px)`, and that 2 pixel gap is what draws the dividers.
+
+Fills are painted with `scaleX()`. A value before the chapter's range is `scaleX(0)`, past it `scaleX(1)`, inside it the fraction of the span. Progress, buffered, and hover all reuse the same fill function on different layers.
+
+Clicking a marker calls `player.seekToChapter(index)`. Markers rebuild on the `chapters` event, on `duration`, and on item change, whichever arrives last wins.
+
+### Sprite seek thumbnails
+
+`helpers/sprite.ts` plus the sprite mixin own the preview thumbnail in the scrub pop. The sprite URL resolves from the playlist item: the typed `previewSpriteUrl` field first, then a legacy `tracks[].kind === 'thumbnails'` sidecar entry.
+
+The manifest is a VTT whose cue bodies read `image.webp#xywh=x,y,w,h`. Parsing delegates to core's `parseVttSprite`.
+
+Both requests route through the plugin's authenticated `fetch`: the VTT as text, the sprite image as an `ArrayBuffer` turned into a `blob:` object URL. The detour exists because a bare `<img src>` cannot carry an `Authorization` header. The image is preloaded so the first hover paints instantly.
+
+Loads are race-guarded with an incrementing token: a playlist jump mid-load discards the stale result and revokes its object URL rather than painting the previous film's thumbnails. Painting is `background-position: -x -y` on a fixed-size div. The object URL is revoked on the next item and on dispose.
+
+### Responsive breakpoints
+
+`helpers/responsive.ts` runs a four-rule visibility pass over the bottom row on every resize, orientation change, and hover-capability change:
+
+1. Consumer opt-out: a button disabled in `buttons` never shows.
+2. Content gating: a button marked `data-content-hidden="true"` (no subtitle tracks, one audio track, no chapters) is skipped without counting its width.
+3. Orientation: in portrait, the `portraitHidden` set is forced off.
+4. Container fit: walk `buttonPriority` most-important first, accumulate estimated widths (40 px per button, plus 96 px for the volume slider's hover expansion on hover-capable devices, with 148 px reserved for the time labels and padding), and hide everything that no longer fits.
+
+A `ResizeObserver` on the container drives the pass. `matchMedia('(orientation: portrait)')` and `matchMedia('(hover: none) and (pointer: coarse)')` feed rules 3 and 4. Both stamp `data-orientation` and `data-no-hover` attributes on the container for CSS to key off. The active breakpoint name is stamped as `data-breakpoint`, and crossing a boundary emits `layout:breakpoint`.
+
+The volume slider has its own mode logic here too:
+
+- `'horizontal'` is pure CSS expand-on-hover.
+- `'vertical'` is a click-toggled popup above the mute button, with its own mute row.
+- `'auto'` (the default) picks vertical whenever the device has no hover or the player is 520 px or narrower, re-evaluated on resize.
+
+### Icon and button state
+
+`helpers/buttonState.ts` is a set of pure `apply*` functions, each receiving only the DOM refs and scalars it needs, no plugin instance. The `iconStateMethods` mixin binds them to the plugin's refs and player.
+
+One convention runs through all of them: a non-default state gets the `is-active` class, which the stylesheet uses to force the filled icon variant. It lights up for:
+
+- playback rate away from 1
+- a manually pinned quality
+- an active subtitle track
+- a non-default audio track
+- PiP engaged
+- an aspect ratio other than `'uniform'`
+
+Aria-labels carry the dynamic part. The speed button appends the rate when non-default, the quality button appends the playing level's label.
+
+The volume icon derives from mute state and level together: muted or zero shows the muted glyph, below 30 low, up to 60 medium, above that high.
+
+Quality has one extra wrinkle: the icon and menu distinguish the requested level from the playing one. The requested value is what the user picked, often `'auto'`.
+
+The playing index is cached from the `level-switched` event, with a fallback peek at `backend().currentLevel()` before the first switch lands. Levels are matched by their `index` field, never array position, because `qualityLevels()` filters unsupported codecs.
+
+### Transport state
+
+The `transportStateMethods` mixin owns time, duration, capability gating, and enable/disable logic.
+
+Capability gating hides buttons whose feature the current item cannot use, via `data-content-hidden`, so the responsive pass skips their width:
+
+- subtitles with zero tracks, unless `subtitleMenuActions` rows exist, which keep the button reachable on their own
+- audio with one track or fewer
+- quality with fewer than two levels
+- chapter buttons with no chapters
+- playlist with fewer than two queue items
+
+The settings button itself hides when everything it would contain is empty. The matching main-menu category rows hide with their buttons. All of it re-runs on `mediaReady`, `chapters`, `levels`, `audioTracks`, `subtitles`, and item change.
+
+Enablement is finer than visibility:
+
+- `previous` / `next` disable at the queue edges
+- rewind disables at time zero
+- forward disables within a quarter second of the end
+- the chapter buttons disable when no chapter exists in their direction (one-second tolerance)
+
+Disabled buttons get both `disabled` and `aria-disabled`.
+
+Display-state visibility composes on top: theater hides in fullscreen or PiP (it is meaningless there), and the top-bar buttons hide in PiP. A config opt-out always wins over state-driven showing.
+
+The remaining-time label toggles between countdown (`-12:34`) and total duration on click, and the choice persists through the plugin's scoped storage under the key `showRemaining`.
+
+### Feedback overlays
+
+The `feedbackMethods` mixin owns the spinner and the message line. The message element lives on the player container, not the overlay, deliberately: a "Loading…" line must survive the chrome auto-hiding.
+
+Playback feedback is event-driven. `waiting` and `stalled` show a buffering state, a new `item` shows loading, and `canplay`, `playing`, or `time` clear it. An `error` event shows the error line.
+
+The initial "Loading…" only shows when the player actually has something queued, because a player can legitimately mount idle. The busy class goes on the plugin's own center wrapper, never the container, whose playback-state classes belong to core.
+
+The same message line doubles as the consumer toast surface. Any code can show one through plain player events, no plugin reference needed:
+
+```ts
+player.emit('display-message', { text: 'Up next: Episode 2', ms: 4000 });
+player.emit('remove-message', undefined);
+```
+
+A toast with `ms` set dismisses itself; playback feedback instead clears when playback recovers.
+
+### Keyboard shortcuts overlay
+
+The `?` key toggles a dialog listing the key bindings; `Escape` closes it, and `Escape` with a menu open closes the menu first. Other plugins toggle it by emitting the plugin's own `shortcuts-toggle` event. A one-time hint toast ("press ? for shortcuts") shows on the first `play` per browser session, tracked in `sessionStorage`.
+
+### Live option changes
+
+The plugin listens to its own `opts:changed` event. Re-emitting it with new options re-applies `hideTitle`, re-runs capability gating (so a live `subtitleMenuActions` change takes effect), and re-renders the `settingsMenuActions` rows.
+
+Those rows are the one main-menu row kind built for repaint. A consumer can add "Cast to device…" after its Cast SDK finishes an async probe and see the row appear without a rebuild.
+
 ## Rules & restrictions
 
 - Loading `DesktopUiPlugin` alongside native `controls: true` or `TvKeyHandlerPlugin`'s own key bindings without disabling one results in doubled UI or conflicting handlers, pick one control surface per platform.
 - Menu-driven and cycle-driven is a deliberate split. Quality, subtitles, audio, speed and aspect ratio open a menu on click, because each has a list. Theater, PiP and fullscreen are binary toggles. `cycleAspectRatio()` and friends are for remote-control and key-bind contexts where there is no list to pick from, not the pointer default.
-- `disable(reason?)` hides the overlay outright, not just its handlers, and cancels the inactivity timer. That is how a disc-menu interpreter, or any plugin that needs the screen, takes over without doubling chrome. `enable()` restores it and re-arms auto-hide.
-- Built from `composeMixins`, the same primitive [`NMVideoPlayer`](/nomercy-video-player/reference/player-methods) is composed from. Nine mixin groups stamped onto one prototype rather than one enormous class body: feedback, shortcuts, activity, menus, icon state, transport state, chapters, sprites, DOM.
 
 ## How to extend it
 
-Styling goes through plain CSS against the plugin's own class names, `appendStyles()` loads `styles.css` once per page regardless of player count, override selectors in your own stylesheet rather than forking the plugin. For behavior beyond what options cover, subclass and override the lifecycle hooks or add your own plugin that reads `overlay()`:
+Styling goes through plain CSS against the plugin's own class names. `appendStyles()` loads `styles.css` once per page regardless of player count, so override selectors in your own stylesheet rather than forking the plugin. For behavior beyond what options cover, subclass and override the lifecycle hooks or add your own plugin that reads `overlay()`:
 
 ```ts
 import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/desktop-ui';
 
 player.addPlugin(DesktopUiPlugin, {
-  buttons: { theater: true, quality: true },
-  volumeSlider: 'auto',
-  settingsItems: [
-    { id: 'auto-skip', label: () => 'Auto-skip intros', get: () => autoSkip.value, set: (v) => { autoSkip.value = v; } },
-  ],
+	buttons: { theater: true, quality: true },
+	volumeSlider: 'auto',
+	settingsItems: [
+		{ id: 'auto-skip', label: () => 'Auto-skip intros', get: () => autoSkip.value, set: (v) => { autoSkip.value = v; } },
+	],
 });
 ```
 
 ## Next steps
 
+- [Plugin Development](/nomercy-video-player/plugins-adapters/plugin-development): the video-specific surfaces every group above builds on.
+- [Plugin Handbook](/nomercy-player-core/handbook/anatomy): the shared toolkit, `mount`, `listen`, `timeout`, `fetch`, `t`, and the rest.
 - [Plugin: Touch Zones](/nomercy-video-player/plugins-adapters/touch-zones): the touch-input counterpart, coordinated with this plugin's auto-hide cycle through the shared `'activity'` event.

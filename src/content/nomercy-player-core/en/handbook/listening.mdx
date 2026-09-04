@@ -1,0 +1,160 @@
+---
+title: 'Listening'
+description: 'The memory-safe event surface: listen for DOM events, on, once, off, and hasListeners in both the player-event and cross-plugin forms, and how static priority orders plugins.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/plugin/base.ts, src/adapters/lifecycle-registry/default.ts, src/core/mixins/plugin-registration.ts */}
+
+# Core: Listening
+
+Everything a plugin subscribes to goes through four helpers. Each one records its own cleanup, so a disposed plugin leaves nothing behind: no DOM listeners, no player-event handlers, no half-alive closures keeping the player in memory.
+
+## listen()
+
+{/* partial */}
+```ts
+protected listen(target: EventTarget, event: string, handler: EventListener, options?: AddEventListenerOptions): void
+```
+
+THE memory-safe DOM listener. Drop-in for `target.addEventListener`: same signature, same behavior, plus automatic teardown.
+
+The lifecycle registry records the exact four-tuple: target, event, handler, and options. On dispose it replays each record through `removeEventListener` with the same options, so capture-phase and passive listeners detach correctly. After dispose, further `listen` calls are silent no-ops.
+
+{/* partial */}
+```ts
+override use(): void {
+	this.listen(document, 'keydown', (e) => {
+		if (!this.enabled())
+			return;
+		this.handleKey(e as KeyboardEvent);
+	});
+}
+```
+
+A raw `addEventListener` on `document` or `window` outlives the plugin. The handler closes over `this`, so it pins the plugin, the player, and everything they reference for the life of the page. This is the single most common player memory leak, and `listen` exists to make it unwritable.
+
+## on()
+
+{/* partial */}
+```ts
+protected on<K extends keyof PlayerEventMap<P>>(event: K, fn: (data: PlayerEventMap<P>[K]) => void): void;
+protected on<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(
+	plugin: C,
+	event: K,
+	fn: (data: PluginEventMap<C>[K]) => void,
+): void;
+```
+
+Subscribes to events with auto-dispose on teardown. Two forms:
+
+The string form listens to player and core events (`'play'`, `'time'`, `'beforePlay'`). The payload type comes from the player's event map through the `P` generic.
+
+The class form listens to another plugin's events: `on(OtherPluginClass, 'event', fn)`. The kit prefixes the event with the target plugin's namespace, so `'event'` becomes `plugin:<OtherPluginClass.id>:event` on the wire. The payload type comes from that plugin's `E` generic.
+
+There is no untyped string fallback for plugin events. Import the class. When your plugin declares `static requires = [OtherPluginClass]`, that class is loaded before yours anyway, so the import is free.
+
+Both forms register a cleanup that calls `player.off(event, fn)` on dispose. You never unsubscribe manually unless you want to detach early.
+
+{/* partial */}
+```ts
+override use(): void {
+	this.on('play', () => this.showBadge());
+
+	this.on(BeatPlugin, 'beat', ({ at }) => {
+		this.pulse(at);
+	});
+}
+```
+
+Calling `this.player.on(...)` directly skips both the typing and the cleanup registration. The handler survives the plugin.
+
+## once()
+
+{/* partial */}
+```ts
+protected once<K extends keyof PlayerEventMap<P>>(event: K, fn: (data: PlayerEventMap<P>[K]) => void): void;
+protected once<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(
+	plugin: C,
+	event: K,
+	fn: (data: PluginEventMap<C>[K]) => void,
+): void;
+```
+
+Same two-form contract as `on`, for a single occurrence. The handler auto-removes after its first dispatch. If the event never fires, the pending handler is still removed on dispose.
+
+{/* partial */}
+```ts
+override use(): void {
+	this.once('play', () => {
+		this.storage.set('has-played', 'true');
+	});
+}
+```
+
+## off()
+
+{/* partial */}
+```ts
+protected off<K extends keyof PlayerEventMap<P>>(event: K, fn: (data: PlayerEventMap<P>[K]) => void): void;
+protected off<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(
+	plugin: C,
+	event: K,
+	fn: (data: PluginEventMap<C>[K]) => void,
+): void;
+```
+
+Detaches a listener early, before dispose. Same two-form contract. Pass the same function reference you subscribed with.
+
+Most plugins never call this. The lifecycle registry already removes everything at teardown; `off` is for handlers that should stop reacting mid-session while the plugin stays alive.
+
+{/* partial */}
+```ts
+private readonly onTime = (): void => this.tick();
+
+override use(): void {
+	this.on('time', this.onTime);
+	this.on('ended', () => this.off('time', this.onTime));
+}
+```
+
+## hasListeners()
+
+{/* partial */}
+```ts
+protected hasListeners<K extends keyof PlayerEventMap<P>>(event: K): boolean;
+protected hasListeners<C extends AnyPluginCtor, K extends keyof PluginEventMap<C> & string>(
+	plugin: C,
+	event: K,
+): boolean;
+```
+
+Reports whether any listener is registered for an event. Same two forms, no cleanup involved: it is a pure read.
+
+It matters when producing the event costs something. A plugin that computes analysis data, renders a frame, or serializes a payload just to emit it wastes that work when nobody subscribed. Check first, skip the work when the answer is no.
+
+{/* partial */}
+```ts
+private tick(): void {
+	if (!this.hasListeners(BeatPlugin, 'beat'))
+		return;
+	this.emit('beat', { at: this.detectBeat() });
+}
+```
+
+## Handler order and static priority
+
+`static priority` (default zero) orders plugins, not individual handlers. `enabledPlugins()` returns the currently enabled plugins sorted by priority descending, with ties in registration order. Dispatch chains that walk that list, capability negotiation and `before*` advisory sweeps among them, reach higher-priority plugins first. Negative priorities land after every default-priority plugin.
+
+Within one event on the player bus, handlers run in subscription order. If your plugin must see an event before another plugin acts on it, raise your `priority` and make sure the flow you care about iterates `enabledPlugins()`; do not rely on registration order between unrelated plugins.
+
+## Example
+
+Two plugins: one emits a namespaced event only when someone is listening, the other requires it and subscribes with the class form.
+
+:::snippet{file="handbook-listening" live="false"}
+:::
+
+## Next steps
+
+- [Timing](/nomercy-player-core/handbook/timing): timers, frame loops, and observers with the same auto-cleanup guarantee.
+- [Anatomy of a Plugin](/nomercy-player-core/handbook/anatomy): the `E` generic that types your own events.

@@ -1,13 +1,21 @@
 ---
 title: 'Plugin Development'
-description: 'Writing plugins for nomercy-video-player v2: video-specific concerns, typed events, extending built-ins, and the memory-safe patterns the lint rules enforce.'
+description: 'Writing plugins for nomercy-video-player v2: the video-specific layer a bare core plugin cannot reach, the video element, track surfaces, chapters, and the overlay stack over the video.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/types.ts, packages/nomercy-player-core/src/core/plugin/base.ts, packages/nomercy-player-core/src/types/events.ts */}
+{/* Source: packages/nomercy-video-player/src/types.ts, src/index.ts, src/plugins/desktop-ui/, packages/nomercy-player-core/src/core/plugin/base.ts, src/types/player.ts */}
 
 # Plugin Development: Video Player
 
-Plugins for `nomercy-video-player` follow the same contract as the player core's plugin system. This page covers the video-player-specific patterns. For the base plugin contract, every helper on `this`, the lifecycle, and the registration pipeline, see [The Plugin Base](/nomercy-player-core/tour/plugin-base) and [Player and Plugin](/nomercy-player-core/tour/composition-boundary).
+Plugins for `nomercy-video-player` are core plugins. The whole shared toolkit lives on the `Plugin` base: `mount`, `createElement`, `createButton`, `addClasses`, `listen`, `timeout`, `frame`, `fetch`, `t`, `emit`, and the rest of `this.*`. The [Plugin Handbook](/nomercy-player-core/handbook/anatomy) teaches every one:
+
+- [Anatomy of a Plugin](/nomercy-player-core/handbook/anatomy), the class shape, generics, and lifecycle
+- [Building DOM](/nomercy-player-core/handbook/building-dom) and [Styling](/nomercy-player-core/handbook/styling)
+- [Listening](/nomercy-player-core/handbook/listening) and [Timing](/nomercy-player-core/handbook/timing)
+- [Emitting](/nomercy-player-core/handbook/emitting), [Network](/nomercy-player-core/handbook/network), [i18n](/nomercy-player-core/handbook/i18n)
+- [Errors & State](/nomercy-player-core/handbook/errors-state) and [Registration](/nomercy-player-core/handbook/registration)
+
+This page teaches only what a video plugin can reach that a bare core plugin cannot. That is the video element, the track surfaces, chapters, the display states, and the overlay stack over the video.
 
 ## Built-in plugin catalog
 
@@ -27,303 +35,202 @@ All built-in plugins are importable from `@nomercy-entertainment/nomercy-video-p
 
 ## Typing against the video player
 
-Use `IVideoPlayer` as the `P` generic. `IVideoPlayer` is the stable public interface for the video player, it is the correct type for plugins and consumer functions. `NMVideoPlayer` is the concrete class (implementation detail); prefer `IVideoPlayer` so your plugin does not depend on the class hierarchy.
-
-When a plugin needs to read the active item with `this.player.item()`, add `& WithCurrentItem<YourItemType>` to the `P` generic. Plugins that only call transport methods or `metrics()` can omit it, those are on `IPlayer` directly.
+Use `IVideoPlayer` as the `P` generic. It is the stable public interface for the video player and the correct type for plugins and consumer functions. `NMVideoPlayer` is the concrete class, an implementation detail; a plugin typed against it depends on the class hierarchy for no gain.
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
-import type { WithCurrentItem } from '@nomercy-entertainment/nomercy-player-core';
 import type { IVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
-interface WatchProgressOptions {
-  reportUrl: string;
-  saveIntervalMs?: number; // default 5000
-}
+export class MyVideoPlugin extends Plugin<IVideoPlayer<VideoPlaylistItem>> {
+	static override readonly id = 'my-video-plugin';
+	static override readonly version = '1.0.0';
 
-interface WatchProgressEvents {
-  'progress:saved': { itemId: string; timestamp: number; percentage: number };
-}
-
-export class WatchProgressPlugin extends Plugin<
-  IVideoPlayer & WithCurrentItem<VideoPlaylistItem>,
-  WatchProgressOptions,
-  WatchProgressEvents
-> {
-  static readonly id = 'nomercy:watch-progress';
-  static readonly version = '1.0.0';
-  static readonly description = 'Persists watch progress to the NoMercy server';
-
-  use(): void {
-    this.on('progress', ({ time, percentage }) => {
-      void this.saveProgress(time, percentage);
-    });
-  }
-
-  private async saveProgress(time: number, percentage: number): Promise<void> {
-    const item = this.player.item();   // VideoPlaylistItem
-    if (!item) return;
-
-    // this.fetch runs the player's auth pipeline and aborts on dispose —
-    // never the global fetch inside a plugin.
-    await this.fetch(this.opts.reportUrl, {
-      method: 'POST',
-      responseType: 'json',
-      body: JSON.stringify({ id: item.id, timestamp: Date.now(), percentage }),
-    });
-
-    this.emit('progress:saved', {
-      itemId: String(item.id),
-      timestamp: Date.now(),
-      percentage,
-    });
-  }
+	override use(): void {
+		this.on('item', ({ item }) => {
+			// item is a VideoPlaylistItem
+		});
+	}
 }
 ```
 
-Plugins that don't read the active item omit `& WithCurrentItem<...>`; `metrics()`, `getPlugin()`, and transport methods are on `IPlayer` directly.
+`IVideoPlayer<T>` takes your playlist item type as its generic. Extend `VideoPlaylistItem` with your own fields and the type threads through `item()`, `queue()`, and every event payload that carries an item.
 
-## Accessing video-specific methods
+## The video element
 
-Inside a plugin, `this.player` is typed as `IVideoPlayer`. Video-specific methods are available directly:
-
-{/* partial */}
+`this.player.videoElement` is the raw `<video>` element. It is `undefined` until the first `backend()` call constructs the backend, so guard the read:
 
 ```ts
-use(): void {
-  this.on('item', ({ item }) => {
-    if (!item) return;
-    const subtitles = this.player.subtitles();
-    const audioTracks = this.player.audioTracks();
-    const quality = this.player.quality();
-    this.reportTrackAvailability(subtitles.length, audioTracks.length);
-  });
+const videoEl = this.player.videoElement;
+if (videoEl) {
+	this.listen(videoEl, 'enterpictureinpicture', () => this.applyPipIcon(true));
+	this.listen(videoEl, 'leavepictureinpicture', () => this.applyPipIcon(false));
 }
 ```
 
-## Listening to video-specific events
+That snippet is how `DesktopUiPlugin` tracks PiP: native element events through the scoped `listen()` from the [handbook](/nomercy-player-core/handbook/listening), so the listeners unwind on dispose.
 
-{/* partial */}
+Read from the element when the player surface has no answer yet. `DesktopUiPlugin` resolves duration in three steps: `player.duration()`, then its own cached value, then `videoElement.duration` as the last fallback.
+
+## Video geometry: videoRect()
+
+The video renders with `object-fit: contain`, so the displayed picture is usually smaller than the container. `videoRect()` returns the displayed content rectangle relative to the player container, or `null` before video dimensions are known. Changes are signaled by the `'videoRect'` event.
+
+Overlay plugins that align to the picture (a subtitle renderer, a zone highlighter) use this instead of computing their own letterbox math. `SubtitleOverlayPlugin` consumes exactly this pair.
 
 ```ts
-use(): void {
-  // Quality level changes:
-  this.on('level-switched', ({ level }) => {
-    this.logQualityChange(level);
-  });
-
-  // Subtitle cue stream, for custom rendering:
-  this.on('subtitleCue', ({ cues }) => {
-    this.renderCues(cues);
-  });
-
-  // Chapter changes (emitted by seekToChapter):
-  this.on('chapter', ({ index, title }) => {
-    this.updateChapterDisplay(index, title);
-  });
-}
+this.on('videoRect', ({ rect }) => {
+	if (!rect)
+		return;
+	this.box.style.left = `${rect.left}px`;
+	this.box.style.width = `${rect.width}px`;
+});
 ```
 
-The `'back'` event is fired by UI plugins and handled in the consumer, not a plugin. Wire it on the player object from your app: `player.on('back', () => router.back())`.
+## The track surfaces
+
+Three surfaces follow the same read-list, read-selection, select shape:
+
+| Surface | List | Read selection | Select |
+| ------- | ---- | -------------- | ------ |
+| Subtitles | `subtitles()` | `subtitle()` returns `{ index, track }` or `null` | `subtitle(idx)`, `subtitle(null)` for off |
+| Audio | `audioTracks()` | `audioTrack()` | `audioTrack(idx)` |
+| Quality | `qualityLevels()` | `quality()` returns `'auto'` or `{ index, ... }` | `quality(idx)`, `quality('auto')` |
+
+And the events that drive a UI built on them:
+
+| Event | Fires when |
+| ----- | ---------- |
+| `subtitle` | The active subtitle selection changed |
+| `subtitles` | The subtitle track list changed without a reload (`addSubtitleTrack()` / `removeSubtitleTrack()`) |
+| `audioTrack` / `audioTracks` | Audio selection changed / list changed |
+| `quality:requested` | Someone picked a level (or auto) |
+| `level-switched` | The stream actually changed level, which in auto mode happens without any pick |
+| `levels` | The quality level list changed |
+| `mediaReady` | The new item finished loading; the reconcile point |
+
+`mediaReady` is where a track UI reconciles its cached indexes with the player's canonical state. `DesktopUiPlugin` reads `subtitle()`, `audioTrack()`, and `quality()` there rather than guessing from track defaults, because plugin-rendered tracks (ASS via Octopus) never appear in the backend's native lists.
+
+Two quality facts trip up every hand-rolled quality menu:
+
+- Requested and playing are different values. `quality()` stays `'auto'` while `level-switched` reports what is actually on screen. `DesktopUiPlugin` caches the playing index from `level-switched`, and before the first one lands it peeks `player.backend()?.currentLevel?.()`.
+- `qualityLevels()` filters unsupported codecs, so match a level by its `index` field, not by array position.
+
+Runtime subtitle injection is a first-class surface:
+
+{/* partial */}
+```ts
+addSubtitleTrack(track: SidecarSubtitleInput, opts?: ActionOptions): KitSubtitleTrack;
+removeSubtitleTrack(id: string, opts?: ActionOptions): void;
+```
+
+`addSubtitleTrack()` injects a sidecar track into the currently playing item with no reload, is idempotent by `url` plus normalized `language`, and selects the track immediately when you pass `default: true`. Both methods fire the `subtitles` event, which is your cue to recheck any content-gated UI.
+
+## Chapters
+
+`chapters()` returns the current item's chapter list, each entry `{ index, start, end, title }` in seconds. `seekToChapter(idx)` jumps to one and emits `'chapter'`. The `'chapters'` event announces list changes.
+
+Chapter markers need the duration too, so render on both signals, whichever arrives last:
+
+```ts
+this.on('chapters', () => this.renderChapterMarkers());
+this.on('duration', () => this.renderChapterMarkers());
+```
+
+For previous/next navigation, `DesktopUiPlugin` uses a one-second tolerance. "Previous chapter" is the last chapter whose `start` is before `time - 1`. So pressing it inside the first second of a chapter goes to the chapter before it, instead of restarting the current one. "Next" is the first chapter whose `start` is after `time + 1`.
+
+## Display states
+
+Fullscreen, PiP, and theater are accessor pairs plus toggles plus events:
+
+{/* partial */}
+```ts
+fullscreen(): FullscreenState; // toggleFullscreen(), 'fullscreen' event with { active }
+pip(): PipState;               // togglePip(), 'pip' event
+theater(): TheaterState;       // toggleTheater(), 'theater' event
+aspectRatio(): Stretching;     // cycleAspectRatio(), 'aspectRatio' event
+```
+
+Fullscreen enters on the player container, not the video element, so everything a plugin mounted on the container comes along into fullscreen. No re-parenting is needed.
+
+The states interact, and a UI plugin has to compose them. `DesktopUiPlugin`'s rule is worth copying. Theater is meaningless inside fullscreen or PiP, so the theater button hides whenever either is active. PiP chrome floats over another window, so navigation buttons hide there too. A config opt-out always wins over state-driven showing.
+
+## The overlay stack
+
+The player container (`.nomercyplayer`) is `position: relative` with the `<video>` at `z-index: 0`. Every `mount()` call appends a `<div>` to that container, in call order. Stacking above the video is a matter of your own stylesheet: absolute positioning plus a `z-index`.
+
+`DesktopUiPlugin` claims one mount named `overlay` and puts its whole chrome inside it, at `z-index: 20`. The root is `pointer-events: none`; the bars and buttons re-enable pointer events on themselves. Inside that root:
+
+```text
+overlay                       z-index 20 on the container
+  top-bar                     back / cast / close, title
+  center                      spinner + center play button
+  bottom-bar                  slider bar + button row
+  menu-frame-dialog           a <dialog>, the settings menus
+  keybinds overlay            the ? shortcuts dialog
+```
+
+So your own mount coexists with the desktop UI by picking a layer:
+
+- Below `20`: your element renders under the chrome. Right for content-anchored overlays (a subtitle layer, a watermark).
+- Above `20`: your element renders over the chrome. Right for modal surfaces of your own.
+- Inside the chrome: append into `player.getPlugin(DesktopUiPlugin)?.overlay()` and your element inherits the auto-hide lifecycle instead of floating over hidden bars. See [the desktop UI page](/nomercy-video-player/plugins-adapters/desktop-ui) for `overlay()`, `holdChrome()`, and `releaseChrome()`.
+
+## Who owns activity
+
+The player has built-in activity tracking: it watches its own container for pointer, touch, and key input, emits the `activity` event, and keeps `.active` / `.inactive` classes on the container. A plugin whose UI should fade with the controls needs no timer at all; it keys visibility off those classes in CSS.
+
+A UI plugin that brings a richer activity state machine takes over as the sole emitter with `activityTracking(false)`. `DesktopUiPlugin` does exactly this in `use()`, because open menus, hover, and scrubbing all pin its chrome, and hands ownership back at teardown:
+
+```ts
+this.player.activityTracking(false);
+this.lifecycle.addCleanup(() => this.player.activityTracking(true));
+```
+
+Do not run a second activity timer next to the desktop UI. React to the `activity` event or the container classes, and if your overlay must pin the chrome, use `holdChrome()` / `releaseChrome()`.
+
+## Taking over the screen
+
+A plugin that needs the whole screen (a disc-menu interpreter painting the disc's own chrome) does not fight the desktop UI. It disables it:
+
+```ts
+const ui = this.player.getPlugin(DesktopUiPlugin);
+ui?.disable('disc-menu');
+// later
+ui?.enable();
+```
+
+`disable()` hides the overlay outright, cancels the inactivity timer, and emits one final `activity: false`. `enable()` restores it and re-arms auto-hide.
+
+## Surfaced intents: back, close, cast
+
+The desktop UI's top-bar buttons emit player events and do nothing else. `back` and `close` buttons appear only while a listener for their event is registered (the `listeners-changed` event keeps that in sync live); `cast` is an option-gated button that emits `'cast'`. All three are handled in the consumer, not in a plugin:
+
+```ts
+player.on('back', () => router.back());
+player.on('cast', () => openDevicePicker());
+```
 
 ## Extending a built-in plugin
 
-Override a built-in's bindings without replacing the whole plugin. A subclass that keeps the same `static id` replaces the built-in at registration:
+A subclass that keeps the same `static id` replaces the built-in at registration:
 
 ```ts
 import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
 class MyKeyHandler extends KeyHandlerPlugin {
-  static override readonly id = 'key-handler'; // same id = replaces the built-in
+	static override readonly id = 'key-handler'; // same id = replaces the built-in
 
-  protected override addPlaybackKeys(): void {
-    super.addPlaybackKeys();
-    // Add custom binding: 'n' for next episode
-    this.bind('n', player => player.next({ source: 'user' }));
-  }
+	protected override addPlaybackKeys(): void {
+		super.addPlaybackKeys();
+		this.bind('n', player => player.next({ source: 'user' }));
+	}
 }
 
 player.addPlugin(MyKeyHandler);
 ```
 
-## Video playlist item type extension
-
-Extend `VideoPlaylistItem` with your own fields. The type threads through `item()`, `queue()`, and `beforeLoad`:
-
-{/* partial */}
-
-```ts
-interface MyItem extends VideoPlaylistItem {
-  tmdbId: number;
-  rating: 'G' | 'PG' | 'R';
-}
-
-const player = nmplayer<MyItem>('main').setup({ /* ... */ });
-
-// Inside a plugin typed against IVideoPlayer<MyItem>:
-this.on('item', ({ item }) => {
-  if (item) {
-    this.report(item.tmdbId);  // typed, no cast
-    this.report(item.rating);  // typed
-  }
-});
-```
-
-## Best practices
-
-### Memory-safe cleanup
-
-The lifecycle helpers, `this.on`, `this.listen`, `this.timeout`, `this.interval`, `this.frame`, `this.websocket`, `this.mount`, and `this.lifecycle.observe`, all register automatic cleanup when the plugin is torn down. That is why most plugins need no `dispose()` at all: there is nothing left to release by hand. You override `dispose()` only for a resource none of the helpers track, a third-party library instance, a custom WebGL context.
-
-A `ResizeObserver` is tracked: wrap it with `this.lifecycle.observe`, which disconnects it on dispose and returns the observer so you chain the `observe(el)` straight on:
-
-```ts
-export class ResponsiveOverlayPlugin extends Plugin<IVideoPlayer> {
-  static override readonly id = 'nomercy:responsive-overlay';
-
-  use(): void {
-    // mount() is auto-removed on dispose — no manual cleanup needed
-    const overlay = this.mount('responsive-overlay');
-
-    // on() is auto-cleaned — no stored reference or manual off() needed
-    this.on('item', ({ item }) => {
-      overlay.textContent = item?.title ?? '';
-    });
-
-    // lifecycle.observe() disconnects the observer on dispose.
-    this.lifecycle
-      .observe(new ResizeObserver(() => {
-        overlay.dataset.size = this.player.container.clientWidth < 640 ? 'compact' : 'full';
-      }))
-      .observe(this.player.container);
-  }
-}
-```
-
-A raw `new ResizeObserver` that you store and disconnect by hand works, but it is the pattern `this.lifecycle.observe` exists to remove, and the `@nomercy-entertainment/eslint-plugin-player` rules flag it.
-
-### Use `this.listen()` instead of `addEventListener`
-
-`this.listen(target, event, handler)` wraps `addEventListener` and auto-removes on dispose. A raw `addEventListener` inside a plugin needs manual tracking and is a common source of ghost listeners after the player is destroyed, the lint rules flag it for the same reason.
-
-{/* partial */}
-
-```ts
-use(): void {
-  // Correct — auto-removed on dispose
-  this.listen(document, 'keydown', this.handleKey);
-  this.listen(this.player.container, 'mousemove', this.handleMove);
-}
-```
-
-### Batch high-frequency time updates with `this.frame()`
-
-The `'time'` event fires on every `timeupdate`, which can reach 25 Hz during playback. Driving DOM mutations straight from that handler causes layout thrashing. Cache the value in the handler and let `this.frame()` synchronise writes with the browser's paint cycle, the kit drives the loop and cancels it on dispose:
-
-{/* partial */}
-
-```ts
-private currentTime = 0;
-
-use(): void {
-  this.on('time', ({ position }) => {
-    this.currentTime = position; // cheap write to memory only
-  });
-
-  this.frame(() => {
-    // Runs once per animation frame — batches all DOM writes
-    const pct = (this.currentTime / this.player.duration()) * 100;
-    this.progressEl.style.width = `${pct}%`;
-  });
-}
-```
-
-For a one-off deferred update (not a continuous loop), use `this.timeout(fn, 0)` instead.
-
-### Do not rely on DOM element order
-
-Other plugins can insert or remove elements from the player container at any time. Query your own elements by the class name `mount()` assigned them rather than positional selectors like `firstChild` or `querySelector('div:nth-child(2)')`.
-
-{/* partial */}
-
-```ts
-use(): void {
-  // mount() returns the div it created — hold the reference directly
-  const panel = this.mount('info-panel');
-  const title = document.createElement('h2');
-  panel.appendChild(title);
-
-  this.on('item', ({ item }) => {
-    // Query within your own mount point, not the whole container
-    panel.querySelector('h2')!.textContent = item?.title ?? '';
-  });
-}
-```
-
-### Prefer container CSS classes over JS for state-driven visibility
-
-The player keeps CSS state classes on `this.player.container` in sync with playback: the play state (`playing`, `paused`, `buffering` and so on), plus `active` and `inactive` as the viewer moves or goes idle.
-
-Key visibility off those classes in CSS rather than toggling styles from event handlers. It is cheaper, and it avoids the whole class of bugs where a handler fires before the DOM is ready.
-
-```css
-/* plugin stylesheet */
-.nmplayer-myui-controls {
-  opacity: 0;
-  transition: opacity 0.25s;
-}
-
-.nomercyplayer.active .nmplayer-myui-controls,
-.nomercyplayer.paused .nmplayer-myui-controls {
-  opacity: 1;
-}
-```
-
-{/* partial */}
-
-```ts
-use(): void {
-  const controls = this.mount('controls');
-  // No JS visibility toggling needed — CSS handles it
-}
-```
-
-### Inter-plugin communication via events, not direct references
-
-Use `this.emit()` to broadcast from a plugin and `this.on(PluginClass, event, fn)` to receive from a specific plugin. This keeps plugins decoupled and independently testable. Direct references, calling methods on another plugin instance, create hidden load-order dependencies.
-
-```ts
-// Emitting plugin
-interface ChapterMenuEvents {
-  selected: { index: number; title: string };
-}
-
-export class ChapterMenuPlugin extends Plugin<IVideoPlayer, unknown, ChapterMenuEvents> {
-  static override readonly id = 'nomercy:chapter-menu';
-
-  private selectChapter(index: number, title: string): void {
-    this.player.seekToChapter(index);
-    this.emit('selected', { index, title }); // scoped to plugin:nomercy:chapter-menu:selected
-  }
-}
-
-// Receiving plugin
-export class TimelinePlugin extends Plugin<IVideoPlayer> {
-  static override readonly id = 'nomercy:timeline';
-  static override readonly requires = [ChapterMenuPlugin];
-
-  use(): void {
-    // on(PluginClass, event, fn) — auto-cleaned, fully typed
-    this.on(ChapterMenuPlugin, 'selected', ({ index }) => {
-      this.highlightMarker(index);
-    });
-  }
-}
-```
-
-`this.on(PluginClass, event, fn)` is the typed form for listening to another plugin's events. The consumer-facing string form is `on('plugin:<id>:<event>', fn)` on the player object itself, use the class form inside plugins.
-
 ## Next steps
 
-- [The Plugin Base](/nomercy-player-core/tour/plugin-base): every helper on `this`, the lifecycle, and how registration wires a plugin to its player.
-- [Player and Plugin](/nomercy-player-core/tour/composition-boundary): the `this`-versus-`this.player` boundary the lint rules enforce.
+- [Plugin Handbook](/nomercy-player-core/handbook/anatomy): the shared toolkit every section above leaned on.
+- [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui): how the shipped overlay is built, machinery group by machinery group.
+- [Build a Player](/nomercy-video-player/build/shell): write the UI yourself, ten steps.

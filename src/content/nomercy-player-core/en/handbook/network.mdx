@@ -1,0 +1,86 @@
+---
+title: 'Network Helpers'
+description: 'Plugin.fetch(): the auth pipeline, response typing, the parser callback, and dispose-time aborts. Plugin.websocket(): the IRealtimeChannel contract and factory resolution.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/plugin/fetch.ts, src/core/auth-fetch/, src/core/plugin/base.ts, src/adapters/realtime/ */}
+
+# Core: Network Helpers
+
+A plugin talks to servers through two helpers: `fetch()` for HTTP and `websocket()` for a realtime channel. Both are bound to the plugin's lifecycle, so a disposed plugin leaves no request or socket behind.
+
+## `fetch<T>(url, options?)`
+
+{/* partial */}
+```ts
+protected fetch<T = string>(url: string, options?: FetchOptions<T>): Promise<T>;
+```
+
+Auth-aware HTTP. It runs the same `authFetch` pipeline the kit uses for playlist URLs, lyrics, and subtitles, so a plugin's requests carry the consumer's credentials without any wiring. [Recipe: Use authFetch](/nomercy-player-core/recipes/auth-fetch) covers the standalone form.
+
+The auth source is live. The helper reads the player's current `AuthConfig` at call time, falling back to the `setup({ auth })` value, so a rotated token is picked up. The fixed order per attempt:
+
+1. `auth.transformUrl(url)` rewrites the URL.
+2. `Authorization: Bearer <token>` is set from the resolved `auth.bearerToken` (string, sync getter, or async getter).
+3. `auth.headers` merges in; per-call `headers` win on collision.
+4. `auth.signRequest(request)` runs last, the escape hatch for HMAC or sigv4.
+
+A 401 triggers `auth.refreshOnUnauthenticated()` once, then a free retry. A 403 propagates immediately, never refreshed, never retried. 5xx, timeout, and network failures retry per `RetryConfig`. Failures throw `AuthError` or `NetworkError`, both `PlayerError` subclasses; narrow with `isAuthError` / `isNetworkError`.
+
+Every call registers a fresh `AbortController` with the lifecycle registry. On `dispose()`, in-flight requests abort; the promise rejects with `core:network/aborted` instead of resolving into a dead plugin.
+
+### Response typing and the `parser` callback
+
+`responseType` controls decoding. `'text'` is the default and resolves to the raw string. `'json'` calls `response.json()` typed as `T`. `'arrayBuffer'` returns binary. Only the `'text'` variant accepts `parser`, a callback that receives the raw string and returns `T`; a throwing parser surfaces as `core:network/parse-failed`.
+
+{/* partial */}
+```ts
+const ids = await this.fetch<string[]>('/api/queue/ids.txt', {
+	parser: raw => raw.split('\n').filter(Boolean),
+});
+```
+
+### Telemetry scope
+
+`options.scope` picks where `fetch:start`, `fetch:retry`, and `fetch:complete` fire. `'plugin'` (the default) emits them as `plugin:<id>:fetch:*`. `'player'` emits the player-global `fetch:*` names instead, for telemetry pipes that watch one bus. `'silent'` emits nothing; the seek-preview tutorial uses it for sprite fetches that would otherwise flood the bus.
+
+Bypassing the helper with global `fetch` loses the auth pipeline, the retry policy, the structured errors, and the dispose-time abort. The lint pack flags the call.
+
+## `websocket(url, opts?)`
+
+{/* partial */}
+```ts
+protected websocket(url: string, opts?: RealtimeFactoryOptions): IRealtimeChannel;
+```
+
+Opens a realtime channel and returns it as `IRealtimeChannel`, one interface regardless of transport. The channel carries `send(data)`, `close(code?, reason?)`, `on`/`off` for `'open'`, `'message'`, `'close'`, and `'error'`, plus a `readyState` mirroring the WebSocket states.
+
+The transport comes from a factory, resolved highest priority first:
+
+1. `opts.factory`, a per-call override.
+2. `setup({ websocketFactory })`, the consumer-supplied default.
+3. The built-in `nativeWebSocketAdapter`, wrapping a native `WebSocket`.
+
+`RealtimeFactoryOptions` also carries `protocols` and the reconnect knobs `reconnect`, `baseDelayMs`, and `maxDelayMs`. The options are forwarded to whichever factory builds the channel. The built-in native adapter wraps one `WebSocket` and does not reconnect on its own. Reconnection comes from a factory that implements it, such as a SignalR or Socket.IO adapter.
+
+The channel is registered with the lifecycle registry. On `dispose()`, the kit calls `close()` unless the channel is already closing or closed. You keep the reference only if you need to `send()` later; the teardown is not your job.
+
+Handing a plugin a raw `new WebSocket(url)` skips both the factory swap and the dispose-time close, so the socket outlives the plugin.
+
+{/* partial */}
+```ts
+const channel = this.websocket('wss://example.test/markers');
+channel.on('message', data => this.logger.debug('frame', data));
+```
+
+## Worked example
+
+`ChapterSyncPlugin` loads typed JSON, parses a plain-text body with `parser`, distinguishes auth failures from network failures, and streams markers over a channel that closes with the plugin.
+
+:::snippet{file="handbook-network" live="false"}
+:::
+
+## Next steps
+
+- [Plugin i18n](/nomercy-player-core/handbook/i18n): translated strings for whatever the network gave you.
+- [Recipe: Use authFetch](/nomercy-player-core/recipes/auth-fetch): the same pipeline outside a plugin.

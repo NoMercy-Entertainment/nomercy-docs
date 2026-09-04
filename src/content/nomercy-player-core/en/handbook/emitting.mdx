@@ -1,0 +1,116 @@
+---
+title: 'Emitting From a Plugin'
+description: 'The emit() helper and its automatic plugin:<id>: namespacing, the E event-map generic, how outsiders subscribe, and dispatchBefore() for cancellable actions.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/plugin/base.ts, src/core/dispatch.ts, src/core/plugin/dispatch.ts */}
+
+# Core: Emitting From a Plugin
+
+A plugin never emits raw event names onto the player bus. Every outbound event goes through two helpers on the `Plugin` base class, and both stamp the plugin's id into the name.
+
+## `emit(event, data)`
+
+{/* partial */}
+```ts
+protected emit<K extends keyof E>(event: K, data?: E[K]): void;
+protected emit(event: string, data?: any): void;
+```
+
+Fire-and-forget notification. The kit prefixes the name with `plugin:<id>:`, so a plugin with `id = 'lyrics'` calling `this.emit('line', ...)` reaches the bus as `plugin:lyrics:line`. Listeners that throw are caught per listener by [the event bus](/nomercy-player-core/tour/event-bus); the emit itself returns synchronously.
+
+There is no cleanup to track. Emitting allocates nothing that outlives the call.
+
+{/* partial */}
+```ts
+this.emit('milestone', { count: this.plays }); // bus sees plugin:play-counter:milestone
+```
+
+Bypassing it with `this.player.emit('milestone', ...)` drops the namespace. Your event then collides with core names and other plugins, and the player lint pack flags the call.
+
+## Declaring the `E` event map
+
+The third generic on `Plugin<P, O, E>` maps each event name your plugin emits to its payload shape:
+
+{/* partial */}
+```ts
+interface BoostEvents {
+	beforeBoost: BeforeEvent<{ gain: number }>;
+	boosted: { gain: number };
+}
+
+class BoostPlugin extends Plugin<IPlayer<BaseEventMap>, BoostOpts, BoostEvents> {}
+```
+
+With `E` declared, `this.emit('boosted', ...)` typechecks the payload, and the class form of `on()` gives listeners the same types. Declare the raw names without the `plugin:<id>:` prefix; the helpers add it.
+
+## How outsiders subscribe
+
+Another plugin passes your class to its own `on()` helper. Event names and payloads are inferred from your `E` map through the `PluginEventMap<C>` extractor:
+
+{/* partial */}
+```ts
+this.on(BoostPlugin, 'beforeBoost', (beforeEvent) => {
+	if (beforeEvent.data.gain > 6) {
+		beforeEvent.data = { gain: 6 };
+	}
+});
+```
+
+Declaring `static requires = [BoostPlugin]` first guarantees the target is registered before yours, so the import is already paid for. Both forms of `on()` auto-detach on teardown.
+
+A consumer app holds a player, not a plugin, so it subscribes with the full namespaced string:
+
+{/* partial */}
+```ts
+player.on('plugin:boost:boosted', (data) => {
+	console.log(data.gain);
+});
+```
+
+The string form is untyped on the player bus. Annotate the payload from your own event interface when you need the types.
+
+## `dispatchBefore(event, data, opts?)`
+
+{/* partial */}
+```ts
+protected async dispatchBefore<TData>(
+	event: string,
+	data: TData,
+	opts?: DispatchBeforeOptions,
+): Promise<BeforeDispatchResult<TData>>;
+```
+
+The cancellable, mutable, async-aware counterpart to `emit()`. It runs the same dispatcher as core's `before*` events, so listeners receive a `BeforeEvent<TData>` and can mutate `e.data`, call `preventDefault()`, `stopImmediatePropagation()`, or `delay(promise)`. The name is namespaced under `plugin:<id>:` like every other plugin event.
+
+The returned promise resolves after every listener ran and every `delay()` promise settled. `result.prevented` is `true` when a listener prevented, a delay rejected, or the wait passed `opts.timeoutMs` (default: the player's `beforeEventTimeoutMs`, then 10 seconds). `result.data` carries the possibly mutated payload; act on that value, never the original.
+
+The dispatch is pushed onto `player.dispatching()` for its whole duration, including the async wait, so advisory plugins can key on `duringEvent: 'plugin:<id>:<event>'`.
+
+Offer `dispatchBefore` on any public method that mutates state other code may care about. The contract is always the same shape:
+
+{/* partial */}
+```ts
+async setBand(index: number, gain: number): Promise<void> {
+	const result = await this.dispatchBefore('beforeSetBand', { index, gain });
+	if (result.prevented) {
+		return;
+	}
+	this.applyBand(result.data.index, result.data.gain);
+	this.emit('bandChanged', result.data);
+}
+```
+
+Skipping it and mutating directly means no peer can veto, clamp, or gate your action. Core actions like `play()` honor that contract; plugin actions should match it. [Transport Contract](/nomercy-player-core/tour/transport) walks the same pattern on the core side.
+
+## Worked example
+
+`BoostPlugin` guards its mutation with `dispatchBefore`, `BoostGuardPlugin` clamps the payload through the class-typed `on()`, and the consumer watches the namespaced result event.
+
+:::snippet{file="handbook-emitting" live="false"}
+:::
+
+## Next steps
+
+- [Network Helpers](/nomercy-player-core/handbook/network): `fetch()` and `websocket()`, both bound to the plugin lifecycle.
+- [Errors and State](/nomercy-player-core/handbook/errors-state): `throw()` and `report()`, the structured escalation path.

@@ -74,7 +74,7 @@ Every one of these is a real TypeScript `enum` (not a string union), returned by
 
 ## Device & metrics
 
-`DeviceCapabilities` (returned by `player.device()`): `isTv` / `isMobile` / `isDesktop` (mutually exclusive environment flags), `pipSupported` / `fullscreenSupported` / `webLocksSupported` (API availability), `autoplayAllowed` (`boolean | 'unknown'`), `preferred` (`'smooth' | 'powerEfficient'`, a decode-preference hint).
+`DeviceCapabilities` is what `player.device()` returns. It carries mutually exclusive environment flags (`isTv` / `isMobile` / `isDesktop`), API availability (`pipSupported` / `fullscreenSupported` / `webLocksSupported`), `autoplayAllowed` (`boolean | 'unknown'`), and `preferred` (`'smooth' | 'powerEfficient'`, a decode-preference hint).
 
 `PlaybackMetrics` is returned by `player.metrics()` and emitted periodically as `playback:metrics`.
 
@@ -104,11 +104,567 @@ type PluginCtorWithId = (new (...args: never[]) => unknown) & {
 type RequireSpec = PluginCtorWithId | { plugin: PluginCtorWithId; optional?: boolean; minVersion?: string };
 ```
 
-`PluginAdvisory` (`static advisories` on a `Plugin` class) declares an invariant without handler code: `{ method, duringPhase?, duringEvent?, severity, reason, message }`. At registration every plugin's advisories merge into one lookup; a matching mutation auto-fires the declared severity event, `duringPhase` gates on `player.phase()`, `duringEvent` gates on the currently-dispatching event name (including another plugin's own custom `before*` event).
+`PluginAdvisory` (`static advisories` on a `Plugin` class) declares an invariant without handler code: `{ method, duringPhase?, duringEvent?, severity, reason, message }`. At registration every plugin's advisories merge into one lookup, and a matching mutation auto-fires the declared severity event. `duringPhase` gates on `player.phase()`. `duringEvent` gates on the currently-dispatching event name, including another plugin's own custom `before*` event.
 
 ## Tier-4 escape hatch
 
 `PlayerExperimental` (`player.experimental`): `override(method, fn)` monkey-patches a method with auto-restore when the calling plugin disposes, `restore(method)` reverts manually, `overrides()` lists every active override for devtools. The `nmplayer/no-experimental` lint rule flags any call from inside plugin code, consumer app code is unrestricted.
+
+## Config & player identity
+
+```ts
+type AuthHeaderValue = string | (() => string) | (() => Promise<string>);
+
+type PlayerConstructorId = string | number;
+```
+
+`AuthHeaderValue` is what `AuthConfig.bearerToken` accepts: a static string, a sync getter, or an async getter, so Vue refs, signals, and reactive stores all plug in as `bearerToken: () => myStore.token`. See [Recipe: Auth Fetch](/nomercy-player-core/recipes/auth-fetch).
+
+`PlayerConstructorId` is the argument `nmplayer(id)` takes: a string id or a numeric registry index. Any other type throws `core:player/invalid-id-type`. The registry is per library, so music and video can reuse the same id.
+
+## Adapter ports
+
+The injectable contracts behind `setup()` fields. Each has a working default; you implement one only to swap the underlying engine. The map of which port does what lives in [Tour: Adapters](/nomercy-player-core/tour/adapters).
+
+### Single-function ports
+
+```ts
+interface IClock { now(): number }                    // setup({ clockSource })
+interface IIdGenerator { next(): string }             // default: crypto.randomUUID()
+interface IFetch { (url: string, opts?: RequestInit): Promise<Response> }
+interface ILanguageMatcher { (tag: string): string[] } // 'pt-BR' -> ['pt-BR', 'pt']
+```
+
+`IClock` returns Unix epoch milliseconds; inject a server-synced clock for distributed sync. `IFetch` is the transport under `authFetch`, swapped in tests and native shells. `ILanguageMatcher` produces the BCP-47 fallback chain the translator walks. See [Adapter: Translator](/nomercy-player-core/plugins-adapters/adapter-translator).
+
+### ILifecycleRegistry / LifecycleRegistry
+
+```ts
+interface ILifecycleRegistry {
+	addCleanup(fn: () => void): void;
+	listen(target: EventTarget, event: string, handler: EventListener, options?: AddEventListenerOptions | boolean): void;
+	timeout(fn: () => void, ms: number): number;
+	interval(fn: () => void, ms: number): number;
+	observe<O extends { disconnect(): void }>(observer: O): O;
+	abortable(): AbortController;
+	frame(fn: (deltaMs: number, time: number) => void): void;
+	dispose(): void;
+	isDisposed(): boolean;
+}
+```
+
+Every plugin receives one as `this.lifecycle`. Anything registered through it (listeners, timers, observers, abort controllers, RAF loops) is torn down by one `dispose()` call. `LifecycleRegistry` is the default class implementation; `dispose()` is idempotent, and calls made after disposal are safe no-ops. See [Handbook: Anatomy](/nomercy-player-core/handbook/anatomy).
+
+### ICueParserRegistry
+
+```ts
+interface ICueParserRegistry {
+	register(parser: ICueParser, prepend?: boolean): void;
+	unregister(id: string): void;
+	resolve(url: string, contentType?: string): ICueParser | undefined;
+	findById(id: string): ICueParser | undefined;
+	list(): string[];
+	dispose(): void;
+}
+```
+
+Ordered registry of cue parsers. Resolution is most-recently-registered first, so your parser can override a built-in for the same URL pattern. See [Adapter: Cue Parser](/nomercy-player-core/plugins-adapters/adapter-cue-parser).
+
+### ISubtitleRenderer
+
+```ts
+interface ISubtitleRenderer {
+	render(markup: string): DocumentFragment | HTMLElement;
+}
+```
+
+Pluggable subtitle renderer. `markup` is the raw string from `VTTSubtitlePayload.markup` and carries only inline `<i>` / `<b>` / `<u>` tags. Custom renderers (canvas, WebGL) are injected through a plugin, not a `setup()` field.
+
+### IMediaList / MediaListEvent
+
+```ts
+interface IMediaList<T extends BasePlaylistItem> {
+	get(): ReadonlyArray<T>;
+	set(items: T[]): void;
+	current(): T | undefined;
+	currentIndex(): number;
+	setCurrent(target: T | string | number | ((item: T) => boolean)): void;
+	peekNext(): T | undefined;
+	peekPrevious(): T | undefined;
+	append(item: T | T[]): void;
+	// + length, replaceItem, prepend, insert, remove, removeAt,
+	//   move, clear, shuffle, sort, dispose
+}
+
+type MediaListEvent
+	= 'change' | 'append' | 'prepend' | 'insert' | 'remove'
+	| 'move' | 'clear' | 'shuffle' | 'sort' | 'item';
+```
+
+The cursor-aware queue contract both players delegate their queue methods to. Subscribe to `MediaListEvent` names instead of polling. See [Tour: Queue](/nomercy-player-core/tour/queue).
+
+### Logger types
+
+```ts
+type LogSink = (level: LogLevel, prefix: string, args: unknown[]) => void;
+
+interface LoggerOptions {
+	level?: LogLevel; // default 'info'
+	prefix?: string;
+}
+```
+
+`LogSink` receives every log entry; register one via `logger.addSink(fn)` to bridge into Sentry or Datadog. `LoggerOptions` configures the default multi-sink console logger. See [Handbook: Errors & State](/nomercy-player-core/handbook/errors-state).
+
+### Platform probe types
+
+```ts
+interface DecodeProfile {
+	contentType: string;
+	width?: number;    // video probes only;
+	height?: number;   // omit all four for an
+	bitrate?: number;  // audio-only probe
+	framerate?: number;
+}
+
+interface DecodeCapability {
+	supported: boolean;
+	smooth: boolean;
+	powerEfficient: boolean;
+}
+
+type NetworkType = 'wifi' | 'cellular' | 'ethernet' | 'none' | 'unknown';
+```
+
+`DecodeProfile` describes the scenario you pass to `ICapabilitiesProbe.canDecode()`; `DecodeCapability` is its answer, used by ABR to skip variants the device cannot decode smoothly. `NetworkType` is what `INetworkMonitor.type()` reports. All three belong to the `IPlatform` bundle, see [Adapter: Platform](/nomercy-player-core/plugins-adapters/adapter-platform).
+
+## Stream source types
+
+The typed event surface of `IStreamSource`, see [Adapter: Stream Source](/nomercy-player-core/plugins-adapters/adapter-stream-source).
+
+```ts
+type StreamEvent
+	= 'manifest-loaded' | 'level-switched' | 'level-considered'
+	| 'fragment-loaded' | 'encrypted' | 'error';
+
+interface StreamEventPayloadMap {
+	'manifest-loaded': undefined;
+	'level-switched': LevelSwitchedData;          // hls.js type
+	'level-considered': StreamLevelConsideredPayload;
+	'fragment-loaded': FragLoadedData;            // hls.js type
+	'encrypted': StreamEncryptedPayload;
+	'error': StreamErrorPayload;
+}
+
+interface StreamLevel {
+	bitrate: number;
+	height?: number;
+	width?: number;
+	label: string;
+	index?: number;
+}
+
+interface StreamLevelConsideredPayload {
+	level: number;   // candidate index
+	reason: string;  // why the switch was not made
+}
+
+interface StreamEncryptedPayload {
+	keyUri: string;
+	keyFormat?: string; // e.g. 'com.apple.streamingkeydelivery'
+}
+
+type StreamErrorPayload = MediaError | ErrorData; // native path, or hls.js
+```
+
+`StreamEventPayloadMap` narrows the callback type automatically at `source.on(event, fn)` call sites, no casts needed. `StreamLevel` is one rendition from the manifest; fixed-bitrate sources report an empty level list.
+
+### IStreamRegistry
+
+```ts
+interface IStreamRegistry {
+	register(factory: IStreamFactory, prepend?: boolean): void;
+	unregister(id: string): void;
+	resolve(opts: StreamFactoryOptions): IStreamSource;
+	intercept(fn: StreamInterceptor): () => void;
+	runInterceptors(url: string, response: Response): Promise<Response>;
+	// + has, findById, list, dispose
+}
+```
+
+The per-player catalog of stream factories and content interceptors behind `player.registerStream()`.
+
+### HlsStreamSource
+
+```ts
+class HlsStreamSource implements IStreamSource {
+	readonly kind = 'hls';
+	constructor(url: string, registry?: StreamRegistry);
+}
+```
+
+The built-in HLS `IStreamSource`. On Safari and iOS WebKit it sets the URL natively on the element; everywhere else hls.js handles ABR and segment loading. Registry interceptors run on the hls.js path only, the native path fetches directly.
+
+## Media element backend
+
+```ts
+type AuthHeaderProvider = (url: string) => string | undefined;
+
+abstract class MediaElementBackend<TEl extends HTMLMediaElement, TPayload> {
+	setAuthHeaderProvider(provider: AuthHeaderProvider): void;
+	// shared play/pause/stop, time/duration/rate, volume, mute,
+	// DOM-bridge and loader plumbing for element-backed backends
+}
+```
+
+`AuthHeaderProvider` answers "what Authorization header goes on this request" per URL, synchronously, because hls.js resolves headers per segment in a sync callback. Read from a store or ref; never fetch inside it. `MediaElementBackend` is the abstract substrate every `HTMLMediaElement` backend extends; subclasses implement `load` / `unload` / `dispose` / `state` and their domain surface. See [Build: Backend Contract](/nomercy-player-core/build/backend-contract).
+
+## HDR policy
+
+```ts
+interface DisplayRangeProbe {
+	matches: (query: string) => boolean; // answers a CSS media query
+}
+
+type HdrOnSdrFallback = 'play' | 'refuse';
+
+type HdrDecision
+	= | { kind: 'as-is' }
+	| { kind: 'tone-map' }
+	| { kind: 'cap-to'; level: QualityLevel }
+	| { kind: 'play-unconverted' }
+	| { kind: 'refuse' };
+```
+
+`hdrDecision()` returns the cheapest correct answer when HDR content meets a screen. It plays as-is on an HDR display, caps ABR to the best SDR rung when one exists, or asks the backend to tone-map when it can. Otherwise it applies the consumer's `HdrOnSdrFallback` choice.
+
+`DisplayRangeProbe` is the injectable media-query probe behind `detectDisplayHdr()`. `browserDisplayRangeProbe()` returns `null` when there is no browser to ask, and the default answer is SDR.
+
+## Cue payloads
+
+What the built-in cue parsers put in `cue.payload`. See [Tour: Cue Parsers](/nomercy-player-core/tour/cue-parsers).
+
+```ts
+interface VTTSubtitlePayload {
+	text: string;      // all inline tags stripped
+	markup?: string;   // <i> <b> <u> preserved; feed to buildSubtitleFragment()
+	styles?: { color?: string; bold?: boolean; italic?: boolean };
+	linePosition?: number;                  // line: setting, 0-100
+	alignment?: 'start' | 'center' | 'end'; // align: normalized
+	size?: number;                          // size: setting, 0-100
+}
+
+interface VTTSpritePayload {
+	url: string;
+	x: number; y: number;
+	w: number; h: number;
+}
+
+interface LrcPayload {
+	text: string;
+	words?: LrcWordCue[]; // enhanced LRC only
+}
+
+interface LrcWordCue {
+	start: number; // seconds
+	text: string;
+}
+```
+
+`VTTSpritePayload` is the parsed `#xywh=x,y,w,h` crop from a VTT sprite cue, the shape thumbnail previews consume. `LrcPayload.words` is present only for enhanced LRC lines with word-level timestamps.
+
+### SubtitleCue
+
+```ts
+interface SubtitleCue {
+	text: string;      // keeps <i> <b> <u>; pass through buildSubtitleFragment
+	plainText: string; // every tag stripped
+	line?: number;     // 0-100 percent, undefined = auto
+	align: 'start' | 'center' | 'end';
+	size: number;      // 0-100, default 100
+	position?: number; // 0-100, undefined = auto per WebVTT spec
+}
+```
+
+The normalized cue shape carried by `subtitleCue` events, after parser output is folded into one renderer-ready form.
+
+## Translation loader types
+
+Both feed `setup({ translations })`. See [Adapter: Translator](/nomercy-player-core/plugins-adapters/adapter-translator) and [Build: Add i18n](/nomercy-player-core/build/add-i18n).
+
+```ts
+type GlobModule
+	= | { default?: Record<string, string> }
+	| Record<string, unknown>;
+
+type GlobLazyLoader = () => Promise<GlobModule>;
+
+interface NetworkTranslationLoaderOptions {
+	url: string;         // contains {lang}, e.g. 'https://cdn.example.com/i18n/{lang}.json'
+	auth?: AuthConfig;   // same pipeline Plugin.fetch uses
+	parser?: (raw: string) => Record<string, string>; // default JSON.parse
+	signal?: AbortSignal;
+}
+
+type NetworkTranslationLoader = (lang: string) => Promise<Record<string, string> | undefined>;
+```
+
+`GlobModule` and `GlobLazyLoader` are the shapes `translationsFromGlob` accepts from `import.meta.glob('./i18n/*.ts')`; default and named exports both work. `createNetworkTranslationLoader(options)` returns a `NetworkTranslationLoader` that fetches per BCP-47 tag; network failures resolve to `undefined` so a missing bundle never breaks playback.
+
+## DOM builder
+
+```ts
+interface AppendTo<T extends Element> {
+	get: () => T;
+	addClasses: (names: string[]) => AddClasses<T>;
+}
+```
+
+`AppendTo` is the terminal step of the `createElement()` fluent builder, returned by `appendTo()` / `prependTo()` once the element is in the tree. Call `get()` for the raw element or keep chaining classes. See [Handbook: Building DOM](/nomercy-player-core/handbook/building-dom).
+
+## Plugin options & event maps
+
+The `Options` type is the second argument of `addPlugin(Plugin, options)`; the `Events` type names what `on(Plugin, event, fn)` delivers. Each plugin's page documents the behavior behind them.
+
+### Audio graph
+
+```ts
+interface AudioGraphOptions {
+	latencyHint?: AudioContextLatencyCategory; // default 'playback'
+	fftSize?: 256 | 512 | 1024 | 2048 | 4096 | 8192 | 16384; // default 2048
+	smoothing?: number; // 0..1, default 0.8
+}
+
+interface AudioGraphEvents {
+	'context:ready': { sampleRate: number };
+	'context:closed': void;
+	'chain:rebuilt': void;
+	'unsupported': { reason: string };
+}
+```
+
+See [Plugin: Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph).
+
+### Canvas
+
+```ts
+interface CanvasOptions {
+	mount?: string | HTMLElement; // default: player container
+	width?: number;   // fixing both disables resize tracking
+	height?: number;
+	fps?: number;     // default 60
+	pixelRatio?: number; // default devicePixelRatio
+	compositeMode?: 'clear' | 'composite'; // default 'clear'
+	pointerEvents?: 'none' | 'auto';       // default 'none'
+}
+
+interface CanvasEvents {
+	mounted: { width: number; height: number };
+	resized: { width: number; height: number };
+	frame: { deltaMs: number; time: number };
+}
+
+type CanvasRenderFn = (ctx: CanvasRenderingContext2D, deltaMs: number, time: number) => void;
+```
+
+`CanvasRenderFn` is what `canvas.addRenderer(fn)` takes; every registered renderer runs each frame in registration order. See [Plugin: Canvas](/nomercy-player-core/plugins-adapters/canvas).
+
+### Cast sender
+
+```ts
+interface CastMediaInfo extends Record<string, unknown> {
+	metadata?: unknown;
+	streamType?: string;
+}
+
+interface CastMediaMetadata extends Record<string, unknown> {
+	title?: string;
+}
+
+interface ChromeCastMediaCtors {
+	MediaInfo: new (contentId: string, contentType: string) => CastMediaInfo;
+	LoadRequest: new (mediaInfo: unknown) => Record<string, unknown>;
+	GenericMediaMetadata: new () => CastMediaMetadata;
+	StreamType: { BUFFERED: string; LIVE: string };
+	[k: string]: unknown;
+}
+```
+
+The subclass hooks of `CastSenderPlugin`: `buildMetadata` receives `ChromeCastMediaCtors` (the full `chrome.cast.media` namespace passes through) and returns a `CastMediaMetadata`; the sender writes the result onto a `CastMediaInfo`. You touch these only when subclassing the sender per media library. See [Plugin: Cast Sender](/nomercy-player-core/plugins-adapters/cast-sender).
+
+### Embed
+
+```ts
+interface EmbedOptions {
+	allowedOrigins?: string | string[]; // omitted = inbound commands ignored
+	forwardEvents?: ReadonlyArray<EmbedEventMessage['name']>;
+	applyIframeTweaks?: boolean; // default: true when inside an iframe
+}
+
+type EmbedForwardedEvent
+	= | { name: 'ready'; data: Record<string, never> }
+	| { name: 'play'; data: ActionOptions }
+	| { name: 'pause'; data: ActionOptions }
+	| { name: 'ended'; data: Record<string, never> }
+	| { name: 'time'; data: { time: number } }
+	| { name: 'volume'; data: { level: number } }
+	| { name: 'mute'; data: { muted: boolean } }
+	| { name: 'error'; data: EmbedSerializedError };
+
+interface EmbedSerializedError {
+	code: string;
+	message?: string;
+	severity: Severity;
+	scope: ErrorScope;
+	suggestion?: string;
+	context?: Record<string, unknown>;
+}
+```
+
+`EmbedForwardedEvent` is the discriminated union of payloads the iframe posts out as `nm:event` messages; `EmbedSerializedError` is a `PlayerError` flattened for `postMessage`. See [Plugin: Embed](/nomercy-player-core/plugins-adapters/embed).
+
+### Equalizer
+
+```ts
+type EqBandFrequency = number | 'Pre'; // 'Pre' targets the pre-gain stage
+
+interface SliderRange {
+	min: number;
+	max: number;
+	step: number;
+	default: number;
+	totalSteps: number;
+}
+
+interface EqualizerEvents {
+	'ready': void;
+	'band:changed': { band: EqBand };
+	'preset:changed': { name: string | undefined };
+	'change': { bands: EqBand[]; selectedPreset: string | undefined };
+	'saved': void;
+}
+```
+
+`EqBandFrequency` keys a band target inside a preset; `SliderRange` describes one slider in `EqSliderValues` (pre-gain centered at 0, bands at plus or minus 12 dB by default). See [Plugin: Equalizer](/nomercy-player-core/plugins-adapters/equalizer).
+
+### Key handler
+
+```ts
+type KeyBindings<P> = Record<string, (player: P) => void>;
+```
+
+Combo string to callback map, merged over the default bindings via `KeyHandlerOptions.bindings` (your entry wins on a shared combo). See [Plugin: Key Handler](/nomercy-player-core/plugins-adapters/key-handler).
+
+### Media session
+
+```ts
+interface MediaSessionMetadata {
+	title?: string;
+	artist?: string;
+	album?: string;
+	artwork?: Array<{ src: string; sizes?: string; type?: string }>;
+}
+```
+
+What `getMetadata(item)` returns and the plugin pushes to the OS lock screen and Now Playing widgets. See [Plugin: Media Session](/nomercy-player-core/plugins-adapters/media-session).
+
+### Message
+
+```ts
+interface MessageOptions {
+	durationMs?: number;    // default 3000
+	mountSelector?: string; // default: a div inside the player container
+}
+
+type MessageInput = string | { text: string; durationMs?: number };
+```
+
+`MessageInput` is what `show()` and `queue()` accept; the object form overrides the duration for that one toast. See [Plugin: Message](/nomercy-player-core/plugins-adapters/message).
+
+### Mixer
+
+```ts
+interface MixerOptions {
+	gain?: number;       // dB, 0 = unity
+	pan?: number;        // -1..1, clamped
+	persistKey?: string; // enables persistence via this.storage
+	maxGainDb?: number;  // default 24
+	smoothingTimeConstantSeconds?: number; // default 0.02
+}
+
+interface MixerEvents {
+	'gain:changed': { gain: number };
+	'pan:changed': { pan: number };
+	'mute:changed': { muted: boolean };
+	'saved': void;
+}
+```
+
+See [Plugin: Mixer](/nomercy-player-core/plugins-adapters/mixer).
+
+### Spectrum
+
+```ts
+interface SpectrumOptions {
+	fftSize?: 512 | 1024 | 2048 | 4096; // default: shared analyser's
+	smoothingTimeConstant?: number;
+	frameRate?: number; // reserved, currently unused
+	stereo?: boolean;   // adds L/R frequency + waveform buffers per frame
+}
+
+interface SpectrumEvents {
+	'frame': { frame: VisualizationFrame; energy: { bass: number; mid: number; treble: number } };
+	'opts:changed': SpectrumOptions;
+}
+```
+
+See [Plugin: Spectrum](/nomercy-player-core/plugins-adapters/spectrum).
+
+### Tab leader
+
+```ts
+interface TabLeaderOptions {
+	onLost?: 'pause' | 'mute';   // default 'pause'
+	handoffOnVisible?: boolean;  // default true
+	getLockKey?: () => string;   // default: one shared key per origin
+}
+
+interface TabLeaderEvents {
+	'leader-acquired': void;
+	'leader-released': void;
+	'unsupported': void; // no Web Locks API; plugin is a no-op
+}
+```
+
+See [Plugin: Tab Leader](/nomercy-player-core/plugins-adapters/tab-leader).
+
+### Visualization
+
+```ts
+interface VisualizationOptions {
+	clearBeforeRender?: boolean;  // default false; canvas plugin clears
+	tick?: 'frame' | 'time';      // 'time' reserved, currently 'frame' only
+}
+
+interface VisualizationEvents {
+	unsupported: { reason: string };
+	rendered: { frame: VisualizationFrame };
+}
+```
+
+Options and events of the `VisualizationPlugin` base class every custom visualizer extends. See [Plugin: Visualization](/nomercy-player-core/plugins-adapters/visualization).
+
+### Volume memory
+
+```ts
+interface VolumeMemoryOptions {
+	persistKey?: string; // default 'volume', via the storage adapter
+}
+
+class VolumeMemoryPlugin extends Plugin { /* id: 'volume-memory' */ }
+```
+
+`VolumeMemoryPlugin` restores the persisted volume and mute state on `use()` and saves on every `volume` / `mute` event. Shared by video and music; storage goes through [Adapter: Storage](/nomercy-player-core/plugins-adapters/adapter-storage), never raw `localStorage`.
 
 ## Next steps
 

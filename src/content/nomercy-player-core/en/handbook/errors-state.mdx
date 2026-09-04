@@ -1,0 +1,133 @@
+---
+title: 'Errors and State'
+description: 'throw() vs report(), the ThrowPayload shape and recovery actions, enable/disable, the state() snapshot, getRuntimeState(), the options() overloads, and the scoped storage and logger.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/plugin/base.ts, src/core/plugin/throw.ts, src/core/plugin/lifecycle.ts */}
+
+# Core: Errors and State
+
+A plugin never throws a raw `Error` and never mutates its options silently. The base class gives structured escalation, an enable switch, and one snapshot shape that debug overlays and save-restore tooling read.
+
+## `throw(payload)` and `report(payload)`
+
+{/* partial */}
+```ts
+protected throw(payload: ThrowPayload): never;
+protected report(payload: ThrowPayload): void;
+```
+
+Both build a `PlayerError` stamped with `scope: { kind: 'plugin', id }` and surface it on the bus. The difference is what happens to your flow.
+
+`throw()` surfaces the error, then throws it. Use it for `error` and `fatal` severities, when the current operation cannot continue. Severity defaults to `'error'`.
+
+`report()` surfaces and returns. Use it when the consumer should know something glitched but playback continues. Severity defaults to `'warning'`.
+
+The payload shape, from `core/plugin/throw.ts`:
+
+{/* partial */}
+```ts
+interface ThrowPayload {
+	code: string;
+	severity?: Severity;
+	message?: string;
+	cause?: unknown;
+	context?: Record<string, unknown>;
+	suggestion?: string;
+	retry?: RetryConfig | null; // null disables retries for this throw
+	id?: number;
+}
+```
+
+Downstream, the error fires on its severity channel (`error`, `warning`, `info`), and additionally on `plugin:error` or `plugin:warning`, so generic pipelines and plugin-specific wiring both catch it. The payload carries `{ error, severity, scope, timestamp }`. [Typed Errors](/nomercy-player-core/tour/errors) covers the `PlayerError` family itself.
+
+`PluginThrow` is the internal wrapper the kit raises for structured plugin throws; you never construct one yourself.
+
+A raw `throw new Error(...)` skips the scope stamp, the event surface, and the recovery map below. The lint pack flags it.
+
+### Recovery: `static onError`
+
+{/* partial */}
+```ts
+static readonly onError?: Readonly<Record<string, PluginRecoveryAction>>;
+```
+
+Maps an error code to what happens right after it surfaces. `'ignore'` does nothing further. `'disable'` calls `this.disable('onError:<code>')`. `'retry-once'` calls your `retryLastOperation()` when you defined one, and `'fallback'` calls your `activateFallback()`; either logs a warning when the hook is missing. The kit wires the map; you wire the bodies.
+
+## `enable()`, `disable(reason?)`, `enabled()`
+
+{/* partial */}
+```ts
+enabled(): boolean;
+enable(): void;
+disable(reason?: string): void;
+```
+
+A soft switch, not an unload. Listeners registered through `on()` stay subscribed in both states; your handlers short-circuit on `enabled() === false`. Both setters are idempotent and emit `plugin:enabled` / `plugin:disabled`, bare and id-namespaced, with `{ id, reason }` on disable.
+
+The kit also disables for you: when a dependency fails to register, dependents are disabled with reason `dep-failed:<id>`.
+
+{/* partial */}
+```ts
+this.on('time', (timeState) => {
+	if (!this.enabled()) {
+		return;
+	}
+	this.render(timeState);
+});
+```
+
+## `state()` and `getRuntimeState()`
+
+{/* partial */}
+```ts
+state(): PluginState<O>;
+protected getRuntimeState(): Record<string, unknown>;
+```
+
+`state()` snapshots `{ id, version, enabled, opts, runtime }` as a `PluginState<O>`. The first four come from the statics, the enabled flag, and the live options. `runtime` is whatever you return from `getRuntimeState()`; the default is `{}`. Override it with the counters and flags a debug overlay should see.
+
+{/* partial */}
+```ts
+protected override getRuntimeState(): Record<string, unknown> {
+	return { framesRendered: this.framesRendered };
+}
+```
+
+## `options()`
+
+{/* partial */}
+```ts
+options(): Readonly<O>;
+options(partial: Partial<O>): void;
+```
+
+The read form returns a frozen shallow copy; mutating it throws in strict mode instead of desyncing the plugin.
+
+The write form shallow-merges `partial` into the current options and announces the change three ways. `plugin:opts:changed` and `plugin:<id>:opts:changed` fire on the player bus with `{ id, opts }`, and the plugin-scoped `opts:changed` fires through `emit()`.
+
+Subclasses that must re-render on a specific option change override the method and react after calling `super`.
+
+Writing `this.opts.bars = 64` directly skips the merge and the events, so nothing watching the plugin hears about the change.
+
+## Scoped `storage` and `logger`
+
+{/* partial */}
+```ts
+protected logger: ILogger; // output prefixed [nmplayer][<id>]
+protected storage: IStorage; // keys prefixed nmplayer-<id>-
+```
+
+Both are wired by `initialize()` before `use()` runs, on top of the consumer's `setup({ logger, storage })` adapters or the defaults. The storage prefix means `this.storage.set('preset', ...)` lands as `nmplayer-spectrum-preset` in the backend, so plugins never collide with each other or with player keys. Raw `localStorage` access loses the prefix and the adapter swap.
+
+## Worked example
+
+`SpectrumPlugin` throws on bad config, reports a missing audio graph, disables itself through `onError`, and exposes counters through `state().runtime` and options through `options()`.
+
+:::snippet{file="handbook-errors-state" live="false"}
+:::
+
+## Next steps
+
+- [Registration](/nomercy-player-core/handbook/registration): the error codes registration itself can throw at you.
+- [Typed Errors](/nomercy-player-core/tour/errors): the `PlayerError` hierarchy and retry policy defaults.

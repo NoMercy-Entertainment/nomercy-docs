@@ -33,7 +33,7 @@ interface VideoPlaylistItem extends BasePlaylistItem {
 
 `SubtitleTrackRef` / `AudioTrackRef` / `ChapterRef` are re-exports of the kit's `SubtitleTrack` / `AudioTrack` / `Chapter` under domain names, so video consumers never reach into `@nomercy-entertainment/nomercy-player-core` directly for these.
 
-A handful of additional fields (`seasonName`, `uuid`, `logo`, `rating`, `audio`, `playlist_type`, `tmdb_id`, `video_id`, `video_type`, `year`) are declared on the type but not read by the player core, they exist so application code passing a real server response compiles without a cast, not because the player consumes them.
+A handful of additional fields (`seasonName`, `uuid`, `logo`, `rating`, `audio`, `playlist_type`, `tmdb_id`, `video_id`, `video_type`, `year`) are declared on the type but not read by the player core. They exist so application code passing a real server response compiles without a cast, not because the player consumes them.
 
 ## FontTrackRef
 
@@ -73,7 +73,7 @@ function containedRect(
 ): VideoRect | null;
 ```
 
-`containedRect()` is the pure geometry function `videoRect()`, `SubtitleOverlayPlugin`, and any consumer plugin needing the same letterbox math share, exported standalone so a custom overlay never re-derives `object-fit: contain` positioning by hand. Returns `null` when any input dimension is zero.
+`containedRect()` is the pure geometry function that `videoRect()`, `SubtitleOverlayPlugin`, and any consumer plugin needing the same letterbox math share. It is exported standalone so a custom overlay never re-derives `object-fit: contain` positioning by hand. Returns `null` when any input dimension is zero.
 
 ## Display & geometry unions
 
@@ -115,6 +115,19 @@ type VideoBackendFactory = (
 
 See [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-video-backend).
 
+## DrmConfig
+
+```ts
+interface DrmConfig {
+	keySystem: string;              // EME key system, e.g. 'com.widevine.alpha', 'com.apple.fps'
+	licenseUrl: string;             // license server; fetched through the kit's auth pipeline
+	certificate?: ArrayBuffer | string; // FairPlay and some Widevine deployments
+	customSignRequest?: (request: Request) => Request | Promise<Request>;
+}
+```
+
+The configuration `DrmPlugin` takes via `addPlugin(DrmPlugin, config)`. DRM is configured through the plugin only; `VideoPlayerConfig` has no `drm` field. See [Plugin: DRM](/nomercy-video-player/plugins-adapters/drm).
+
 ## Video-owned enums
 
 | Enum | Values | Reader |
@@ -124,7 +137,7 @@ See [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-vide
 | `TheaterState` | `OFF` `ON` | `theater()` |
 | `SubtitleState` | `OFF` `ON` | `subtitleState()` |
 
-`AudioTrackState`, `PlayState`, `QualityState`, `RepeatState`, `ShuffleState`, `VolumeState` are re-exported from the kit unchanged, canonical definitions live in [Core: Reference, Domain Types](/nomercy-player-core/reference/types), import them from `@nomercy-entertainment/nomercy-video-player` either way, no need to reach into the kit package directly.
+`AudioTrackState`, `PlayState`, `QualityState`, `RepeatState`, `ShuffleState`, `VolumeState` are re-exported from the kit unchanged. The canonical definitions live in [Core: Reference, Domain Types](/nomercy-player-core/reference/types). Import them from `@nomercy-entertainment/nomercy-video-player` either way; there is no need to reach into the kit package directly.
 
 ## Next steps
 

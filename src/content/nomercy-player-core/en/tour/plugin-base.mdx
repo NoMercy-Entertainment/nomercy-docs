@@ -18,7 +18,7 @@ Subclass `Plugin` and `initialize()` (called by the player, never by you) wires 
 - `lifecycle.observe(observer)`: wraps a `ResizeObserver`, `MutationObserver`, or `IntersectionObserver` so it disconnects on dispose. Returns the observer, so you chain the `observe(el)` straight onto it.
 - `emit(event, data)`: fire-and-forget, auto-namespaced under `plugin:<id>:`.
 - `dispatchBefore(event, data, opts?)`: the cancellable, mutable, async-aware pattern from [Transport Contract](/nomercy-player-core/tour/transport), available for your own actions.
-- `fetch(url, options?)` / `websocket(url, opts?)`: auth-aware HTTP and an auto-reconnecting realtime channel, both bound to the plugin's lifecycle. See [Recipe: Use authFetch](/nomercy-player-core/recipes/auth-fetch#response-typing) for the `parser` callback on a `'text'` response.
+- `fetch(url, options?)` / `websocket(url, opts?)`: auth-aware HTTP and a realtime channel, both bound to the plugin's lifecycle. See [Recipe: Use authFetch](/nomercy-player-core/recipes/auth-fetch#response-typing) for the `parser` callback on a `'text'` response.
 - `t(key, vars?)`: translation, auto-namespaced under `plugin.<id>.*`.
 - `throw(payload)` / `report(payload)`: structured error escalation, `throw` aborting the current flow, `report` just surfacing a warning.
 - `mount(name)`: a `<div>` on the player container, namespaced `nmplayer-<id>-<name>`, removed on dispose.
@@ -33,7 +33,7 @@ Sometimes the raw form is genuinely right: a public URL that must not carry auth
 
 ## Declaring the contract
 
-Static fields describe the plugin to the registration pipeline: `id` (required), `description`, `version`, `minCoreVersion` (checked against the running kit build), `requires` (class refs, optionally `{ plugin, optional, minVersion }`), `replaces` (opt-in same-id swap), `priority` (event-handler ordering), and `translations` (auto-merged on `use()`, auto-removed on dispose). A missing required dependency throws `core:plugin/missing-dep` at registration; an unmet `minVersion` throws `core:plugin/version-mismatch`.
+Static fields describe the plugin to the registration pipeline: `id` (required), `description`, `version`, `minCoreVersion` (checked against the running kit build), `requires` (class refs, optionally `{ plugin, optional, minVersion }`), `replaces` (opt-in same-id swap), `priority` (plugin ordering via `enabledPlugins()`), and `translations` (auto-merged on `use()`, auto-removed on dispose). A missing required dependency throws `core:plugin/missing-dep` at registration; an unmet `minVersion` throws `core:plugin/version-mismatch`.
 
 Override `use()` to wire up (it can return a `Promise`, awaited by the player before `ready` fires, bounded by `pluginInitTimeoutMs`). Override `dispose()` only for resources the lifecycle helpers above don't already track.
 
@@ -46,4 +46,5 @@ Override `use()` to wire up (it can return a `Promise`, awaited by the player be
 
 ## Next steps
 
+- [Plugin Handbook](/nomercy-player-core/handbook/anatomy): every helper on this page taught in full, one concern per page, with signatures, cleanup semantics, and examples. Start there when you are writing a plugin rather than skimming what exists.
 - [Adapters & Dependency Injection](/nomercy-player-core/tour/adapters): the swappable ports (`IStorage`, `IPlatform`, `IStreamSource`, and the rest) a plugin's own dependencies are built from.
