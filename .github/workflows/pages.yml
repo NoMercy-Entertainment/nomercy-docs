@@ -51,7 +51,13 @@ jobs:
         # The build runs the live snippet gate (e2e/snippets.spec.ts), which
         # launches headless Chromium. Without this the runner has no browser
         # and the gate fails.
-        run: npx playwright install --with-deps chromium
+        #
+        # The umask line is for `--with-deps`, which shells out to apt. The
+        # runner image starts every shell at umask 0000, and Debian maintainer
+        # scripts refuse to run under it, which fails the whole install.
+        run: |
+          umask 0022
+          npx playwright install --with-deps chromium
 
       - name: Build
         run: npm run build
