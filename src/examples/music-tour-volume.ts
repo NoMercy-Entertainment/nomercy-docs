@@ -26,6 +26,7 @@ import { firstSong, MUSIC_BASE } from './media';
 
 const config: MusicPlayerConfig = {
 	baseUrl: MUSIC_BASE,
+	controls: true,
 	playlist: [firstSong],
 };
 
@@ -84,8 +85,7 @@ function configure(player: IMusicPlayer): void {
 }
 
 function onReady(player: IMusicPlayer): void {
-	void player.mute();
-	player.item(0, { autoplay: true });
+	player.item(0, { autoplay: false });
 }
 
 export default { config, configure, onReady, player: 'music' as const };

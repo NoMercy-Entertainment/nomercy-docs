@@ -100,7 +100,7 @@ function configure(player: IMusicPlayer): void {
 }
 
 function onReady(player: IMusicPlayer): void {
-	void player.item(0);
+	void player.item(0, { autoplay: false });
 }
 
 export default { config, configure, onReady, player: 'music' as const };

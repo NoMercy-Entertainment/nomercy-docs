@@ -10,8 +10,9 @@
  * Transport: play(), pause(), togglePlayback(), next()/previous(). Music
  * ships no play button of its own, so this builds the smallest possible bar
  * to give the same methods Build a Player wires later something visible to
- * drive. `player.mute()` + `item(0, { autoplay: true })` starts the live
- * preview without a click, the same bootstrap Quick Start uses.
+ * drive. `item(0, { autoplay: false })` cues the first track so the bar has
+ * something to act on; pressing play is what starts it, which is also the
+ * gesture the browser's autoplay policy wants.
  *
  * DOM construction (`createElement`/`createButton`) lives on the plugin, not
  * the player — `this.createElement(...)` inside `use()`, never
@@ -86,8 +87,7 @@ function configure(player: IMusicPlayer): void {
 }
 
 function onReady(player: IMusicPlayer): void {
-	void player.mute();
-	player.item(0, { autoplay: true });
+	player.item(0, { autoplay: false });
 }
 
 export default { config, configure, onReady, player: 'music' as const };

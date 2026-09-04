@@ -26,6 +26,7 @@ import { firstSong, MUSIC_BASE } from './media';
 
 const config: MusicPlayerConfig = {
 	baseUrl: MUSIC_BASE,
+	controls: true,
 	playlist: [firstSong],
 };
 
@@ -41,10 +42,18 @@ class OutputDevicesTourPlugin extends Plugin<IMusicPlayer> {
 			= 'display:flex;align-items:center;gap:.75rem;height:100%;padding:0 1.25rem;color:#fff;font-family:system-ui,sans-serif;';
 
 		const pickerButton = this.createButton('nm-tour-output-picker', 'Choose output device', () => {
-			void this.player.selectAudioOutput().then((device) => {
-				if (device)
-					void this.player.audioOutput(device.deviceId);
-			});
+			// Only Chromium has the picker. Everywhere else this rejects with a
+			// structured BrowserPolicyError, so handle it: the device list below
+			// is still the working path on those browsers.
+			void this.player.selectAudioOutput()
+				.then((device) => {
+					if (device)
+						void this.player.audioOutput(device.deviceId);
+				})
+				.catch(() => {
+					this.list.textContent = 'This browser has no output picker — choose from the list instead.';
+					void this.renderDeviceList();
+				});
 		});
 		pickerButton.textContent = 'Choose device…';
 		pickerButton.style.cssText
@@ -85,8 +94,7 @@ function configure(player: IMusicPlayer): void {
 }
 
 function onReady(player: IMusicPlayer): void {
-	void player.mute();
-	player.item(0, { autoplay: true });
+	player.item(0, { autoplay: false });
 }
 
 export default { config, configure, onReady, player: 'music' as const };
