@@ -7,7 +7,7 @@ description: 'Step 4 of 5: a track-list toggle built from queue() and index(), c
 
 # Build a Player: The Track List
 
-The last two steps had nothing to add, the native bar already covers transport. This step is different: `controls: true` has no concept of a playlist at all, so a track-list toggle is the first thing in this tutorial actually worth hand-building.
+The last two steps had nothing to add. The native bar already covers transport. This step is different: `controls: true` has no concept of a playlist at all, so a track-list toggle is the first thing in this tutorial actually worth hand-building.
 
 ## One button, not a bar
 
@@ -52,11 +52,11 @@ class TrackListPlugin extends Plugin {
 const player = nmplayer('player').addPlugin(TrackListPlugin);
 ```
 
-Each option button is built with `this.createButton`, `Plugin`'s accessible DOM helper, every entry gets a real `aria-label` for free. DOM construction is a plugin concern, not a player one: `this.createElement`/`this.createButton` live on the plugin you write, not on the `player` instance you talk to.
+Each option button is built with `this.createButton`, `Plugin`'s accessible DOM helper. Every entry gets a real `aria-label` for free. DOM construction is a plugin concern, not a player one: `this.createElement`/`this.createButton` live on the plugin you write, not on the `player` instance you talk to.
 
 ## Keeping the highlight in sync
 
-A track can change without a click on this menu at all, `next()`, `previous()`, or a manual [`crossfadeTo()`](/nomercy-music-player/tour/crossfade) all move the cursor. Re-render whenever the queue's `item` event fires and the list happens to be open, instead of only updating on a click inside the menu itself:
+A track can change without a click on this menu at all. `next()`, `previous()`, or a manual [`crossfadeTo()`](/nomercy-music-player/tour/crossfade) can all move the cursor. Re-render whenever the queue's `item` event fires and the list happens to be open, instead of only updating on a click inside the menu itself:
 
 {/* partial */}
 ```ts

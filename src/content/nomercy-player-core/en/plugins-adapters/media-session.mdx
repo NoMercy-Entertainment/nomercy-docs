@@ -7,7 +7,7 @@ description: 'MediaSessionPlugin: bridges transport state to navigator.mediaSess
 
 # Plugin: Media Session
 
-`MediaSessionPlugin` (id `'media-session'`) bridges player transport state to the browser's `navigator.mediaSession` API, lock-screen media controls, hardware media keys, Bluetooth remotes, and OS "Now Playing" widgets. Not re-exported from the main entry, import it from the `plugins/media-session` subpath.
+`MediaSessionPlugin` (id `'media-session'`) bridges player transport state to the browser's `navigator.mediaSession` API. That API powers lock-screen media controls, hardware media keys, Bluetooth remotes, and OS "Now Playing" widgets. The main entry does not re-export the plugin. Import it from the `plugins/media-session` subpath.
 
 ## Options
 
@@ -15,10 +15,10 @@ Currently empty (`MediaSessionOptions = {}`), reserved for future options.
 
 ## Rules & restrictions
 
-- Silently no-ops entirely when `navigator.mediaSession` is absent (Node, JSDOM, some older WebViews), every method is guarded at the top, nothing throws.
-- Position reporting is skipped when duration is zero, `NaN`, or `Infinity`, some browsers throw on an invalid `setPositionState` call.
-- `setActionHandler('stop')` isn't supported in every browser, the resulting `TypeError` is caught rather than propagated.
-- Safari specifically requires the `autoplay` attribute on the host `<iframe>` (when embedded) for MediaSession to activate at all, see the note on the [Embed](/nomercy-player-core/plugins-adapters/embed) plugin.
+- When `navigator.mediaSession` is absent (Node, JSDOM, some older WebViews), the plugin silently no-ops. Every method is guarded at the top. Nothing throws.
+- When duration is zero, `NaN`, or `Infinity`, the plugin skips position reporting. Some browsers throw on an invalid `setPositionState` call.
+- Not every browser supports `setActionHandler('stop')`. The plugin catches the resulting `TypeError` rather than propagating it.
+- When embedded, Safari requires the `autoplay` attribute on the host `<iframe>` for MediaSession to activate at all. See the note on the [Embed](/nomercy-player-core/plugins-adapters/embed) plugin.
 
 ## How to extend it
 

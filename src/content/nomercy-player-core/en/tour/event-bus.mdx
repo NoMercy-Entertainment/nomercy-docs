@@ -13,13 +13,13 @@ Every event a player emits, from `play` to a plugin's own custom events, flows t
 
 `EventEmitter<E>` is a small, dependency-free pub/sub implementation, generic over an event map `E` that types each event name to its payload shape. Both `NMVideoPlayer` and `NMMusicPlayer` extend it directly, so every player instance already has `on`, `once`, `off`, `emit`, `hasListeners`, and `listenerCount` before a single kit mixin is composed onto it.
 
-Under the hood it is a plain `Map<event, Set<handler>>`, not the DOM's `EventTarget`, and that is deliberate.
+Under the hood it is a plain `Map<event, Set<handler>>`, not the DOM's `EventTarget`. That choice is deliberate, and it buys three guarantees:
 
-A `Set` lets `off(event, fn)` remove a listener by reference without matching options, which composes with `once()` in a way `removeEventListener` does not.
-
-`emit()` snapshots the listener set before iterating, so a listener calling `off()` on itself mid-dispatch cannot corrupt the pass.
-
-It also catches exceptions per listener, so one bad handler cannot abort the rest of the chain.
+| Guarantee | Why it matters |
+| --- | --- |
+| A `Set`, not `EventTarget` | `off(event, fn)` removes a listener by reference without matching options, composing with `once()` in a way `removeEventListener` does not. |
+| `emit()` snapshots the listener set before iterating | A listener calling `off()` on itself mid-dispatch cannot corrupt the pass. |
+| Exceptions are caught per listener | One bad handler cannot abort the rest of the chain. |
 
 ## The firehose
 

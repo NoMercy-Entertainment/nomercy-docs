@@ -11,8 +11,7 @@ A plugin never emits raw event names onto the player bus. Every outbound event g
 
 ## `emit(event, data)`
 
-{/* partial */}
-```ts
+```txt
 protected emit<K extends keyof E>(event: K, data?: E[K]): void;
 protected emit(event: string, data?: any): void;
 ```
@@ -72,8 +71,7 @@ The string form is untyped on the player bus. Annotate the payload from your own
 
 ## `dispatchBefore(event, data, opts?)`
 
-{/* partial */}
-```ts
+```txt
 protected async dispatchBefore<TData>(
 	event: string,
 	data: TData,
@@ -83,7 +81,13 @@ protected async dispatchBefore<TData>(
 
 The cancellable, mutable, async-aware counterpart to `emit()`. It runs the same dispatcher as core's `before*` events, so listeners receive a `BeforeEvent<TData>` and can mutate `e.data`, call `preventDefault()`, `stopImmediatePropagation()`, or `delay(promise)`. The name is namespaced under `plugin:<id>:` like every other plugin event.
 
-The returned promise resolves after every listener ran and every `delay()` promise settled. `result.prevented` is `true` when a listener prevented, a delay rejected, or the wait passed `opts.timeoutMs` (default: the player's `beforeEventTimeoutMs`, then 10 seconds). `result.data` carries the possibly mutated payload; act on that value, never the original.
+The returned promise resolves after every listener ran and every `delay()` promise settled. `result.prevented` is `true` when any of these happen:
+
+- A listener called `preventDefault()`.
+- A `delay()` promise rejected.
+- The wait passed `opts.timeoutMs` (default: the player's `beforeEventTimeoutMs`, then 10 seconds).
+
+`result.data` carries the possibly mutated payload. Act on that value, never the original.
 
 The dispatch is pushed onto `player.dispatching()` for its whole duration, including the async wait, so advisory plugins can key on `duringEvent: 'plugin:<id>:<event>'`.
 

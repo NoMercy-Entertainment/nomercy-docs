@@ -7,7 +7,7 @@ description: 'IStreamSource / IStreamFactory: the protocol-agnostic handle for a
 
 # Adapter: Stream Source
 
-`IStreamSource` is one active instance per playback item, native, HLS, or DASH, so backend code never branches on protocol. `IStreamFactory` is what decides which kind gets created for a given URL, and what a consumer registers to add a new protocol.
+`IStreamSource` is one active instance per playback item: native, HLS, or DASH. Backend code never branches on protocol. `IStreamFactory` decides which kind gets created for a given URL. A consumer registers a factory to add a new protocol.
 
 ## The factory contract
 
@@ -19,16 +19,34 @@ interface IStreamFactory {
 }
 ```
 
-`canPlay` is called for every URL the player resolves, only return `true` when your factory can actually handle it. `capabilities` lets a factory decline a URL it could technically parse but this device can't decode smoothly. `create` is called at most once per resolution.
+The player calls `canPlay` for every URL it resolves. Only return `true` when your factory can actually handle the URL. `capabilities` lets a factory decline a URL it could parse but this device cannot decode smoothly. The player calls `create` at most once per resolution.
 
 ## The source contract
 
-`IStreamSource` exposes `attach(element)` / `detach()` / `destroy()` for lifecycle, `state()` for the current `StreamSourceState`, and an optional ABR surface (`getLevels()`, `setLevel(idx)`, `getCurrentLevel()`, `setLevelStrategy(fn)`) for adaptive formats, fixed-bitrate sources simply omit those. Events (`manifest-loaded`, `level-switched`, `level-considered`, `fragment-loaded`, `encrypted`, `error`) flow through `on()` / `off()`.
+`IStreamSource` exposes `attach(element)`, `detach()`, and `destroy()` for lifecycle, plus `state()` for the current `StreamSourceState`.
+
+Adaptive formats also get an optional ABR surface:
+
+- `getLevels()`
+- `setLevel(idx)`
+- `getCurrentLevel()`
+- `setLevelStrategy(fn)`
+
+Fixed-bitrate sources simply omit those methods.
+
+These events flow through `on()` and `off()`:
+
+- `manifest-loaded`
+- `level-switched`
+- `level-considered`
+- `fragment-loaded`
+- `encrypted`
+- `error`
 
 ## Rules & restrictions
 
-- `create()` receives a `registry` field automatically, injected by `StreamRegistry.resolve()`, so the created source can pipe fetches through `runInterceptors()`. Consumers never set it themselves.
-- `StreamInterceptor` functions installed via `StreamRegistry.intercept()` compose in registration order, each receives the previous one's output, useful for rewriting manifest URLs or injecting auth into segment requests without forking the factory.
+- `StreamRegistry.resolve()` injects a `registry` field into `create()` automatically. The created source uses it to pipe fetches through `runInterceptors()`. Consumers never set the field themselves.
+- `StreamInterceptor` functions installed via `StreamRegistry.intercept()` compose in registration order. Each receives the previous one's output. Use them to rewrite manifest URLs or inject auth into segment requests without forking the factory.
 
 ## How to extend it
 

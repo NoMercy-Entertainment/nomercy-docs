@@ -18,8 +18,8 @@ The default scrobbler is a no-op, so the plugin is inert until a real backend is
 | Option | Type | Default | Purpose |
 |---|---|---|---|
 | `scrobbler` | `IScrobbler<MusicPlaylistItem>` | `NoopScrobbler` | The reporting backend. |
-| `thresholdRatio` | `number` | `0.5` | Fraction of the track's duration counted as "listened enough" — Last.fm's 50% rule. |
-| `thresholdSeconds` | `number` | `240` | Absolute listened-seconds ceiling. Whichever of this or `thresholdRatio` is reached first wins — Last.fm's 4-minute rule. |
+| `thresholdRatio` | `number` | `0.5` | Fraction of the track's duration counted as "listened enough": Last.fm's 50% rule. |
+| `thresholdSeconds` | `number` | `240` | Absolute listened-seconds ceiling. Whichever of this or `thresholdRatio` is reached first wins: Last.fm's 4-minute rule. |
 | `minDurationSeconds` | `number` | `30` | Tracks shorter than this are never scrobbled. |
 
 ## Events
@@ -52,7 +52,7 @@ interface ScrobbleContext {
 
 ## How listened time is tracked
 
-A normal playback tick advances the `time` event by well under a second; anything ≥2 seconds between ticks is treated as a seek or a track change and doesn't count toward listened time. This means scrubbing back and forth through a track doesn't inflate the listened total the way naively summing every `time` delta would.
+A normal playback tick advances the `time` event by well under a second. Anything 2 seconds or more between ticks counts as a seek or a track change, and it doesn't count toward listened time. This means scrubbing back and forth through a track doesn't inflate the listened total the way naively summing every `time` delta would.
 
 ## Methods
 

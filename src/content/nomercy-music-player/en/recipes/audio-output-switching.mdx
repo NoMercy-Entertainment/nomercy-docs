@@ -11,7 +11,7 @@ description: 'A <select> device switcher pre-selected to the active output, wire
 
 ## A select pre-selected to the active device
 
-`audioOutputs()` enumerates devices without a permission prompt; `audioOutput()` (no argument) reads the currently-selected device id, `null` for the system default. Reading both together lets the dropdown open already showing the right selection instead of defaulting to the first entry:
+`audioOutputs()` enumerates devices without a permission prompt. `audioOutput()`, called with no argument, reads the currently-selected device id, or `null` for the system default. Read both together, and the dropdown opens already showing the right selection instead of defaulting to the first entry:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -59,11 +59,11 @@ async function ensureDeviceLabels(): Promise<void> {
 }
 ```
 
-Don't request this permission just to populate a device list, only do it if your app already needs microphone access for another reason (voice search, a companion recording feature), otherwise the unlabeled `audioOutputs()` result plus the native picker below covers device switching without an extra prompt.
+Don't request this permission just to populate a device list. Only ask for it if your app already needs microphone access for another reason, such as voice search or a companion recording feature. Otherwise, the unlabeled `audioOutputs()` result plus the native picker below covers device switching without an extra prompt.
 
 ## The native picker as a fallback entry point
 
-`selectAudioOutput()` opens the browser's own device picker, useful as an always-available "choose a device" button regardless of whether labels are populated, since the native picker doesn't have the label-gating restriction the enumeration API does:
+`selectAudioOutput()` opens the browser's own device picker. It works as an always-available "choose a device" button regardless of whether labels are populated, because the native picker doesn't carry the label-gating restriction the enumeration API does:
 
 ```ts
 const pickerButton = document.querySelector<HTMLElement>('#choose-output')!;
@@ -78,7 +78,7 @@ pickerButton.addEventListener('click', () => {
 });
 ```
 
-`selectAudioOutput()` is Chrome ≥105 only, everything else throws a structured `BrowserPolicyError`, wrap the click handler's call in a check (or a try/catch) and hide the button on unsupported browsers rather than surfacing a raw rejection.
+`selectAudioOutput()` works only in Chrome 105 and later. Every other browser throws a structured `BrowserPolicyError`. Wrap the click handler's call in a check or a try/catch, and hide the button on unsupported browsers rather than surfacing a raw rejection.
 
 ## See it running
 

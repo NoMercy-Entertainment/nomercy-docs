@@ -7,11 +7,13 @@ description: 'qualityLevels(), quality(), defaultQuality, the levels/level-switc
 
 # Quality Levels
 
-Adaptive bitrate is on by default, `hls.js` (or Safari's native HLS) keeps switching renditions to match bandwidth without you doing anything. This page is for when you want a manual quality menu on top of that.
+Adaptive bitrate is on by default. `hls.js` (or Safari's native HLS) keeps switching renditions to match bandwidth without you doing anything. This page is for when you want a manual quality menu on top of that.
 
 ## Listing levels
 
-`qualityLevels()` returns the manifest's bitrate renditions once the `'levels'` event has fired, each with `bitrate`, and `height`/`width` when the manifest provides them. `qualityLevels({ includeUnsupported: true })` also returns renditions the current device can't decode, useful for showing them disabled in a menu rather than hiding them entirely:
+Once the `'levels'` event has fired, `qualityLevels()` returns the manifest's bitrate renditions. Each entry carries `bitrate`, plus `height`/`width` when the manifest provides them.
+
+`qualityLevels({ includeUnsupported: true })` also returns renditions the current device cannot decode. That lets a menu show them disabled rather than hide them entirely:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -24,18 +26,30 @@ const withUnsupported = player.qualityLevels({ includeUnsupported: true });
 
 ## Reading and setting the selection
 
-`quality()` returns `{ index, track }` for a manually-picked level, or the string `'auto'` while ABR is driving. `quality(idx)` locks a specific level; `quality('auto')` hands control back to the backend:
+`quality()` and `quality(idx)` cover reading and setting the level:
+
+| Call | Result |
+| --- | --- |
+| `quality()`, level picked manually | `{ index, track }` for that level. |
+| `quality()`, ABR driving | The string `'auto'`. |
+| `quality(idx)` | Locks a specific level. |
+| `quality('auto')` | Hands control back to the backend. |
 
 ```ts
 player.quality(0); // lock the first (usually lowest) rendition
 player.quality('auto'); // back to adaptive
 ```
 
-Setting a level emits `'quality:requested'` immediately (video-specific, fired before the backend confirms the switch) and `'level-switched'` once the backend actually applies it, subscribe to the latter for a "now playing at 1080p" toast, the former if you need to reflect the request instantly in a UI without waiting on the network.
+Setting a level emits two events, each suited to a different UI need:
+
+| Event | Fires | Subscribe for |
+| --- | --- | --- |
+| `'quality:requested'` | Immediately, before the backend confirms the switch. Video-specific. | A UI that must reflect the request instantly, without waiting on the network. |
+| `'level-switched'` | Once the backend actually applies the switch. | A "now playing at 1080p" toast. |
 
 ## Default quality
 
-`defaultQuality` on `VideoPlayerConfig` applies once after the first manifest parse, either `'auto'` (the kit's own default, so setting it explicitly is only useful for readability) or a fixed level index:
+`defaultQuality` on `VideoPlayerConfig` applies once, after the first manifest parse. It takes `'auto'` or a fixed level index. `'auto'` is already the kit's own default, so setting it explicitly is only useful for readability:
 
 ```ts
 player.setup({
@@ -47,11 +61,15 @@ player.setup({
 
 ## Bandwidth and capability checks
 
-`bandwidth()` reads the backend's current estimate in bits per second. That is the number ABR decides against.
+Three calls round out level selection:
 
-`bandwidthEstimator(fn)` replaces the estimator with your own, for a measurement shared across several players on one page.
+| Method | What it does |
+| --- | --- |
+| `bandwidth()` | Reads the backend's current estimate in bits per second, the number ABR decides against. |
+| `bandwidthEstimator(fn)` | Replaces the estimator with your own, for a measurement shared across several players on one page. |
+| `canPlay(profile)` | Asks the platform's `MediaCapabilities` whether a content profile is decodable. |
 
-`canPlay(profile)` asks the platform's `MediaCapabilities` whether a content profile is decodable, by `contentType`, resolution, bitrate and framerate. Ask before offering it in a menu.
+A profile names a `contentType`, resolution, bitrate, and framerate. Ask `canPlay()` before offering a level in a menu.
 
 ## See it running
 

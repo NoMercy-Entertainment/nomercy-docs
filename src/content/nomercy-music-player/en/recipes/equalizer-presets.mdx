@@ -11,7 +11,7 @@ description: 'A preset-picker dropdown driven by EqualizerPlugin.presets(), stay
 
 ## Listing every preset
 
-`presets()` returns the full catalogue, built-ins first, then anything registered through `addCustomPreset()` or `EqualizerOptions.presets`, deduplicated by name:
+`presets()` returns the full catalogue: built-ins first, then anything registered through `addCustomPreset()` or `EqualizerOptions.presets`. The list is deduplicated by name:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -48,7 +48,7 @@ function renderPresetOptions(select: HTMLSelectElement): void {
 
 ## Wiring the dropdown both ways
 
-Applying a preset from the dropdown is a direct `preset(name)` call. The reverse direction matters too, a preset selected from elsewhere (a keyboard shortcut, a synced setting from another tab through the storage adapter) should update the dropdown without a page reload, `preset:changed` is the event for that:
+Applying a preset from the dropdown is a direct `preset(name)` call. The reverse direction matters too: a preset selected from elsewhere, such as a keyboard shortcut or a synced setting from another tab through the storage adapter, should update the dropdown without a page reload. `preset:changed` is the event for that:
 
 ```ts
 const select = document.querySelector<HTMLSelectElement>('#eq-preset')!;
@@ -63,11 +63,11 @@ player.on('plugin:equalizer:preset:changed', ({ name }: { name: string | undefin
 });
 ```
 
-Plugin events are namespaced onto the player's own bus as `plugin:<id>:<event>`, the same pattern [Lyrics](/nomercy-music-player/tour/lyrics#reading-the-active-line) documents, `'equalizer'` is `EqualizerPlugin`'s id. `name` is `undefined` after `reset()`, clear the dropdown's selection in that case rather than leaving a stale preset name highlighted.
+Plugin events are namespaced onto the player's own bus as `plugin:<id>:<event>`, the same pattern [Lyrics](/nomercy-music-player/tour/lyrics#reading-the-active-line) documents. `'equalizer'` is `EqualizerPlugin`'s id. `name` is `undefined` after `reset()`; clear the dropdown's selection in that case rather than leaving a stale preset name highlighted.
 
 ## Saving a custom preset
 
-A user who nudges individual bands away from any built-in preset has, in effect, built their own. `addCustomPreset()` adds it to the catalogue `presets()` already returns, `save()` persists it (and the currently active bands) through whatever [storage adapter](/nomercy-player-core/plugins-adapters/adapter-storage) the player is configured with:
+A user who nudges individual bands away from any built-in preset has, in effect, built their own. `addCustomPreset()` adds it to the catalogue `presets()` already returns. `save()` persists it, along with the currently active bands, through whatever [storage adapter](/nomercy-player-core/plugins-adapters/adapter-storage) the player is configured with:
 
 ```ts
 function saveCurrentAsPreset(name: string): void {
@@ -77,13 +77,13 @@ function saveCurrentAsPreset(name: string): void {
 }
 ```
 
-`bands()` returns the full current band array, pre-gain pseudo-band included, exactly the shape `EqPreset.values` expects, there's no separate conversion step between "current state" and "preset payload."
+`bands()` returns the full current band array, pre-gain pseudo-band included. This is exactly the shape `EqPreset.values` expects, so there is no separate conversion step between "current state" and "preset payload."
 
 ## Rules & restrictions
 
-- `presets()` clones every entry it returns, mutating the returned array or its objects has no effect on the plugin's own catalogue, always go through `addCustomPreset()` / `removePreset()`.
-- A dropdown driven by `presets()` should re-render after `addCustomPreset()`, the new entry doesn't appear until the list is rebuilt.
-- Persistence is opt-in via `persistKey`, without one, `save()` and `autoLoad`/`autoSave` are no-ops and custom presets don't survive a reload, see [Plugin: Equalizer](/nomercy-player-core/plugins-adapters/equalizer) for the full options table.
+- `presets()` clones every entry it returns. Mutating the returned array or its objects has no effect on the plugin's own catalogue. Always go through `addCustomPreset()` / `removePreset()`.
+- A dropdown driven by `presets()` should re-render after `addCustomPreset()`. The new entry doesn't appear until the list is rebuilt.
+- Persistence is opt-in via `persistKey`. Without one, `save()` and `autoLoad`/`autoSave` are no-ops, and custom presets don't survive a reload. See [Plugin: Equalizer](/nomercy-player-core/plugins-adapters/equalizer) for the full options table.
 
 ## Next steps
 

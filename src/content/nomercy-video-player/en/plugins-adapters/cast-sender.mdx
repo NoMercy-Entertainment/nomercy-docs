@@ -29,9 +29,17 @@ Same `CastSenderEvents` as the base: `cast:connected`, `cast:disconnected`, `cas
 
 ## Rules & restrictions
 
-- All the base plugin's restrictions apply unchanged: Chrome/Chromium Web Sender SDK only, requires `cast.framework` / `chrome.cast.media` already loaded on the page, volume converted from the player's 0-100 scale to the SDK's native 0-1 `volumeLevel` float (divided by 100 at the boundary, clamped to spec range).
-- Consumers carrying application-specific fields beyond the canonical `VideoPlaylistItem` (a server-specific `name`, for instance) should subclass this plugin and override `buildMetadata()` themselves rather than expecting it to read fields it was never typed against.
-- `transferTo('cast')` and this plugin are separate, unlinked mechanisms. `transferTo('cast')` is the kit's own coarse handoff, it drives the Cast SDK directly and knows nothing about `CastSenderPlugin`. Adding this plugin does not wire it into `transferTo()`, and calling `transferTo('cast')` does not go through this plugin's `connect()` / metadata pipeline. Pick one Cast strategy per app.
+All the base plugin's restrictions apply unchanged:
+
+- Chrome/Chromium Web Sender SDK only.
+- Requires `cast.framework` / `chrome.cast.media` already loaded on the page.
+- Volume is converted from the player's 0-100 scale to the SDK's native 0-1 `volumeLevel` float, divided by 100 at the boundary and clamped to spec range.
+
+Consumers carrying application-specific fields beyond the canonical `VideoPlaylistItem` (a server-specific `name`, for instance) should subclass this plugin. Override `buildMetadata()` themselves rather than expecting it to read fields it was never typed against.
+
+`transferTo('cast')` and this plugin are separate, unlinked mechanisms. `transferTo('cast')` is the kit's own coarse handoff. It drives the Cast SDK directly and knows nothing about `CastSenderPlugin`.
+
+Adding this plugin does not wire it into `transferTo()`. Calling `transferTo('cast')` does not go through this plugin's `connect()` / metadata pipeline. Pick one Cast strategy per app.
 
 ## How to extend it
 

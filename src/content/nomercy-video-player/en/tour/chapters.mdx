@@ -7,11 +7,15 @@ description: 'chapters(), seekToChapter(), nextChapter()/previousChapter(), and 
 
 # Chapters
 
-Chapters come from the item's typed `chapters` field: canonical `ChapterRef[]` (`{ index, start, end, title }`, seconds) set directly, or the server's wire format's millisecond-based `chapters` array, which `normalizePlaylistItem` converts to the canonical shape at queue-ingest time. `chapters()` is a plain synchronous getter over whatever list is already on the active item, there's no async fetch to wait on.
+Chapters come from the item's typed `chapters` field. You can set canonical `ChapterRef[]` (`{ index, start, end, title }`, seconds) directly. Or the item carries the server wire format's millisecond-based `chapters` array, which `normalizePlaylistItem` converts to the canonical shape at queue-ingest time.
+
+`chapters()` is a plain synchronous getter over whatever list is already on the active item. There is no async fetch to wait on.
 
 ## Listing and navigating
 
-`chapters()` returns the resolved list, each entry an `index`, `start`, and `end` in seconds, plus a display title. `seekToChapter(idx)` jumps directly; `nextChapter()` / `previousChapter()` step relative to the current position, not the last chapter you explicitly selected, so they stay correct even after a manual scrub:
+`chapters()` returns the resolved list. Each entry carries an `index`, a `start` and `end` in seconds, and a display title.
+
+`seekToChapter(idx)` jumps directly. `nextChapter()` and `previousChapter()` step relative to the current position, not the last chapter you explicitly selected. So they stay correct even after a manual scrub:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -33,11 +37,15 @@ Playback crossing a boundary on its own does not fire the event. To follow the a
 
 The `'chapters'` event fires once the list resolves.
 
-`chapters()` returns `[]` for an item with no `chapters` field, a chapter-marker UI can render unconditionally and simply show nothing when the list is empty.
+For an item with no `chapters` field, `chapters()` returns `[]`. A chapter-marker UI can render unconditionally and simply show nothing when the list is empty.
 
 Malformed lists get a safety net.
 
-Once the duration is known, any span the list fails to cover is backfilled: a lead-in before the first chapter, a hole between two, or a tail after the last.
+Once the duration is known, the player backfills any span the list fails to cover:
+
+- a lead-in before the first chapter
+- a hole between two chapters
+- a tail after the last chapter
 
 Each filler carries a translated fallback title, "Chapter" in English, and `synthetic: true`. So markers and `nextChapter()` always work against a list spanning the whole timeline.
 
@@ -45,7 +53,7 @@ A list that already covers the duration passes through untouched, and an empty l
 
 ## Arbitrary time windows
 
-Chapters are one instance of a more general primitive: `playSegment({ startSec, endSec, onEnd })` seeks to `startSec` and watches every `'time'` event for `endSec`. When the boundary is reached, `'segmentBoundary'` always fires first, then `onEnd` decides what happens:
+Chapters are one instance of a more general primitive. `playSegment({ startSec, endSec, onEnd })` seeks to `startSec` and watches every `'time'` event for `endSec`. When playback reaches the boundary, `'segmentBoundary'` always fires first. Then `onEnd` decides what happens:
 
 | `onEnd` | Behavior |
 | --- | --- |
@@ -58,7 +66,9 @@ player.playSegment({ startSec: 30, endSec: 45, onEnd: 'loop' }); // a 15s previe
 player.clearSegment(); // stop watching, no seek or pause
 ```
 
-This isn't chapter-specific, it's the same primitive an intro-skip loop, a disc-menu state window, or a highlight-reel scrubber would use. Any previously active segment window is replaced immediately when you call `playSegment()` again; `clearSegment()` stops watching without moving playback.
+This primitive is not chapter-specific. An intro-skip loop, a disc-menu state window, or a highlight-reel scrubber would use the same calls.
+
+When you call `playSegment()` again, the new window replaces any active one immediately. `clearSegment()` stops watching without moving playback.
 
 ## See it running
 

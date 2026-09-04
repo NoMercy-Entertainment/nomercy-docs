@@ -23,7 +23,7 @@ It is the same split the web platform draws between `timeupdate` and `seeking`/`
 
 `duration()` returns the last value the backend reported through the `duration` event, or 0 before metadata has loaded.
 
-`timeData()` bundles all of it into one `TimeState` snapshot: `time` (alias of `position`), `position`, `duration`, `buffered`, `remaining`, and `percentage`, computed together so the values are consistent at the moment of the call instead of drifting across four separate reads.
+`timeData()` bundles all of it into one `TimeState` snapshot: `time` (alias of `position`), `position`, `duration`, `buffered`, `remaining`, and `percentage`. The kit computes them together, so the values are consistent at the moment of the call instead of drifting across four separate reads.
 
 `playbackRate()` reads the current multiplier. `playbackRate(rate)` clamps it to `[0.25, 2]` and dispatches `beforePlaybackRate` before applying it, the same cancellable shape as transport.
 
@@ -35,12 +35,14 @@ It fires unconditionally, independent of `setup({ mutationGuards })`. A speed ch
 
 Four readers turn backend and platform detail into a typed enum:
 
-- `bufferState()`: `BufferState.IDLE` / `LOADING` / `SEEKING` / `STALLED`, derived from the active backend. `IDLE` when no backend is registered.
-- `networkState()`: `NetworkState.ONLINE` / `OFFLINE` / `SLOW`, from the platform's network monitor. `ONLINE` when none is configured, `SLOW` below a 1.5 Mbps downlink.
-- `streamState()`: the backend's raw state string (`'idle'`, `'loading'`, `'playing'`, ...). Prefer `bufferState()` for typed access.
-- `visibilityState()`: `VisibilityState.VISIBLE` / `HIDDEN`, from the platform's visibility monitor. `VISIBLE` when none is configured.
+| Reader | Values | Default when nothing is configured |
+| --- | --- | --- |
+| `bufferState()` | `BufferState.IDLE` / `LOADING` / `SEEKING` / `STALLED`, derived from the active backend | `IDLE` |
+| `networkState()` | `NetworkState.ONLINE` / `OFFLINE` / `SLOW`, from the platform's network monitor | `ONLINE`, or `SLOW` below a 1.5 Mbps downlink |
+| `streamState()` | The backend's raw state string (`'idle'`, `'loading'`, `'playing'`, ...) | n/a |
+| `visibilityState()` | `VisibilityState.VISIBLE` / `HIDDEN`, from the platform's visibility monitor | `VISIBLE` |
 
-Every one of these has a safe default for the no-backend, no-monitor case, which is exactly the state a kit composition like `MinimalPlayer` is in until you attach real infrastructure.
+Prefer `bufferState()` over `streamState()` for typed access. Every one of these has a safe default for the no-backend, no-monitor case, which is exactly the state a kit composition like `MinimalPlayer` is in until you attach real infrastructure.
 
 :::snippet{file="tour-time-and-state" live="false"}
 :::

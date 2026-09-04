@@ -17,16 +17,16 @@ interface IShuffleStrategy {
 }
 ```
 
-`items` is the current queue, read-only. `currentIndex` is the zero-based index of the playing item, or `-1` when nothing is active. `order()` returns a permutation, same items, no drops, no duplicates.
+`items` is the current queue, read-only. `currentIndex` is the zero-based index of the playing item, or `-1` when nothing is active. `order()` returns a permutation: same items, no drops, no duplicates.
 
 ## Rules & restrictions
 
-- Cursor-follow is not your responsibility. Finding the playing item's new position after the permutation and updating the queue pointer is owned by `MediaList`, so it works correctly for any implementation, a strategy author writes only the reordering logic.
-- `currentIndex` is there so a strategy *can* pin the currently-playing item (return it first, or leave it untouched, and shuffle only the rest), but nothing forces that behavior, a strategy that ignores `currentIndex` entirely and reorders everything is equally valid.
+- Cursor-follow is not your responsibility. `MediaList` finds the playing item's new position after the permutation and updates the queue pointer. That works correctly for any implementation. A strategy author writes only the reordering logic.
+- `currentIndex` is there so a strategy *can* pin the currently-playing item: return it first, or leave it untouched and shuffle only the rest. Nothing forces that behavior. A strategy that ignores `currentIndex` entirely and reorders everything is equally valid.
 
 ## Default implementation
 
-`FisherYatesShuffle` (singleton instance: `fisherYatesShuffle`) is an unbiased uniform-random permutation, ignores `currentIndex`, the whole queue reshuffles including the playing item's position.
+`FisherYatesShuffle` (singleton instance: `fisherYatesShuffle`) is an unbiased uniform-random permutation. It ignores `currentIndex`. The whole queue reshuffles, including the playing item's position.
 
 ## How to extend it
 

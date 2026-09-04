@@ -47,7 +47,7 @@ class MyScrobbler implements IScrobbler<MusicPlaylistItem> {
 }
 ```
 
-`nowPlaying()` is optional on the interface, a backend with no "currently listening to" concept can omit it entirely, `ScrobblePlugin` only calls it when present.
+`nowPlaying()` is optional on the interface. A backend with no "currently listening to" concept can omit it entirely. `ScrobblePlugin` only calls it when present.
 
 ## Wiring it in
 
@@ -75,11 +75,11 @@ player.setup({
 });
 ```
 
-Both thresholds default to the real Last.fm rule already, whichever is reached first wins, override them only when your service's own rules differ.
+Both thresholds default to the real Last.fm rule already. Whichever threshold is reached first wins. Override them only when your service's own rules differ.
 
 ## Handling backend failures without breaking playback
 
-A failed `scrobble()` or `nowPlaying()` call never throws back into playback, the plugin catches it and reports through its own error channel instead:
+A failed `scrobble()` or `nowPlaying()` call never throws back into playback. The plugin catches the failure and reports it through its own error channel instead:
 
 ```ts
 player.on('plugin:scrobble:scrobbled', ({ item, listenedSeconds }) => {
@@ -93,7 +93,7 @@ player.on('plugin:scrobble:scrobbled', ({ item, listenedSeconds }) => {
 
 ## Reading in-progress state
 
-`listened()` and `isScrobbled()` on the plugin instance read the current item's accumulated listened time and whether it already crossed the threshold, useful for a small "scrobbling in 0:42..." indicator instead of only reacting to the final event:
+`listened()` and `isScrobbled()` on the plugin instance read the current item's accumulated listened time and whether it already crossed the threshold. Use them for a small "scrobbling in 0:42..." indicator, instead of only reacting to the final event:
 
 ```ts
 const scrobble = player.getPlugin(ScrobblePlugin);

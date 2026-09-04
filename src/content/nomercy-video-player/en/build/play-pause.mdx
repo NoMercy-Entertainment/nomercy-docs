@@ -11,7 +11,7 @@ description: 'Step 2 of 10: a center play button, a bottom-bar playback button, 
 
 ## The icon table
 
-Controls need icons, and icons are data, not code. The plugin keeps them in one module-level table, each entry a normal and a hover variant of the same glyph (the paths are the design system's own, the ones the shipped plugin renders), plus one renderer that stacks both variants into an inline SVG:
+Controls need icons, and icons are data, not code. The plugin keeps them in one module-level table. Each entry holds a normal and a hover variant of the same glyph, using the design system's own paths, the ones the shipped plugin renders. One renderer stacks both variants into an inline SVG:
 
 {/* partial */}
 
@@ -48,7 +48,7 @@ function svgFromIcon(icon: TutorialIcon, size = 24): string {
 }
 ```
 
-The path data is elided here; the full example at the bottom carries every entry verbatim, and each later step adds the entries its controls need. Nothing reads `title` yet, it documents what the glyph depicts, and the outline-to-filled swap on hover is three utility classes on the button, coming right up.
+The path data is elided here. The full example at the bottom carries every entry verbatim, and each later step adds the entries its controls need. Nothing reads `title` yet; it just documents what the glyph depicts. The outline-to-filled swap on hover is three utility classes on the button, coming right up.
 
 Four new fields join the class, and `use()` grows four calls:
 
@@ -72,7 +72,11 @@ override use(): void {
 
 ## The center play button
 
-`togglePlayback()` flips between playing and paused based on the player's own state, no separate `play()`/`pause()` branching needed in the click handler. And the button doesn't maintain an "am I visible" flag, it just listens: whatever changed the state (a click, a keyboard shortcut, a remote-control command over NoMercy Connect) fires the same `play` event, and it hides itself:
+`togglePlayback()` flips between playing and paused from the player's own state. Your click handler needs no `play()` and `pause()` branching.
+
+The button does not track its own visibility with a flag either. It listens.
+
+Anything that changes the state fires the same `play` event, and the button hides itself. A click does it, so does a keyboard shortcut, and so does a remote-control command over NoMercy Connect:
 
 {/* partial */}
 
@@ -157,7 +161,7 @@ private createUiButton(parent: HTMLElement, id: string, label: string): HTMLButt
 
 ## The button row
 
-Step 1's bottom bar stays exactly as built, it is a column, and this step nests a horizontal row inside it as the home for every control button. Step 3 will drop the progress bar into the same column, above this row, which is the whole reason the bar is `flex-col`:
+Step 1's bottom bar stays exactly as built: a column. This step nests a horizontal row inside it, the home for every control button. Step 3 will drop the progress bar into the same column, above this row. That is the whole reason the bar is `flex-col`:
 
 {/* partial */}
 
@@ -248,7 +252,7 @@ private createSpinner(): void {
 
 Buffering starts: the player swaps the container to `.buffering` and the spinner appears. Playback recovers: class gone, spinner gone. Zero JavaScript on your side.
 
-`SPINNER_SVG` is the one glyph that lives outside the icon table: it is an animated two-path ring, not a normal/hover pair, so it stays a module-level constant (the full example carries it verbatim).
+`SPINNER_SVG` is the one glyph that lives outside the icon table. It is an animated two-path ring, not a normal/hover pair, so it stays a module-level constant. The full example carries it verbatim.
 
 ## See it running
 

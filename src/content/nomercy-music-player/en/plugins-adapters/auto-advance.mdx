@@ -7,7 +7,9 @@ description: 'AutoAdvancePlugin: advances the queue on natural end, optionally p
 
 # Plugin: Auto-Advance
 
-`AutoAdvancePlugin` (id `'auto-advance'`) listens to the player's `ended` event to move to the next item, and `itemEndingSoon` to optionally preload it ahead of time or crossfade into it. Don't register this plugin if an external orchestrator, a Cast sync layer, a WebSocket-driven listening session, already drives `next()` itself, the two would double-advance.
+`AutoAdvancePlugin` (id `'auto-advance'`) listens to two player events. On `ended`, it moves to the next item. On `itemEndingSoon`, it can preload the next item ahead of time, or crossfade into it.
+
+Don't register this plugin when an external orchestrator already drives `next()` itself: a Cast sync layer, or a WebSocket-driven listening session. The two would double-advance.
 
 ## Options
 
@@ -17,7 +19,7 @@ description: 'AutoAdvancePlugin: advances the queue on natural end, optionally p
 | `preloadNextOnEnding` | `boolean` | `false` | On `itemEndingSoon`, peek the queue and `load()` the next item into the next slot. |
 | `crossfade` | `boolean` | `false` | On `itemEndingSoon`, hand off to `player.crossfadeTo()`. |
 | `crossfadeDuration` | `number` | `0` | Duration passed to `crossfadeTo()` when `crossfade` is enabled. `0` is a hard cut. |
-| `generator` | `IPlaylistGenerator<MusicPlaylistItem>` | — | Custom "what's next?" ordering. Omitted, the plugin falls back to the player's own linear `next()` / `peekNext()`, so adding the plugin without a generator doesn't change observable ordering. |
+| `generator` | `IPlaylistGenerator<MusicPlaylistItem>` | none | Custom "what's next?" ordering. When omitted, the plugin falls back to the player's own linear `next()` / `peekNext()`. Adding the plugin without a generator doesn't change observable ordering. |
 
 ## The IPlaylistGenerator port
 
@@ -33,10 +35,10 @@ Two built-in implementations ship:
 
 | Generator | Behavior |
 |---|---|
-| `LinearPlaylistGenerator` | Sequential order, `currentIndex + 1` / `currentIndex - 1`. This is the implicit default, `AutoAdvancePlugin` without `opts.generator` behaves identically via the player's own `next()`. |
-| `SmartShuffleGenerator` | Tag-aware shuffle. Scores candidates by penalizing items sharing the current item's `genre` or `decade` field, picks randomly from the top-scored pool, falls back to uniform random when items carry no tag fields. `previous()` pops from its own played-index history when available. |
+| `LinearPlaylistGenerator` | Sequential order, `currentIndex + 1` / `currentIndex - 1`. This is the implicit default. `AutoAdvancePlugin` without `opts.generator` behaves identically via the player's own `next()`. |
+| `SmartShuffleGenerator` | Tag-aware shuffle. Scores candidates by penalizing items that share the current item's `genre` or `decade` field. Picks randomly from the top-scored pool. Falls back to uniform random when items carry no tag fields. `previous()` pops from its own played-index history when available. |
 
-The shuffle variant reads a minimal item shape (`genre?: string | string[]`, `decade?: number | string`), your own `MusicPlaylistItem` extension satisfies it automatically if it already carries those fields. The linear variant reads no item fields, only the queue length and current index.
+The shuffle variant reads a minimal item shape (`genre?: string | string[]`, `decade?: number | string`). Your own `MusicPlaylistItem` extension satisfies it automatically if it already carries those fields. The linear variant reads no item fields, only the queue length and current index.
 
 ## Methods
 
@@ -50,9 +52,9 @@ The shuffle variant reads a minimal item shape (`genre?: string | string[]`, `de
 
 ## Rules & restrictions
 
-- With a custom `generator`, advancing calls `player.item(next, { source: 'auto-advance' })` directly rather than `player.next()`, since the generator's ordering may not match the queue's own linear order. Without one, it's a plain `player.next({ source: 'auto-advance' })`.
-- `crossfade: true` with no `next` item resolved (end of a non-repeating queue) simply does nothing, no error, no empty crossfade attempt.
-- Errors from `advance()`, `preloadNext()`, or a registered handler are caught and logged through the plugin's logger, one bad handler doesn't stop the others from running or break the natural `ended` → advance flow.
+- With a custom `generator`, advancing calls `player.item(next, { source: 'auto-advance' })` directly rather than `player.next()`. The generator's ordering may not match the queue's own linear order. Without one, it's a plain `player.next({ source: 'auto-advance' })`.
+- `crossfade: true` with no `next` item resolved (end of a non-repeating queue) does nothing: no error, no empty crossfade attempt.
+- Errors from `advance()`, `preloadNext()`, or a registered handler are caught and logged through the plugin's logger. One bad handler doesn't stop the others from running or break the natural `ended` → advance flow.
 
 ## How to extend it
 
@@ -88,7 +90,7 @@ player.setup({
 });
 ```
 
-A server-driven "radio" feature implements `IPlaylistGenerator` against a recommendation endpoint instead of scoring local tag fields, the interface doesn't require the candidates to already be in the queue, `next()` can return an index the generator itself decided to reorder toward.
+A server-driven "radio" feature implements `IPlaylistGenerator` against a recommendation endpoint instead of scoring local tag fields. The interface doesn't require the candidates to already be in the queue. `next()` can return an index the generator itself decided to reorder toward.
 
 ## Next steps
 

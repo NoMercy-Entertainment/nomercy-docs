@@ -52,7 +52,7 @@ type ErrorScope =
 | `BrowserPolicyError` | `PlayerError` | `browserPolicyError(...)` | An unsupported or policy-blocked browser API (Cast, AirPlay, RemotePlayback, audio output routing). |
 | `NotImplementedError` | `PlayerError` | — | A capability the active backend doesn't expose. |
 
-Prefer the factory function over the raw constructor wherever one exists, it stamps the right `scope` and a sensible default `severity` for you.
+Prefer the factory function over the raw constructor wherever one exists. It stamps the right `scope` and a sensible default `severity` for you.
 
 ## Severity & the numeric code schema
 
@@ -64,15 +64,30 @@ const SEVERITY_LEVEL: Record<Severity, 1 | 2 | 3 | 4> = { info: 1, warning: 2, e
 
 String codes such as `'core:auth/forbidden'` are what application code matches on.
 
-An 8-digit numeric form exists alongside them for compact log storage, shaped `VVV S CC EE`: vendor 000-999, severity 1-4, category 00-99, event 00-99.
+An 8-digit numeric form exists alongside them for compact log storage, shaped `VVV S CC EE`. Each segment has its own range:
 
-`makeCode(fields)` builds one, `parseCode(code)` decomposes it, and `formatCode(code)` zero-pads it to 8 characters.
+| Segment | Range | Meaning |
+|---|---|---|
+| `VVV` | 000-999 | Vendor |
+| `S` | 1-4 | Severity |
+| `CC` | 00-99 | Category |
+| `EE` | 00-99 | Event |
 
-`VENDOR` reserves `KIT: 1`, `MUSIC: 2` and `VIDEO: 3`. A third-party plugin author registers a vendor block by PR to the kit's registry, or skips registration and lives on string codes.
+Three functions work with the numeric form:
+
+| Function | What it does |
+|---|---|
+| `makeCode(fields)` | Builds one. |
+| `parseCode(code)` | Decomposes it back into fields. |
+| `formatCode(code)` | Zero-pads it to 8 characters. |
+
+`VENDOR` reserves three values: `KIT: 1`, `MUSIC: 2`, and `VIDEO: 3`. A third-party plugin author registers a vendor block by PR to the kit's registry, or skips registration and lives on string codes.
 
 ## Default retry policy
 
-`DEFAULT_RETRY_POLICY: IRetryPolicy` is a `Record<string, RetryConfig>`, an exported preset table keyed by precedence from most to least specific (exact code → category prefix → HTTP century `'4xx'`/`'5xx'` → `'*'` wildcard). Neither `authFetch` nor `Plugin.fetch` consults it automatically, `Plugin.fetch()` defaults to `{ attempts: 0 }` (no retry) unless a `RetryConfig` is passed explicitly.
+`DEFAULT_RETRY_POLICY: IRetryPolicy` is a `Record<string, RetryConfig>`, an exported preset table keyed by precedence from most to least specific: exact code, then category prefix, then HTTP century (`'4xx'`/`'5xx'`), then the `'*'` wildcard.
+
+Neither `authFetch` nor `Plugin.fetch` consults it automatically. `Plugin.fetch()` defaults to `{ attempts: 0 }` (no retry) unless you pass a `RetryConfig` explicitly.
 
 | Code | Attempts | Backoff | Notes |
 |---|---|---|---|

@@ -7,7 +7,7 @@ description: 'TvKeyHandlerPlugin: subclasses KeyHandlerPlugin for remote-control
 
 # Plugin: TV Key Handler
 
-`TvKeyHandlerPlugin` (id `'tv-key-handler'`) adapts [`KeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/key-handler) for TV remote input. It inherits the full desktop default set (color buttons, universal media keys, modifier seeks, chapters, speed, frame-advance, subtitle size, stop) and overrides only the groups that behave differently when the input device is a remote, not a keyboard with focusable page elements.
+`TvKeyHandlerPlugin` (id `'tv-key-handler'`) adapts [`KeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/key-handler) for TV remote input. It inherits the full desktop default set: color buttons, universal media keys, modifier seeks, chapters, speed, frame-advance, subtitle size, stop. It overrides only the groups that behave differently when the input device is a remote, not a keyboard with focusable page elements.
 
 ## Options
 
@@ -35,8 +35,8 @@ New groups this plugin adds on top of the inherited set:
 ## Rules & restrictions
 
 - OSD messages route through `MessagePlugin` when it is mounted on the player, and always also emit `'display-message'` for consumers that prefer the event surface over adding `MessagePlugin`.
-- All bindings call local player methods directly. A NoMercy Connect integration that wants remote commands routed through a socket instead calls `keyHandler.replace(combo, fn)` (inherited from the kit base) to swap individual bindings, this plugin has no built-in awareness of Connect.
-- Translations (the Info OSD strings, aspect-ratio label, chapter labels) are auto-discovered from the plugin's own `./i18n/*.ts` bundle. The static `translations` field overrides the base `KeyHandlerPlugin`'s rather than extending it, so registering this plugin merges only its own keys into the player's shared translation table (namespaced under `plugin.tv-key-handler.*`, removed again on dispose).
+- All bindings call local player methods directly. A NoMercy Connect integration that wants remote commands routed through a socket instead calls `keyHandler.replace(combo, fn)` (inherited from the kit base) to swap individual bindings. This plugin has no built-in awareness of Connect.
+- Translations (the Info OSD strings, aspect-ratio label, chapter labels) are auto-discovered from the plugin's own `./i18n/*.ts` bundle. The static `translations` field overrides the base `KeyHandlerPlugin`'s rather than extending it. Registering this plugin merges only its own keys into the player's shared translation table, namespaced under `plugin.tv-key-handler.*` and removed again on dispose.
 
 ## How to extend it
 

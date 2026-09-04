@@ -13,7 +13,7 @@ Every shim delegates to the real v2 method underneath, and logs one deprecation 
 
 It is entirely opt-in. An app that never adds the plugin carries neither the shim code nor the logging.
 
-There is no v1 e2e contract for the music player the way there is for video, this surface is derived directly from the v1 audio API convention mapped onto the real v2 `NMMusicPlayer` surface, verified against `src/index.ts`, not guessed.
+There is no v1 e2e contract for the music player the way there is for video. This surface is derived directly from the v1 audio API convention mapped onto the real v2 `NMMusicPlayer` surface, verified against `src/index.ts`, not guessed.
 
 ## Options
 
@@ -68,13 +68,12 @@ Two events bridge automatically while this plugin is loaded, matching the v1 eve
 
 - Every shim logs a deprecation line through the player's logger on every call. Grep the logs during a migration and the remaining call sites surface themselves.
 - Add it like any plugin. Before or during `setup()` it is queued and installed when the pipeline drains its plugins. After `ready()` it registers inline, with `use()` still running. The shims attach either way.
-
 - The one thing to avoid is calling a shimmed method before that `use()` has run.
 - Unlike the video player's v1 shim, every method here has a direct v2 equivalent. None of them throws `NotImplementedError`, because no legacy audio feature lacks a v2 data model to translate into.
 
 ## How to remove it
 
-Delete the `player.addPlugin(V1MusicCompatPlugin)` call, then work through the deprecation log output (every remaining call site logs its own replacement method), migrating call sites to the v2 methods in the table above. Once the log is empty, remove the import too, there is nothing else in the codebase that depends on this plugin being present.
+Delete the `player.addPlugin(V1MusicCompatPlugin)` call. Then work through the deprecation log output; every remaining call site logs its own replacement method. Migrate each call site to the v2 methods in the table above. Once the log is empty, remove the import too, since nothing else in the codebase depends on this plugin being present.
 
 ## Next steps
 

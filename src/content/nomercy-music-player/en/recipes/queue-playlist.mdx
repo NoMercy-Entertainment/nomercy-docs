@@ -11,7 +11,7 @@ description: 'Rendering queue() as a clickable "up next" list, highlighting the 
 
 ## Rendering the list
 
-Rebuild the panel from `queue()` fresh on every render rather than mutating DOM nodes in place, it stays correct after a shuffle or a removal without tracking index deltas by hand:
+Rebuild the panel from `queue()` fresh on every render rather than mutating DOM nodes in place. It stays correct after a shuffle or a removal without tracking index deltas by hand:
 
 ```ts
 function renderQueue(player: IMusicPlayer, panel: HTMLElement): void {
@@ -31,7 +31,12 @@ function renderQueue(player: IMusicPlayer, panel: HTMLElement): void {
 
 ## Re-rendering on the right events
 
-Two events cover every way the panel's content can go stale: `'item'` (the cursor moved, a different row is now active) and `'queue'` (items were added, removed, reordered, or replaced):
+Two events cover every way the panel's content can go stale:
+
+| Event | Fires when |
+|---|---|
+| `'item'` | The cursor moved; a different row is now active. |
+| `'queue'` | Items were added, removed, reordered, or replaced. |
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -48,7 +53,7 @@ Subscribing to both instead of polling means the panel updates immediately on a 
 
 ## playItem() closes the item()/play() race
 
-A naive click handler races. `player.item(item.id); player.play();` fires a fire-and-forget `load()`, and the `play()` right after can reach the backend before the new source is set.
+A naive click handler races. `player.item(item.id); player.play();` fires a fire-and-forget `load()`. The `play()` call right after can reach the backend before the new source is set.
 
 `playItem(target)` closes that race, and `playNow(items, start?)` does the same when replacing the whole queue.
 
@@ -59,7 +64,7 @@ player.playItem(item.id);            // jump to a track already in the queue and
 player.playNow(album, 'track-2');    // replace the queue and start playing this track
 ```
 
-Use `playItem`/`playNow` for anything the user clicks; reserve a plain `item(target)` for cases where you deliberately don't want autoplay, restoring a paused session at the last position, for instance.
+Use `playItem`/`playNow` for anything the user clicks. Reserve a plain `item(target)` for cases where you deliberately don't want autoplay, such as restoring a paused session at the last position.
 
 ## See it running
 

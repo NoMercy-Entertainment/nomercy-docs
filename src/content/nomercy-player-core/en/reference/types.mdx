@@ -7,7 +7,7 @@ description: 'BasePlaylistItem, TimeState, track/quality metadata, every state e
 
 # Reference: Domain Types
 
-The shapes every method in this collection reads or returns, independent of medium. `nomercy-video-player` and `nomercy-music-player` extend the item and event types with their own domain fields, everything below is what they extend.
+The shapes every method in this collection reads or returns, independent of medium. `nomercy-video-player` and `nomercy-music-player` extend the item and event types with their own domain fields. Everything below is what they extend.
 
 ## Playlist item
 
@@ -74,13 +74,21 @@ Every one of these is a real TypeScript `enum` (not a string union), returned by
 
 ## Device & metrics
 
-`DeviceCapabilities` is what `player.device()` returns. It carries mutually exclusive environment flags (`isTv` / `isMobile` / `isDesktop`), API availability (`pipSupported` / `fullscreenSupported` / `webLocksSupported`), `autoplayAllowed` (`boolean | 'unknown'`), and `preferred` (`'smooth' | 'powerEfficient'`, a decode-preference hint).
+`DeviceCapabilities` is what `player.device()` returns. It groups four kinds of information:
 
-`PlaybackMetrics` is returned by `player.metrics()` and emitted periodically as `playback:metrics`.
+| Group | Fields | Shape |
+|---|---|---|
+| Environment flags | `isTv` / `isMobile` / `isDesktop` | Mutually exclusive booleans. |
+| API availability | `pipSupported` / `fullscreenSupported` / `webLocksSupported` | Booleans. |
+| Autoplay | `autoplayAllowed` | `boolean \| 'unknown'` |
+| Decode preference | `preferred` | `'smooth' \| 'powerEfficient'`, a hint only. |
 
-`ttfb`, `avgBitrate`, `decoderStalls` and `droppedFrames` are `number | null`. A `null` means the active backend cannot report that counter at all, so guard before using one.
+`PlaybackMetrics` is returned by `player.metrics()` and emitted periodically as `playback:metrics`. Its fields fall into two type groups:
 
-`ttff`, `rebufferRatio`, `joinTime` and `sessionDurationMs` are always `number`.
+| Fields | Type | Notes |
+|---|---|---|
+| `ttfb`, `avgBitrate`, `decoderStalls`, `droppedFrames` | `number \| null` | `null` means the active backend cannot report that counter at all. Guard before using one. |
+| `ttff`, `rebufferRatio`, `joinTime`, `sessionDurationMs` | `number` | Always present. |
 
 An index signature, `[customMetric: string]: number | null`, lets plugins publish their own namespaced counters onto the same object.
 
@@ -104,11 +112,21 @@ type PluginCtorWithId = (new (...args: never[]) => unknown) & {
 type RequireSpec = PluginCtorWithId | { plugin: PluginCtorWithId; optional?: boolean; minVersion?: string };
 ```
 
-`PluginAdvisory` (`static advisories` on a `Plugin` class) declares an invariant without handler code: `{ method, duringPhase?, duringEvent?, severity, reason, message }`. At registration every plugin's advisories merge into one lookup, and a matching mutation auto-fires the declared severity event. `duringPhase` gates on `player.phase()`. `duringEvent` gates on the currently-dispatching event name, including another plugin's own custom `before*` event.
+`PluginAdvisory` (`static advisories` on a `Plugin` class) declares an invariant without handler code: `{ method, duringPhase?, duringEvent?, severity, reason, message }`. At registration every plugin's advisories merge into one lookup, and a matching mutation auto-fires the declared severity event.
+
+`duringPhase` gates on `player.phase()`. `duringEvent` gates on the currently-dispatching event name, including another plugin's own custom `before*` event.
 
 ## Tier-4 escape hatch
 
-`PlayerExperimental` (`player.experimental`): `override(method, fn)` monkey-patches a method with auto-restore when the calling plugin disposes, `restore(method)` reverts manually, `overrides()` lists every active override for devtools. The `nmplayer/no-experimental` lint rule flags any call from inside plugin code, consumer app code is unrestricted.
+`PlayerExperimental` (`player.experimental`) exposes three methods:
+
+| Method | What it does |
+|---|---|
+| `override(method, fn)` | Monkey-patches a method, with auto-restore when the calling plugin disposes. |
+| `restore(method)` | Reverts a patch manually. |
+| `overrides()` | Lists every active override, for devtools. |
+
+The `nmplayer/no-experimental` lint rule flags any call from inside plugin code. Consumer app code is unrestricted.
 
 ## Config & player identity
 
@@ -135,7 +153,16 @@ interface IFetch { (url: string, opts?: RequestInit): Promise<Response> }
 interface ILanguageMatcher { (tag: string): string[] } // 'pt-BR' -> ['pt-BR', 'pt']
 ```
 
-`IClock` returns Unix epoch milliseconds; inject a server-synced clock for distributed sync. `IFetch` is the transport under `authFetch`, swapped in tests and native shells. `ILanguageMatcher` produces the BCP-47 fallback chain the translator walks. See [Adapter: Translator](/nomercy-player-core/plugins-adapters/adapter-translator).
+Each single-function port has one job:
+
+| Port | What it does |
+|---|---|
+| `IClock` | Returns Unix epoch milliseconds. Inject a server-synced clock for distributed sync. |
+| `IIdGenerator` | Produces IDs; the default calls `crypto.randomUUID()`. |
+| `IFetch` | The transport under `authFetch`, swapped in tests and native shells. |
+| `ILanguageMatcher` | Produces the BCP-47 fallback chain the translator walks. |
+
+See [Adapter: Translator](/nomercy-player-core/plugins-adapters/adapter-translator).
 
 ### ILifecycleRegistry / LifecycleRegistry
 
@@ -153,7 +180,9 @@ interface ILifecycleRegistry {
 }
 ```
 
-Every plugin receives one as `this.lifecycle`. Anything registered through it (listeners, timers, observers, abort controllers, RAF loops) is torn down by one `dispose()` call. `LifecycleRegistry` is the default class implementation; `dispose()` is idempotent, and calls made after disposal are safe no-ops. See [Handbook: Anatomy](/nomercy-player-core/handbook/anatomy).
+Every plugin receives one as `this.lifecycle`. Anything registered through it (listeners, timers, observers, abort controllers, RAF loops) is torn down by one `dispose()` call.
+
+`LifecycleRegistry` is the default class implementation. `dispose()` is idempotent, and calls made after disposal are safe no-ops. See [Handbook: Anatomy](/nomercy-player-core/handbook/anatomy).
 
 ### ICueParserRegistry
 
@@ -236,7 +265,13 @@ interface DecodeCapability {
 type NetworkType = 'wifi' | 'cellular' | 'ethernet' | 'none' | 'unknown';
 ```
 
-`DecodeProfile` describes the scenario you pass to `ICapabilitiesProbe.canDecode()`; `DecodeCapability` is its answer, used by ABR to skip variants the device cannot decode smoothly. `NetworkType` is what `INetworkMonitor.type()` reports. All three belong to the `IPlatform` bundle, see [Adapter: Platform](/nomercy-player-core/plugins-adapters/adapter-platform).
+All three belong to the `IPlatform` bundle, see [Adapter: Platform](/nomercy-player-core/plugins-adapters/adapter-platform):
+
+| Type | What it is |
+|---|---|
+| `DecodeProfile` | The scenario you pass to `ICapabilitiesProbe.canDecode()`. |
+| `DecodeCapability` | Its answer, used by ABR to skip variants the device cannot decode smoothly. |
+| `NetworkType` | What `INetworkMonitor.type()` reports. |
 
 ## Stream source types
 

@@ -7,7 +7,9 @@ description: 'ISubtitleStyleStore: load()/save(style)/clear(), a persistence con
 
 # Adapter: Subtitle Style Store
 
-`player.subtitleStyle()` (see [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles)) keeps the user's font, color, and edge-style choices in memory and emits `'subtitleStyle'` on every change, it never persists anything on its own. `ISubtitleStyleStore` is the contract for the other half: load a saved preference after `ready()` and apply it, save on every change so it survives the next session.
+`player.subtitleStyle()` (see [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles)) keeps the user's font, color, and edge-style choices in memory. It emits `'subtitleStyle'` on every change. It never persists anything on its own.
+
+`ISubtitleStyleStore` is the contract for the other half. Load a saved preference after `ready()` and apply it. Save on every change so the choice survives the next session.
 
 ## The interface
 
@@ -26,9 +28,9 @@ interface ISubtitleStyleStore {
 
 ## The shipped implementation
 
-`StorageBackedSubtitleStyleStore` persists through the kit's [`IStorage`](/nomercy-player-core/plugins-adapters/adapter-storage) port, the same swappable storage interface the kit's plugins persist their preferences through via `this.storage`, under the key `'subtitle-style'` (namespaced automatically when the storage backend itself is namespaced):
+`StorageBackedSubtitleStyleStore` persists through the kit's [`IStorage`](/nomercy-player-core/plugins-adapters/adapter-storage) port, under the key `'subtitle-style'`. That is the same swappable storage interface the kit's plugins persist their preferences through via `this.storage`. The key is namespaced automatically when the storage backend itself is namespaced.
 
-The constructor takes an `IStorage` instance directly, not the player, the player has no public accessor for its own active storage adapter (only plugin code reaches it, via `this.storage`). Construct the store with the same instance passed to `setup({ storage })`, or with a fresh `LocalStorageBackend` (the kit's own default) when `setup()` didn't override it:
+The constructor takes an `IStorage` instance directly, not the player. The player has no public accessor for its own active storage adapter; only plugin code reaches it, via `this.storage`. Construct the store with the same instance passed to `setup({ storage })`, or with a fresh `LocalStorageBackend` (the kit's own default) when `setup()` didn't override it:
 
 ```ts
 import { StorageBackedSubtitleStyleStore } from '@nomercy-entertainment/nomercy-video-player';
@@ -54,12 +56,12 @@ player.on('subtitleStyle', (style) => {
 });
 ```
 
-`load()` returns `Partial<SubtitleStyle>`, not the full shape, because a store might only have persisted a subset of fields across app versions. `player.subtitleStyle(patch)` already merges a partial onto the current style, so passing the loaded value straight through is correct even when it's incomplete.
+`load()` returns `Partial<SubtitleStyle>`, not the full shape, because a store might only have persisted a subset of fields across app versions. `player.subtitleStyle(patch)` already merges a partial onto the current style. Passing the loaded value straight through is correct even when it's incomplete.
 
 ## Rules & restrictions
 
-- The player never calls any of these three methods itself, wiring load-on-ready and save-on-change is entirely the consumer's responsibility, exactly like the pattern in [Recipe: Swap an Adapter](/nomercy-player-core/recipes/swap-an-adapter) for other kit-level ports.
-- `clear()` only removes the persisted record, it does not reset the live `subtitleStyle()` value, call `player.subtitleStyle(defaultStyle)` yourself alongside it for a "reset to defaults" action that also affects the currently-rendered subtitles.
+- The player never calls any of these three methods itself. Wiring load-on-ready and save-on-change is the consumer's responsibility, the same pattern as [Recipe: Swap an Adapter](/nomercy-player-core/recipes/swap-an-adapter) for other kit-level ports.
+- `clear()` only removes the persisted record. It does not reset the live `subtitleStyle()` value. For a "reset to defaults" action that also changes the rendered subtitles, call `player.subtitleStyle(defaultStyle)` alongside it.
 
 ## How to extend it
 

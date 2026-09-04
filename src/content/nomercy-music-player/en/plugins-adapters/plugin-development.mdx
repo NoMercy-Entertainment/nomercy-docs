@@ -33,7 +33,20 @@ The music-specific plugins are importable from `@nomercy-entertainment/nomercy-m
 | [`MediaSessionPlugin`](/nomercy-music-player/plugins-adapters/media-session) | `'media-session'` | Publishes track metadata and artwork to the OS Media Session |
 | [`KeyHandlerPlugin`](/nomercy-music-player/plugins-adapters/key-handler) | `'key-handler'` | Core bindings plus `n` next, `p` previous, `r` repeat cycle, `s` shuffle |
 
-The same entry point re-exports the core audio plugins for convenience: `audioGraphPlugin`, `equalizerPlugin`, `mixerPlugin`, `spectrumPlugin`, `canvasPlugin`, `VisualizationPlugin`, `volumeMemoryPlugin`, plus `embedPlugin`, `messagePlugin`, and `tabLeaderPlugin`. None of them allocate an `AudioContext`, canvas, or animation frame unless you register them.
+The same entry point re-exports the core audio plugins for convenience:
+
+- `audioGraphPlugin`
+- `equalizerPlugin`
+- `mixerPlugin`
+- `spectrumPlugin`
+- `canvasPlugin`
+- `VisualizationPlugin`
+- `volumeMemoryPlugin`
+- `embedPlugin`
+- `messagePlugin`
+- `tabLeaderPlugin`
+
+None of them allocate an `AudioContext`, canvas, or animation frame unless you register them.
 
 ## Typing against the music player
 
@@ -122,9 +135,21 @@ player
 	.addPlugin(MyVisualization);
 ```
 
-`AudioGraphPlugin` is the foundation. It owns the `AudioContext` and the signal chain, and every other audio plugin declares it in `requires`. On a `WebAudioBackend` it reuses the backend's context; that is the single-context invariant, backend context, player context, and plugin context are the same object. It taps its shared `AnalyserNode` on the backend's pre-volume `analysisNode` when one exists.
+`AudioGraphPlugin` is the foundation. It owns the `AudioContext` and the signal chain, and every other audio plugin declares it in `requires`.
 
-`SpectrumPlugin` reads that analyser once per animation frame and emits a `frame` event. The payload is a full `VisualizationFrame`: byte and float FFT data, waveform samples, band energies (bass, mid, treble), peak-hold values, `sampleRate`, `binHz`, and `peakHz`. Your plugin consumes it with the typed plugin-to-plugin listener:
+On a `WebAudioBackend`, the plugin reuses the backend's context. That is the single-context invariant: the backend context, the player context, and the plugin context are all the same object.
+
+`AudioGraphPlugin` taps its shared `AnalyserNode` on the backend's pre-volume `analysisNode` when one exists.
+
+`SpectrumPlugin` reads that analyser once per animation frame and emits a `frame` event. The payload is a full `VisualizationFrame`, carrying:
+
+- Byte and float FFT data
+- Waveform samples
+- Band energies (bass, mid, treble)
+- Peak-hold values
+- `sampleRate`, `binHz`, and `peakHz`
+
+Your plugin consumes it with the typed plugin-to-plugin listener:
 
 ```ts
 import { SpectrumPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins';
@@ -142,7 +167,14 @@ export class BeatFlashPlugin extends Plugin<IMusicPlayer> {
 }
 ```
 
-For raw access, `this.player.getPlugin(SpectrumPlugin)` exposes `analyser()`, `currentFrame()`, and `bandEnergy(loHz, hiHz)`. For custom effect nodes, `getPlugin(AudioGraphPlugin)` exposes `insertEffect(node, 'pre' | 'post')`, `removeEffect(node)`, and `route(from, to)`; every inserted node is disconnected on dispose. Visual output goes through `CanvasPlugin` renderers or a `VisualizationPlugin` subclass, so you never run your own animation frame loop.
+For raw access, two plugin instances expose their own method surface:
+
+| Plugin instance | Methods exposed |
+| --- | --- |
+| `getPlugin(SpectrumPlugin)` | `analyser()`, `currentFrame()`, `bandEnergy(loHz, hiHz)` |
+| `getPlugin(AudioGraphPlugin)` | `insertEffect(node, 'pre' \| 'post')`, `removeEffect(node)`, `route(from, to)` |
+
+Every node inserted through `AudioGraphPlugin` is disconnected on dispose. Visual output goes through `CanvasPlugin` renderers or a `VisualizationPlugin` subclass, so you never run your own animation frame loop.
 
 ## Equalizer and mixer hooks
 
@@ -156,7 +188,12 @@ this.on(EqualizerPlugin, 'change', ({ bands, selectedPreset }) => {
 });
 ```
 
-An EQ control surface calls the instance instead: `band(freq, gain)`, `preGain(gain)`, `preset(name)`, `presets()`, `reset()`, `addCustomPreset(preset)`, plus the `bandSliderMin` / `bandSliderMax` / `bandSliderStep` / `bandSliderValue` helpers for building sliders. The mixer instance exposes `gain(dB)`, `pan(value)`, and `muted(value)`.
+A control surface calls the instance methods directly:
+
+| Instance | Methods exposed |
+| --- | --- |
+| `EqualizerPlugin` | `band(freq, gain)`, `preGain(gain)`, `preset(name)`, `presets()`, `reset()`, `addCustomPreset(preset)`, plus the `bandSliderMin` / `bandSliderMax` / `bandSliderStep` / `bandSliderValue` helpers for building sliders |
+| `MixerPlugin` | `gain(dB)`, `pan(value)`, `muted(value)` |
 
 ## Crossfade awareness
 
@@ -195,7 +232,16 @@ this.on(LyricsPlugin, 'line', ({ text }) => {
 });
 ```
 
-Or pull state from the instance: `current()` is the active line payload, `all()` is the full cue list, `fetchLyrics(url)` loads explicitly, and `clear()` drops the tracker without disposing the plugin. `lineEnter` and `lineExit` bracket each line; `loaded` fires once per track with the cue count.
+Or pull state from the instance:
+
+| Method | What it does |
+| --- | --- |
+| `current()` | The active line payload |
+| `all()` | The full cue list |
+| `fetchLyrics(url)` | Loads lyrics explicitly |
+| `clear()` | Drops the tracker without disposing the plugin |
+
+`lineEnter` and `lineExit` bracket each line. `loaded` fires once per track with the cue count.
 
 The registry side is core: `player.registerCueParser(parser)` adds a format, and the handbook's [network page](/nomercy-player-core/handbook/network) covers the fetch pipeline the plugin uses. `MusicPreloadStrategy` also lists the lyrics sidecar as a preload asset, next to the media and the cover art, so lyrics for the upcoming track are usually warm.
 

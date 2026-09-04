@@ -11,7 +11,7 @@ The three functions [Build a Player](/nomercy-player-core/build/compose-methods)
 
 ## composeMixins
 
-```ts
+```txt
 function composeMixins<T extends object>(prototype: T, ...modules: object[]): void;
 ```
 
@@ -45,7 +45,7 @@ SSR-safe: the `document` call is guarded.
 
 ## initPlayerCoreState
 
-```ts
+```txt
 function initPlayerCoreState(player: object, opts: { className: string }): void;
 ```
 
@@ -53,7 +53,7 @@ Seeds every internal slot (phase `'idle'`, dispatch stack, cue parser registry, 
 
 ## KIT_VERSION
 
-```ts
+```txt
 declare const KIT_VERSION: string; // derived from package.json at compile time
 ```
 
@@ -63,11 +63,22 @@ Compared against a plugin's `static readonly minCoreVersion` at `addPlugin()` ti
 
 `playerCoreMethods` is the `as const` tuple of every shared mixin. It is the exact aggregate both real players compose.
 
-It bundles 26 mixin groups, and 16 of those are importable individually from the public entry.
+It bundles 26 mixin groups. Of those, 16 are importable individually from the public entry.
 
-The other 10 are internal building blocks, meant to be taken as part of the aggregate rather than recomposed piecemeal: stream registration, media tracks, device detection, audio output, cast state, ABR, metrics, loading, activity, and generic DOM helpers.
+The other 10 are internal building blocks. The kit means for you to take them as part of the aggregate rather than recompose them piecemeal:
 
-Individually exported, for composing a narrower surface than the full aggregate:
+- Stream registration
+- Media tracks
+- Device detection
+- Audio output
+- Cast state
+- ABR
+- Metrics
+- Loading
+- Activity
+- Generic DOM helpers
+
+The 16 individually exported groups let you compose a narrower surface than the full aggregate:
 
 `lifecycleMethods` · `transportMethods` · `timeMethods` · `volumeMethods` · `queueMethods` · `playQueueMethods` · `stateMethods` · `playerStateMethods` · `pluginRegistrationMethods` · `authMethods` · `i18nMethods` · `cueParserMethods` · `baseUrlAudioContextMethods` · `containerClassEmitMethods` · `preloadStrategyMethods` · `experimentalDescriptor`
 
@@ -80,7 +91,7 @@ import { composeMixins, lifecycleMethods, transportMethods } from '@nomercy-ente
 composeMixins(MyPlayer.prototype, lifecycleMethods, transportMethods);
 ```
 
-Most consumers want the full `playerCoreMethods` aggregate, as every page in [Build a Player](/nomercy-player-core/build/compose-methods) does, composing a subset is an advanced move for a genuinely minimal use case.
+Most consumers want the full `playerCoreMethods` aggregate, as every page in [Build a Player](/nomercy-player-core/build/compose-methods) does. Composing a subset is an advanced move, reserved for a genuinely minimal use case.
 
 ## Next steps
 

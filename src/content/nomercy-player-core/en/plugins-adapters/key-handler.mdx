@@ -7,7 +7,7 @@ description: 'KeyHandlerPlugin: a single keydown listener routing combo strings 
 
 # Plugin: Key Handler
 
-`KeyHandlerPlugin` (id `'key-handler'`) is a keyboard-binding router: one `keydown` listener that dispatches combo strings (`'Space'`, `'ArrowLeft'`, `'m'`) to callbacks. It isn't re-exported from the package's main entry, import it from the `plugins/key-handler` subpath.
+`KeyHandlerPlugin` (id `'key-handler'`) is a keyboard-binding router: one `keydown` listener that dispatches combo strings (`'Space'`, `'ArrowLeft'`, `'m'`) to callbacks. The package's main entry does not re-export it. Import it from the `plugins/key-handler` subpath.
 
 ## Options
 
@@ -22,9 +22,18 @@ description: 'KeyHandlerPlugin: a single keydown listener routing combo strings 
 
 ## Rules & restrictions
 
-- Default bindings: `Space` toggles playback, `ArrowLeft`/`ArrowRight` seek ±5s, `ArrowUp`/`ArrowDown` adjust volume, `m` toggles mute, plus the eight W3C hardware media keys (`MediaPlay`, `MediaPause`, and the rest).
-- Keys are silently ignored when the event target is an `<input>`, `<textarea>`, `<select>`, or any `contenteditable` element, so the player never steals keystrokes from a form on the same page.
-- `disableMediaControls` gates every `MediaX` binding individually, it doesn't touch the non-hardware defaults (`Space`, arrows, `m`).
+The plugin ships with these default bindings:
+
+| Key | Action |
+|---|---|
+| `Space` | Toggles playback. |
+| `ArrowLeft` / `ArrowRight` | Seeks ±5s. |
+| `ArrowUp` / `ArrowDown` | Adjusts volume. |
+| `m` | Toggles mute. |
+| The eight W3C hardware media keys (`MediaPlay`, `MediaPause`, and the rest) | Map to their transport actions. |
+
+When the event target is an `<input>`, `<textarea>`, `<select>`, or any `contenteditable` element, the plugin silently ignores the key. The player never steals keystrokes from a form on the same page.
+- `disableMediaControls` gates every `MediaX` binding individually. It does not touch the non-hardware defaults (`Space`, arrows, `m`).
 
 ## How to extend it
 

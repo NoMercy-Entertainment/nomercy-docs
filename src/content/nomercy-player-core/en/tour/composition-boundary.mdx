@@ -1,13 +1,13 @@
 ---
 title: 'Player and Plugin'
-description: 'The this-versus-this.player boundary that organises the whole trio: what you extend is this, what you talk to is this.player, and that line decides whether a behaviour is a player concern or a plugin concern.'
+description: 'The this-versus-this.player boundary that organizes the whole trio: what you extend is this, what you talk to is this.player, and that line decides where a behavior lives.'
 ---
 
 {/* Source: packages/nomercy-player-core/src/core/plugin/base.ts, src/core/state.ts, packages/nomercy-video-player/src/index.ts */}
 
 # Core: Player and Plugin
 
-There is one rule underneath everything else in this trio, and once it is named the rest of the library stops feeling like a pile of methods and starts feeling like one shape. The rule is about what `this` means.
+One rule sits underneath everything else in this trio. Once it is named, the library stops feeling like a pile of methods and starts feeling like one shape. The rule is about what `this` means.
 
 ## What you extend is `this`. What you talk to is `this.player`.
 
@@ -61,11 +61,13 @@ peer?.someMethod();
 
 ## The rule is also a decision
 
-Because `this` marks what a piece of code *is* part of, the same boundary answers the question every new feature runs into: where does this behaviour live?
+Because `this` marks what a piece of code *is* part of, the same boundary answers the question every new feature runs into: where does this behavior live?
 
-If a behaviour is part of what the player *is*, it belongs on the player: a core mixin when it is identical for video and music, a per-library method when it carries a domain twist. You call it `this.action()` from inside, consumers call it `player.action()` from outside, and every plugin gets it for free through `this.player.action()`.
+When a behavior is part of what the player *is*, it belongs on the player. Make it a core mixin when it is identical for video and music. Make it a per-library method when it carries a domain twist.
 
-If a behaviour is something layered *onto* a player from outside, it belongs in a plugin: `extends Plugin`, its state and lifecycle scoped to `this`, the player reached through `this.player`.
+You call it `this.action()` from inside. Consumers call it `player.action()` from outside. Every plugin gets it for free through `this.player.action()`.
+
+When a behavior is layered *onto* a player from outside, it belongs in a plugin. The plugin `extends Plugin`, scopes its state and lifecycle to `this`, and reaches the player through `this.player`.
 
 Autohide is the worked example.
 
@@ -87,7 +89,7 @@ The same boundary, read at each layer, is why the three packages fit together th
 
 The core mixins are `this` for both players at once. That is why a fix there reaches both in one release.
 
-It is also why a method that branches on "is this music or video" does not belong in core. A branch means the behaviour is not really shared, so it is not really part of the thing both players are.
+It is also why a method that branches on "is this music or video" does not belong in core. A branch means the behavior is not really shared, so it is not really part of the thing both players are.
 
 Plugins ride on top of all of it without forking any of it, because a plugin only ever talks to `this.player`'s public surface. It never reaches inside the composition.
 

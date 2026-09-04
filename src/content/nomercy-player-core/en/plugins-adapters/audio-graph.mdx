@@ -9,11 +9,13 @@ description: 'AudioGraphPlugin owns the Web Audio signal chain, AudioContext, th
 
 `AudioGraphPlugin` (id `'audio-graph'`) owns the Web Audio signal chain. It creates or reuses the player's `AudioContext`, mounts a `MediaElementAudioSourceNode` from the backend, and wires `source → destination`.
 
-Every other audio plugin builds on that chain rather than making its own, though not all the same way.
+Every other audio plugin builds on that chain rather than making its own, though not all the same way:
 
-- The equalizer and mixer insert into the serial chain, through `insertEffect()`, `pre()` and `post()`.
-- The spectrum plugin taps the shared `AnalyserNode` in parallel, without joining the serial path.
-- The visualization plugin depends on canvas and spectrum only. It never touches `AudioGraphPlugin`.
+| Plugin | How it relates to the chain |
+| --- | --- |
+| Equalizer and mixer | Insert into the serial chain, through `insertEffect()`, `pre()`, and `post()`. |
+| Spectrum plugin | Taps the shared `AnalyserNode` in parallel, without joining the serial path. |
+| Visualization plugin | Depends on canvas and spectrum only. Never touches `AudioGraphPlugin`. |
 
 ## Options
 
@@ -25,7 +27,12 @@ Every other audio plugin builds on that chain rather than making its own, though
 
 ## Events
 
-`context:ready` (`{ sampleRate }`), `context:closed`, `chain:rebuilt`, `unsupported` (`{ reason }`).
+| Event | Payload |
+| --- | --- |
+| `context:ready` | `{ sampleRate }` |
+| `context:closed` | none |
+| `chain:rebuilt` | none |
+| `unsupported` | `{ reason }` |
 
 ## Rules & restrictions
 

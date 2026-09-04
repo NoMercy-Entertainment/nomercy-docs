@@ -15,7 +15,7 @@ Three ways in. Pick the least invasive one that does the job.
 
 ## Add one binding at runtime
 
-`bind(combo, fn)` on the live plugin instance adds a binding without touching anything else, the same call every default binding in the plugin is built from internally:
+`bind(combo, fn)` on the live plugin instance adds a binding without touching anything else. Every default binding in the plugin is built from this same call internally:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -31,7 +31,7 @@ keys!.bind('l', (p) => { void p.forward(15); }); // custom 15s skip on 'l'
 keys!.unbind('n'); // this app uses 'n' for something else entirely
 ```
 
-`bind()` on an already-bound combo overwrites it silently, that's also how `replace(combo, fn)` works, it's just an alias, use whichever name reads better at the call site.
+`bind()` on an already-bound combo overwrites it silently. `replace(combo, fn)` works the same way; it is just an alias. Use whichever name reads better at the call site.
 
 ## Override one group in a subclass
 
@@ -51,11 +51,11 @@ class MyKeyHandler extends KeyHandlerPlugin {
 player.addPlugin(MyKeyHandler);
 ```
 
-This is the same technique [`TvKeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/tv-key-handler) itself uses: it subclasses the desktop `KeyHandlerPlugin` and overrides only `addNavigationKeys`, `addVolumeKeys`, `addAspectRatioKeys`, and `addHelpKey`, every other group (playback, modifier seeks, chapters, speed) is inherited as-is.
+This is the same technique [`TvKeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/tv-key-handler) itself uses. It subclasses the desktop `KeyHandlerPlugin` and overrides only `addNavigationKeys`, `addVolumeKeys`, `addAspectRatioKeys`, and `addHelpKey`. Every other group (playback, modifier seeks, chapters, speed) is inherited as-is.
 
 ## Disable everything and start clean
 
-Two ways to end up with a genuinely minimal binding set, pick based on whether you still want `KeyHandlerPlugin` involved at all.
+Two ways lead to a genuinely minimal binding set. Pick based on whether you still want `KeyHandlerPlugin` involved at all.
 
 Override `addDefaults()` directly when you still want the plugin (its scope handling, cooldown, input-field awareness) but none of its built-in binding groups:
 
@@ -90,7 +90,7 @@ player.addPlugin(KeyHandlerPlugin, {
 });
 ```
 
-Keys are already ignored when the event target is an `<input>`, `<textarea>`, `<select>`, or `contenteditable` element regardless of scope, `scope: 'container'` narrows further, to only firing while the player element itself (or a descendant) has focus.
+Keys are already ignored when the event target is an `<input>`, `<textarea>`, `<select>`, or `contenteditable` element, regardless of scope. `scope: 'container'` narrows further: it fires only while the player element itself (or a descendant) has focus.
 
 ## Next steps
 

@@ -15,18 +15,26 @@ A plugin extends the player from the outside.
 
 `addPlugin(PluginClass, opts)` queues the plugin before `setup()` runs. Register after `setup()` and the plugin misses its own `use()` call during the pipeline.
 
-In return the plugin gets a scoped logger, namespaced storage and auto-cleaned listeners. [The Plugin Base](/nomercy-player-core/tour/plugin-base) has the full list, and the [Plugin Handbook](/nomercy-player-core/handbook/anatomy) teaches every helper on it in depth.
+In return the plugin gets:
+
+- A scoped logger.
+- Namespaced storage.
+- Auto-cleaned listeners.
+
+[The Plugin Base](/nomercy-player-core/tour/plugin-base) has the full list, and the [Plugin Handbook](/nomercy-player-core/handbook/anatomy) teaches every helper on it in depth.
 
 `KitPlayer`'s composition from steps 1 and 2 needs no change for this. `addPlugin` and `getPlugin` are already in `playerCoreMethods`, stamped onto every kit composition whether you call them or not.
 
 ## Adding one
 
-`PlayCounterPlugin` listens for the same `play` event Step 2's backend wiring now actually triggers, and emits a namespaced milestone every N plays. The `KitPlayer` class below is identical to Step 2's, plus the two `declare`d methods a plugin-registering consumer needs (`addPlugin`, `getPlugin`) and the plugin registration call itself.
+`PlayCounterPlugin` listens for the same `play` event that Step 2's backend wiring now triggers. Every N plays, it emits a namespaced milestone.
+
+The `KitPlayer` class below is identical to Step 2's, plus three small additions. Two `declare`s expose the methods a plugin-registering consumer needs, `addPlugin` and `getPlugin`. The third addition is the plugin registration call itself.
 
 :::snippet{file="build-3-add-a-plugin" live="false"}
 :::
 
-`player.backend().calls` at the end still shows the transport calls from Step 2 (`['play', 'pause', 'play']`), proving the plugin is additive: it observes the same event stream, it doesn't intercept or replace the backend wiring underneath it.
+At the end, `player.backend().calls` still shows the transport calls from Step 2 (`['play', 'pause', 'play']`). That proves the plugin is additive. It observes the same event stream. It never intercepts or replaces the backend wiring underneath it.
 
 Real players have a declarative shortcut: `setup({ plugins: [PlayCounterPlugin] })`, or `{ plugin: PlayCounterPlugin, opts: {...} }` when it takes options.
 

@@ -7,11 +7,11 @@ description: 'volume(), mute()/unmute()/toggleMute(), volumeUp()/volumeDown(), a
 
 # Volume
 
-Volume is another kit surface `nomercy-video-player` inherits unchanged, there's no video-specific volume behavior, the backend just needs a real `<audio>`/`<video>` gain to move.
+Volume is another kit surface `nomercy-video-player` inherits unchanged. There is no video-specific volume behavior. The backend just needs a real `<audio>`/`<video>` gain to move.
 
 ## Reading and setting the level
 
-`volume()` reads the current level as a number in `[0, 100]`; `volume(level)` sets it, clamped to that range, and returns a `Promise<void>` once the backend applies it:
+`volume()` reads the current level as a number in `[0, 100]`. `volume(level)` sets it, clamped to that range. The setter returns a `Promise<void>` that resolves once the backend applies it:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -22,11 +22,11 @@ const level = player.volume(); // 0-100
 await player.volume(50);
 ```
 
-Set an initial level through `setup({ defaultVolume })`, a number on the same 0-100 scale that defaults to `100`. A player with no `defaultVolume` starts at full gain, so read a saved preference into that config field, or call `volume()` yourself after `ready()` if you'd rather set it later.
+Set an initial level through `setup({ defaultVolume })`, a number on the same 0-100 scale that defaults to `100`. A player with no `defaultVolume` starts at full gain. So read a saved preference into that config field. Or call `volume()` yourself after `ready()` if you would rather set it later.
 
 ## Mute
 
-`mute()` and `unmute()` are absolute; `toggleMute()` flips based on the current state. All three dispatch `beforeMute` first, same cancellable shape as transport, and no-op (never dispatch) when already in the target state:
+`mute()` and `unmute()` are absolute; `toggleMute()` flips based on the current state. All three dispatch `beforeMute` first, the same cancellable shape as transport. When the player is already in the target state, they no-op and never dispatch:
 
 ```ts
 await player.mute();
@@ -34,11 +34,11 @@ await player.unmute();
 player.toggleMute();
 ```
 
-`volumeUp(step?)` and `volumeDown(step?)` nudge the level by `step` (`5` by default), clamped to `[0, 100]` the same as a direct `volume()` call, the pair a keyboard shortcut or remote's volume rocker binds to.
+`volumeUp(step?)` and `volumeDown(step?)` nudge the level by `step` (`5` by default). The result clamps to `[0, 100]`, the same as a direct `volume()` call. This is the pair a keyboard shortcut or a remote's volume rocker binds to.
 
 ## Reading the gain stage
 
-`volumeState()` returns a typed `VolumeState.UNMUTED` or `VolumeState.MUTED`, the value a mute-icon component reads instead of tracking its own boolean, since it stays correct even when something other than that icon (a keyboard shortcut, a Connect sync) changes the mute state:
+`volumeState()` returns a typed `VolumeState.UNMUTED` or `VolumeState.MUTED`. A mute-icon component reads this value instead of tracking its own boolean. The value stays correct even when something else (a keyboard shortcut, a Connect sync) changes the mute state:
 
 ```ts
 import { VolumeState } from '@nomercy-entertainment/nomercy-video-player';
@@ -48,7 +48,14 @@ if (player.volumeState() === VolumeState.MUTED) {
 }
 ```
 
-`volume`, `mute`, and `beforeVolume`/`beforeMute` events carry `{ level }` / `{ muted }` payloads respectively, subscribe to those instead of polling the getters from a render loop.
+Two event pairs carry the payload a listener needs:
+
+| Events | Payload |
+| --- | --- |
+| `volume` / `beforeVolume` | `{ level }` |
+| `mute` / `beforeMute` | `{ muted }` |
+
+Subscribe to those instead of polling the getters from a render loop.
 
 ## See it running
 

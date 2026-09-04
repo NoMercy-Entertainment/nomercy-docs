@@ -7,7 +7,7 @@ description: 'IChapterSource: load(item), current(time), all(), unload(). A stan
 
 # Adapter: Chapter Source
 
-`IChapterSource` is a small contract for chapter lookup. Load once per item, then answer "which chapter is active at this time" synchronously, cheaply enough to call on every scrubber hover.
+`IChapterSource` is a small contract for chapter lookup. Load once per item, then answer "which chapter is active at this time" synchronously. The lookup is cheap enough to call on every scrubber hover.
 
 Unlike [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-video-backend), it is not a `setup()` config field. The player's own `chapters()`, `chapter()` and `seekToChapter()` read `item.chapters` directly and never consult this interface. See [Chapters](/nomercy-video-player/tour/chapters).
 
@@ -57,7 +57,7 @@ const active = source.current(player.time()); // Chapter | null, no async lookup
 
 ## How to extend it
 
-Implement the four methods against a source `normalizePlaylistItem` doesn't already cover, a chapters endpoint separate from the item payload, or any format your server doesn't already ship as the item's `chapters` field:
+Implement the four methods when your chapter data comes from a source `normalizePlaylistItem` does not cover. That means a chapters endpoint separate from the item payload, or a format your server does not ship as the item's `chapters` field:
 
 ```ts
 class ApiChapterSource implements IChapterSource {
@@ -82,7 +82,7 @@ class ApiChapterSource implements IChapterSource {
 }
 ```
 
-Call `load()` yourself from a `'mediaReady'` listener in your own overlay code, there is no automatic hook that invokes it.
+Call `load()` yourself from a `'mediaReady'` listener in your own overlay code. No automatic hook invokes it.
 
 ## Next steps
 

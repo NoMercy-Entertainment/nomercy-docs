@@ -5,7 +5,7 @@ description: 'Compose a minimal player straight from nomercy-player-core: extend
 
 # Core: Quick Start
 
-This is the shortest path to composing a player from the kit: no media backend, no UI, just the same three ingredients `nomercy-video-player` and `nomercy-music-player` are built from. Everything below is real, published code, not pseudocode.
+This is the shortest path to composing a player from the kit. No media backend, no UI. You use the same three ingredients `nomercy-video-player` and `nomercy-music-player` are built from. Everything below is real, published code, not pseudocode.
 
 ## Install
 
@@ -17,16 +17,30 @@ You will not normally install this package directly. `nomercy-video-player` and 
 
 ## Compose a minimal player
 
-Three ingredients, in order: extend `EventEmitter` so `.on()` / `.emit()` work, resolve the three-form constructor (`resolvePlayerConstructor` plus `initPlayerCoreState`) so an id, an index, or `undefined` all do the right thing, then stamp every shared mixin onto the prototype in one `composeMixins` call.
+Three ingredients, in order:
+
+1. Extend `EventEmitter` so `.on()` / `.emit()` work.
+2. Resolve the three-form constructor with `resolvePlayerConstructor` plus `initPlayerCoreState`. An id, an index, or `undefined` then all do the right thing.
+3. Stamp every shared mixin onto the prototype in one `composeMixins` call.
 
 :::snippet{file="minimal-player" live="false"}
 :::
 
-`playerCoreMethods` is not a cut-down subset picked for this example: it's the same aggregate `NMVideoPlayer` and `NMMusicPlayer` compose onto their own prototypes. `MinimalPlayer` is missing exactly one thing they have, a media backend. Everything else (`setup()`, `ready()`, `dispose()`, the phase machine, the queue, volume, i18n, plugin registration, auth) is the identical code running underneath both real players.
+`playerCoreMethods` is not a cut-down subset picked for this example. It is the same aggregate `NMVideoPlayer` and `NMMusicPlayer` compose onto their own prototypes. `MinimalPlayer` is missing exactly one thing they have: a media backend.
+
+Everything else is the identical code running underneath both real players:
+
+- `setup()`, `ready()`, `dispose()`
+- The phase machine
+- The queue
+- Volume
+- i18n
+- Plugin registration
+- Auth
 
 ## Mounting it
 
-The constructor's three-form resolution is what `nmplayer(id)` does in the real libraries: pass a string id and it either returns an existing instance registered under that id, or resolves `document.getElementById(id)` and requires it to be a `<div>`.
+The constructor's three-form resolution is what `nmplayer(id)` does in the real libraries. When an instance is already registered under the string id you pass, the constructor returns that instance. Otherwise it resolves `document.getElementById(id)` and requires the element to be a `<div>`.
 
 ```html
 <div id="player-container"></div>

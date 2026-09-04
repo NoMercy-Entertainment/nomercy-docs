@@ -7,11 +7,11 @@ description: "Build a quality picker from qualityLevels(), the levels event, qua
 
 # Recipe: Manual Quality Selection
 
-[Guided Tour: Quality Levels](/nomercy-video-player/tour/quality) covers the method surface. This recipe wires it into a real menu: populate options once the manifest is parsed, let the user pick one or hand control back to ABR, and keep the menu in sync when ABR itself changes the rendition without the user touching anything.
+[Guided Tour: Quality Levels](/nomercy-video-player/tour/quality) covers the method surface. This recipe wires it into a real menu. Populate the options once the manifest is parsed. Let the user pick a level, or hand control back to ABR. Keep the menu in sync when ABR itself changes the rendition, even when the user never touched it.
 
 ## Populate from the levels event
 
-`qualityLevels()` is empty until the HLS manifest is parsed, `'levels'` is the signal, not `mediaReady`, the list may not exist yet at that point:
+`qualityLevels()` is empty until the HLS manifest is parsed. `'levels'` is the signal, not `mediaReady`. The list may not exist yet at that point:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -29,7 +29,7 @@ renderQualityMenu(player.qualityLevels());
 
 ## Build the option list
 
-Always include an explicit "Auto" option alongside the manifest's renditions, `quality('auto')` is a real, distinct state from any fixed index, not just the absence of a selection:
+Always include an explicit "Auto" option alongside the manifest's renditions. `quality('auto')` is a real, distinct state from any fixed index, not just the absence of a selection:
 
 ```ts
 function renderQualityMenu(levels: QualityLevel[]) {
@@ -48,7 +48,7 @@ function renderQualityMenu(levels: QualityLevel[]) {
 
 ## Wire selection both ways
 
-A click sets the level; `'level-switched'` (not the click handler) is what actually updates the menu's checked state, ABR can change the rendition on its own, and the menu has to reflect that too:
+A click sets the level. But `'level-switched'` (not the click handler) is what actually updates the menu's checked state. ABR can change the rendition on its own, so the menu has to reflect that too:
 
 ```ts
 const menu = document.querySelector<HTMLSelectElement>('#quality-menu')!;

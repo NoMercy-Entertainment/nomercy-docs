@@ -7,7 +7,7 @@ description: 'EmbedPlugin: a cross-origin postMessage bridge between a host page
 
 # Plugin: Embed
 
-`EmbedPlugin` (id `'embed'`) bridges a player running inside an `<iframe>` to the host page via `postMessage`: it forwards player events out (`ready`, `play`, `pause`, and more) and accepts a small transport command set in (`play`, `pause`, `seek`, `volume`, and more).
+`EmbedPlugin` (id `'embed'`) bridges a player running inside an `<iframe>` to the host page via `postMessage`. It forwards player events out (`ready`, `play`, `pause`, and more). It accepts a small transport command set in (`play`, `pause`, `seek`, `volume`, and more).
 
 ## Options
 
@@ -20,9 +20,17 @@ description: 'EmbedPlugin: a cross-origin postMessage bridge between a host page
 ## Rules & restrictions
 
 - Security default is closed, not open: with no `allowedOrigins` configured, zero inbound origins are trusted. You opt in explicitly.
-- Outbound `postMessage` targeting: with exactly one origin in `allowedOrigins`, outbound messages are pinned to it. With multiple origins (or `'*'`), outbound falls back to `'*'`, the plugin's own docs recommend pinning to one origin in production rather than relying on the multi-origin fallback.
-- The host `<iframe>` needs `allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope; web-share; clipboard-write"`, `allowfullscreen`, and `loading="lazy"` for full functionality. The `autoplay` permission specifically is load-bearing, without it the browser's MediaSession integration never activates inside the frame.
-- [Media Session](/nomercy-player-core/plugins-adapters/media-session) already works correctly inside an iframe on its own, this plugin doesn't need to bridge it.
+- For full functionality the host `<iframe>` needs `allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope; web-share; clipboard-write"`, `allowfullscreen`, and `loading="lazy"`. The `autoplay` permission specifically is load-bearing. Without it the browser's MediaSession integration never activates inside the frame.
+- [Media Session](/nomercy-player-core/plugins-adapters/media-session) already works correctly inside an iframe on its own. This plugin does not need to bridge it.
+
+Outbound `postMessage` targeting depends on how many origins you configure:
+
+| `allowedOrigins` | Outbound target |
+|---|---|
+| Exactly one origin | Messages are pinned to that origin. |
+| Multiple origins, or `'*'` | Outbound falls back to `'*'`. |
+
+In production, pin to one origin rather than relying on the multi-origin fallback.
 
 ## How to extend it
 
@@ -39,7 +47,7 @@ player.addPlugin(EmbedPlugin, {
 await player.ready();
 ```
 
-On the host page, listen for `message` events with `event.data.type === 'nm:event'` and post commands shaped like `EmbedCommand` (`{ type: 'nm:command', action: 'play' }`, `{ type: 'nm:command', action: 'seek', time: 30 }`) to the iframe's `contentWindow`.
+On the host page, listen for `message` events with `event.data.type === 'nm:event'`. Post commands shaped like `EmbedCommand` to the iframe's `contentWindow`: `{ type: 'nm:command', action: 'play' }`, or `{ type: 'nm:command', action: 'seek', time: 30 }`.
 
 ## Next steps
 

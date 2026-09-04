@@ -9,7 +9,7 @@ description: 'subtitles(), subtitle(), subtitleStyle(), cycleSubtitles(), defaul
 
 Subtitle *selection* and subtitle *rendering* are two separate concerns.
 
-Most of this page is selection: listing tracks, picking one, styling the text. That is kit surface, `nomercy-player-core`'s `mediaTracksMethods`, reading and writing state. `cycleSubtitles()` and `subtitleState()` are the two video-only additions, called out below.
+Most of this page is selection: listing tracks, picking one, styling the text. Selection is kit surface. It comes from `nomercy-player-core`'s `mediaTracksMethods`, which read and write state. `cycleSubtitles()` and `subtitleState()` are the two video-only additions, called out below.
 
 Painting cue text on screen is a plugin's job. `SubtitleOverlayPlugin` for VTT, `OctopusPlugin` for ASS/SSA with embedded fonts.
 
@@ -19,7 +19,14 @@ Neither renderer is loaded by default. Selecting a track without one changes sta
 
 ## Listing and selecting tracks
 
-`subtitles()` returns the track list for the active item; `subtitle()` reads the current selection as `{ index, track }` or `null` when off. `subtitle(idx)` selects by index, `subtitle(null)` turns subtitles off:
+Four calls cover listing and selecting a track:
+
+| Call | What it does |
+| --- | --- |
+| `subtitles()` | Returns the track list for the active item. |
+| `subtitle()` | Reads the current selection as `{ index, track }`, or `null` when subtitles are off. |
+| `subtitle(idx)` | Selects a track by index. |
+| `subtitle(null)` | Turns subtitles off. |
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -41,7 +48,7 @@ Both are defined on the video player rather than the kit.
 
 ## Auto-selecting a language
 
-`defaultSubtitleLanguage` on `VideoPlayerConfig` auto-selects a track once the manifest resolves, matching an exact BCP-47 tag first, then a prefix (`'en'` matches a track tagged `'en-US'`):
+Once the manifest resolves, `defaultSubtitleLanguage` on `VideoPlayerConfig` auto-selects a track. It matches an exact BCP-47 tag first, then a prefix (`'en'` matches a track tagged `'en-US'`):
 
 ```ts
 player.setup({
@@ -51,17 +58,17 @@ player.setup({
 });
 ```
 
-No match leaves subtitles off, silently, no error and no fallback track forced on.
+When no track matches, subtitles stay off, silently. There is no error, and no fallback track is forced on.
 
 ## Styling
 
-`subtitleStyle()` reads the current `SubtitleStyle`; `subtitleStyle(patch)` merges a partial patch onto it and emits `subtitleStyle` with the merged result, the event `SubtitleOverlayPlugin` listens for to repaint every active cue immediately:
+`subtitleStyle()` reads the current `SubtitleStyle`. `subtitleStyle(patch)` merges a partial patch onto it, then emits `subtitleStyle` with the merged result. `SubtitleOverlayPlugin` listens for that event and repaints every active cue immediately:
 
 ```ts
 player.subtitleStyle({ fontSize: 120, edgeStyle: 'dropShadow' });
 ```
 
-The kit only owns the in-memory value and the event, persisting a user's choice across sessions is your app's job (or a preference plugin's).
+The kit only owns the in-memory value and the event. Persisting a user's choice across sessions is your app's job (or a preference plugin's).
 
 ## See it running
 

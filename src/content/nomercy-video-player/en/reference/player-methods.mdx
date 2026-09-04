@@ -7,7 +7,7 @@ description: 'The IVideoPlayer-specific method surface: video element, geometry,
 
 # Reference: Video Player Methods
 
-`NMVideoPlayer<T>` implements `IVideoPlayer<T>`, which extends the kit's `IPlayer<VideoEventMap<T>>`. Everything on `IPlayer` (`play()`, `pause()`, `time()`, `volume()`, `queue()`, `addPlugin()`, and the rest of transport, queue, volume, and plugin management) is unchanged kit surface, documented method by method across the [Guided Tour](/nomercy-video-player/tour/transport) rather than duplicated here. This page is the delta: everything that exists only because the medium is video.
+`NMVideoPlayer<T>` implements `IVideoPlayer<T>`, which extends the kit's `IPlayer<VideoEventMap<T>>`. Everything on `IPlayer` (`play()`, `pause()`, `time()`, `volume()`, `queue()`, `addPlugin()`, and the rest of transport, queue, volume, and plugin management) is unchanged kit surface. The [Guided Tour](/nomercy-video-player/tour/transport) documents it method by method, so this page does not duplicate it. This page is the delta: everything that exists only because the medium is video.
 
 ## Video element & geometry
 
@@ -49,7 +49,7 @@ description: 'The IVideoPlayer-specific method surface: video element, geometry,
 | `qualityLevels()` / `qualityLevels({ includeUnsupported: true })` | `() => QualityLevel[]` | Populated once `'levels'` fires. |
 | `quality()` / `quality(idx)` | `() => CurrentQualitySelection \| 'auto'`, `(idx: number \| 'auto') => void` | Setting a level also emits `'quality:requested'` immediately, before `'level-switched'` confirms. |
 
-`chapters()`, `chapter()` / `chapter(idx)`, `seekToChapter(idx, opts?)`, `nextChapter(opts?)`, and `previousChapter(opts?)` are shared `IPlayer` surface, not a video addition, `nomercy-music-player` has the same chapter methods for podcast-style chapter markers. They're covered on the [Guided Tour: Chapters](/nomercy-video-player/tour/chapters) rather than repeated here.
+`chapters()`, `chapter()` / `chapter(idx)`, `seekToChapter(idx, opts?)`, `nextChapter(opts?)`, and `previousChapter(opts?)` are shared `IPlayer` surface, not a video addition. `nomercy-music-player` has the same chapter methods, for podcast-style chapter markers. They're covered on the [Guided Tour: Chapters](/nomercy-video-player/tour/chapters) rather than repeated here.
 
 ## Segment / window playback
 
@@ -64,7 +64,29 @@ Generic enough for intro loops, chapter-range playback, or a disc-menu's `skipTo
 
 `IVideoPlayer` re-declares a handful of methods that already belong to the shared player surface, so they read next to the video-specific ones.
 
-They add nothing: `time()`, `duration()`, `playbackRate()`, `togglePlayback()`, `toggleMute()`, `rewind()`, `forward()`, `playState()`, `volumeState()`, `volume()`, `buffered()`, `play()`, `pause()`, `stop()`, `next()`, `previous()`, `item()`, `queueLength()`, `index()`, `queue()`, `playbackRates()`.
+They add nothing:
+
+- `time()`
+- `duration()`
+- `playbackRate()`
+- `togglePlayback()`
+- `toggleMute()`
+- `rewind()`
+- `forward()`
+- `playState()`
+- `volumeState()`
+- `volume()`
+- `buffered()`
+- `play()`
+- `pause()`
+- `stop()`
+- `next()`
+- `previous()`
+- `item()`
+- `queueLength()`
+- `index()`
+- `queue()`
+- `playbackRates()`
 
 All are already required on `IPlayer`, with `item()` coming from the shared `WithCurrentItem` capability. The item-bearing ones re-type their playlist values with the concrete video item type `T`.
 

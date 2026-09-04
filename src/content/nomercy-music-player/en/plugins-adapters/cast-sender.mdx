@@ -7,15 +7,38 @@ description: 'CastSenderPlugin (music): the shared kit Chromecast bridge special
 
 # Plugin: Cast Sender
 
-`CastSenderPlugin` (id `'cast-sender'`) is a thin, two-method specialization of the kit's [`CastSenderPlugin`](/nomercy-player-core/plugins-adapters/cast-sender), which owns everything medium-agnostic: SDK probing, session lifecycle, `RemotePlayer` event mirroring, resume-on-disconnect. This subclass only supplies the two things that differ between video and music: the default MIME type, and how a `MusicPlaylistItem` becomes Cast metadata.
+`CastSenderPlugin` (id `'cast-sender'`) is a thin, two-method specialization of the kit's [`CastSenderPlugin`](/nomercy-player-core/plugins-adapters/cast-sender). The base plugin owns everything medium-agnostic:
+
+- SDK probing
+- session lifecycle
+- `RemotePlayer` event mirroring
+- resume-on-disconnect
+
+This subclass only supplies the two things that differ between video and music: the default MIME type, and how a `MusicPlaylistItem` becomes Cast metadata.
 
 ## Options
 
-Same `CastSenderOptions` the kit plugin defines, `chromecastAppId`, `enableAirPlay`, `customReceiverNamespace`, `resumeLocalOnDisconnect`, `defaultContentType`, `live`, see [Plugin: Cast Sender (core)](/nomercy-player-core/plugins-adapters/cast-sender) for the full table. `defaultContentType` defaults to `'audio/mpeg'` here unless you override it explicitly.
+This plugin uses the same `CastSenderOptions` the kit plugin defines:
+
+- `chromecastAppId`
+- `enableAirPlay`
+- `customReceiverNamespace`
+- `resumeLocalOnDisconnect`
+- `defaultContentType`
+- `live`
+
+See [Plugin: Cast Sender (core)](/nomercy-player-core/plugins-adapters/cast-sender) for the full table. `defaultContentType` defaults to `'audio/mpeg'` here unless you override it explicitly.
 
 ## Events
 
-Same `CastSenderEvents` as the base: `cast:connected`, `cast:disconnected`, `cast:error`, `cast:remote-state`, `cast:media-changed`, `unsupported`.
+This plugin uses the same `CastSenderEvents` as the base:
+
+- `cast:connected`
+- `cast:disconnected`
+- `cast:error`
+- `cast:remote-state`
+- `cast:media-changed`
+- `unsupported`
 
 ## What the music subclass builds
 
@@ -30,12 +53,15 @@ Same `CastSenderEvents` as the base: `cast:connected`, `cast:disconnected`, `cas
 
 ## Translations
 
-Cast Sender's UI strings (connect/disconnect prompts, error copy) are auto-discovered from this plugin's own `./i18n/*.ts` folder via `translationsFromGlob`, on top of the kit base's own translation bundle. Each plugin in the chain ships only its own keys, the kit's plugin registration walks the prototype chain so both bundles end up in the translation table, see [Core: i18n](/nomercy-player-core/tour/i18n).
+Cast Sender's UI strings (connect/disconnect prompts, error copy) are auto-discovered from this plugin's own `./i18n/*.ts` folder via `translationsFromGlob`, on top of the kit base's own translation bundle. Each plugin in the chain ships only its own keys. The kit's plugin registration walks the prototype chain, so both bundles end up in the translation table. See [Core: i18n](/nomercy-player-core/tour/i18n).
 
 ## Rules & restrictions
 
-- All the base plugin's restrictions apply unchanged: Chrome/Chromium Web Sender SDK only, requires `cast.framework` / `chrome.cast.media` already loaded on the page, the player's 0-100 volume level is divided by 100 and clamped at the boundary to match the SDK's native 0-1 `volumeLevel` float.
-- Consumers carrying application-specific fields beyond the canonical `MusicPlaylistItem` (linked artist/album entities instead of plain strings, for instance) should subclass this plugin and override `buildMetadata()` themselves rather than expecting it to read fields it was never typed against.
+- All the base plugin's restrictions apply unchanged:
+  - Chrome/Chromium Web Sender SDK only.
+  - Requires `cast.framework` / `chrome.cast.media` already loaded on the page.
+  - The player's 0-100 volume level is divided by 100 and clamped at the boundary, to match the SDK's native 0-1 `volumeLevel` float.
+- Consumers carrying application-specific fields beyond the canonical `MusicPlaylistItem`, such as linked artist/album entities instead of plain strings, should subclass this plugin. Override `buildMetadata()` yourself rather than expecting it to read fields it was never typed against.
 
 ## How to extend it
 

@@ -133,7 +133,7 @@ function seek(event: MouseEvent) {
 </template>
 ```
 
-`player` is a top-level `<script setup>` ref, so the template above reads it unwrapped (`player?.togglePlayback()`, no `.value`), Vue does that unwrapping automatically for refs returned from a composable and used directly in the template. Inside `<script>` itself (the `seek()` handler), it stays an explicit ref: `player.value?.seekByPercentage(...)`.
+`player` is a top-level `<script setup>` ref, so the template above reads it unwrapped (`player?.togglePlayback()`, no `.value`). Vue does that unwrapping automatically for refs returned from a composable and used directly in the template. Inside `<script>` itself (the `seek()` handler), it stays an explicit ref: `player.value?.seekByPercentage(...)`.
 
 ## Mounting it
 
@@ -287,7 +287,7 @@ export const useVideoPlayerStore = defineStore('videoPlayer', {
 });
 ```
 
-Call `init()` once, after Pinia is installed, and `dispose()` once when the app genuinely tears down the player, not on every component unmount, that would kill playback every time the user navigates away from the view that happened to call `init()` first:
+Call `init()` once, after Pinia is installed. Call `dispose()` once, when the app genuinely tears down the player, not on every component unmount. Disposing on every unmount would kill playback each time the user navigates away from the view that happened to call `init()` first:
 
 ```ts
 // App.vue, once at startup

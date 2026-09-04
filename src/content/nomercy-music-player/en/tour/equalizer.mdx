@@ -7,11 +7,18 @@ description: 'AudioGraphPlugin + EqualizerPlugin: the shared kit Web Audio chain
 
 # Equalizer
 
-An equalizer isn't music-specific code living in this package, it's `nomercy-player-core`'s shared `AudioGraphPlugin` + `EqualizerPlugin` pair, available to any player built on the kit. `nomercy-music-player` just makes them the plugin most listening apps reach for first.
+An equalizer isn't music-specific code living in this package. It's `nomercy-player-core`'s shared `AudioGraphPlugin` + `EqualizerPlugin` pair, available to any player built on the kit. `nomercy-music-player` just makes them the plugin most listening apps reach for first.
 
 ## Registering the chain
 
-`AudioGraphPlugin` owns the Web Audio signal chain, `AudioContext`, the media source node, and `insertEffect()`. `EqualizerPlugin` inserts itself into that chain and requires it to already be registered:
+`AudioGraphPlugin` owns:
+
+- The Web Audio signal chain
+- `AudioContext`
+- The media source node
+- `insertEffect()`
+
+`EqualizerPlugin` inserts itself into that chain and requires it to already be registered:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -35,7 +42,7 @@ player.setup({
 
 Both plugins register *before* `setup()`, so they install as part of the setup pipeline. That is the rule every plugin in the trio follows.
 
-Register either one after `setup()` and its `use()` still runs, inline and fire-and-forget rather than inside that pass. Completion then surfaces through the `plugin:installed` event or `ready()`, not through `setup()` resolving.
+Register either one after `setup()` and its `use()` still runs. It runs inline and fire-and-forget rather than inside that pass. Completion then surfaces through the `plugin:installed` event or `ready()`, not through `setup()` resolving.
 
 `AudioElementBackend`, the default, creates the Web Audio source node the first time `AudioGraphPlugin` asks for it. So registering the equalizer neither forces `WebAudioBackend` nor costs anything on a player that never taps the graph.
 
@@ -48,7 +55,9 @@ eq!.preset('Rock'); // one of 19 built-in presets
 eq!.save(); // persists through the configured storage adapter, if persistKey was set
 ```
 
-`band(freq, gain)` sets one band directly; `preset(name)` applies a named preset in one call. The full options table, event list, and persistence rules live on [Core: Plugin: Equalizer](/nomercy-player-core/plugins-adapters/equalizer), this page only covers what's specific to reaching for it from a music player.
+`band(freq, gain)` sets one band directly. `preset(name)` applies a named preset in one call.
+
+The full options table, event list, and persistence rules live on [Core: Plugin: Equalizer](/nomercy-player-core/plugins-adapters/equalizer). This page only covers what's specific to reaching for it from a music player.
 
 ## See it running
 

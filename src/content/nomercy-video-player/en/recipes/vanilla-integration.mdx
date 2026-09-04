@@ -60,11 +60,11 @@ function createPlayerController(
 }
 ```
 
-One function in, one cleanup function out, no class, no subscription object to manage by hand. This is also the shape [The Shell](/nomercy-video-player/build/shell) and every other Build a Player step already use for wiring a single button, `createPlayerController` is just that pattern generalized to a whole snapshot of state instead of one value.
+One function in, one cleanup function out, no class, no subscription object to manage by hand. This is also the shape [The Shell](/nomercy-video-player/build/shell) and every other Build a Player step already use for wiring a single button. `createPlayerController` is just that pattern generalized to a whole snapshot of state instead of one value.
 
 ## Wiring it to real DOM
 
-`films` is the real `nomercy-media` fixture catalogue (the same three shorts the [Quickstart](/nomercy-video-player/quickstart) and the testbed use). The markup below already has a title, a progress slider, and a play/pause button in it, the same three elements every framework recipe in this section renders, `createPlayerController`'s snapshot just drives them directly instead of through a template:
+`films` is the real `nomercy-media` fixture catalogue (the same three shorts the [Quickstart](/nomercy-video-player/quickstart) and the testbed use). The markup below already has a title, a progress slider, and a play/pause button in it. These are the same three elements every framework recipe in this section renders. `createPlayerController`'s snapshot just drives them directly, instead of through a template:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -131,11 +131,13 @@ button.removeEventListener('click', toggle);
 void player.dispose();
 ```
 
-`destroy()` only removes the listeners `createPlayerController` added, it does not dispose the player itself, the two are separate concerns on purpose. A page that mounts several independent controllers against the same player (a status readout, a queue panel, a volume indicator) can tear any one of them down without touching the others or the player instance they all share.
+`destroy()` only removes the listeners `createPlayerController` added. It does not dispose the player itself. The two are separate concerns on purpose.
+
+A page might mount several independent controllers against the same player: a status readout, a queue panel, a volume indicator. It can tear any one of them down without touching the others, or the player instance they all share.
 
 ## Wrapping it in a Web Component
 
-The same controller works unchanged inside a custom element, connectedCallback / disconnectedCallback are the vanilla-DOM equivalent of a framework's mount/unmount hooks:
+The same controller works unchanged inside a custom element. `connectedCallback` / `disconnectedCallback` are the vanilla-DOM equivalent of a framework's mount/unmount hooks:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';

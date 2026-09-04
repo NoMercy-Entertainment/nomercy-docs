@@ -16,7 +16,7 @@ Today it is a defined contract with **no shipped implementation and no plugin wi
 ## Current status: reserved, not wired
 
 - No default adapter ships. Unlike [Audio Backend](/nomercy-music-player/plugins-adapters/adapter-audio-backend), which always has `AudioElementBackend` behind it, there is no `NoopSimilarityEngine` or equivalent.
-- No plugin in this package calls `findSimilar()`. `AutoAdvancePlugin`'s `SmartShuffleGenerator` does its own local scoring today and does not depend on this interface, see [Plugin: Auto-Advance](/nomercy-music-player/plugins-adapters/auto-advance).
+- No plugin in this package calls `findSimilar()`. `AutoAdvancePlugin`'s `SmartShuffleGenerator` does its own local scoring today and does not depend on this interface. See [Plugin: Auto-Advance](/nomercy-music-player/plugins-adapters/auto-advance).
 - **Not re-exported from either public entry point.** The `./adapters` subpath re-exports the audio-backend module only, and `package.json` declares no `./adapters/similarity-engine` subpath.
 
 - Importing it today means reaching into an internal file path, which is not supported. If you need this shape now, define a matching interface of your own.
@@ -36,7 +36,9 @@ interface SimilarityQueryOptions {
 }
 ```
 
-`findSimilar()` returns results ordered by descending similarity, most similar first. The scale behind `minScore` is deliberately implementation-defined, a tag-based engine and an ML-embedding engine don't score similarity on comparable numbers, callers should treat it as relative within one engine, not as a portable threshold across implementations.
+`findSimilar()` returns results ordered by descending similarity, most similar first.
+
+The scale behind `minScore` is deliberately implementation-defined. A tag-based engine and an ML-embedding engine don't score similarity on comparable numbers. Treat the score as relative within one engine, not as a portable threshold across implementations.
 
 ## Where a real implementation would plug in
 

@@ -34,11 +34,13 @@ interface ThumbnailFrame {
 }
 ```
 
-`x`/`y`/`w`/`h` are all zero for a source that packs one standalone image per cue instead of a sprite sheet, `ThumbnailFrame` covers both shapes with the same fields.
+`x`/`y`/`w`/`h` are all zero for a source that packs one standalone image per cue instead of a sprite sheet. `ThumbnailFrame` covers both shapes with the same fields.
 
 ## The shipped implementation
 
-`VttSpriteThumbnailSource` reads `item.previewSpriteUrl`, fetches a WebVTT sprite manifest (cue body format `sprite.webp#xywh=x,y,w,h`, the format NoMercy's media-server sprite generator produces, and compatible with ffmpeg tileify output and the common web-player sprite convention), and preloads the sprite image so `lookup()` stays synchronous once loaded:
+`VttSpriteThumbnailSource` reads `item.previewSpriteUrl` and fetches a WebVTT sprite manifest. It then preloads the sprite image, so `lookup()` stays synchronous once loaded.
+
+The cue body format is `sprite.webp#xywh=x,y,w,h`. That is the format NoMercy's media-server sprite generator produces. It is also compatible with ffmpeg tileify output and the common web-player sprite convention:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -55,7 +57,7 @@ if (available) {
 ## Rules & restrictions
 
 - `load()` resolves `false` rather than rejecting when the item has no `previewSpriteUrl`. That means "no preview available", not an error.
-- `lookup()` must stay synchronous in any implementation, it runs on every pointer-move across the scrubber.
+- `lookup()` must stay synchronous in any implementation. It runs on every pointer-move across the scrubber.
 - The default implementation caches one item's sprite set at a time, so call `load()` again on every item change. There is no per-item eviction to configure.
 
 ## How to extend it
@@ -81,7 +83,7 @@ class ApiThumbnailSource implements IThumbnailSource {
 }
 ```
 
-Wire `load()` from a `'mediaReady'` listener and `lookup()` from your scrubber's pointer-move handler in your own overlay code, same as [Adapter: Chapter Source](/nomercy-video-player/plugins-adapters/adapter-chapter-source), there is no automatic hook.
+Wire `load()` from a `'mediaReady'` listener. Wire `lookup()` from your scrubber's pointer-move handler in your own overlay code. Same as [Adapter: Chapter Source](/nomercy-video-player/plugins-adapters/adapter-chapter-source), there is no automatic hook.
 
 ## Next steps
 

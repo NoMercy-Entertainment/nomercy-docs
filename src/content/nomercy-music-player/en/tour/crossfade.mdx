@@ -7,7 +7,7 @@ description: 'crossfadeTo(item, opts), isTransitioning(), and the crossfadeEnabl
 
 # Crossfade
 
-Moving from one track to the next without a gap, or with a real overlap instead of a hard cut, is the one job that's genuinely specific to listening. `crossfadeTo(item, opts)` is `nomercy-music-player`'s own method, not something inherited from the kit.
+Moving between tracks without a gap, or with a real overlap instead of a hard cut, is the one job that is genuinely specific to listening. `crossfadeTo(item, opts)` is `nomercy-music-player`'s own method. The kit does not provide it.
 
 ## crossfadeTo()
 
@@ -24,13 +24,27 @@ if (upNext) {
 }
 ```
 
-Internally it loads the target into a second audio element, or a second Web Audio node graph on `WebAudioBackend`, primes it, ramps both gains over the window, then swaps it in as primary and advances the queue cursor. That fires the same `item` event a normal `next()` does.
+Internally, `crossfadeTo()` runs a sequence of steps:
+
+- Loads the target into a second audio element (on `WebAudioBackend`, a second Web Audio node graph).
+- Primes the target.
+- Ramps both gains over the window.
+- Swaps the target in as primary and advances the queue cursor.
+
+That advance fires the same `item` event a normal `next()` does.
 
 `isTransitioning()` reports `true` while a fade is in flight. A second `crossfadeTo()` during that window is ignored rather than stacked.
 
 `opts.duration` falls back to `crossfadeDefaults.duration` on the config, then to 5 seconds.
 
-`opts.curve` is `'linear'` or `'equal-power'`. Linear is the default for a manual `crossfadeTo()`; equal-power is perceptually smoother, with no volume dip at the midpoint. It resolves per call first, then from `crossfadeDefaults.curve`.
+`opts.curve` picks between two values:
+
+| Curve | Behavior |
+| --- | --- |
+| `'linear'` | The default for a manual `crossfadeTo()`. |
+| `'equal-power'` | Perceptually smoother, with no volume dip at the midpoint. |
+
+It resolves per call first, then from `crossfadeDefaults.curve`.
 
 The automatic track-boundary fade, run by `CrossfadeTransitionStrategy`, uses equal-power on its own.
 
@@ -47,11 +61,11 @@ player.on('crossfadeComplete', ({ item }) => { /* ... */ });
 player.on('crossfadePrevented', ({ reason }) => { /* ... */ });
 ```
 
-`beforeCrossfade` is cancellable the same way every other `before*` event is, a listener can `preventDefault()` and no buffers are touched, `from` keeps playing, `crossfadePrevented` fires instead of `crossfadeStart`.
+`beforeCrossfade` is cancellable the same way every other `before*` event is. When a listener calls `preventDefault()`, no buffers are touched and `from` keeps playing. `crossfadePrevented` fires instead of `crossfadeStart`.
 
 ## Automatic crossfade between queue items
 
-Manually calling `crossfadeTo()` is one use of crossfade. The other is automatic: `setup()` defaults `crossfadeEnabled: true` for music, so the queue's own natural track-boundary transition already overlaps instead of cutting. `crossfadeLeadSeconds` / `crossfadeTailSeconds` (both default `3`) control that window:
+Manually calling `crossfadeTo()` is one use of crossfade. The other is automatic. `setup()` defaults `crossfadeEnabled: true` for music, so the queue's own track-boundary transition already overlaps instead of cutting. `crossfadeLeadSeconds` and `crossfadeTailSeconds` (both default `3`) control that window:
 
 ```ts
 player.setup({
@@ -63,11 +77,18 @@ player.setup({
 });
 ```
 
-That automatic behavior is `CrossfadeTransitionStrategy`, a medium-neutral kit primitive, not something this page reimplements. See [Adapter: Transition Strategy](/nomercy-player-core/plugins-adapters/adapter-transition-strategy) for the full mechanism, `crossfadeTo()` above is the explicit, on-demand version of the same idea.
+That automatic behavior is `CrossfadeTransitionStrategy`, a medium-neutral kit primitive. This page does not reimplement it. See [Adapter: Transition Strategy](/nomercy-player-core/plugins-adapters/adapter-transition-strategy) for the full mechanism. `crossfadeTo()` above is the explicit, on-demand version of the same idea.
 
 ## Backend precision
 
-`AudioElementBackend` (the default) drives the fade with a `requestAnimationFrame` loop, not sample-accurate, expect sub-frame-length seams at track boundaries. `WebAudioBackend` routes through a real `AudioContext` graph for a sample-accurate ramp instead:
+The two backends drive the fade differently:
+
+| Backend | How it drives the fade |
+| --- | --- |
+| `AudioElementBackend` (default) | Uses a `requestAnimationFrame` loop. Not sample-accurate, so expect sub-frame-length seams at track boundaries. |
+| `WebAudioBackend` | Routes through a real `AudioContext` graph for a sample-accurate ramp. |
+
+Switch to it with:
 
 ```ts
 await player.backend('webaudio');

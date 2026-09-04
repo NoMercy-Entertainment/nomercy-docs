@@ -7,11 +7,15 @@ description: "Step 3 of 5: the native bar's volume slider and mute button, and t
 
 # Build a Player: Volume
 
-[Step 2](/nomercy-music-player/build/scrubber) covered seeking. Same pattern here, the native bar already has a volume slider and a mute toggle, so the config is unchanged again. This is the last of the three "nothing to build" steps before [The Track List](/nomercy-music-player/build/track-list) adds something real.
+[Step 2](/nomercy-music-player/build/scrubber) covered seeking. The same pattern applies here: the native bar already has a volume slider and a mute toggle, so the config stays unchanged. This is the last of the three "nothing to build" steps before [The Track List](/nomercy-music-player/build/track-list) adds something real.
 
 ## What's already wired
 
-The native slider applies live on every drag through `volume(level)`, 0-100, clamped, no cost to spamming it the way seeking has. The mute button reflects `volumeState()` (see [Volume](/nomercy-music-player/tour/volume)) and resyncs on the `'mute'` event rather than tracking a local boolean, so it can't drift when something else changes mute state, a keyboard shortcut, a Connect sync, another tab:
+The native slider applies live on every drag through `volume(level)`. The value is 0-100 and clamped. Spamming it costs nothing, unlike seeking.
+
+The mute button reflects `volumeState()` (see [Volume](/nomercy-music-player/tour/volume)). It resyncs on the `'mute'` event instead of tracking a local boolean.
+
+That keeps it honest when something else changes the mute state: a keyboard shortcut, a Connect sync, or another tab.
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -25,7 +29,7 @@ player.on('mute', () => {
 });
 ```
 
-A click only ever *requests* a change, `toggleMute()`, the `'mute'` event is what confirms it and is the only thing a custom UI should render from.
+A click only ever *requests* a change, through `toggleMute()`. The `'mute'` event is what confirms it, and it's the only thing a custom UI should render from.
 
 ## See it running
 

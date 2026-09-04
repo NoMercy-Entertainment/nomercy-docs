@@ -47,8 +47,7 @@ Neither creates anything, so there is nothing to release. A disposed or removed 
 
 ## `static requires`
 
-{/* partial */}
-```ts
+```txt
 static readonly requires?: ReadonlyArray<RequireSpec>;
 ```
 
@@ -63,7 +62,15 @@ static override readonly requires = [
 ];
 ```
 
-A missing required dependency throws `core:plugin/missing-dep`; a missing optional one logs and the plugin runs anyway. `minVersion` compares semver, pre-release tags included, and throws `core:plugin/version-mismatch` when the registered version is older. The check looks across registered and queued plugins, so pre-setup call order between `addPlugin` calls satisfies it as long as the dependency was added first.
+Each dependency state has its own outcome:
+
+| Dependency state | Result |
+| --- | --- |
+| Missing required dependency | Throws `core:plugin/missing-dep`. |
+| Missing optional dependency | Logs a warning. The plugin runs anyway. |
+| Registered version older than `minVersion` | Throws `core:plugin/version-mismatch`. The comparison is semver, pre-release tags included. |
+
+The check looks across registered and queued plugins. Pre-setup call order between `addPlugin` calls satisfies it as long as the dependency was added first.
 
 Removal walks the same graph in reverse: `removePlugin` cascades through dependents by default, or throws `core:plugin/has-dependents` with `{ cascade: false }`.
 
@@ -71,8 +78,7 @@ Skipping `requires` and grabbing a peer with `getPluginById` anyway means no loa
 
 ## `static replaces`
 
-{/* partial */}
-```ts
+```txt
 static readonly replaces?: string;
 ```
 
@@ -80,8 +86,7 @@ Opt-in same-id or same-role swap. When the named plugin is registered, it is dis
 
 ## `static priority`
 
-{/* partial */}
-```ts
+```txt
 static readonly priority: number = 0;
 ```
 
@@ -89,8 +94,7 @@ Orders `enabledPlugins()`: higher values sort first, ties keep registration orde
 
 ## `static minCoreVersion`
 
-{/* partial */}
-```ts
+```txt
 static readonly minCoreVersion?: string;
 ```
 
@@ -102,18 +106,21 @@ The kit compares its own build version against this semver at `addPlugin()` time
 
 ## `derive()`, `clone()`, `export()`
 
-{/* partial */}
-```ts
+```txt
 static derive<C extends typeof Plugin<any, any, any>>(this: C, opts: Partial<InstanceType<C>['opts']>, newId?: string): C;
 clone(): typeof Plugin;
 export(): O;
 ```
 
-`derive()` produces a new plugin class with options pre-baked; consumer opts at registration still win a shallow merge. Pass `newId` to register the preset beside the original instead of replacing it.
+Each does a different job:
 
-`export()` returns a deep-cloned JSON snapshot of the current options. Override it when runtime state beyond `opts` should round-trip.
+| Call | What it does |
+| --- | --- |
+| `derive()` | Produces a new plugin class with options pre-baked. Consumer opts at registration still win a shallow merge. Pass `newId` to register the preset beside the original instead of replacing it. |
+| `export()` | Returns a deep-cloned JSON snapshot of the current options. Override it when runtime state beyond `opts` should round-trip. |
+| `clone()` | Combines the two: captures `export()` from a live instance and derives a class with that snapshot baked in. |
 
-`clone()` combines the two: it captures `export()` from a live instance and derives a class with that snapshot baked in, so overriding `export()` automatically enriches clones.
+Overriding `export()` automatically enriches what `clone()` produces.
 
 ## Worked example
 

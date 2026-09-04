@@ -19,7 +19,16 @@ Every failure the kit or a plugin raises is a `PlayerError`, never a bare thrown
 - an optional `cause` and `context`
 - a user-facing `suggestion`
 
-Subclasses narrow the category: `AuthError` (extends `NetworkError`, thrown on 401 and 403), `DrmError`, `MediaFormatError`, `NetworkError`, `ResourceError`, `StateError` for the wrong lifecycle phase, `StreamError`, `PluginError`.
+Subclasses narrow the category:
+
+- `AuthError`: extends `NetworkError`, thrown on 401 and 403
+- `DrmError`
+- `MediaFormatError`
+- `NetworkError`
+- `ResourceError`
+- `StateError`: the wrong lifecycle phase
+- `StreamError`
+- `PluginError`
 
 `BrowserPolicyError` is the odd one: a restriction the browser enforces, such as a blocked autoplay policy, or an API it does not support like RemotePlayback or the audio-output picker.
 
@@ -29,7 +38,16 @@ Construct one with a factory rather than the raw constructor where the kit provi
 
 ## Severity tiers and the error event
 
-Four severities map to four event channels: `fatal` (unrecoverable, the player is shutting down), `error` (recoverable, e.g. a sidecar failed to load), `warning` and `info` (observability only). Every one delivers a `PlayerErrorEvent`: the underlying `error`, its `severity` and `scope`, and DOM-style propagation control (`markHandled()`, `stopImmediatePropagation()`, `preventDefault()` to suppress a kit-side default action like auto-retry).
+Each severity maps to an event channel of the same name:
+
+| Severity | Meaning |
+| --- | --- |
+| `fatal` | Unrecoverable. The player is shutting down. |
+| `error` | Recoverable, for example a sidecar failed to load. |
+| `warning` | Observability only. |
+| `info` | Observability only. |
+
+Every one delivers a `PlayerErrorEvent`: the underlying `error`, its `severity` and `scope`, and DOM-style propagation control. That control is three methods: `markHandled()`, `stopImmediatePropagation()`, and `preventDefault()` to suppress a kit-side default action like auto-retry.
 
 ## Retry policy
 

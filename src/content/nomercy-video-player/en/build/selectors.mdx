@@ -11,7 +11,7 @@ The three selector menus, subtitles, audio tracks and quality, are the speed men
 
 Same shape each time: a button, a dropdown, one option per track, act with a method, react to an event.
 
-Repeating a shape three times is the signal to generalise it. So this step does both: `toggleMenu()` grows into a registry that scales to any number of menus, and the panel and option construction move into helpers the three share.
+Repeating a shape three times is the signal to generalize it. So this step does both: `toggleMenu()` grows into a registry that scales to any number of menus, and the panel and option construction move into helpers the three share.
 
 Four fields, three calls:
 
@@ -146,7 +146,16 @@ private markActiveOption(menu: HTMLDivElement | null, activeIndex: number): void
 
 ## Subtitles
 
-`subtitles()` lists the item's subtitle tracks, each with the `label` the menu shows. `subtitle(idx)` selects one, `subtitle(null)` turns them off, and the `subtitle` event reports every change, including ones made by other plugins or a keyboard shortcut. The menu prepends an "Off" entry, so every menu index is the track index plus one:
+Four pieces of API drive this menu:
+
+| Call or event | What it does |
+| --- | --- |
+| `subtitles()` | Lists the item's subtitle tracks, each with the `label` the menu shows. |
+| `subtitle(idx)` | Selects one track. |
+| `subtitle(null)` | Turns subtitles off. |
+| `subtitle` event | Reports every change, including ones made by other plugins or a keyboard shortcut. |
+
+The menu prepends an "Off" entry, so every menu index is the track index plus one:
 
 {/* partial */}
 
@@ -185,7 +194,7 @@ private createSubtitleButton(): void {
 }
 ```
 
-`subtitle()` with no argument returns the current selection as `{ index, track }` or `null` when subtitles are off, which is exactly the `-1 + 1 = 0` ("Off" highlighted) case.
+`subtitle()` with no argument returns the current selection as `{ index, track }`, or `null` when subtitles are off. `null` is exactly the `-1 + 1 = 0` case, which highlights "Off".
 
 ## Audio tracks
 
@@ -230,7 +239,20 @@ private createAudioButton(): void {
 
 ## Quality
 
-`qualityLevels()` lists the renditions the manifest offers, each with a ready-made `label`. `quality('auto')` hands selection back to adaptive bitrate, `quality(idx)` pins a level. Two events matter: `quality:requested` fires when someone picks, `level-switched` fires when the stream actually changes level, which in auto mode happens without any pick:
+Three calls drive the menu:
+
+| Call | What it does |
+| --- | --- |
+| `qualityLevels()` | Lists the renditions the manifest offers, each with a ready-made `label`. |
+| `quality('auto')` | Hands selection back to adaptive bitrate. |
+| `quality(idx)` | Pins a level. |
+
+Two events matter, and in auto mode the second can fire without a pick:
+
+| Event | Fires when |
+| --- | --- |
+| `quality:requested` | Someone picks a level. |
+| `level-switched` | The stream actually changes level. |
 
 {/* partial */}
 

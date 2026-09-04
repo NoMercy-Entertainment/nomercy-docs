@@ -84,7 +84,7 @@ That shape is correct however the caller renders the container: always-present m
 
 ## Using it in a component
 
-`MusicPlayer.vue` below takes `baseUrl` and `playlist` as props instead of owning them, the same two values `useMusicPlayer`'s `config` already needs, just threaded one level up so whoever mounts the component supplies the real catalogue:
+`MusicPlayer.vue` below takes `baseUrl` and `playlist` as props instead of owning them. These are the same two values `useMusicPlayer`'s `config` already needs, just threaded one level up so whoever mounts the component supplies the real catalogue:
 
 ```vue
 <!-- MusicPlayer.vue -->
@@ -131,11 +131,13 @@ function seek(event: MouseEvent) {
 </template>
 ```
 
-`player` is a top-level `<script setup>` ref, so the template above reads it unwrapped (`player?.togglePlayback()`, no `.value`), Vue does that unwrapping automatically for refs returned from a composable and used directly in the template. Inside `<script>` itself (the `seek()` handler), it stays an explicit ref: `player.value?.seekByPercentage(...)`.
+`player` is a top-level `<script setup>` ref, so the template above reads it unwrapped: `player?.togglePlayback()`, no `.value`. Vue does that unwrapping automatically for refs returned from a composable and used directly in the template.
+
+Inside `<script>` itself, in the `seek()` handler, `player` stays an explicit ref: `player.value?.seekByPercentage(...)`.
 
 ## Mounting it
 
-`songs` is the real `nomercy-media` fixture catalogue (the same Ketsa/bent wyre tracks the [Quickstart](/nomercy-music-player/quickstart) and the testbed use), passed down as a prop, not hardcoded inside the component above:
+`songs` is the real `nomercy-media` fixture catalogue, the same Ketsa/bent wyre tracks the [Quickstart](/nomercy-music-player/quickstart) and the testbed use. It is passed down as a prop, not hardcoded inside the component above:
 
 ```vue
 <!-- App.vue -->
@@ -181,11 +183,17 @@ const songs = [
 
 ## Providing the player globally
 
-When several components need the same instance, a mini-player, a queue sidebar, a lyrics panel, provide it once at the root instead of re-deriving state in each.
+Several components can need the same player instance, for example:
+
+- A mini-player
+- A queue sidebar
+- A lyrics panel
+
+When that happens, provide the instance once at the root instead of re-deriving state in each component.
 
 Unlike the composable above, this is safe at `main.ts`'s top level rather than inside `onMounted`.
 
-`#global-player` is a static element in `index.html`, a sibling of `#app` that Vue never renders, so it exists in the DOM before this module runs:
+`#global-player` is a static element in `index.html`, a sibling of `#app` that Vue never renders. It exists in the DOM before this module runs:
 
 ```ts
 // main.ts
@@ -304,7 +312,14 @@ export const useMusicPlayerStore = defineStore('musicPlayer', {
 });
 ```
 
-Call `init()` once, after Pinia is installed, and `dispose()` once when the app genuinely tears down the player, not on every component unmount, that would kill playback every time the user navigates away from the view that happened to call `init()` first:
+Each store method has its own moment to run:
+
+| Method | Call it |
+| --- | --- |
+| `init()` | Once, after Pinia is installed. |
+| `dispose()` | Once, when the app genuinely tears down the player. |
+
+Do not call `dispose()` on every component unmount. That would kill playback every time the user navigates away from the view that happened to call `init()` first:
 
 ```ts
 // App.vue, once at startup

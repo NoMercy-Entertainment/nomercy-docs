@@ -15,7 +15,11 @@ It holds the lifecycle machine, the plugin runtime, the queue, the event bus, i1
 
 ## Who it's for
 
-Building a player for something the trio does not cover: a podcast player, a live radio player, a custom streaming protocol.
+Building a player for something the trio does not cover:
+
+- A podcast player.
+- A live radio player.
+- A custom streaming protocol.
 
 You get the lifecycle, queue, plugin and auth machinery already written and already tested, instead of writing it a third time.
 
@@ -25,7 +29,15 @@ If you want to play video or music for end users, use [`nomercy-video-player`](/
 
 Video and music playback differ in one place: how a frame is decoded, and how a UI reacts to it.
 
-Everything else is the same. Queueing the next track, tracking phase, running plugins, resolving auth headers, switching language. A movie and a song need identical machinery.
+Everything else is the same:
+
+- Queueing the next track.
+- Tracking phase.
+- Running plugins.
+- Resolving auth headers.
+- Switching language.
+
+A movie and a song need identical machinery.
 
 So it lives once. Both players compose it rather than reimplementing it, and a fix here reaches both in the same release.
 
@@ -41,22 +53,33 @@ config snapshot
   -> ready()
 ```
 
-Calling `setup()` twice, or calling it after `dispose()`, throws. There is one way in, and a half-configured instance is not one of them.
+Calling `setup()` twice, or calling it after `dispose()`, throws. There is one way in. A half-configured instance is not it.
 
 Above that, nothing is prescribed. The kit ships no UI, no DOM beyond a container, and no opinion about what your play button looks like.
 
-Every behaviour outside the lifecycle is a named interface with a working default, and any of them can be replaced: `IStorage`, `IPlatform`, `IStreamSource`, `IUrlResolver`, `ITranslator`, `ICueParser`, `IPreloadStrategy`, `ITransitionStrategy`, `IShuffleStrategy`, `RealtimeFactory`.
+Every behavior outside the lifecycle is a named interface with a working default. Any of them can be replaced:
 
-Plugins extend behaviour without forking anything. Through the cancellable `before*` pipeline a plugin can veto, delay or rewrite a mutation before it lands.
+- `IStorage`
+- `IPlatform`
+- `IStreamSource`
+- `IUrlResolver`
+- `ITranslator`
+- `ICueParser`
+- `IPreloadStrategy`
+- `ITransitionStrategy`
+- `IShuffleStrategy`
+- `RealtimeFactory`
+
+Plugins extend behavior without forking anything. Through the cancellable `before*` pipeline a plugin can veto, delay or rewrite a mutation before it lands.
 
 ## What you get
 
 - **Lifecycle**: `setup()` / `ready()` / `dispose()` and a phase machine (`idle` → `setup` → `ready` → `playing`/`paused` → `disposed`) that every mixin and plugin can trust.
 - **Shared playback primitives**: transport, time, volume, queue, and backlog methods, composed once and reused by both real players instead of hand-copied.
 - **Plugin runtime**: a `Plugin` base class, typed registration, and a cancellable `before*` dispatch pipeline (`preventDefault()`, `delay(promise)`) for behavior that shouldn't require forking the player.
-- **Adapter ports**: swappable interfaces for the media backend, stream source, storage, event bus, cue parsing, translation, platform capabilities (wake lock, network, visibility, fullscreen, pip), realtime channel, preload strategy, transition strategy, and shuffle strategy, each with a working default.
+- **Adapter ports**: swappable interfaces, each with a working default. They cover the media backend, stream source, storage, event bus, cue parsing, translation, platform capabilities (wake lock, network, visibility, fullscreen, pip), the realtime channel, and the preload, transition, and shuffle strategies.
 - **Auth-aware fetch**: one `authFetch` pipeline (401 refresh-and-retry, 403 propagates, never conflated) used by every kit-internal request and available to plugins via `Plugin.fetch`.
-- **i18n engine**: a translator with the kit's own `core.*` strings built in (English eager, every other kit locale loaded lazily on demand), consumer async-loadable bundles, and a title-token interpolation system for per-library tokens like season/episode.
+- **i18n engine**: a translator with the kit's own `core.*` strings built in. English loads eagerly, every other kit locale loads lazily on demand. Consumers add their own async-loadable bundles, plus title-token interpolation for per-library tokens like season/episode.
 - **Cue parsing**: built-in VTT, sprite-VTT, and LRC parsers behind a registry you can add your own formats to.
 - **Typed errors**: a `PlayerError` hierarchy (`AuthError`, `DrmError`, `MediaFormatError`, `NetworkError`, `StateError`, `StreamError`, ...) with severity, scope, and a retry policy, instead of raw thrown strings.
 - **Composition primitives**: `composeMixins`, `resolvePlayerConstructor`, and `initPlayerCoreState`, the exact three functions `NMVideoPlayer` and `NMMusicPlayer` use to become players. [Quickstart](/nomercy-player-core/quickstart) shows them composing a real, minimal one.

@@ -33,7 +33,20 @@ Sometimes the raw form is genuinely right: a public URL that must not carry auth
 
 ## Declaring the contract
 
-Static fields describe the plugin to the registration pipeline: `id` (required), `description`, `version`, `minCoreVersion` (checked against the running kit build), `requires` (class refs, optionally `{ plugin, optional, minVersion }`), `replaces` (opt-in same-id swap), `priority` (plugin ordering via `enabledPlugins()`), and `translations` (auto-merged on `use()`, auto-removed on dispose). A missing required dependency throws `core:plugin/missing-dep` at registration; an unmet `minVersion` throws `core:plugin/version-mismatch`.
+Static fields describe the plugin to the registration pipeline:
+
+| Field | What it does |
+| --- | --- |
+| `id` | Required. |
+| `description` | One human-readable line. |
+| `version` | A semver string. |
+| `minCoreVersion` | Checked against the running kit build. |
+| `requires` | Class refs, optionally `{ plugin, optional, minVersion }`. |
+| `replaces` | Opt-in same-id swap. |
+| `priority` | Plugin ordering via `enabledPlugins()`. |
+| `translations` | Auto-merged on `use()`, auto-removed on dispose. |
+
+A missing required dependency throws `core:plugin/missing-dep` at registration. An unmet `minVersion` throws `core:plugin/version-mismatch`.
 
 Override `use()` to wire up (it can return a `Promise`, awaited by the player before `ready` fires, bounded by `pluginInitTimeoutMs`). Override `dispose()` only for resources the lifecycle helpers above don't already track.
 

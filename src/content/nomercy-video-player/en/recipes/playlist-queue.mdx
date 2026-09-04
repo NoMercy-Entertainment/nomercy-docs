@@ -7,11 +7,24 @@ description: 'Render queue() as an "up next" list that reacts to item and queue 
 
 # Recipe: Playlist & Queue Panel
 
-[Guided Tour: The Queue & Playlist](/nomercy-video-player/tour/queue) covers the method surface. This recipe is the UI on top of it, a real "up next" panel: list the queue, highlight the active item, let the user jump to any entry, and keep the list live as the queue itself changes underneath it.
+[Guided Tour: The Queue & Playlist](/nomercy-video-player/tour/queue) covers the method surface. This recipe is the UI on top of it, a real "up next" panel that does four things:
+
+- Lists the queue.
+- Highlights the active item.
+- Lets the user jump to any entry.
+- Keeps the list live as the queue itself changes underneath it.
 
 ## Render on events, not polling
 
-`'item'` fires when the cursor moves. `'queue'` fires on every queue change: a full replace (`player.queue(items)`), and every append, remove, and reorder. Each mutation also fires its own typed event alongside `'queue'`: `queue:append`, `queue:remove`, `queue:move`. A panel that re-renders on these never drifts from the real state, and never needs a poll loop:
+Each queue-related event fires at a specific moment:
+
+| Event | When it fires |
+| --- | --- |
+| `'item'` | The cursor moves. |
+| `'queue'` | Any queue change: a full replace (`player.queue(items)`), or an append, remove, or reorder. |
+| `'queue:append'`, `'queue:remove'`, `'queue:move'` | Each mutation also fires its own typed event, alongside `'queue'`. |
+
+A panel that re-renders on these never drifts from the real state, and never needs a poll loop:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -51,7 +64,7 @@ player.queue().forEach((item) => {
 
 ## Mutating the queue from the panel
 
-Every mutation method fires its own typed event as well as the shared `'queue'` event, the listeners added above already cover them, so a panel wired the way the last section shows updates itself, no extra listener needed:
+Every mutation method fires its own typed event as well as the shared `'queue'` event. The listeners added above already cover them. So a panel wired the way the last section shows updates itself, no extra listener needed:
 
 ```ts
 import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
@@ -76,7 +89,7 @@ Removing the item before the cursor decrements the cursor automatically, so the 
 
 ## Drag-to-reorder
 
-`queueMove(from, to)` takes the two indexes directly, plug it into whatever drag library the panel uses without translating the drop event yourself:
+`queueMove(from, to)` takes the two indexes directly. Plug it into whatever drag library the panel uses, without translating the drop event yourself:
 
 ```ts
 function onDrop(fromIndex: number, toIndex: number) {

@@ -7,7 +7,7 @@ description: 'IPlatform: wake lock, network, visibility, capabilities, and video
 
 # Adapter: Platform
 
-`IPlatform` bundles every primitive the kit would otherwise hardcode against a browser API, so a native-shell consumer (Capacitor, Tauri, Electron) injects native equivalents in one swap instead of patching five call sites.
+`IPlatform` bundles every primitive the kit would otherwise hardcode against a browser API. A native-shell consumer (Capacitor, Tauri, Electron) injects native equivalents in one swap instead of patching five call sites.
 
 ## The interface
 
@@ -22,13 +22,13 @@ description: 'IPlatform: wake lock, network, visibility, capabilities, and video
 
 ## Rules & restrictions
 
-- `fullscreen` and `pip` are video-only fields. The audio player never touches them; the video player throws a descriptive `BrowserPolicyError` if either is invoked when the field wasn't supplied.
-- `IWakeLock.acquire()` throws `BrowserPolicyError('core:policy/wakeLockUnsupported')` when the Screen Wake Lock API is unavailable, check `isSupported()` first if you need to gate the feature instead of catching.
-- `downlinkMbps()` and `rttMs()` return `undefined` on browsers without the Network Information API (Firefox, Safari as of this writing), not a fabricated number.
+- `fullscreen` and `pip` are video-only fields. The audio player never touches them. When either is invoked without the field supplied, the video player throws a descriptive `BrowserPolicyError`.
+- When the Screen Wake Lock API is unavailable, `IWakeLock.acquire()` throws `BrowserPolicyError('core:policy/wakeLockUnsupported')`. To gate the feature instead of catching, check `isSupported()` first.
+- On browsers without the Network Information API (Firefox, Safari as of this writing), `downlinkMbps()` and `rttMs()` return `undefined`. They never fabricate a number.
 
 ## How to extend it
 
-Partial overrides compose cleanly, spread the default and replace only the controller you need:
+Partial overrides compose cleanly. Spread the default and replace only the controller you need:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically

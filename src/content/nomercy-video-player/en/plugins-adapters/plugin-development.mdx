@@ -117,13 +117,12 @@ Two quality facts trip up every hand-rolled quality menu:
 
 Runtime subtitle injection is a first-class surface:
 
-{/* partial */}
-```ts
+```txt
 addSubtitleTrack(track: SidecarSubtitleInput, opts?: ActionOptions): KitSubtitleTrack;
 removeSubtitleTrack(id: string, opts?: ActionOptions): void;
 ```
 
-`addSubtitleTrack()` injects a sidecar track into the currently playing item with no reload, is idempotent by `url` plus normalized `language`, and selects the track immediately when you pass `default: true`. Both methods fire the `subtitles` event, which is your cue to recheck any content-gated UI.
+`addSubtitleTrack()` injects a sidecar track into the currently playing item with no reload. It is idempotent by `url` plus normalized `language`, and selects the track immediately when you pass `default: true`. Both methods fire the `subtitles` event, which is your cue to recheck any content-gated UI.
 
 ## Chapters
 
@@ -142,8 +141,7 @@ For previous/next navigation, `DesktopUiPlugin` uses a one-second tolerance. "Pr
 
 Fullscreen, PiP, and theater are accessor pairs plus toggles plus events:
 
-{/* partial */}
-```ts
+```txt
 fullscreen(): FullscreenState; // toggleFullscreen(), 'fullscreen' event with { active }
 pip(): PipState;               // togglePip(), 'pip' event
 theater(): TheaterState;       // toggleTheater(), 'theater' event
@@ -177,7 +175,7 @@ So your own mount coexists with the desktop UI by picking a layer:
 
 ## Who owns activity
 
-The player has built-in activity tracking: it watches its own container for pointer, touch, and key input, emits the `activity` event, and keeps `.active` / `.inactive` classes on the container. A plugin whose UI should fade with the controls needs no timer at all; it keys visibility off those classes in CSS.
+The player has built-in activity tracking. It watches its own container for pointer, touch, and key input, emits the `activity` event, and keeps `.active` / `.inactive` classes on the container. A plugin whose UI should fade with the controls needs no timer at all; it keys visibility off those classes in CSS.
 
 A UI plugin that brings a richer activity state machine takes over as the sole emitter with `activityTracking(false)`. `DesktopUiPlugin` does exactly this in `use()`, because open menus, hover, and scrubbing all pin its chrome, and hands ownership back at teardown:
 
@@ -203,7 +201,7 @@ ui?.enable();
 
 ## Surfaced intents: back, close, cast
 
-The desktop UI's top-bar buttons emit player events and do nothing else. `back` and `close` buttons appear only while a listener for their event is registered (the `listeners-changed` event keeps that in sync live); `cast` is an option-gated button that emits `'cast'`. All three are handled in the consumer, not in a plugin:
+The desktop UI's top-bar buttons emit player events and do nothing else. `back` and `close` buttons appear only while a listener for their event is registered. The `listeners-changed` event keeps that in sync live. `cast` is an option-gated button that emits `'cast'` instead. All three are handled in the consumer, not in a plugin:
 
 ```ts
 player.on('back', () => router.back());

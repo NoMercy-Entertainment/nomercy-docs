@@ -11,8 +11,7 @@ A plugin talks to servers through two helpers: `fetch()` for HTTP and `websocket
 
 ## `fetch<T>(url, options?)`
 
-{/* partial */}
-```ts
+```txt
 protected fetch<T = string>(url: string, options?: FetchOptions<T>): Promise<T>;
 ```
 
@@ -25,13 +24,33 @@ The auth source is live. The helper reads the player's current `AuthConfig` at c
 3. `auth.headers` merges in; per-call `headers` win on collision.
 4. `auth.signRequest(request)` runs last, the escape hatch for HMAC or sigv4.
 
-A 401 triggers `auth.refreshOnUnauthenticated()` once, then a free retry. A 403 propagates immediately, never refreshed, never retried. 5xx, timeout, and network failures retry per `RetryConfig`. Failures throw `AuthError` or `NetworkError`, both `PlayerError` subclasses; narrow with `isAuthError` / `isNetworkError`.
+Each kind of failure gets its own treatment:
+
+| Failure | What the helper does |
+| --- | --- |
+| 401 | Calls `auth.refreshOnUnauthenticated()` once, then retries for free. |
+| 403 | Gives up at once. Never refreshed, never retried. |
+| 5xx, timeout, network | Retries on the schedule in `RetryConfig`. |
+
+A failure throws `AuthError` or `NetworkError`. Both extend `PlayerError`.
+
+Narrow with `isAuthError` or `isNetworkError` to tell the two apart.
 
 Every call registers a fresh `AbortController` with the lifecycle registry. On `dispose()`, in-flight requests abort; the promise rejects with `core:network/aborted` instead of resolving into a dead plugin.
 
 ### Response typing and the `parser` callback
 
-`responseType` controls decoding. `'text'` is the default and resolves to the raw string. `'json'` calls `response.json()` typed as `T`. `'arrayBuffer'` returns binary. Only the `'text'` variant accepts `parser`, a callback that receives the raw string and returns `T`; a throwing parser surfaces as `core:network/parse-failed`.
+`responseType` decides how the body is decoded:
+
+| `responseType` | Resolves to |
+| --- | --- |
+| `'text'` (default) | The raw string. |
+| `'json'` | `response.json()`, typed as `T`. |
+| `'arrayBuffer'` | Binary data. |
+
+Only `'text'` accepts a `parser`. The callback receives the raw string and returns `T`.
+
+A parser that throws surfaces as `core:network/parse-failed`.
 
 {/* partial */}
 ```ts
@@ -42,18 +61,31 @@ const ids = await this.fetch<string[]>('/api/queue/ids.txt', {
 
 ### Telemetry scope
 
-`options.scope` picks where `fetch:start`, `fetch:retry`, and `fetch:complete` fire. `'plugin'` (the default) emits them as `plugin:<id>:fetch:*`. `'player'` emits the player-global `fetch:*` names instead, for telemetry pipes that watch one bus. `'silent'` emits nothing; the seek-preview tutorial uses it for sprite fetches that would otherwise flood the bus.
+`options.scope` picks where `fetch:start`, `fetch:retry`, and `fetch:complete` fire:
+
+| `scope` | Where the events land |
+| --- | --- |
+| `'plugin'` (default) | `plugin:<id>:fetch:*` |
+| `'player'` | The player-global `fetch:*` names, for a telemetry pipe watching one bus. |
+| `'silent'` | Nowhere. |
+
+Reach for `'silent'` on a request that repeats. The seek-preview tutorial uses it for sprite fetches, which would otherwise flood the bus.
 
 Bypassing the helper with global `fetch` loses the auth pipeline, the retry policy, the structured errors, and the dispose-time abort. The lint pack flags the call.
 
 ## `websocket(url, opts?)`
 
-{/* partial */}
-```ts
+```txt
 protected websocket(url: string, opts?: RealtimeFactoryOptions): IRealtimeChannel;
 ```
 
-Opens a realtime channel and returns it as `IRealtimeChannel`, one interface regardless of transport. The channel carries `send(data)`, `close(code?, reason?)`, `on`/`off` for `'open'`, `'message'`, `'close'`, and `'error'`, plus a `readyState` mirroring the WebSocket states.
+Opens a realtime channel and returns it as `IRealtimeChannel`, one interface whatever the transport underneath.
+
+The channel carries:
+
+- `send(data)` and `close(code?, reason?)`
+- `on` and `off` for `'open'`, `'message'`, `'close'`, and `'error'`
+- `readyState`, mirroring the WebSocket states
 
 The transport comes from a factory, resolved highest priority first:
 
@@ -61,7 +93,11 @@ The transport comes from a factory, resolved highest priority first:
 2. `setup({ websocketFactory })`, the consumer-supplied default.
 3. The built-in `nativeWebSocketAdapter`, wrapping a native `WebSocket`.
 
-`RealtimeFactoryOptions` also carries `protocols` and the reconnect knobs `reconnect`, `baseDelayMs`, and `maxDelayMs`. The options are forwarded to whichever factory builds the channel. The built-in native adapter wraps one `WebSocket` and does not reconnect on its own. Reconnection comes from a factory that implements it, such as a SignalR or Socket.IO adapter.
+`RealtimeFactoryOptions` also carries `protocols` and the reconnect knobs `reconnect`, `baseDelayMs`, and `maxDelayMs`.
+
+The kit forwards those options to whichever factory builds the channel. It does not act on them itself.
+
+The built-in native adapter wraps one `WebSocket` and never reconnects. Reconnection comes from a factory that implements it, such as a SignalR or Socket.IO adapter.
 
 The channel is registered with the lifecycle registry. On `dispose()`, the kit calls `close()` unless the channel is already closing or closed. You keep the reference only if you need to `send()` later; the teardown is not your job.
 

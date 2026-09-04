@@ -60,11 +60,23 @@ function createPlayerController(
 }
 ```
 
-One function in, one cleanup function out, no class, no subscription object to manage by hand. This is also the shape [The Shell](/nomercy-music-player/build/shell) and every other Build a Player step already use for wiring a single button, `createPlayerController` is just that pattern generalized to a whole snapshot of state instead of one value.
+The pattern keeps things simple:
+
+- One function goes in, one cleanup function comes out
+- No class
+- No subscription object to manage by hand
+
+[The Shell](/nomercy-music-player/build/shell) and every other Build a Player step already use this shape for wiring a single button. `createPlayerController` is that same pattern, generalized to a whole snapshot of state instead of one value.
 
 ## Wiring it to real DOM
 
-`songs` is the real `nomercy-media` fixture catalogue (the same Ketsa/bent wyre tracks the [Quickstart](/nomercy-music-player/quickstart) and the testbed use). The markup below already has a name, a progress slider, and a play/pause button in it, the same three elements every framework recipe in this section renders, `createPlayerController`'s snapshot just drives them directly instead of through a template:
+`songs` is the real `nomercy-media` fixture catalogue, the same Ketsa/bent wyre tracks the [Quickstart](/nomercy-music-player/quickstart) and the testbed use. The markup below already has the same three elements every framework recipe in this section renders:
+
+- A name
+- A progress slider
+- A play/pause button
+
+`createPlayerController`'s snapshot drives them directly instead of through a template:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -140,11 +152,19 @@ button.removeEventListener('click', toggle);
 void player.dispose();
 ```
 
-`destroy()` only removes the listeners `createPlayerController` added, it does not dispose the player itself, the two are separate concerns on purpose. A page that mounts several independent controllers against the same player (a status readout, a queue panel, a volume indicator) can tear any one of them down without touching the others or the player instance they all share.
+`destroy()` only removes the listeners `createPlayerController` added. It does not dispose the player itself. The two are separate concerns on purpose.
+
+A page can mount several independent controllers against the same player, for example:
+
+- A status readout
+- A queue panel
+- A volume indicator
+
+Each one tears down on its own, without touching the others or the player instance they all share.
 
 ## Wrapping it in a Web Component
 
-The same controller works unchanged inside a custom element, connectedCallback / disconnectedCallback are the vanilla-DOM equivalent of a framework's mount/unmount hooks:
+The same controller works unchanged inside a custom element. `connectedCallback` / `disconnectedCallback` are the vanilla-DOM equivalent of a framework's mount/unmount hooks:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -173,7 +193,7 @@ customElements.define('music-player-status', MusicPlayerStatus);
 
 ## See it running
 
-The name, progress slider, and play/pause button below are `createPlayerController` wired to the live player, exactly the code on this page, nothing added for the preview.
+The name, progress slider, and play/pause button below are `createPlayerController` wired to the live player. It is exactly the code on this page, with nothing added for the preview.
 
 :::snippet{file="music-recipe-vanilla-integration" live="false"}
 :::

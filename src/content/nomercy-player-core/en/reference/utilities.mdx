@@ -29,7 +29,7 @@ function appendAuthTokenParam(url: string, headerValue: string | undefined): str
 
 ## Formatting & escaping
 
-```ts
+```txt
 function formatSeconds(seconds: number): string;
 // "M:SS" or "H:MM:SS". Returns "0:00" for negative or non-finite input.
 
@@ -46,7 +46,7 @@ function escapeHtml(str: string): string;
 
 ## Perceptual volume curve
 
-```ts
+```txt
 function perceptualGain(position01: number): number;
 ```
 
@@ -67,7 +67,13 @@ type TokenRegistry = Readonly<Record<string, string>>;
 function interpolateTitleTokens(text: string, translator: ITranslator | undefined, registry: TokenRegistry): string;
 ```
 
-Replaces every `%<LETTER><digits>` token (e.g. `%S1%E3`) whose letter is a key in `registry` with `translator.t(registryKey, { number: digits })`. Idempotent (already-resolved text has no tokens left to match), no-throw (an empty registry or missing translator is a guaranteed no-op), core ships an empty registry by default. See [i18n](/nomercy-player-core/tour/i18n#title-tokens) for `registerTitleTokens()`, the player-facing setter.
+Replaces every `%<LETTER><digits>` token (e.g. `%S1%E3`) whose letter is a key in `registry` with `translator.t(registryKey, { number: digits })`. Three guarantees hold:
+
+- Idempotent: already-resolved text has no tokens left to match.
+- No-throw: an empty registry or missing translator is a guaranteed no-op.
+- Core ships an empty registry by default.
+
+See [i18n](/nomercy-player-core/tour/i18n#title-tokens) for `registerTitleTokens()`, the player-facing setter.
 
 ## DOM element helpers
 
@@ -79,7 +85,9 @@ function createSVG(id: string, viewBox: string): SVGSVGElement;
 function createButton(id: string, label: string, onClick: (event: Event) => void): HTMLButtonElement;
 ```
 
-The fluent builder chain a plugin's UI code uses instead of raw `document.createElement`, `createElement` returns a chainable wrapper (`.addClasses([...]).appendTo(parent).get()`) so element construction reads top-to-bottom. `Plugin.mount(name)` (see [The Plugin Base](/nomercy-player-core/tour/plugin-base)) is the higher-level entry point most plugin code actually calls, these are the primitives underneath it.
+The fluent builder chain a plugin's UI code uses instead of raw `document.createElement`. `createElement` returns a chainable wrapper (`.addClasses([...]).appendTo(parent).get()`) so element construction reads top-to-bottom.
+
+`Plugin.mount(name)` (see [The Plugin Base](/nomercy-player-core/tour/plugin-base)) is the higher-level entry point most plugin code actually calls. These functions are the primitives underneath it.
 
 ## Next steps
 

@@ -22,13 +22,22 @@ description: 'CastSenderPlugin: the Chromecast Web Sender SDK bridge, meant to b
 
 ## Events
 
-`cast:connected` (`{ deviceName }`), `cast:disconnected`, `cast:error` (`{ error }`), `cast:remote-state` (`{ time, state }`), `cast:media-changed` (`{ contentId }`), `unsupported` (`{ reason }`).
+The plugin fires six events across the session's lifecycle:
+
+| Event | Payload |
+|---|---|
+| `cast:connected` | `{ deviceName }` |
+| `cast:disconnected` | none |
+| `cast:error` | `{ error }` |
+| `cast:remote-state` | `{ time, state }` |
+| `cast:media-changed` | `{ contentId }` |
+| `unsupported` | `{ reason }` |
 
 ## Rules & restrictions
 
-- Chrome/Chromium Web Sender SDK only. In Firefox, Safari, or a non-Chromium browser, `connect()` emits `unsupported` and throws a `BrowserPolicyError` (`core:policy/castUnavailable`), everything else stays a harmless no-op rather than crashing.
-- Requires the global `cast.framework` / `chrome.cast.media` SDK to already be loaded on the page, the plugin doesn't load the script for you.
-- Volume arrives on the kit's own 0-100 `volume()` scale and is divided to 0-1 at the boundary, which is the 0-1 float range the receiver's SDK expects.
+- Chrome/Chromium Web Sender SDK only. In Firefox, Safari, or a non-Chromium browser, `connect()` emits `unsupported` and throws a `BrowserPolicyError` (`core:policy/castUnavailable`). Everything else stays a harmless no-op rather than crashing.
+- The plugin requires the global `cast.framework` / `chrome.cast.media` SDK to already be loaded on the page. It does not load the script for you.
+- Volume arrives on the kit's own 0-100 `volume()` scale. The plugin divides it to the 0-1 float range the receiver's SDK expects.
 
 ## How to extend it
 

@@ -17,17 +17,32 @@ interface IUrlResolver {
 }
 ```
 
-`UrlResolverContext` carries `auth`, `baseUrl`, a `category` hint (`'media'`, `'subtitle'`, `'font'`, `'poster'`, `'sprite'`, `'lyrics'`, `'cast'`, `'license'`, or any custom string a plugin passes), and `defaultResolve(url)`, the built-in behavior, so a custom resolver can delegate for categories it doesn't need to touch instead of reimplementing the default from scratch.
+`UrlResolverContext` carries `auth`, `baseUrl`, a `category` hint, and `defaultResolve(url)`.
+
+The `category` hint takes one of these values, or any custom string a plugin passes:
+
+- `'media'`
+- `'subtitle'`
+- `'font'`
+- `'poster'`
+- `'sprite'`
+- `'lyrics'`
+- `'cast'`
+- `'license'`
+
+`defaultResolve(url)` runs the built-in behavior. A custom resolver can delegate to it for categories it doesn't need to touch, instead of reimplementing the default from scratch.
 
 ## ResolvedUrl
 
 The return shape:
 
-- `href`: the final string. Pass it to a `<video>.src`, a Worker, or a Cast receiver.
-- `raw`: the unparsed input.
-- `scheme`, `origin`, `pathname`, `search`, `hash`, and `searchParams` for the query.
-- `ext`: the lowercase extension with no leading dot. Gate on file type with this rather than splitting on `.`, which breaks on query strings.
-- `relative`: `true` when the input was relative and no `baseUrl` was available to absolutize against.
+| Field | Meaning |
+| --- | --- |
+| `href` | The final string. Pass it to a `<video>.src`, a Worker, or a Cast receiver. |
+| `raw` | The unparsed input. |
+| `scheme`, `origin`, `pathname`, `search`, `hash`, `searchParams` | Parsed components of the query string. |
+| `ext` | The lowercase extension with no leading dot. Gate on file type with this rather than splitting on `.`, which breaks on query strings. |
+| `relative` | `true` when the input was relative and no `baseUrl` was available to absolutize against. |
 
 ## Rules & restrictions
 

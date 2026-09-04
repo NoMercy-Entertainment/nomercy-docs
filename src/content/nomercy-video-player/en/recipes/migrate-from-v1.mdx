@@ -9,7 +9,7 @@ description: 'Move a v1 video app onto v2 with the opt-in compatibility plugin: 
 
 `V1VideoCompatPlugin` (id `'v1-video-compat'`) attaches the v1 method names onto a v2 player instance: `seek()`, `speed()`, `playlist()`, `enterFullscreen()` and the rest of that surface.
 
-Every shim delegates to the real v2 method underneath, and logs one deprecation line per call. No new behaviour, only a compatibility surface over the API this collection documents.
+Every shim delegates to the real v2 method underneath, and logs one deprecation line per call. No new behavior, only a compatibility surface over the API this collection documents.
 
 It is entirely opt-in. An app that never adds the plugin carries neither the shim code nor the logging.
 
@@ -65,7 +65,7 @@ Grouped by concern, every entry maps directly to a v2 method already covered els
 | `registerPlugin(...)`, `usePlugin(...)`, `plugin(id)` | `addPlugin(...)`, `getPluginById(id)` |
 | `displayMessage(text, ms)` | emit `'display-message'` / `'remove-message'` directly |
 
-`setup()` itself is shimmed too: v1 allowed a second `setup({ playlist, autoPlay })` call to swap sources on a live player; v2's real `setup()` throws on re-entry. With this plugin loaded, a repeat call after the first queues the incoming playlist and autoplays it instead of throwing, matching the old behavior.
+`setup()` itself is shimmed too. v1 allowed a second `setup({ playlist, autoPlay })` call to swap sources on a live player, but v2's real `setup()` throws on re-entry. With this plugin loaded, a repeat call after the first queues the incoming playlist and autoplays it instead of throwing, matching the old behavior.
 
 ## What has no v2 equivalent
 
@@ -74,7 +74,7 @@ A handful of v1 methods throw `NotImplementedError` rather than silently no-oppi
 - `subtitleFile(url)`, `chapterFile(url)`, `skipFile(url)`, `skip()`: dynamic sidecar/skip-segment ingestion. Add the URL to the playlist item's `tracks` / `chapters` field instead, or call `time(seconds)` at the boundary directly for skip segments.
 - `skippers()`: always returns an empty array, there is no v2 skip-segment data model yet.
 
-A second group keeps working exactly as it did in v1 (nothing throws), but has no v2 method to migrate onto, either because v2 solved the underlying problem structurally or because the behavior is a pure utility outside the player's typed surface. Delete these call sites when you remove the plugin, replicating them yourself if your app still needs them:
+A second group keeps working exactly as it did in v1; nothing throws. But it has no v2 method to migrate onto. Either v2 solved the underlying problem structurally, or the behavior is a pure utility outside the player's typed surface. Delete these call sites when you remove the plugin, and replicate them yourself if your app still needs them:
 
 - `allowFullscreen` / `setAllowFullscreen(allowed)`: gates `enterFullscreen()` only, `fullscreen()` itself is never gated in v2.
 - `stretchOptions`: the v1 array `['uniform', 'fill', 'exactfit', 'none']`. No v2 accessor reads it back. `cycleAspectRatio()` cycles the same four values internally, with nothing public to iterate. Hardcode the array in your app if you render an aspect-ratio menu from it.
@@ -90,12 +90,18 @@ A second group keeps working exactly as it did in v1 (nothing throws), but has n
 ## Rules & restrictions
 
 - Every shim logs a deprecation line through the player's logger on every call. Grep the logs during a migration and the remaining call sites surface themselves.
-- Two events bridge automatically while this plugin is loaded: `'playbackRate'` also emits as `'speed'`, and `'queue'` also emits as `'playlist'`, matching the v1 event names a legacy listener might still be attached to.
-- Must be added before `setup()`, like any plugin, adding it after `ready()` misses the plugin's own `use()` call during the setup pipeline.
+- Must be added before `setup()`, like any plugin. Adding it after `ready()` misses the plugin's own `use()` call during the setup pipeline.
+
+Two events also bridge automatically while this plugin is loaded, matching the v1 event names a legacy listener might still be attached to:
+
+| v2 event | Also emits as |
+| --- | --- |
+| `'playbackRate'` | `'speed'` |
+| `'queue'` | `'playlist'` |
 
 ## How to remove it
 
-Delete the `player.addPlugin(V1VideoCompatPlugin)` call, then work through the deprecation log output (every remaining call site logs its own replacement method), migrating call sites to the v2 methods in the table above. Once the log is empty, remove the import too, there is nothing else in the codebase that depends on this plugin being present.
+Delete the `player.addPlugin(V1VideoCompatPlugin)` call, then work through the deprecation log output. Every remaining call site logs its own replacement method, so migrate each one to the v2 methods in the table above. Once the log is empty, remove the import too. Nothing else in the codebase depends on this plugin being present.
 
 ## Next steps
 

@@ -27,7 +27,14 @@ override use(): void {
 
 ## Ten seconds, either way
 
-`rewind(seconds)` and `forward(seconds)` are the player's own relative-seek methods. `rewind` clamps to the start so a rewind past zero lands at zero, and `forward` leaves the upper bound to the backend, which snaps to the end on its own, so there is nothing to guard:
+`rewind(seconds)` and `forward(seconds)` are the player's own relative-seek methods. Each clamps its own direction:
+
+| Method | What happens at the edge |
+| --- | --- |
+| `rewind` | A rewind past zero lands at zero. |
+| `forward` | The upper bound is the backend's job; it snaps to the end on its own. |
+
+There is nothing for your code to guard.
 
 {/* partial */}
 
@@ -53,7 +60,13 @@ private createSkipButtons(): void {
 
 ## The clock
 
-The `time` event payload carries `position` and `duration` (step 3 already used its `percentage`), and the kit ships the formatter: `formatSeconds()` renders `M:SS`, rolls over to `H:MM:SS` past the hour, and returns `0:00` for anything negative or non-finite, so there is nothing to hand-roll and nothing to guard:
+The `time` event payload carries `position` and `duration` (step 3 already used its `percentage`), and the kit ships the formatter. `formatSeconds()` covers every case, so there is nothing to hand-roll and nothing to guard:
+
+| Input | `formatSeconds()` returns |
+| --- | --- |
+| Under an hour | `M:SS` |
+| An hour or more | `H:MM:SS` |
+| Negative or non-finite | `0:00` |
 
 {/* partial */}
 
@@ -110,7 +123,7 @@ private createTimeDisplay(): void {
 
 `tabular-nums` keeps the digits monospaced so the readout doesn't jitter as seconds tick.
 
-Two listeners on one event is normal, the bus fans out to every subscriber, and each concern staying in its own builder method is what keeps this class readable as it grows.
+Two listeners on one event is normal; the bus fans out to every subscriber. Keeping each concern in its own builder method is what keeps this class readable as it grows.
 
 ## See it running
 

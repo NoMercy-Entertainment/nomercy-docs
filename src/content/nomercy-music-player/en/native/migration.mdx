@@ -5,15 +5,20 @@ description: Moving a Kotlin or Swift app off its own embedded audio player.
 
 Most apps arrive here with an audio player already in them: a Media3 session
 wired into a service, or an AVAudioPlayer with a hand-drawn bar. The move is not
-a rewrite. The engine you have keeps decoding; what changes is who owns the
-queue, the crossfade and the state the bar reads.
+a rewrite. The engine you have keeps decoding. What changes is who owns the
+queue, the crossfade, and the state the bar reads.
 
 ## What to delete
 
-Anything tracking whether playback is running, anything holding the queue and
-its cursor, anything deciding what plays next under shuffle or repeat, and
-anything converting a position into a scrubber fraction. Those four are where
-two clients of one server drift apart, and the library holds one answer for each.
+Delete anything that:
+
+- tracks whether playback is running
+- holds the queue and its cursor
+- decides what plays next under shuffle or repeat
+- converts a position into a scrubber fraction
+
+Those four are where two clients of one server drift apart. The library holds
+one answer for each.
 
 Keep your engine setup, your data source, your auth headers and your media
 session.
@@ -26,9 +31,12 @@ Wrap the engine you already build.
 val player = NMMusicPlayer(backend)
 ```
 
-Where your screen read the engine directly, read `player.state()` or collect
-`player.stateFlow`. Where it advanced the queue itself, call `player.next()` and
-let the announcement reach the bar, the full screen and the notification at once.
+Two call sites change when you wrap the engine:
+
+| Your code | Replace it with |
+| --- | --- |
+| Reads the engine's state directly | `player.state()`, or collect `player.stateFlow` |
+| Advances the queue itself | Call `player.next()`, which reaches the bar, the full screen, and the notification at once |
 
 Swap the chrome last. `rememberMusicChrome` gives you the state and the commands
 the shipped surfaces take, and a screen can mount `MiniPlayer` beside its own
@@ -42,11 +50,12 @@ through the framework. An app conforms what it has and gets `MiniPlayer` and
 
 ## What you gain by moving
 
-Plugins, and one queue.
+You gain plugins, and one queue. Two examples of what changes:
 
-Scrobbling stops being a hook inside your playback code, and becomes something
-that registers and unregisters cleanly. Lyrics stop being a screen that polls the
-engine, and become something that listens.
+| Feature | Without the library | With the library |
+| --- | --- | --- |
+| Scrobbling | A hook inside your playback code | Something that registers and unregisters cleanly |
+| Lyrics | A screen that polls the engine | Something that listens |
 
-A queue that lives in the player rather than in a screen is one the lock screen,
-the car and a cast target all read the same way.
+A queue that lives in the player, rather than in a screen, is one the lock
+screen, the car, and a cast target all read the same way.

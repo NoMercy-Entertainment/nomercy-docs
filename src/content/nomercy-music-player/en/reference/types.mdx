@@ -23,7 +23,7 @@ interface MusicPlaylistItem extends BasePlaylistItem {
 }
 ```
 
-`name` is the canonical display field, `title` (inherited from `BasePlaylistItem`) also compiles but nothing in this library reads it, see [The Queue](/nomercy-music-player/tour/queue#the-track-shape). Unlike `VideoPlaylistItem`, there's no wire-format normalization on ingest, a track is already in its canonical shape the moment it enters the queue.
+`name` is the canonical display field. `title` (inherited from `BasePlaylistItem`) also compiles, but nothing in this library reads it. See [The Queue](/nomercy-music-player/tour/queue#the-track-shape). Unlike `VideoPlaylistItem`, there's no wire-format normalization on ingest. A track is already in its canonical shape the moment it enters the queue.
 
 ## CrossfadeOptions and CrossfadeCurve
 
@@ -35,7 +35,7 @@ interface CrossfadeOptions {
 }
 ```
 
-Passed as the second argument to `crossfadeTo(item, opts)`, see [Reference: Music Player Methods](/nomercy-music-player/reference/player-methods#backend--crossfade). `CrossfadeCurve` itself is defined once, in `nomercy-player-core`, and re-exported here so consumers never need to import from the kit package directly for this type.
+`CrossfadeOptions` is passed as the second argument to `crossfadeTo(item, opts)`. See [Reference: Music Player Methods](/nomercy-music-player/reference/player-methods#backend--crossfade). `CrossfadeCurve` itself is defined once, in `nomercy-player-core`, and re-exported here so consumers never need to import from the kit package directly for this type.
 
 ## AudioBackendFactory
 
@@ -69,7 +69,7 @@ interface IMusicPlayer<T extends MusicPlaylistItem = MusicPlaylistItem>
 }
 ```
 
-The full music-specific method contract, `NMMusicPlayer` implements this on top of everything `IPlayer` already provides. Consumers that accept either a music or video player but need music-specific methods should type their parameter as `IMusicPlayer` rather than the more general `IPlayer<MusicEventMap>`.
+This is the full music-specific method contract. `NMMusicPlayer` implements it on top of everything `IPlayer` already provides. Consumers that accept either a music or video player but need music-specific methods should type their parameter as `IMusicPlayer` rather than the more general `IPlayer<MusicEventMap>`.
 
 ## MusicPlayerConfig
 
@@ -86,7 +86,7 @@ Full field-by-field breakdown, including what `setup()` defaults automatically, 
 
 ## Music-owned enums
 
-None. Every enum `NMMusicPlayer` reads (`AudioTrackState`, `PlayState`, `QualityState`, `RepeatState`, `ShuffleState`, `VolumeState`) is re-exported from the kit unchanged, canonical definitions live in [Core: Reference, Domain Types](/nomercy-player-core/reference/types). Import them from `@nomercy-entertainment/nomercy-music-player` either way, no need to reach into the kit package directly:
+There are no music-owned enums. Every enum `NMMusicPlayer` reads (`AudioTrackState`, `PlayState`, `QualityState`, `RepeatState`, `ShuffleState`, `VolumeState`) is re-exported from the kit unchanged. Canonical definitions live in [Core: Reference, Domain Types](/nomercy-player-core/reference/types). Import them from `@nomercy-entertainment/nomercy-music-player` either way; there's no need to reach into the kit package directly:
 
 ```ts
 import { PlayState, RepeatState, ShuffleState } from '@nomercy-entertainment/nomercy-music-player';

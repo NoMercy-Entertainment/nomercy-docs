@@ -22,7 +22,7 @@ What it handles for you:
 
 It is built on [`nomercy-player-core`](/nomercy-player-core), which carries lifecycle, queueing, plugins, translations and auth.
 
-This library adds the video backend, and the methods that only mean something when watching: display modes, subtitle and audio track selection, quality, chapters and segment windows.
+This library adds the video backend. It also adds the methods that only matter when watching: display modes, subtitle and audio track selection, quality, chapters and segment windows.
 
 ## Who it's for
 
@@ -38,9 +38,9 @@ Watching has a problem listening does not: browsers disagree.
 
 HLS plays natively only in Safari. Everywhere else it needs `hls.js`.
 
-A subtitle track can be a plain VTT cue, or a full ASS/SSA script with embedded fonts, positioning and karaoke timing that no browser renders on its own.
+A subtitle track can be a plain VTT cue. It can also be a full ASS/SSA script with embedded fonts, positioning and karaoke timing that no browser renders on its own.
 
-This library absorbs both behind one typed surface. `Html5VideoBackend` picks native HLS or `hls.js` per browser, so `player.play()` never branches on user agent. `SubtitleOverlayPlugin` renders VTT, and `OctopusPlugin` brings in a real libass renderer the moment a track needs ASS/SSA.
+This library absorbs both behind one typed surface. `Html5VideoBackend` picks native HLS or `hls.js` per browser, so `player.play()` never branches on user agent. `SubtitleOverlayPlugin` renders VTT. `OctopusPlugin` brings in a real libass renderer the moment a track needs ASS/SSA.
 
 Queueing, transport, volume, auth and plugins are not specific to watching, so they come from the core.
 
@@ -70,7 +70,7 @@ Every path uses the same `play()`, `pause()` and `time()`.
 
 - **`NMVideoPlayer<T>`** created through the `nmplayer(id)` factory, generic over your playlist item type.
 - **Adaptive HLS streaming**: native HLS on Safari, `hls.js` everywhere else. The import is dynamic, so Safari pays nothing, and the call surface is the same either way.
-- **Subtitle rendering across two formats** `SubtitleOverlayPlugin` renders VTT out of the box, `OctopusPlugin` brings in a libass renderer for embedded-font ASS/SSA.
+- **Subtitle rendering across two formats** `SubtitleOverlayPlugin` renders VTT out of the box. `OctopusPlugin` brings in a libass renderer for embedded-font ASS/SSA.
 - **Display modes** `fullscreen()`, `pip()`, and `theater()`, plus aspect ratio control (`'uniform'` / `'fill'` / `'exactfit'` / `'none'`).
 - **Quality and ABR** `qualityLevels()` and `quality()` for manual selection on top of the backend's own adaptive bitrate engine.
 - **Chapters, thumbnails and segments**: typed chapter navigation, VTT-sprite scrub previews, and `playSegment()` for intro loops or chapter-range playback.

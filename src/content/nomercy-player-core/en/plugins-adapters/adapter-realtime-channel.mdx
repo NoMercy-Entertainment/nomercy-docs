@@ -23,16 +23,27 @@ interface IRealtimeChannel {
 type RealtimeFactory = (url: string, opts?: RealtimeFactoryOptions) => IRealtimeChannel;
 ```
 
-`RealtimeFactoryOptions`: `protocols` (WebSocket sub-protocol strings), `reconnect` / `baseDelayMs` / `maxDelayMs` (reconnection knobs forwarded to the factory; only a factory that implements reconnection reads them, and the built-in native adapter does not), and `factory` (a per-call override, one connection using a different transport without changing the global default).
+`RealtimeFactoryOptions` carries these fields:
+
+| Field | Purpose |
+| --- | --- |
+| `protocols` | WebSocket sub-protocol strings. |
+| `reconnect`, `baseDelayMs`, `maxDelayMs` | Reconnection knobs forwarded to the factory. Only a factory that implements reconnection reads them; the built-in native adapter does not. |
+| `factory` | A per-call override, for one connection that uses a different transport without changing the global default. |
 
 ## Rules & restrictions
 
-- `send()` should only be called when `readyState === 'open'`, the underlying transport throws otherwise, the port doesn't buffer or queue for you.
-- Resolution order for which factory actually runs: a per-call `opts.factory` first, then the player's configured `websocketFactory`, then the built-in `nativeWebSocketAdapter` as the final fallback.
+- Call `send()` only when `readyState === 'open'`. The underlying transport throws otherwise. The port does not buffer or queue messages for you.
+
+The factory that actually runs is resolved in this order:
+
+1. A per-call `opts.factory`.
+2. The player's configured `websocketFactory`.
+3. The built-in `nativeWebSocketAdapter`, as the final fallback.
 
 ## Default implementation
 
-`nativeWebSocketAdapter` wraps the browser's native `WebSocket`, with the reconnect/back-off behavior described above layered on top.
+`nativeWebSocketAdapter` wraps the browser's native `WebSocket`. It never reconnects: a factory you supply is what reads the reconnect knobs and acts on them.
 
 ## How to extend it
 

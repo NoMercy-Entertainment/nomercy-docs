@@ -7,11 +7,11 @@ description: "Step 2 of 5: the native bar's scrubber, and the time() / 'time' / 
 
 # Build a Player: The Scrubber
 
-[Step 1](/nomercy-music-player/build/shell) mounted the native bar. The config below is identical, there's nothing to add, because the native scrubber already covers seeking. This page exists to name the methods underneath it, for the day you build your own.
+[Step 1](/nomercy-music-player/build/shell) mounted the native bar. The config below is identical. There is nothing to add, because the native scrubber already covers seeking. This page exists to name the methods underneath it, for the day you build your own.
 
 ## What's already wired
 
-`controls: true`'s scrubber reads the same position/length pair the kit exposes to everyone: `'time'` for position, `'duration'` for length (both covered on [Time & Seeking](/nomercy-music-player/tour/time)), and seeks through `time(seconds)` on release. A custom scrubber built from `nomercy-player-core`'s `createElement` would subscribe to exactly those two events:
+`controls: true`'s scrubber reads the same position/length pair the kit exposes to everyone. `'time'` reports position and `'duration'` reports length, both covered on [Time & Seeking](/nomercy-music-player/tour/time). The scrubber seeks through `time(seconds)` on release. A custom scrubber built from `nomercy-player-core`'s `createElement` would subscribe to exactly those two events:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -33,7 +33,7 @@ player.on('time', ({ time }) => {
 });
 ```
 
-The `dragging` guard matters the moment you build this yourself: without it, an incoming `'time'` update mid-drag snaps the thumb back to the actual playback position every frame, fighting the user's own gesture. Seek only on `change` (release), never on `input` (continuous), the same rule [Time & Seeking](/nomercy-music-player/tour/time) documents for `time()`.
+The `dragging` guard matters the moment you build this yourself. Without it, an incoming `'time'` update mid-drag snaps the thumb back to the actual playback position every frame, fighting the user's own gesture. Seek only on `change` (release), never on `input` (continuous). This is the same rule [Time & Seeking](/nomercy-music-player/tour/time) documents for `time()`.
 
 ## See it running
 

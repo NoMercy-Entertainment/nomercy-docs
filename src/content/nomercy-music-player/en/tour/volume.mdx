@@ -7,11 +7,16 @@ description: 'volume(), mute()/unmute()/toggleMute(), volumeUp()/volumeDown(), a
 
 # Volume
 
-Volume is another kit surface `nomercy-music-player` inherits unchanged, there's no music-specific volume behavior, the backend just needs a real gain to move.
+Volume is another kit surface `nomercy-music-player` inherits unchanged. There's no music-specific volume behavior. The backend just needs a real gain to move.
 
 ## Reading and setting the level
 
-`volume()` reads the current level as a number in `[0, 100]`; `volume(level)` sets it, clamped to that range, and returns a `Promise<void>` once the backend applies it:
+Two calls read and set the level:
+
+| Call | What it does |
+| --- | --- |
+| `volume()` | Reads the current level as a number in `[0, 100]`. |
+| `volume(level)` | Sets it, clamped to that range, and returns a `Promise<void>` once the backend applies it. |
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -22,7 +27,7 @@ const level = player.volume(); // 0-100
 await player.volume(50);
 ```
 
-`MusicPlayerConfig` doesn't add a volume field of its own, but it inherits `defaultVolume` from the kit's `BasePlayerConfig`, set it at `setup()` for a declarative initial level, `100` when omitted:
+`MusicPlayerConfig` doesn't add a volume field of its own. It inherits `defaultVolume` from the kit's `BasePlayerConfig`. Set it at `setup()` for a declarative initial level. It defaults to `100` when omitted:
 
 ```ts
 player.setup({
@@ -36,7 +41,7 @@ Read a saved preference into that same field before `setup()` runs instead of ca
 
 ## Mute
 
-`mute()` and `unmute()` are absolute; `toggleMute()` flips based on the current state. All three dispatch `beforeMute` first, same cancellable shape as transport, and no-op (never dispatch) when already in the target state:
+`mute()` and `unmute()` are absolute. `toggleMute()` flips based on the current state. When already in the target state, all three no-op instead of dispatching. Otherwise, they dispatch `beforeMute` first, the same cancellable shape as transport:
 
 ```ts
 await player.mute();
@@ -44,11 +49,11 @@ await player.unmute();
 player.toggleMute();
 ```
 
-`volumeUp(step?)` and `volumeDown(step?)` nudge the level by `step` (a sane default when omitted), clamped to `[0, 100]` the same as a direct `volume()` call, the pair a keyboard shortcut binds to.
+`volumeUp(step?)` and `volumeDown(step?)` nudge the level by `step`, a sane default when omitted. Both clamp to `[0, 100]`, the same as a direct `volume()` call. This is the pair a keyboard shortcut binds to.
 
 ## Reading the gain stage
 
-`volumeState()` returns a typed `VolumeState.UNMUTED` or `VolumeState.MUTED`, the value a mute-icon component reads instead of tracking its own boolean, since it stays correct even when something other than that icon (a keyboard shortcut, a Connect sync) changes the mute state:
+`volumeState()` returns a typed `VolumeState.UNMUTED` or `VolumeState.MUTED`. A mute-icon component reads this value instead of tracking its own boolean. That way, it stays correct even when something other than that icon, such as a keyboard shortcut or a Connect sync, changes the mute state:
 
 ```ts
 import { VolumeState } from '@nomercy-entertainment/nomercy-music-player';
@@ -58,7 +63,16 @@ if (player.volumeState() === VolumeState.MUTED) {
 }
 ```
 
-`volume`, `mute`, and `beforeVolume`/`beforeMute` events carry `{ level }` / `{ muted }` payloads respectively, subscribe to those instead of polling the getters from a render loop.
+Four events carry their own payload:
+
+| Event | Payload |
+| --- | --- |
+| `volume` | `{ level }` |
+| `beforeVolume` | `{ level }` |
+| `mute` | `{ muted }` |
+| `beforeMute` | `{ muted }` |
+
+Subscribe to those instead of polling the getters from a render loop.
 
 ## See it running
 

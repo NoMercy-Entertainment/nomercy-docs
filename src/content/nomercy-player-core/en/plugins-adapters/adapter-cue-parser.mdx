@@ -21,12 +21,14 @@ interface ICueParser<T = unknown> {
 
 ## Shipped implementations
 
-`vttSubtitleParser` (`.vtt`, inline `<b>`/`<i>`/`<u>` preserved, cue-setting alignment), `spriteVttParser` (sprite-sheet crops via `#xywh=` fragments, gated to URLs that hint at sprites), `lrcParser` (`.lrc`, plain or word-level enhanced LRC).
+- `vttSubtitleParser`: `.vtt` files. Inline `<b>`/`<i>`/`<u>` preserved, cue-setting alignment honored.
+- `spriteVttParser`: sprite-sheet crops via `#xywh=` fragments. Gated to URLs that hint at sprites.
+- `lrcParser`: `.lrc` files, plain or word-level enhanced LRC.
 
 ## Rules & restrictions
 
-- `CueParserRegistry.resolve(url, contentType?)` walks parsers most-recently-registered first and returns the first match. Registering a custom parser for an extension a built-in already claims wins resolution without disabling the built-in for other URLs.
-- Returning `true` from `canParse` is a commitment, the registry doesn't fall through to the next parser if `parse()` then throws.
+- `CueParserRegistry.resolve(url, contentType?)` walks parsers most-recently-registered first and returns the first match. When you register a custom parser for an extension a built-in already claims, your parser wins resolution. The built-in still serves other URLs.
+- Returning `true` from `canParse` is a commitment. When `parse()` then throws, the registry does not fall through to the next parser.
 
 ## How to extend it
 

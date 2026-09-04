@@ -6,8 +6,9 @@ description: One dependency and one view, on Android, the desktop, iOS and tvOS.
 The native music player is the same library as the web one, ported rather than
 reimplemented.
 
-Same method names, same events, same error codes. All of it generated from one
-contract and checked against it on every build.
+The port matches the web version on three things: method names, events, and
+error codes. All of it is generated from one contract and checked against it
+on every build.
 
 What differs is the toolkit underneath. Android and the desktop draw in Compose,
 Apple draws in SwiftUI. Both mount the same engine.
@@ -25,9 +26,9 @@ dependencies {
 ```
 
 Then the two surfaces a music app needs. `MiniPlayer` is the bar that sits at
-the edge of every screen; `FullPlayerScreen` is what it expands into. Both read
-one `MusicChromeState` and send one set of commands, so the two can never
-disagree about what is playing.
+the edge of every screen. `FullPlayerScreen` is what `MiniPlayer` expands into.
+Both read one `MusicChromeState` and send one set of commands, so the two can
+never disagree about what is playing.
 
 ```kotlin
 val player = NMMusicPlayer(backend)
@@ -45,15 +46,15 @@ Add the Swift package and take the drop-in product.
 ```
 
 The SwiftUI half mirrors the Compose one name for name: `MiniPlayer` and
-`FullPlayerScreen` over the same state, with `MusicScrubber` and `QueueList` as
-the pieces underneath. Apple gets SwiftUI rather than Compose because an
-application already drawing its chrome in SwiftUI does not want a second toolkit
-in the process.
+`FullPlayerScreen` over the same state. `MusicScrubber` and `QueueList` are the
+pieces underneath. When an application already draws its chrome in SwiftUI, it
+does not want a second toolkit in the process, so Apple gets SwiftUI rather
+than Compose.
 
 ## Writing a plugin
 
-Scrobbling, lyrics and auto-advance are plugins rather than player features, and
-so is whatever you need that this list does not have. The scaffold is a working
+Scrobbling, lyrics, and auto-advance are plugins, not player features. So is
+whatever else you need that this list does not have. The scaffold is a working
 plugin to copy:
 
 :::snippet{file="plugin-authoring"}

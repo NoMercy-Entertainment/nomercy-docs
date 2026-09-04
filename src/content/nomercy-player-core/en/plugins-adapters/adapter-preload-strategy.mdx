@@ -23,9 +23,23 @@ interface IPreloadStrategy {
 
 `PreloadAsset` is `{ url, category, mode? }`.
 
-`category` mirrors `UrlCategory`: `'media'`, `'poster'`, `'subtitle'`, `'sprite'`, `'lyrics'`, or a custom string. The auth pipeline uses it to attach the right headers per asset.
+`category` mirrors `UrlCategory`, one of:
 
-`mode` is `'metadata'`, headers only and the default, which suits manifests and sidecars. Or `'auto'`, a full fetch, which suits small images and short intros.
+- `'media'`
+- `'poster'`
+- `'subtitle'`
+- `'sprite'`
+- `'lyrics'`
+- a custom string
+
+The auth pipeline uses `category` to attach the right headers per asset.
+
+`mode` picks the fetch depth:
+
+| `mode` | What it does |
+| --- | --- |
+| `'metadata'` (default) | Headers only. Suits manifests and sidecars. |
+| `'auto'` | A full fetch. Suits small images and short intros. |
 
 ## Rules & restrictions
 

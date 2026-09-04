@@ -11,8 +11,7 @@ Plugin strings live in the player's one translation table, namespaced per plugin
 
 ## `t(key, vars?)`
 
-{/* partial */}
-```ts
+```txt
 protected t(key: string, vars?: Record<string, string>): string;
 ```
 
@@ -39,8 +38,7 @@ Plugin keys get no special treatment here: `plugin.<id>.*` entries sit in the sa
 
 ## `static translations`
 
-{/* partial */}
-```ts
+```txt
 static readonly translations?: Translations;
 ```
 
@@ -62,8 +60,7 @@ Bundles built with `translationsFromGlob` load lazily per language: only the act
 
 ## `loadTranslations(lang)`
 
-{/* partial */}
-```ts
+```txt
 protected loadTranslations?(lang: string): Promise<Record<string, string> | undefined>;
 ```
 
@@ -72,6 +69,10 @@ The runtime hook for bundles that live outside the source tree, fetched from an 
 Returned keys are bare; the kit namespaces them under `plugin.<id>.` for you. Return `undefined` when a language has no bundle; the fallback chain covers the gap.
 
 The default is a no-op. The static field and this hook are independent sources; a plugin may ship both.
+
+Teardown differs between the two sources. Dispose clears the `plugin.<id>.*` namespace only when the class also declares a static `translations` field. Keys that arrived through this hook alone stay in the table after the plugin is gone.
+
+Declare a static `translations` field, even an empty one, when a plugin loads all its strings at runtime and you want them cleared on dispose.
 
 ## Worked example
 

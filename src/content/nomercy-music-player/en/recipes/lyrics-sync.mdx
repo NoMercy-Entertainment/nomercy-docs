@@ -7,7 +7,7 @@ description: 'Rendering the full cue list from LyricsPlugin.all() up front and h
 
 # Recipe: Synced Lyrics UI
 
-[Lyrics](/nomercy-music-player/tour/lyrics) covers registering `LyricsPlugin` and reading the single active line. This recipe builds the fuller UI most listening apps actually want: every line visible at once, in a scrollable panel, with the active one highlighted and scrolled into view as playback moves through it.
+[Lyrics](/nomercy-music-player/tour/lyrics) covers registering `LyricsPlugin` and reading the single active line. This recipe builds the fuller UI most listening apps actually want: every line visible at once, in a scrollable panel. The active line highlights and scrolls into view as playback moves through it.
 
 ## Rendering the whole cue list up front
 
@@ -52,7 +52,9 @@ player.on('plugin:lyrics:loaded', () => {
 
 ## Matching the active line by identity, not text
 
-`lineEnter` and `lineExit` hand back the cue's `payload` object directly, the exact same reference `all()` already put in the `rows` map. Using that reference as the map key means the active-line lookup works correctly even when a song repeats a line (a chorus), where matching by text content would highlight every occurrence instead of only the current one:
+`lineEnter` and `lineExit` hand back the cue's `payload` object directly. It is the exact same reference `all()` already put in the `rows` map.
+
+Use that reference as the map key, not the text. A chorus repeats the same words, and a text match would light up every occurrence instead of the one playing now:
 
 ```ts
 player.on('plugin:lyrics:lineEnter', (payload) => {
@@ -70,7 +72,7 @@ player.on('plugin:lyrics:lineExit', (payload) => {
 
 ## Handling the no-lyrics case
 
-Not every track carries a `lyricsUrl`, [Lyrics](/nomercy-music-player/tour/lyrics#no-lyrics-file-no-error) covers why that's silent rather than an error. A panel built this way should show something explicit rather than sitting empty:
+Not every track carries a `lyricsUrl`. [Lyrics](/nomercy-music-player/tour/lyrics#no-lyrics-file-no-error) covers why that case is silent instead of an error. A panel built this way should show something explicit rather than sitting empty:
 
 ```ts
 player.on('plugin:lyrics:loaded', () => {
@@ -84,7 +86,7 @@ player.on('plugin:lyrics:loaded', () => {
 });
 ```
 
-`loaded` only fires once a lyrics file was actually found, parsed, and attached, when `item.lyricsUrl` is missing entirely the plugin clears state without emitting anything, clear the panel on the `item` event's cursor change so a previous track's lyrics don't linger on screen.
+`loaded` only fires once a lyrics file is found, parsed, and attached. When `item.lyricsUrl` is missing entirely, the plugin clears state without emitting anything. Clear the panel on the `item` event's cursor change too, so a previous track's lyrics don't linger on screen.
 
 ## See it running
 

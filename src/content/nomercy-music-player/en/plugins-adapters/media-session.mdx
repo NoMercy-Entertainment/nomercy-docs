@@ -7,7 +7,13 @@ description: 'MediaSessionPlugin (music): the OS "Now Playing" surface, title/ar
 
 # Plugin: Media Session
 
-`MediaSessionPlugin` (id `'media-session'`) is a one-method specialization of the kit's [`MediaSessionPlugin`](/nomercy-player-core/plugins-adapters/media-session), which owns the actual `navigator.mediaSession` wiring: action handlers (`play`, `pause`, `stop`, `previoustrack`, `nexttrack`, `seekbackward`, `seekforward`, `seekto`), position-state sync, and artwork resolution through `resolveUrl(url, 'poster')`. This subclass only overrides `getMetadata()`, how a `MusicPlaylistItem` becomes the OS lock-screen / notification text.
+`MediaSessionPlugin` (id `'media-session'`) is a one-method specialization of the kit's [`MediaSessionPlugin`](/nomercy-player-core/plugins-adapters/media-session). The base plugin owns the actual `navigator.mediaSession` wiring:
+
+- Action handlers: `play`, `pause`, `stop`, `previoustrack`, `nexttrack`, `seekbackward`, `seekforward`, `seekto`.
+- Position-state sync.
+- Artwork resolution through `resolveUrl(url, 'poster')`.
+
+This subclass only overrides `getMetadata()`, how a `MusicPlaylistItem` becomes the OS lock-screen and notification text.
 
 ## What the music subclass builds
 
@@ -17,12 +23,16 @@ description: 'MediaSessionPlugin (music): the OS "Now Playing" surface, title/ar
 | `artist` | `item.artist` (empty string when unset). |
 | `album` | `item.album` (empty string when unset). |
 
-Artwork comes from the kit base class's shared image priority, `image` → `poster` → `thumbnail` → `cover`, unchanged for music: `item.image` wins when set, falling back to the deprecated `item.cover` since `poster` and `thumbnail` are video-only fields a `MusicPlaylistItem` doesn't declare. Resolved through the same `resolveUrl` pipeline every other image on the item uses, nothing music-specific to configure there.
+Artwork comes from the kit base class's shared image priority: `image` → `poster` → `thumbnail` → `cover`.
+
+For music, `item.image` wins when set, and `item.cover` is the fallback. The two middle fields never apply, because `poster` and `thumbnail` are video-only and a `MusicPlaylistItem` does not declare them.
+
+The plugin resolves artwork through the same `resolveUrl` pipeline as every other image on the item. There is nothing music-specific to configure.
 
 ## Rules & restrictions
 
-- Reads only fields defined on the canonical `MusicPlaylistItem`. Consumers carrying server-specific fields (linked artist/album entities instead of plain strings, for instance) should subclass and override `getMetadata()` themselves rather than expecting this built-in to read fields it isn't typed against, the kit deliberately avoids casting to a richer intersection type inside its own built-ins.
-- Everything else, browser support detection, action handler wiring, position-state sync, is identical to the kit base, see [Plugin: Media Session (core)](/nomercy-player-core/plugins-adapters/media-session) for options and events.
+- Reads only fields defined on the canonical `MusicPlaylistItem`. Consumers carrying server-specific fields, such as linked artist/album entities instead of plain strings, should subclass and override `getMetadata()` themselves. Do not expect this built-in to read fields it isn't typed against. The kit deliberately avoids casting to a richer intersection type inside its own built-ins.
+- Everything else is identical to the kit base: browser support detection, action handler wiring, and position-state sync. See [Plugin: Media Session (core)](/nomercy-player-core/plugins-adapters/media-session) for options and events.
 
 ## How to extend it
 

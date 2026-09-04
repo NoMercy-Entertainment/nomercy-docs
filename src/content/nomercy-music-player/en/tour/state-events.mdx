@@ -7,7 +7,7 @@ description: 'playState(), bufferState(), networkState(), and the music-specific
 
 # Playback State & Events
 
-A UI reads state two ways: pull a typed reader when you need a value right now, or subscribe once and let the player push updates. Both come from the kit, music only adds the events specific to its own medium on top.
+A UI reads state two ways. Pull a typed reader when you need a value right now, or subscribe once and let the player push updates. Both come from the kit. Music only adds the events specific to its own medium on top.
 
 ## Typed state readers
 
@@ -30,11 +30,18 @@ if (player.playState() === PlayState.PLAYING) {
 }
 ```
 
-`bufferState()` and `networkState()` have no dedicated push event on this library. A status pill reads them on demand, alongside a transport event, or polls on a short interval if it needs to reflect buffering mid-track.
+`bufferState()` and `networkState()` have no dedicated push event on this library. A status pill reads them on demand, alongside a transport event. When it needs to reflect buffering mid-track, it polls on a short interval instead.
 
 ## Music-specific events
 
-Everything below is unique to `MusicEventMap`, layered on top of the kit's `BaseEventMap` (transport, queue, volume, i18n, the events every tour page so far has already covered).
+Everything below is unique to `MusicEventMap`. It layers on top of the kit's `BaseEventMap`, which covers:
+
+- Transport
+- Queue
+- Volume
+- I18n
+
+Those are the events every tour page so far has already covered.
 
 | Event | Payload | Fires when |
 | --- | --- | --- |
@@ -43,7 +50,7 @@ Everything below is unique to `MusicEventMap`, layered on top of the kit's `Base
 | `crossfadeStart` / `crossfadeComplete` | `{ from, to, duration }` / `{ item }` | A crossfade begins / finishes. |
 | `crossfadePrevented` | `{ reason, cause? }` | A `beforeCrossfade` listener cancelled it. |
 
-`time` isn't in this list, it's not music-specific either, it's the same unmodified `BaseEventMap` event (`{ time, position, duration, buffered, remaining, percentage }`) every backend tick fires, identical across the music and video players (see [Time & Seeking](/nomercy-music-player/tour/time)).
+`time` is not in this list, because it is not music-specific. It is the same unmodified `BaseEventMap` event (`{ time, position, duration, buffered, remaining, percentage }`) every backend tick fires. It is identical across the music and video players (see [Time & Seeking](/nomercy-music-player/tour/time)).
 
 ```ts
 player.on('backend:changed', ({ kind }) => {

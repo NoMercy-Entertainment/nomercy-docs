@@ -7,7 +7,7 @@ description: 'TabLeaderPlugin: single-tab playback enforcement via the Web Locks
 
 # Plugin: Tab Leader
 
-`TabLeaderPlugin` (id `'tab-leader'`) uses the Web Locks API to elect one browser tab as the "leader" allowed to play, so opening the same page in two tabs doesn't play audio in both. Not re-exported from the main entry, import it from the `plugins/tab-leader` subpath.
+`TabLeaderPlugin` (id `'tab-leader'`) uses the Web Locks API to elect one browser tab as the "leader" allowed to play. Opening the same page in two tabs then does not play audio in both. The main entry does not re-export the plugin. Import it from the `plugins/tab-leader` subpath.
 
 ## Options
 
@@ -19,12 +19,16 @@ description: 'TabLeaderPlugin: single-tab playback enforcement via the Web Locks
 
 ## Events
 
-`leader-acquired`, `leader-released`, `unsupported`.
+The plugin fires three events:
+
+- `leader-acquired`
+- `leader-released`
+- `unsupported`
 
 ## Rules & restrictions
 
-- Built on the Web Locks API: Safari 15.4+, Chrome 69+, Firefox 96+. Where `navigator.locks` is absent, the plugin emits `unsupported` and becomes a no-op, playback is unaffected, it just doesn't coordinate across tabs.
-- The default lock key is **global to the entire origin**: with no `getLockKey` override, only one tab across your whole site plays at a time, not one per player instance. Supply `getLockKey` to scope it (e.g. per media item or per logical session) if that global default isn't what you want.
+- Built on the Web Locks API: Safari 15.4+, Chrome 69+, Firefox 96+. Where `navigator.locks` is absent, the plugin emits `unsupported` and becomes a no-op. Playback is unaffected. The tabs just do not coordinate.
+- The default lock key is **global to the entire origin**. With no `getLockKey` override, only one tab across your whole site plays at a time, not one per player instance. When you want a narrower scope (per media item, per logical session), supply `getLockKey`.
 
 ## How to extend it
 

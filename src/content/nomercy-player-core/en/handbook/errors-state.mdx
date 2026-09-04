@@ -11,17 +11,17 @@ A plugin never throws a raw `Error` and never mutates its options silently. The 
 
 ## `throw(payload)` and `report(payload)`
 
-{/* partial */}
-```ts
+```txt
 protected throw(payload: ThrowPayload): never;
 protected report(payload: ThrowPayload): void;
 ```
 
-Both build a `PlayerError` stamped with `scope: { kind: 'plugin', id }` and surface it on the bus. The difference is what happens to your flow.
+Both build a `PlayerError` stamped with `scope: { kind: 'plugin', id }` and surface it on the bus. The difference is what happens to your flow:
 
-`throw()` surfaces the error, then throws it. Use it for `error` and `fatal` severities, when the current operation cannot continue. Severity defaults to `'error'`.
-
-`report()` surfaces and returns. Use it when the consumer should know something glitched but playback continues. Severity defaults to `'warning'`.
+| Call | What happens | Use it when | Default severity |
+| --- | --- | --- | --- |
+| `throw()` | Surfaces the error, then throws it. | The current operation cannot continue. | `'error'` |
+| `report()` | Surfaces the error and returns. | The consumer should know something glitched, but playback continues. | `'warning'` |
 
 The payload shape, from `core/plugin/throw.ts`:
 
@@ -47,17 +47,24 @@ A raw `throw new Error(...)` skips the scope stamp, the event surface, and the r
 
 ### Recovery: `static onError`
 
-{/* partial */}
-```ts
+```txt
 static readonly onError?: Readonly<Record<string, PluginRecoveryAction>>;
 ```
 
-Maps an error code to what happens right after it surfaces. `'ignore'` does nothing further. `'disable'` calls `this.disable('onError:<code>')`. `'retry-once'` calls your `retryLastOperation()` when you defined one, and `'fallback'` calls your `activateFallback()`; either logs a warning when the hook is missing. The kit wires the map; you wire the bodies.
+Maps an error code to what happens right after it surfaces:
+
+| Recovery action | What it does |
+| --- | --- |
+| `'ignore'` | Does nothing further. |
+| `'disable'` | Calls `this.disable('onError:<code>')`. |
+| `'retry-once'` | Calls your `retryLastOperation()`. |
+| `'fallback'` | Calls your `activateFallback()`. |
+
+For `'retry-once'` and `'fallback'`, the kit logs a warning when you have not defined the matching hook. The kit wires the map; you wire the bodies.
 
 ## `enable()`, `disable(reason?)`, `enabled()`
 
-{/* partial */}
-```ts
+```txt
 enabled(): boolean;
 enable(): void;
 disable(reason?: string): void;
@@ -79,8 +86,7 @@ this.on('time', (timeState) => {
 
 ## `state()` and `getRuntimeState()`
 
-{/* partial */}
-```ts
+```txt
 state(): PluginState<O>;
 protected getRuntimeState(): Record<string, unknown>;
 ```
@@ -96,8 +102,7 @@ protected override getRuntimeState(): Record<string, unknown> {
 
 ## `options()`
 
-{/* partial */}
-```ts
+```txt
 options(): Readonly<O>;
 options(partial: Partial<O>): void;
 ```
@@ -112,8 +117,7 @@ Writing `this.opts.bars = 64` directly skips the merge and the events, so nothin
 
 ## Scoped `storage` and `logger`
 
-{/* partial */}
-```ts
+```txt
 protected logger: ILogger; // output prefixed [nmplayer][<id>]
 protected storage: IStorage; // keys prefixed nmplayer-<id>-
 ```

@@ -11,7 +11,7 @@ description: 'VideoEventMap in full: every video-specific event and payload, lay
 
 ## Playback signals
 
-`waiting` / `canplay` / `stalled` are video's own. `firstFrame` is not, it lives on the kit's `BaseEventMap` and fires identically for `nomercy-music-player`, listed here because it matters most in a video context.
+`waiting` / `canplay` / `stalled` are video's own. `firstFrame` is not: it lives on the kit's `BaseEventMap` and fires identically for `nomercy-music-player`. It is listed here because it matters most in a video context.
 
 | Event | Payload | Fires when |
 |---|---|---|
@@ -30,7 +30,7 @@ description: 'VideoEventMap in full: every video-specific event and payload, lay
 
 ## Subtitles
 
-These rows live on the kit's `BaseEventMap` for shared-implementation reasons, but the methods that trigger them (`subtitle()`, `subtitleStyle()`) are video-only, `nomercy-music-player` doesn't expose them, see [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles).
+These rows live on the kit's `BaseEventMap` for shared-implementation reasons. The methods that trigger them (`subtitle()`, `subtitleStyle()`) are video-only; `nomercy-music-player` doesn't expose them. See [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles).
 
 | Event | Payload | Fires when |
 |---|---|---|
@@ -39,7 +39,7 @@ These rows live on the kit's `BaseEventMap` for shared-implementation reasons, b
 | `subtitle` | `{ track: number \| null }` | `subtitle(idx)` changed the active track, `null` when subtitles are off. |
 | `beforeSubtitle` / `subtitlePrevented` | `BeforeEvent<{ track }>` / `{ reason, cause? }` | Fires before `subtitle(idx)` changes the active track, a listener can `preventDefault()` it. |
 
-Two more are genuinely video's own, unlike the four rows above: `KeyHandlerPlugin`'s `+`/`shift++`/`-` bindings request a subtitle-size step. No shipped plugin listens, wire your own listener (or a custom overlay) to step `subtitleStyle().fontSize`.
+Two more are genuinely video's own, unlike the four rows above. `KeyHandlerPlugin`'s `+`/`shift++`/`-` bindings request a subtitle-size step. No shipped plugin listens; wire your own listener (or a custom overlay) to step `subtitleStyle().fontSize`.
 
 | Event | Payload | Fires when |
 |---|---|---|
@@ -68,9 +68,9 @@ Two more are genuinely video's own, unlike the four rows above: `KeyHandlerPlugi
 |---|---|---|
 | `display-message` | `{ text: string; ms?: number }` | An OSD toast is requested. The active UI plugin (`DesktopUiPlugin`, `TvKeyHandlerPlugin`) renders it, the player itself has no OSD chrome. |
 | `remove-message` | `undefined` | Dismiss the active toast before its duration elapses. |
-| `back` | `void` | Navigation intent from a UI plugin's back button. The player has no navigation stack, a consumer listener handles routing. Visible on the UI only when at least one listener is registered. |
+| `back` | `void` | Navigation intent from a UI plugin's back button. The player has no navigation stack; a consumer listener handles routing. Visible on the UI only when at least one listener is registered. |
 | `close` | `void` | Dismissal intent from a UI plugin's close button. Same visibility rule as `back`. |
-| `cast` | `void` | Click intent from `DesktopUiPlugin`'s top-bar cast button (opt-in via `buttons: { cast: true }`, default off, see [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui)). The player has no opinion on device selection or handoff, a consumer listener opens its own device picker. Unlike `back`/`close`, visibility does not depend on a listener being registered. |
+| `cast` | `void` | Click intent from `DesktopUiPlugin`'s top-bar cast button (opt-in via `buttons: { cast: true }`, default off, see [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui)). The player has no opinion on device selection or handoff; a consumer listener opens its own device picker. Unlike `back`/`close`, visibility does not depend on a listener being registered. |
 
 ## Next steps
 

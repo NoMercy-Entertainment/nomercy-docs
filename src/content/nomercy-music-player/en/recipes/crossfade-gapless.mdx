@@ -11,14 +11,22 @@ description: 'Choosing between an overlapping crossfade and a true hard-cut gapl
 
 ## Two boundary strategies, one interface
 
-The automatic transition between queue items, the behavior that fires with no method call at all when a track ends, is owned by an `ITransitionStrategy` from `nomercy-player-core`. Two ship in the kit:
+The automatic transition between queue items is owned by an `ITransitionStrategy` from `nomercy-player-core`. This behavior fires with no method call at all when a track ends. The kit ships two strategies:
 
 | Strategy | Behavior | Default for |
 |---|---|---|
 | `CrossfadeTransitionStrategy` | Overlapping fade, `leadSeconds` before the outgoing track ends through `tailSeconds` into the incoming one. | Music |
 | `GaplessTransitionStrategy` | Hard cut at the natural end, no overlap. The incoming item is already warm from preloading, so the cut has no buffering pause either. | Video |
 
-Both are medium-neutral, nothing about `GaplessTransitionStrategy` is video-specific, it's simply not the music default. Reach for it when your catalogue is a continuous mix, a live recording, or a gapless album where the tracks are mastered to touch exactly, cases where an audible overlap would sound wrong rather than smooth.
+Both strategies are medium-neutral. Nothing about `GaplessTransitionStrategy` is video-specific; it is simply not the music default.
+
+Reach for `GaplessTransitionStrategy` when your catalogue needs an exact cut instead of a blend:
+
+- A continuous mix
+- A live recording
+- A gapless album where the tracks are mastered to touch exactly
+
+In these cases an audible overlap sounds wrong instead of smooth.
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -42,7 +50,11 @@ player.setup({
 });
 ```
 
-`crossfadeEnabled: false` is worth setting alongside `GaplessTransitionStrategy` even though the strategy itself already reports `shouldTransition() => false`, it also gates the automatic transition path other plugins may be listening for, so the `transitionStart` / `transitionProgress` / `transitionComplete` events never fire for a catalogue that never crossfades.
+Set `crossfadeEnabled: false` alongside `GaplessTransitionStrategy`, even though the strategy already reports `shouldTransition() => false`. This flag also gates the automatic transition path other plugins may listen for. With the flag set, these events never fire for a catalogue that never crossfades:
+
+- `transitionStart`
+- `transitionProgress`
+- `transitionComplete`
 
 ## Switching modes at runtime
 
@@ -60,11 +72,11 @@ function useGaplessMode(enabled: boolean): void {
 }
 ```
 
-The swap cancels any transition already in flight, emitting `transitionCancelled` with reason `strategy-replaced`, and the new strategy takes effect from the next boundary the preload pipeline evaluates.
+The swap cancels any transition already in flight. It emits `transitionCancelled` with reason `strategy-replaced`. The new strategy takes effect from the next boundary the preload pipeline evaluates.
 
 ## Manual crossfadeTo() either way
 
-`crossfadeTo()` is independent of whichever automatic strategy is active, it's a direct call, not something the transition strategy gates. A gapless-configured player can still fade into a specific track on a user action (a "blend into this" button, a DJ-style manual mix point):
+`crossfadeTo()` is independent of whichever automatic strategy is active. It is a direct call, not something the transition strategy gates. A gapless-configured player can still fade into a specific track on a user action, such as a "blend into this" button or a DJ-style manual mix point:
 
 ```ts
 const upNext = player.peekNext();

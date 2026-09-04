@@ -21,9 +21,12 @@ interface ITransitionStrategy {
 }
 ```
 
-`start()` fires once when `shouldTransition` first returns `true`, `tick()` runs every animation frame during the transition window (apply volume ramps or curves here, keep it fast and non-blocking), `complete()` fires once the incoming item is fully primary, and `cancel(reason)` fires if the transition is aborted early (a manual `next()`, a dispose).
+- `start()` fires once, when `shouldTransition` first returns `true`.
+- `tick()` runs every animation frame during the transition window. Apply volume ramps or curves here. Keep it fast and non-blocking.
+- `complete()` fires once the incoming item is fully primary.
+- `cancel(reason)` fires when the transition is aborted early (a manual `next()`, a dispose).
 
-`ITransitionBackend` is the narrow six-method surface (`supportsCrossfade`, `loadSecondary`, `primeSecondary`, `crossfade`, `disposeSecondary`, `secondaryGain`) a backend needs to host dual-playback, deliberately smaller than the full backend contract so the transition engine works across audio and video without importing per-library types.
+`ITransitionBackend` is the narrow six-method surface a backend needs to host dual-playback: `supportsCrossfade`, `loadSecondary`, `primeSecondary`, `crossfade`, `disposeSecondary`, and `secondaryGain`. It is deliberately smaller than the full backend contract. That keeps the transition engine working across audio and video without importing per-library types.
 
 ## Shipped implementations
 
@@ -34,8 +37,8 @@ interface ITransitionStrategy {
 
 ## Rules & restrictions
 
-- Audio crossfade on a video player is technically possible (duck outgoing, raise incoming) but needs two simultaneously active `<video>` elements, which browsers handle inconsistently. Opt in explicitly with `CrossfadeTransitionStrategy` if you want it, it isn't the video default for that reason.
-- `tick()` receiving `backend === null` means no `ITransitionBackend`-capable backend is registered, implementations should no-op rather than throw.
+- Audio crossfade on a video player is technically possible (duck outgoing, raise incoming). It needs two simultaneously active `<video>` elements, and browsers handle that inconsistently. For that reason it is not the video default. When you want it, opt in explicitly with `CrossfadeTransitionStrategy`.
+- When `tick()` receives `backend === null`, no `ITransitionBackend`-capable backend is registered. Implementations should no-op rather than throw.
 
 ## How to extend it
 

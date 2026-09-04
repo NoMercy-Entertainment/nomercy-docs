@@ -24,7 +24,7 @@ It exists because both real players, and any third-party plugin, need a stable w
 
 ## StubPlayer
 
-A lightweight `IPlayer` test double for plugin and unit tests, real enough to drive plugin lifecycles and event subscriptions without a browser, a media element, or a network stack. jsdom has no `<audio>` / `<video>` implementation and no `MediaSource` or `AudioContext`, a real `NMVideoPlayer` or `NMMusicPlayer` cannot be constructed in that environment at all, `StubPlayer` fills exactly that gap.
+A lightweight `IPlayer` test double for plugin and unit tests, real enough to drive plugin lifecycles and event subscriptions without a browser, a media element, or a network stack. jsdom has no `<audio>` / `<video>` implementation and no `MediaSource` or `AudioContext`. A real `NMVideoPlayer` or `NMMusicPlayer` cannot be constructed in that environment at all. `StubPlayer` fills exactly that gap.
 
 | Export | Signature | Notes |
 |---|---|---|
@@ -42,7 +42,11 @@ What it provides:
 - The `experimental.override` surface, wired to an in-memory map
 - `reset()`, to clear state between tests without constructing a new instance
 
-Not provided, tests must not rely on these: plugin registration (`describePlugin` wires `addPlugin` itself, mock it per-test if a plugin's `use()` calls `player.addPlugin` internally), stream resolution or backend lifecycle, and auth-gated fetch (override `Plugin.fetch` in the test instead).
+Not provided, tests must not rely on these:
+
+- Plugin registration. `describePlugin` wires `addPlugin` itself; mock it per-test if a plugin's `use()` calls `player.addPlugin` internally.
+- Stream resolution or backend lifecycle.
+- Auth-gated fetch. Override `Plugin.fetch` in the test instead.
 
 ## Layer 1: describePlugin (StubPlayer)
 
@@ -67,7 +71,11 @@ describePlugin(LyricsPlugin, ({ player, plugin }) => {
 
 ## Layer 2: describePluginAgainst (a real player)
 
-Runs the same author tests as `describePlugin`, but against a real `NMMusicPlayer`, `NMVideoPlayer`, or any other `IPlayer` implementation, not `StubPlayer`. Use this to catch `StubPlayer` drift from real player behavior, plugin assumptions about real-player event timing or order, and real-player setup-ordering bugs `StubPlayer` structurally can't surface.
+Runs the same author tests as `describePlugin`, but against a real `NMMusicPlayer`, `NMVideoPlayer`, or any other `IPlayer` implementation, not `StubPlayer`. Use this to catch:
+
+- `StubPlayer` drift from real player behavior
+- Plugin assumptions about real-player event timing or order
+- Real-player setup-ordering bugs `StubPlayer` structurally can't surface
 
 ```ts
 import { describePluginAgainst } from '@nomercy-entertainment/nomercy-player-core/testing';
@@ -89,7 +97,7 @@ describePluginAgainst(LyricsPlugin, ({ player, plugin }) => {
 | `PluginAgainstTestContext<C, P>` | `{ player: P; plugin: InstanceType<C> }` | `P` is whatever real player the `player` factory returns. |
 | `DescribePluginAgainstOptions<C, P>` | `{ player: () => P \| Promise<P>; teardown?; opts?; skipLeakAssertion? }` | `teardown` is optional, most players self-clean via `dispose()`. |
 
-Recommended pattern: write each plugin's tests once with `describePlugin`, then import the same suite body into a `describePluginAgainst` block to run it against the real player too. Watch mode only needs the layer-1 pass for iteration speed, CI runs both.
+Recommended pattern: write each plugin's tests once with `describePlugin`, then import the same suite body into a `describePluginAgainst` block to run it against the real player too. Watch mode only needs the layer-1 pass for iteration speed. CI runs both.
 
 ## Layer 3: runIPlayerContract
 
@@ -108,9 +116,20 @@ runIPlayerContract({
 
 | Export | Signature | Notes |
 |---|---|---|
-| `runIPlayerContract(opts)` | `<P>(opts: { create: () => P \| Promise<P>; label: string; teardown?: (player: P) => void \| Promise<void> }) => void` | Behavioral, not shape-only, every test invokes a method and asserts the real effect (return value, side effect, emitted event). A player whose method bodies still throw "not implemented" fails these tests, that's the point. |
+| `runIPlayerContract(opts)` | `<P>(opts: { create: () => P \| Promise<P>; label: string; teardown?: (player: P) => void \| Promise<void> }) => void` | Behavioral, not shape-only: every test invokes a method and asserts the real effect (return value, side effect, emitted event). A player whose method bodies still throw "not implemented" fails these tests. That's the point. |
 
-Scope is deliberately narrow: identity, the event bus, phase, `baseUrl`, `audioContext`, the experimental override surface, i18n, and the cue parser registry, the surface every `IPlayer` must support uniformly. Library-specific behavior (transport, queue, fullscreen, crossfade) belongs in each package's own tests instead.
+Scope is deliberately narrow, covering the surface every `IPlayer` must support uniformly:
+
+- Identity
+- The event bus
+- Phase
+- `baseUrl`
+- `audioContext`
+- The experimental override surface
+- i18n
+- The cue parser registry
+
+Library-specific behavior (transport, queue, fullscreen, crossfade) belongs in each package's own tests instead.
 
 ## Listener-leak harness
 
@@ -133,7 +152,7 @@ const result = await assertNoListenerLeak({
 | `assertNoListenerLeak(opts)` | `(opts: { subjectId: string; player: IPlayer; setup: () => void \| Promise<void>; exercise?: () => void \| Promise<void>; teardown: () => void \| Promise<void> }) => Promise<LeakAssertionResult>` | Caller wires the lifecycle so the harness stays decoupled from how a subject is registered. |
 | `assertNoListenerLeakOverCycles(opts)` | `(opts: { ...same as above; cycles?: number }) => Promise<LeakAssertionResult[]>` | Repeats register / exercise / teardown to catch state-sensitive leaks (a handler added only every nth `play()`, for instance). `cycles` default `5`. |
 | `countAllListeners(player)` | `(player: IPlayer) => number` | The leak baseline. Returns `0` (zero reported leaks, no false positive) if the player object doesn't expose `listenerCount()`. |
-| `LeakAssertionResult` | `{ subjectId: string; listenersBefore: number; listenersAfterSetup: number; listenersAfterTeardown: number; leaked: number }` | `leaked > 0` means the subject retained listeners, timers, or observers after teardown, the test should fail. |
+| `LeakAssertionResult` | `{ subjectId: string; listenersBefore: number; listenersAfterSetup: number; listenersAfterTeardown: number; leaked: number }` | `leaked > 0` means the subject retained listeners, timers, or observers after teardown. The test should fail. |
 
 ## mockFetch
 
@@ -152,7 +171,7 @@ expect(calls[0].url).toBe('https://example.com/api');
 | Export | Signature | Notes |
 |---|---|---|
 | `mockFetch()` | `() => MockFetch` | Returns a fresh mock with empty call history and an empty response queue. |
-| `MockFetch` | `{ fetch; calls: MockFetchCall[]; respondWith(body): void; reset(): void }` | `respondWith(body)` queues one response, consumed once in FIFO order, an exhausted queue resolves `undefined`. `reset()` clears both call history and the queue. |
+| `MockFetch` | `{ fetch; calls: MockFetchCall[]; respondWith(body): void; reset(): void }` | `respondWith(body)` queues one response, consumed once in FIFO order. An exhausted queue resolves `undefined`. `reset()` clears both call history and the queue. |
 | `MockFetchCall` | `{ url: string; options: FetchOptions<unknown> \| undefined }` | One recorded call, in call order. |
 
 ## Next steps

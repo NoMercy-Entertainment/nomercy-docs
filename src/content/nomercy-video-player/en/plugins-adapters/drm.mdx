@@ -7,7 +7,7 @@ description: 'DrmPlugin: EME key-system coordination for Widevine/FairPlay/PlayR
 
 # Plugin: DRM
 
-`DrmPlugin` (id `'drm'`) coordinates Encrypted Media Extensions (EME) license acquisition for Widevine, FairPlay, and PlayReady, and carries HDCP / output-protection requirements. Registration and license-fetch routing are real; the actual key-system handshake is gated behind `requestMediaKeySystemAccess`, so environments without EME (headless test runners, older browsers) stay quiet instead of throwing.
+`DrmPlugin` (id `'drm'`) coordinates Encrypted Media Extensions (EME) license acquisition for Widevine, FairPlay, and PlayReady, and carries HDCP / output-protection requirements. Registration and license-fetch routing are real. The actual key-system handshake is gated behind `requestMediaKeySystemAccess`, so environments without EME (headless test runners, older browsers) stay quiet instead of throwing.
 
 ## Options
 
@@ -30,7 +30,7 @@ description: 'DrmPlugin: EME key-system coordination for Widevine/FairPlay/PlayR
 
 ## How activation works
 
-The plugin listens for the player's `'item'` event, when the incoming item carries a `drm.keySystem` hint (a consumer-supplied field on your own item shape, not part of the canonical `VideoPlaylistItem`), it attempts the EME handshake for that key system, falling back to the plugin's own `keySystem` option when the item doesn't specify one:
+The plugin listens for the player's `'item'` event. When the incoming item carries a `drm.keySystem` hint (a consumer-supplied field on your own item shape, not part of the canonical `VideoPlaylistItem`), the plugin attempts the EME handshake for that key system. When the item doesn't specify one, the plugin falls back to its own `keySystem` option:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -54,9 +54,9 @@ const licenseBlob = await drm?.fetchLicense(challengeBuffer);
 
 ## Rules & restrictions
 
-- `requestMediaKeySystemAccess` missing at registration time emits `unsupported` immediately and the plugin does nothing further, it does not throw and does not retry.
-- `fetchLicense()` throws `core:drm/license-url-missing` if `licenseUrl` was never configured, this is a real, addressable configuration error, not a soft failure.
-- All license network I/O goes through the kit's `Plugin.fetch()`, the same auth pipeline every other plugin uses, so the `auth` config from `setup()` (bearer token, custom headers, request signing) already applies without extra config here.
+- `requestMediaKeySystemAccess` missing at registration time emits `unsupported` immediately and the plugin does nothing further. It does not throw and does not retry.
+- `fetchLicense()` throws `core:drm/license-url-missing` if `licenseUrl` was never configured. This is a real, addressable configuration error, not a soft failure.
+- All license network I/O goes through the kit's `Plugin.fetch()`, the same auth pipeline every other plugin uses. The `auth` config from `setup()` (bearer token, custom headers, request signing) already applies without extra config here.
 - `mediaKeys()` returns `null` whenever EME isn't supported or the handshake hasn't completed, always guard before use.
 
 ## How to extend it

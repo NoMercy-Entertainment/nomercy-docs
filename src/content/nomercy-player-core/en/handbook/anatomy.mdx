@@ -34,8 +34,7 @@ Each slot buys you a different kind of type safety.
 
 Static fields describe the plugin to the registration pipeline before any instance exists.
 
-{/* partial */}
-```ts
+```txt
 static readonly id: string;                                        // required
 static readonly description: string;                               // required
 static readonly version: string;                                   // defaults to '0.0.0'
@@ -46,13 +45,17 @@ static readonly priority: number;                                  // defaults t
 static readonly translations?: Translations;
 ```
 
-`id` names the plugin everywhere: event namespaces, storage keys, logger prefix, mount classes, error scopes. Vendored ids (`'fillz:viz'`) are the rule outside our own packages.
+Each field describes something different about the plugin:
 
-`description` is one human-readable line. Plugin listings and error messages show it.
-
-`version` is a semver string. Dependency version checks read it.
-
-`minCoreVersion` declares the lowest kit version the plugin runs on. Registration compares it against the running kit and throws `core:plugin/incompatible-core-version` when the kit is too old.
+| Field | What it does |
+| --- | --- |
+| `id` | Names the plugin everywhere: event namespaces, storage keys, logger prefix, mount classes, error scopes. Vendored ids (`'fillz:viz'`) are the rule outside our own packages. |
+| `description` | One human-readable line. Plugin listings and error messages show it. |
+| `version` | A semver string. Dependency version checks read it. |
+| `minCoreVersion` | The lowest kit version the plugin runs on. Registration throws `core:plugin/incompatible-core-version` when the running kit is older. |
+| `replaces` | Opts in to a same-id swap. Without it, a duplicate id throws `core:plugin/duplicate-id`. With it, the player disposes the existing plugin with that id first. |
+| `priority` | Orders plugins, default zero. `enabledPlugins()` sorts descending, so higher-priority plugins dispatch first. Ties keep registration order. See [Listening](/nomercy-player-core/handbook/listening) for what this means for handlers. |
+| `translations` | Ships static i18n bundles under `plugin.<id>.*`. The player merges them in on register and removes them on dispose. For bundles loaded at runtime, override `loadTranslations(lang)` instead. |
 
 `requires` lists dependencies as class references. The plain form is a class. The object form adds `optional` or `minVersion`:
 
@@ -65,13 +68,13 @@ static readonly requires = [
 ];
 ```
 
-A missing required dependency throws `core:plugin/missing-dep` at registration. A missing optional one logs a debug warning and the plugin runs anyway. A version below `minVersion` throws `core:plugin/version-mismatch`.
+Each dependency check has its own outcome:
 
-`replaces` opts in to a same-id swap. Without it, registering a second plugin with an already-taken id throws `core:plugin/duplicate-id`. With it, the player disposes the existing plugin with that id first, then registers yours.
-
-`priority` orders plugins. Default is zero. `enabledPlugins()` sorts by priority descending, so higher-priority plugins come first and dispatch chains that walk that list reach them first. Ties keep registration order. See [Listening](/nomercy-player-core/handbook/listening) for what this means for handlers.
-
-`translations` ships static i18n bundles. The player merges them into its translation table when the plugin registers and removes them again on dispose. Keys must live under `plugin.<id>.*`. For bundles loaded at runtime, override the instance method `loadTranslations(lang)` instead.
+| Check | Result |
+| --- | --- |
+| Missing required dependency | Throws `core:plugin/missing-dep` at registration. |
+| Missing optional dependency | Logs a debug warning. The plugin runs anyway. |
+| Version below `minVersion` | Throws `core:plugin/version-mismatch`. |
 
 ## The lifecycle order
 
@@ -79,8 +82,7 @@ A plugin lives through exactly three steps: `initialize`, then `use`, then `disp
 
 ### initialize()
 
-{/* partial */}
-```ts
+```txt
 initialize(player: P, opts: O, lifecycle: LifecycleRegistry): void
 ```
 
@@ -90,8 +92,7 @@ Nothing of yours should run here. Constructors and `initialize` are for wiring, 
 
 ### use()
 
-{/* partial */}
-```ts
+```txt
 use(): void | Promise<void>
 ```
 
@@ -101,8 +102,7 @@ This is your setup hook. Wire listeners, claim mount points, start fetches. Ever
 
 ### dispose()
 
-{/* partial */}
-```ts
+```txt
 dispose(): void
 ```
 
@@ -114,16 +114,21 @@ The kit calls `dispose()` when the player itself disposes, or when the plugin is
 
 ## enable, disable, enabled
 
-{/* partial */}
-```ts
+```txt
 enabled(): boolean
 enable(): void
 disable(reason?: string): void
 ```
 
-`enabled()` reads the current state. It starts as `true`.
+Each method does one job:
 
-`disable(reason)` turns the plugin off without unloading it. `enable()` turns it back on. Both are idempotent, and both emit paired events: `plugin:enabled` / `plugin:disabled` on the bare channel and on the id-namespaced channel (`plugin:<id>:disabled`), with the id and the optional reason in the payload.
+| Method | What it does |
+| --- | --- |
+| `enabled()` | Reads the current state. Starts as `true`. |
+| `disable(reason?)` | Turns the plugin off without unloading it. |
+| `enable()` | Turns the plugin back on. |
+
+Both `enable()` and `disable()` are idempotent. Both emit paired events: `plugin:enabled` / `plugin:disabled` on the bare channel and on the id-namespaced channel (`plugin:<id>:disabled`), with the id and the optional reason in the payload.
 
 Disabling does not detach your listeners. They stay subscribed in either state. Guard your own handlers with `this.enabled()` so a disabled plugin stops reacting.
 
@@ -131,15 +136,20 @@ The kit also disables plugins for you in one case: when a plugin fails to regist
 
 ## Where player, opts, logger, and storage come from
 
-`initialize()` assigns all four before `use()` runs.
+`initialize()` assigns all four before `use()` runs. Each one holds something different:
 
-`this.player` is the player instance that registered you, typed as `P`. Everything the consumer configured at `setup()` time is readable through it as `this.player.options`: the seek-preview tutorial reads `this.player.options.baseUrl` to resolve sprite URLs the same way the player itself does. Prefer the player's methods where one exists (`this.player.baseUrl()` style accessors); reach into `options` for config that has no accessor.
+| Property | What it holds |
+| --- | --- |
+| `this.player` | The player instance that registered you, typed as `P`. |
+| `this.opts` | Whatever the consumer passed to `addPlugin(YourPlugin, opts)`, typed as `O`. |
+| `this.logger` | A child of the player's configured logger. Output carries the prefix `[nmplayer][<id>]`. |
+| `this.storage` | The player's configured storage backend, with a fixed key prefix. |
 
-`this.opts` is whatever the consumer passed to `addPlugin(YourPlugin, opts)`, typed as `O`. Read it in `use()`; change it later through `options(partial)`, which shallow-merges and emits `opts:changed`.
+Everything the consumer configured at `setup()` time is readable through `this.player.options`. The seek-preview tutorial reads `this.player.options.baseUrl` to resolve sprite URLs the same way the player itself does. Prefer the player's methods where one exists (`this.player.baseUrl()` style accessors), and reach into `options` for config that has no accessor.
 
-`this.logger` is a child of the player's configured logger. Its output carries the prefix `[nmplayer][<id>]`, so every line a plugin logs names its source.
+Read `this.opts` in `use()`. Change it later through `options(partial)`, which shallow-merges and emits `opts:changed`.
 
-`this.storage` wraps the player's configured storage backend with a fixed key prefix. Every key you read or write becomes `nmplayer-<id>-<key>` in the backing store, so plugins never collide with each other or with player-level keys.
+Every key you read or write through `this.storage` becomes `nmplayer-<id>-<key>` in the backing store, so plugins never collide with each other or with player-level keys.
 
 ## A complete skeleton
 

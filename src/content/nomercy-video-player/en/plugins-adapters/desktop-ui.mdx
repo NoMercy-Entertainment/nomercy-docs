@@ -32,7 +32,13 @@ The alternative is writing it yourself, which is what [Build a Player](/nomercy-
 | `collapseStages` | `[number, number, number]` | — | Shorthand for `hideAfterRank` at the sm/md/lg tiers, ignored when `breakpoints` is set. |
 | `volumeSlider` | `'horizontal' \| 'vertical' \| 'auto'` | `'auto'` | Slider orientation; `'auto'` uses the vertical popup on touch devices and at 520px or narrower player width, horizontal otherwise. |
 
-The plugin emits three events of its own, under the `plugin:desktop-ui:` namespace: `shortcuts-toggle` (toggle the keybinds dialog), `layout:breakpoint` (see Responsive collapsing), and `opts:changed` (see Live option changes below).
+The plugin emits three events of its own, under the `plugin:desktop-ui:` namespace:
+
+| Event | What it does |
+|---|---|
+| `shortcuts-toggle` | Toggles the keybinds dialog. |
+| `layout:breakpoint` | Fires on a responsive breakpoint change, see Responsive collapsing. |
+| `opts:changed` | Re-applies live option changes, see Live option changes below. |
 
 ## Button visibility
 
@@ -94,7 +100,7 @@ player.addPlugin(DesktopUiPlugin, {
 });
 ```
 
-`'layout:breakpoint'` fires on every transition with `{ from, to, visibleButtons, hiddenButtons }`, a consumer building its own overflow menu subscribes here instead of re-deriving visibility from container width itself.
+`'layout:breakpoint'` fires on every transition with `{ from, to, visibleButtons, hiddenButtons }`. A consumer building its own overflow menu subscribes here instead of re-deriving visibility from container width itself.
 
 ## Portrait
 
@@ -129,7 +135,7 @@ if (overlayRoot) {
 
 Returns `null` before `use()` has built the DOM, guard the call rather than assuming it's always populated.
 
-An overlay anchored to the top or bottom bar, a device picker under the cast button, say, must also stop those bars auto-hiding underneath it while it's open. `holdChrome()` pins them visible; `releaseChrome()` lets the countdown resume. The hold is counted, so independent holders compose and the chrome stays until the last release; call them in balanced pairs:
+An overlay anchored to the top or bottom bar must also stop those bars auto-hiding underneath it while it's open. A device picker under the cast button is one example. `holdChrome()` pins them visible; `releaseChrome()` lets the countdown resume. The hold is counted, so independent holders compose and the chrome stays until the last release; call them in balanced pairs:
 
 ```ts
 const ui = player.getPlugin(DesktopUiPlugin);
@@ -172,7 +178,11 @@ The reason: the built-in tracker only sees DOM input. This plugin's chrome must 
 The state machine is a small bag (`ActivityState`) plus three moves:
 
 - `bumpActivity()` shows the chrome (`activity { active: true }`) and re-arms a `timeout` for `inactivityMs` (default 4000).
-- `maybeHide()` runs when the timer fires. It refuses to hide when playback is not `'playing'`, a menu is open, a `holdChrome()` count is outstanding, or a mouse pointer is over the bottom bar or menu frame.
+- `maybeHide()` runs when the timer fires. It refuses to hide when any of these are true:
+  - playback is not `'playing'`
+  - a menu is open
+  - a `holdChrome()` count is outstanding
+  - a mouse pointer is over the bottom bar or menu frame
 - `dismissOverlay()` is the deliberate paused-state dismiss, used when the user clicks the empty overlay background. It bypasses the playing-only guard but still refuses while a menu is open, a hold is outstanding, or a scrub is releasing.
 
 What counts as activity:
@@ -197,17 +207,23 @@ Visibility rules differ per button:
 - `cast` is gated by the `buttons.cast` option instead, never by listener presence, because an app may want the button rendered before its Cast SDK finishes probing.
 - All three hide in PiP, where floating chrome would act on the wrong window.
 
-The title composition mirrors the Android app's top bar. The primary line is the show name for series content, otherwise the item title. The secondary line is `S{n}E{n} • {episodeTitle}` for TV, an Extras label for season-0 specials, and blank for movies.
+The title composition mirrors the Android app's top bar:
+
+| Content type | Primary line | Secondary line |
+|---|---|---|
+| TV episode | Show name | `S{n}E{n} • {episodeTitle}` |
+| Season-0 special | Show name | Extras label |
+| Movie | Item title | Blank |
 
 Labels come from the plugin's i18n table, so season and episode tokens localize. `hideTitle` hides the right column only; the left column's buttons must stay reachable either way.
 
 ### Menus and menu control
 
-Menus are two files with a deliberate split: `helpers/menus.ts` renders, `helpers/menuControl.ts` orchestrates. The frame is a real `<dialog>` element (`popover="manual"`), holding a main menu (category buttons plus consumer rows) and seven sub-menu panes: `language`, `subtitles`, `quality`, `speed`, `playlist`, `subtitleSettings`, `aspectRatio`.
+Menus are two files with a deliberate split: `helpers/menus.ts` renders, `helpers/menuControl.ts` orchestrates. The frame is a real `<dialog>` element (`popover="manual"`). It holds a main menu (category buttons plus consumer rows) and seven sub-menu panes: `language`, `subtitles`, `quality`, `speed`, `playlist`, `subtitleSettings`, `aspectRatio`.
 
 Menu state is owned in one place, a `MenuControlState` bag. It holds which menu is open, the cached active subtitle / audio / quality indexes, and whether the user pinned a quality manually. Buttons and menu panes both read from this one bag, so the bottom-bar subtitle icon and the checkmark in the subtitles pane can never disagree.
 
-The pointer path: each trigger button opens its pane via `openSubMenu(id)`, and pressing the same trigger again closes it, a toggle. Without that, the only way out would be clicking elsewhere, because triggers stop propagation and never reach the outside-click closer. A document-level click outside the frame closes everything. `aria-expanded` is managed on every trigger on each transition.
+The pointer path: each trigger button opens its pane via `openSubMenu(id)`. Pressing the same trigger again closes it, a toggle. Without that, the only way out would be clicking elsewhere, because triggers stop propagation and never reach the outside-click closer. A document-level click outside the frame closes everything. `aria-expanded` is managed on every trigger on each transition.
 
 The keyboard path: `ArrowUp` / `ArrowDown` inside the frame cycle focus through the open pane's visible, enabled buttons, wrapping at the ends. The keys stop propagation, so the player's seek and volume handlers cannot fire while a menu is open. `Escape` closes all menus.
 
@@ -227,7 +243,7 @@ Opening a menu also sets `menuOpen` on the activity state, which is what pins th
 
 The tooltip appears after a 500 ms delay, shared through one debounce token across all buttons, and dismisses on click or `mouseleave`. It is clamped horizontally against the slider-bar's bounding rect, the same fence the scrub preview uses, so it never escapes the player's edge. The clamp also shifts the arrow so it keeps pointing at the button.
 
-One structural detail worth copying: icons render into a `.btn-icon` child span, not the button itself, so `innerHTML` icon swaps never destroy the `.tooltip` span living next to it.
+One structural detail worth copying: icons render into a `.btn-icon` child span, not the button itself. That way an `innerHTML` icon swap never destroys the `.tooltip` span living next to it.
 
 ### The progress bar
 
@@ -243,9 +259,17 @@ While scrubbing, the `time` event handler skips its progress updates so the cloc
 
 The buffered fill is `player.buffered() / duration`, repainted on every `time` event, wrapped in a try/catch because a detaching SourceBuffer can throw mid-read.
 
-Chapters change the rendering mode. With chapters present, the bar gains `has-chapters`, the single buffer fill hides, and each chapter gets its own marker div holding four layers: background, buffer, hover, and progress. A marker spans `calc(width% - 2px)`, and that 2 pixel gap is what draws the dividers.
+Chapters change the rendering mode. With chapters present, the bar gains `has-chapters` and the single buffer fill hides. Each chapter then gets its own marker div holding four layers: background, buffer, hover, and progress. A marker spans `calc(width% - 2px)`, and that 2 pixel gap is what draws the dividers.
 
-Fills are painted with `scaleX()`. A value before the chapter's range is `scaleX(0)`, past it `scaleX(1)`, inside it the fraction of the span. Progress, buffered, and hover all reuse the same fill function on different layers.
+Fills are painted with `scaleX()`, depending on the fill's position relative to the chapter's range:
+
+| Position | `scaleX()` value |
+|---|---|
+| Before the range | `scaleX(0)` |
+| Inside the range | The fraction of the span |
+| Past the range | `scaleX(1)` |
+
+Progress, buffered, and hover all reuse the same fill function on different layers.
 
 Clicking a marker calls `player.seekToChapter(index)`. Markers rebuild on the `chapters` event, on `duration`, and on item change, whichever arrives last wins.
 
@@ -257,7 +281,7 @@ The manifest is a VTT whose cue bodies read `image.webp#xywh=x,y,w,h`. Parsing d
 
 Both requests route through the plugin's authenticated `fetch`: the VTT as text, the sprite image as an `ArrayBuffer` turned into a `blob:` object URL. The detour exists because a bare `<img src>` cannot carry an `Authorization` header. The image is preloaded so the first hover paints instantly.
 
-Loads are race-guarded with an incrementing token: a playlist jump mid-load discards the stale result and revokes its object URL rather than painting the previous film's thumbnails. Painting is `background-position: -x -y` on a fixed-size div. The object URL is revoked on the next item and on dispose.
+Loads are race-guarded with an incrementing token. A playlist jump mid-load discards the stale result and revokes its object URL, instead of painting the previous film's thumbnails. Painting is `background-position: -x -y` on a fixed-size div. The object URL is revoked on the next item and on dispose.
 
 ### Responsive breakpoints
 
@@ -291,7 +315,14 @@ One convention runs through all of them: a non-default state gets the `is-active
 
 Aria-labels carry the dynamic part. The speed button appends the rate when non-default, the quality button appends the playing level's label.
 
-The volume icon derives from mute state and level together: muted or zero shows the muted glyph, below 30 low, up to 60 medium, above that high.
+The volume icon derives from mute state and level together:
+
+| Volume state | Icon |
+|---|---|
+| Muted, or level 0 | Muted glyph |
+| Below 30 | Low |
+| 30 up to 60 | Medium |
+| Above 60 | High |
 
 Quality has one extra wrinkle: the icon and menu distinguish the requested level from the playing one. The requested value is what the user picked, often `'auto'`.
 
@@ -328,7 +359,14 @@ The remaining-time label toggles between countdown (`-12:34`) and total duration
 
 The `feedbackMethods` mixin owns the spinner and the message line. The message element lives on the player container, not the overlay, deliberately: a "Loading…" line must survive the chrome auto-hiding.
 
-Playback feedback is event-driven. `waiting` and `stalled` show a buffering state, a new `item` shows loading, and `canplay`, `playing`, or `time` clear it. An `error` event shows the error line.
+Playback feedback is event-driven:
+
+| Event | UI state |
+|---|---|
+| `waiting`, `stalled` | Buffering |
+| A new `item` | Loading |
+| `canplay`, `playing`, `time` | Clears the feedback |
+| `error` | Shows the error line |
 
 The initial "Loading…" only shows when the player actually has something queued, because a player can legitimately mount idle. The busy class goes on the plugin's own center wrapper, never the container, whose playback-state classes belong to core.
 

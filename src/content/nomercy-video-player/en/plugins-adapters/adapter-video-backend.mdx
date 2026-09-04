@@ -7,7 +7,9 @@ description: 'IVideoBackend: the port every player-level method reads through fo
 
 # Adapter: Video Backend
 
-`IVideoBackend` is the one port every video-specific player method (`play()`, `time()`, `subtitles()`, `qualityLevels()`, and the rest) reads and writes through, `NMVideoPlayer` itself never touches `<video>` or `hls.js` directly. The shipped default, `Html5VideoBackend`, passes HLS through natively on Safari and falls back to `hls.js` everywhere else, this is the swap point for MSE, WebCodecs, or a native-shell `<video>` bridge instead.
+`IVideoBackend` is the one port every video-specific player method (`play()`, `time()`, `subtitles()`, `qualityLevels()`, and the rest) reads and writes through. `NMVideoPlayer` itself never touches `<video>` or `hls.js` directly.
+
+The shipped default is `Html5VideoBackend`. It passes HLS through natively on Safari and falls back to `hls.js` everywhere else. This port is the swap point for MSE, WebCodecs, or a native-shell `<video>` bridge.
 
 ## The interface
 
@@ -72,40 +74,54 @@ interface IVideoBackend {
 }
 ```
 
-Method conventions mirror the player class itself: stateful values are overloaded functions (`volume()` / `volume(level)`), actions are bare verbs (`play()`, `pause()`, `mute()`), and seeking goes through `currentTime(seconds)`, there is no separate `seek()` method at this layer either.
+Method conventions mirror the player class itself:
+
+- Stateful values are overloaded functions: `volume()` / `volume(level)`.
+- Actions are bare verbs: `play()`, `pause()`, `mute()`.
+- Seeking goes through `currentTime(seconds)`. There is no separate `seek()` method at this layer either.
 
 ## The shipped implementation
 
 `Html5VideoBackend` wraps a real `<video>` element.
 
-Native HLS on Safari, `hls.js` everywhere else. The import is dynamic, so the bundle cost is zero on Safari, and `player.play()` never branches on browser.
+The backend uses native HLS on Safari and falls back to `hls.js` everywhere else. The import is dynamic, so the bundle cost is zero on Safari. `player.play()` never branches on browser.
 
 It applies HDR-aware level constraints itself, capping or lifting HLS renditions as the display's HDR capability changes.
 
-It emits the full `BackendEventPayload` map, which `NMVideoPlayer` bridges onto its own public events: `levels`, `level-switched`, `audioTracks`, `stream:error`, `stream:recovering`, `subtitleCue`, and the standard media element events.
+It emits the full `BackendEventPayload` map, which `NMVideoPlayer` bridges onto its own public events:
+
+- `levels`
+- `level-switched`
+- `audioTracks`
+- `stream:error`
+- `stream:recovering`
+- `subtitleCue`
+- the standard media element events
 
 Two things are deliberately not the backend's. Bandwidth estimation, `bandwidth()` and `bandwidthEstimator()`, belongs to the kit's `abrMethods` mixin. Dropped-frame metrics come from `NMVideoPlayer` polling `mediaElement().getVideoPlaybackQuality()`.
 
 Both work the same whichever `IVideoBackend` is active.
 
-`canStartAt` reports whether the backend consumes `startTime` natively, when `true`, the kit skips its own post-load seek fallback, `hls.js` supports this directly (`startPosition`), so a resume-at-offset load fetches the correct segment from the first request instead of downloading and discarding the stream's beginning.
+`canStartAt` reports whether the backend consumes `startTime` natively. When `true`, the kit skips its own post-load seek fallback.
+
+`hls.js` supports this directly through `startPosition`. A resume-at-offset load fetches the correct segment from the first request, so nothing from the stream's beginning is downloaded and thrown away.
 
 ## Auth on manifest and segment requests
 
-`setAuthHeaderProvider(provider)` is how `Authorization: Bearer <token>` reaches `hls.js`'s own manifest and segment requests, not just the kit's `fetch` calls. `NMVideoPlayer.backend()` wires this automatically from `setup({ auth })`, resolving the bearer value fresh (sync or async getter) on every request rather than capturing it once, see [Recipe: Auth Tokens via baseUrl + auth](/nomercy-video-player/recipes/auth-tokens).
+`setAuthHeaderProvider(provider)` is how `Authorization: Bearer <token>` reaches `hls.js`'s own manifest and segment requests, not just the kit's `fetch` calls. `NMVideoPlayer.backend()` wires this automatically from `setup({ auth })`. It resolves the bearer value fresh (sync or async getter) on every request rather than capturing it once. See [Recipe: Auth Tokens via baseUrl + auth](/nomercy-video-player/recipes/auth-tokens).
 
 ## Rules & restrictions
 
 - `backend()` constructs the instance on first call and caches it. Call it before `setup()` and you get an instance not yet wired to a loaded source.
 - One backend is active per player at a time. `player.backend(kind)` swaps it mid-session, disposes the previous instance and emits `backend:changed`.
 
-- A swap is not a crossfade. Whatever was playing stops, and the new backend comes up with no source, so reload to resume. See [Reference: Video Player Methods](/nomercy-video-player/reference/player-methods#video-element--geometry). Cast handoff is a separate concern, through `transferTo()` at plugin level.
+- A swap is not a crossfade. Whatever was playing stops, and the new backend comes up with no source. Reload it to resume. See [Reference: Video Player Methods](/nomercy-video-player/reference/player-methods#video-element--geometry). Cast handoff is a separate concern, through `transferTo()` at plugin level.
 - `mediaKeys()`, `setMediaKeys()` and `outputProtectionState()` exist for EME and DRM coordination. See [Plugin: DRM](/nomercy-video-player/plugins-adapters/drm). A backend that never touches encrypted content implements them as no-ops.
 - `outputNode` and `analysisNode` are optional. Implement them only to support Web Audio taps such as the equalizer and spectrum visualizers re-exported from the kit. A backend that never builds a Web Audio graph omits them and pays nothing.
 
 ## How to extend it
 
-Provide a `backendFactory` at `setup()`, it receives the resolved kind and full config, and returns any `IVideoBackend` implementation:
+Provide a `backendFactory` at `setup()`. It receives the resolved kind and full config, and returns any `IVideoBackend` implementation:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -125,7 +141,7 @@ player.setup({
 });
 ```
 
-`kind` is currently always `'html5'` from the kit's own resolution unless your factory (or a plugin) requests otherwise, `'mse'` and `'webcodecs'` are reserved labels for a custom factory to branch on, not backends this package ships.
+`kind` is currently always `'html5'` from the kit's own resolution, unless your factory (or a plugin) requests otherwise. `'mse'` and `'webcodecs'` are reserved labels for a custom factory to branch on, not backends this package ships.
 
 ## Next steps
 

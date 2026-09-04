@@ -13,7 +13,7 @@ This recipe covers both halves: writing progress out as it plays, and feeding it
 
 ## Saving progress as it plays
 
-`'progress'` fires `{ time, duration, percentage }`, throttled by `progressIntervalMs` (5 seconds by default), cheap enough to persist on every fire without debouncing again in your own code:
+`'progress'` fires `{ time, duration, percentage }`, throttled by `progressIntervalMs` (5 seconds by default). It is cheap enough to persist on every fire, without debouncing again in your own code:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -29,11 +29,11 @@ player.on('progress', ({ time, percentage }) => {
 });
 ```
 
-`'time'` fires far more often (every native `timeupdate`, dozens of times a second) and is the wrong signal for a persistence write, it exists for scrubber UI, not for storage. Always save from `'progress'`.
+`'time'` fires far more often (every native `timeupdate`, dozens of times a second) and is the wrong signal for a persistence write. It exists for scrubber UI, not for storage. Always save from `'progress'`.
 
 ## The WatchProgress shape
 
-Attach the saved record to the matching field on the item the next time you build a playlist, this is the exact shape `VideoPlaylistItem.progress` expects:
+Attach the saved record to the matching field on the item, the next time you build a playlist. This is the exact shape `VideoPlaylistItem.progress` expects:
 
 ```ts
 interface WatchProgress {

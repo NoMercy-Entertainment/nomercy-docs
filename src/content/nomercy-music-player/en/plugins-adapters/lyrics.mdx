@@ -9,7 +9,12 @@ description: 'LyricsPlugin: fetches item.lyricsUrl on every cursor change, parse
 
 `LyricsPlugin` (id `'lyrics'`) wires a track's synced lyrics to the kit's generic cue machinery.
 
-On every `item` change it resolves a lyrics URL, fetches it through the auth-aware fetch, parses it with `resolveCueParser(url)`, and attaches a `CueTracker` that fires as playback crosses each line's window.
+On every `item` change, the plugin runs its pipeline:
+
+1. Resolves a lyrics URL.
+2. Fetches it through the auth-aware fetch.
+3. Parses it with `resolveCueParser(url)`.
+4. Attaches a `CueTracker` that fires as playback crosses each line's window.
 
 [Lyrics](/nomercy-music-player/tour/lyrics) is the walkthrough. [Recipe: Synced Lyrics UI](/nomercy-music-player/recipes/lyrics-sync) builds a scrolling panel.
 
@@ -42,7 +47,7 @@ Namespaced onto the player's own bus as `plugin:lyrics:<event>`:
 
 ## Rules & restrictions
 
-- `item.lyricsUrl` is fetched exactly as given, it is **not** resolved against `baseUrl` the way `item.url` is. Store a fully-qualified URL, or resolve it yourself in a `getLyricsUrl` override, see [Lyrics: lyricsUrl isn't resolved against baseUrl](/nomercy-music-player/tour/lyrics#lyricsurl-isnt-resolved-against-baseurl).
+- `item.lyricsUrl` is fetched exactly as given. It is **not** resolved against `baseUrl` the way `item.url` is. Store a fully-qualified URL, or resolve it yourself in a `getLyricsUrl` override. See [Lyrics: lyricsUrl isn't resolved against baseUrl](/nomercy-music-player/tour/lyrics#lyricsurl-isnt-resolved-against-baseurl).
 - A missing `item.lyricsUrl`, with no `getLyricsUrl` resolver returning one, clears plugin state quietly. No fetch, no error.
 
 - A fetch or parse failure reports through the plugin's error channel, `plugin:lyrics/no-parser` or `plugin:lyrics/fetch-failed`, rather than throwing. A bad lyrics file never interrupts playback.
@@ -53,7 +58,7 @@ Namespaced onto the player's own bus as `plugin:lyrics:<event>`:
 
 ## How to extend it
 
-`LyricsPlugin` isn't designed for subclassing, its surface is small enough that most customization goes through `opts.getLyricsUrl` (routing to a different sidecar location or format) or by registering an additional `ICueParser` for a lyrics format the kit doesn't parse out of the box:
+`LyricsPlugin` isn't designed for subclassing. Its surface is small enough that most customization goes through `opts.getLyricsUrl`, which lets you route to a different sidecar location or format. You can also register an additional `ICueParser` for a lyrics format the kit doesn't parse out of the box:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';

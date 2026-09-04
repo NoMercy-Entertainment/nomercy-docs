@@ -7,7 +7,7 @@ description: 'Call the kit auth-aware fetch pipeline directly from data-layer co
 
 # Recipe: Use authFetch
 
-[The Plugin Base](/nomercy-player-core/tour/plugin-base) covers `Plugin.fetch()`, the auth-aware HTTP helper every plugin gets bound to its own lifecycle. `authFetch` is the same pipeline underneath, exported standalone for code that isn't a plugin, a data layer, a prefetch routine, anything that needs the kit's auth handling without a player around it.
+[The Plugin Base](/nomercy-player-core/tour/plugin-base) covers `Plugin.fetch()`, the auth-aware HTTP helper every plugin gets bound to its own lifecycle. `authFetch` is the same pipeline underneath, exported standalone. It is for code that isn't a plugin: a data layer, a prefetch routine, anything that needs the kit's auth handling without a player around it.
 
 ## What it does that a raw `fetch` doesn't
 
@@ -17,20 +17,26 @@ The order is fixed.
 2. `Authorization: Bearer <token>` is set from a resolved `bearerToken`. That can be a string, a sync getter or an async getter, so a Vue ref or a reactive store works directly.
 3. `auth.headers` merges in.
 
-A 401 triggers `auth.refreshOnUnauthenticated()` exactly once, then retries the original request with freshly resolved credentials.
+Each kind of failure gets its own treatment:
 
-A 403 propagates immediately. It is never retried and never refreshed.
+| Failure | What `authFetch` does |
+| --- | --- |
+| 401 | Calls `auth.refreshOnUnauthenticated()` once, then retries the original request with freshly resolved credentials. |
+| 403 | Propagates immediately. Never retried, never refreshed. |
+| 5xx, network | Retries per `RetryConfig`. |
 
-5xx and network failures retry per `RetryConfig`. [Typed Errors](/nomercy-player-core/tour/errors) has the default policy table.
+[Typed Errors](/nomercy-player-core/tour/errors) has the default retry policy table.
 
-`signal` is required, not optional: every call site owns its own `AbortController` and cancellation is explicit, there's no implicit "cancel when some object is garbage collected" behavior to reason about.
+`signal` is required, not optional. Every call site owns its own `AbortController`, so cancellation is explicit. There is no implicit "cancel when some object is garbage collected" behavior to reason about.
 
 :::snippet{file="recipe-auth-fetch" live="false"}
 :::
 
 ## Response typing
 
-`responseType` discriminates how the body decodes, and only one variant accepts a transform callback. This is `FetchOptions<T>`, the shape `Plugin.fetch()` / `this.fetch()` accepts, defined in `core/plugin/fetch.ts`; `authFetch()` itself takes the lower-level `AuthFetchOptions<T>` (`core/auth-fetch/types.ts`) with the same three-way `responseType` split, plus `url`, `auth`, and `signal`, which `Plugin.fetch()` fills in for you from the plugin's own lifecycle:
+`responseType` discriminates how the body decodes. Only one variant accepts a transform callback.
+
+This is `FetchOptions<T>`, the shape `Plugin.fetch()` / `this.fetch()` accepts, defined in `core/plugin/fetch.ts`. `authFetch()` itself takes the lower-level `AuthFetchOptions<T>` (`core/auth-fetch/types.ts`). That type has the same three-way `responseType` split, plus `url`, `auth`, and `signal`. `Plugin.fetch()` fills those three in for you from the plugin's own lifecycle:
 
 ```ts
 type FetchOptions<T>
@@ -39,11 +45,23 @@ type FetchOptions<T>
 		| { responseType: 'arrayBuffer' };
 ```
 
-`'text'` is the default, and the only variant that takes a `parser`. With no `parser`, a `'text'` fetch resolves to the raw response string (`T = string`). `'json'` calls `response.json()` and `'arrayBuffer'` calls `response.arrayBuffer()`, neither accepts a `parser`, invalid JSON throws the same `core:network/parse-failed` a parser failure does.
+Each `responseType` resolves differently:
+
+| `responseType` | Resolves to |
+| --- | --- |
+| `'text'` (default) | The raw response string (`T = string`) when no `parser` is given. The only variant that accepts a `parser`. |
+| `'json'` | `response.json()`. Invalid JSON throws `core:network/parse-failed`, the same error a failing `parser` throws. |
+| `'arrayBuffer'` | `response.arrayBuffer()`. |
+
+Neither `'json'` nor `'arrayBuffer'` accepts a `parser`.
 
 ### The `parser` callback
 
-`parser` receives the raw response body as a string and returns the `T` that `Plugin.fetch<T>()` (or `authFetch<T>()`) resolves to. Reach for it for any body that isn't JSON, a newline- or comma-delimited list, a custom sidecar format, anything your own endpoint returns as plain text:
+`parser` receives the raw response body as a string and returns the `T` that `Plugin.fetch<T>()` (or `authFetch<T>()`) resolves to. Reach for it for any body that isn't JSON:
+
+- a newline- or comma-delimited list
+- a custom sidecar format
+- anything your own endpoint returns as plain text
 
 ```ts
 class QueueSyncPlugin extends Plugin {
@@ -65,7 +83,7 @@ class QueueSyncPlugin extends Plugin {
 }
 ```
 
-A `parser` that throws surfaces exactly like a malformed `'json'` body: `core:network/parse-failed`, a `NetworkError` caught with `isNetworkError()`, never an uncaught exception from inside the fetch pipeline.
+A `parser` that throws surfaces exactly like a malformed `'json'` body. The error is `core:network/parse-failed`, a `NetworkError` caught with `isNetworkError()`. It never escapes the fetch pipeline as an uncaught exception.
 
 For a body that's already JSON, skip `parser` and set `responseType: 'json'` instead:
 
@@ -82,15 +100,16 @@ class QueueSyncPlugin extends Plugin {
 }
 ```
 
-The type flows differently through the two branches.
+The type flows differently through the two branches:
 
-In the `'text'` branch, `T` is inferred from the `parser`'s return type, so the explicit `<string[]>` above is optional. Write `{ parser: (raw): string[] => ... }` and the fetch resolves to `Promise<string[]>` on its own.
+| Branch | How `T` is determined |
+| --- | --- |
+| `'text'` | Inferred from the `parser`'s return type. Write `{ parser: (raw): string[] => ... }` and the fetch resolves to `Promise<string[]>` on its own; the explicit `<string[]>` above is optional. |
+| `'json'`, `'arrayBuffer'` | No callback to infer from. You name `T` yourself, as `fetch<QueueSnapshot>`, and the kit casts the decoded body to it unchecked, the same as writing `response.json() as T` by hand. Nothing validates the shape at runtime. |
 
-That works because the parser is the one place your code runs to produce the value, so the compiler can hold you to its return type.
+The `'text'` branch can infer the type because the parser is the one place your code runs to produce the value, so the compiler can hold you to its return type.
 
-The `'json'` and `'arrayBuffer'` branches have no callback to infer from. You name `T` yourself, as `fetch<QueueSnapshot>`, and the kit casts the decoded body to it unchecked. It is the same `response.json() as T` you would write by hand, with nothing validating the shape at runtime.
-
-So keep the explicit type parameter for bodies you trust, and reach for a `parser` when you want the transform itself type-checked.
+Keep the explicit type parameter for bodies you trust. Reach for a `parser` when you want the transform itself type-checked.
 
 `isAuthError()` and `isNetworkError()` are the same type guards `Plugin.fetch()` callers use to branch a `catch` block without an `instanceof` import.
 

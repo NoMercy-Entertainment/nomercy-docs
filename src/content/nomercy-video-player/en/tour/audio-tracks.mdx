@@ -7,7 +7,13 @@ description: 'audioTracks(), audioTrack(), audioTrackMode(), and cycleAudioTrack
 
 # Audio Tracks
 
-An HLS manifest can carry more than one audio rendition per item, alternate languages, a commentary track, a stereo/5.1 pair. `audioTracks()` and `audioTrack()` mirror the subtitle surface from [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles) exactly: same index-based selection, same `Current*Selection` shape, same auto-select config field.
+An HLS manifest can carry more than one audio rendition per item:
+
+- alternate languages
+- a commentary track
+- a stereo/5.1 pair
+
+`audioTracks()` and `audioTrack()` mirror the subtitle surface from [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles) exactly. They use the same index-based selection, the same `Current*Selection` shape, and the same auto-select config field.
 
 ## Listing and selecting
 
@@ -22,11 +28,11 @@ const current = player.audioTrack(); // { index, track } | null
 await player.audioTrack(1); // switch to the second rendition
 ```
 
-Unlike subtitles, audio tracks have no "off" state, one is always active once the manifest resolves. `cycleAudioTracks()` walks the list and wraps around at the end instead of stopping, since there's no off position to land on.
+Unlike subtitles, audio tracks have no "off" state. Once the manifest resolves, one track is always active. Because there is no off position to land on, `cycleAudioTracks()` walks the list and wraps around at the end instead of stopping.
 
 ## Default language
 
-`defaultAudioLanguage` on `VideoPlayerConfig` auto-selects a track once the manifest parses, same BCP-47 exact-then-prefix matching `defaultSubtitleLanguage` uses:
+Once the manifest parses, `defaultAudioLanguage` on `VideoPlayerConfig` auto-selects a track. It uses the same BCP-47 exact-then-prefix matching as `defaultSubtitleLanguage`:
 
 ```ts
 player.setup({
@@ -38,7 +44,14 @@ player.setup({
 
 ## Reading the selection mode
 
-`audioTrackMode()` returns `AudioTrackState.DEFAULT` when no explicit choice has been made yet (the backend's own default rendition is active) or `AudioTrackState.MANUAL` once a consumer or preference plugin has picked one, the state a "reset to default" menu item reads before deciding whether to show itself.
+`audioTrackMode()` reports which one is driving the current choice:
+
+| Mode | Meaning |
+| --- | --- |
+| `AudioTrackState.DEFAULT` | No explicit choice has been made yet. The backend's own default rendition is active. |
+| `AudioTrackState.MANUAL` | A consumer or preference plugin has picked a track. |
+
+A "reset to default" menu item reads this mode before deciding whether to show itself.
 
 ## See it running
 

@@ -7,16 +7,18 @@ description: 'metrics(), recordMetric(), now(), announce(), and the ABR trio ban
 
 # Reference: Metrics, Clock & Accessibility
 
-These methods come from the `metrics` and `abr` mixin groups, two of the ten internal building blocks [Composition Primitives](/nomercy-player-core/reference/composition) lists as bundled into `playerCoreMethods` but not individually importable. Every `NMVideoPlayer` and `NMMusicPlayer` instance has them regardless, they're just not a separate `composeMixins()` call away for a narrower build.
+These methods come from the `metrics` and `abr` mixin groups, two of the ten internal building blocks [Composition Primitives](/nomercy-player-core/reference/composition) lists as bundled into `playerCoreMethods` but not individually importable. Every `NMVideoPlayer` and `NMMusicPlayer` instance has them regardless. They are just not a separate `composeMixins()` call away for a narrower build.
 
 ## Metrics
 
-`metrics()` reads a point-in-time snapshot; the same shape is also pushed periodically as the [`playback:metrics`](/nomercy-player-core/reference/events#plugins-network-metrics-activity) event on the interval set by `setup({ metricsIntervalMs })`. `recordMetric()` is the write side, backends call it to update their instrumented counters, and a plugin or consumer can use it for its own namespaced values.
+`metrics()` reads a point-in-time snapshot. The same shape is also pushed periodically as the [`playback:metrics`](/nomercy-player-core/reference/events#plugins-network-metrics-activity) event, on the interval set by `setup({ metricsIntervalMs })`.
+
+`recordMetric()` is the write side. Backends call it to update their instrumented counters, and a plugin or consumer can use it for its own namespaced values.
 
 | Method | Signature | Notes |
 |---|---|---|
 | `metrics()` | `() => PlaybackMetrics` | Spreads the live counter map and appends a fresh `sessionDurationMs` computed from when the current item started. See [Reference: Domain Types](/nomercy-player-core/reference/types) for every `PlaybackMetrics` field and which backends report it. |
-| `recordMetric(name, value)` | `(name: string, value: number) => void` | Writes one named counter into the live store. `name` can be any string, an existing `PlaybackMetrics` key or a plugin's own namespaced one, the extension slot (`[customMetric: string]: number \| null`) exists for exactly that. |
+| `recordMetric(name, value)` | `(name: string, value: number) => void` | Writes one named counter into the live store. `name` can be any string: an existing `PlaybackMetrics` key, or a plugin's own namespaced one. The extension slot (`[customMetric: string]: number \| null`) exists for exactly that. |
 
 ## Clock
 
@@ -28,7 +30,7 @@ These methods come from the `metrics` and `abr` mixin groups, two of the ten int
 
 ## Accessibility
 
-`announce()` is the player's ARIA-live primitive. It inserts a visually-hidden element with `role="status"` and the requested `aria-live` level under the player container, then removes it shortly after so the DOM doesn't accumulate stale nodes, screen readers pick up the text before the removal happens.
+`announce()` is the player's ARIA-live primitive. It inserts a visually-hidden element with `role="status"` and the requested `aria-live` level under the player container, then removes it shortly after so the DOM doesn't accumulate stale nodes. Screen readers pick up the text before the removal happens.
 
 | Method | Signature | Notes |
 |---|---|---|
@@ -44,7 +46,7 @@ player.announce('Playback error, retrying', 'assertive');
 
 ## Bandwidth & capability checks
 
-The same ABR primitives [Quality Levels](/nomercy-video-player/tour/quality) walks through for video apply unchanged to an adaptive-bitrate audio stream, they live here because both libraries compose the same `abrMethods` mixin.
+The same ABR primitives [Quality Levels](/nomercy-video-player/tour/quality) walks through for video apply unchanged to an adaptive-bitrate audio stream. They live here because both libraries compose the same `abrMethods` mixin.
 
 | Method | Signature | Notes |
 |---|---|---|

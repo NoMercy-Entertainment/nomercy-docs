@@ -11,19 +11,27 @@ Subtitles, lyrics, and sprite-preview thumbnails are all the same shape undernea
 
 ## CueList
 
-`createCueList(cues)` builds an immutable, time-indexed `CueList<T>` from `{ start, end, payload }` entries.
+`createCueList(cues)` builds an immutable, time-indexed `CueList<T>` from `{ start, end, payload }` entries. Input order does not matter, since it sorts by `start` on construction. Each query on the list does one job:
 
-Input order does not matter. It sorts by `start` on construction, and every lookup is a binary search.
+| Query | Returns |
+| --- | --- |
+| `active(time)` | Every cue whose interval contains `time`. Overlapping cues are supported on purpose, for parallel subtitle tracks and adjacent sprite thumbnails. |
+| `next(time)` | The nearest cue after `time`. |
+| `prev(time)` | The nearest cue before `time`. |
 
-`active(time)` returns every cue whose interval contains `time`. Overlapping cues are supported on purpose: parallel subtitle tracks and adjacent sprite thumbnails both need it.
-
-`next(time)` and `prev(time)` find the nearest cue on either side.
+Every lookup is a binary search.
 
 `createMutableCueList()` gives the same query surface over a live buffer that grows and shrinks at runtime, for streamed-in captions or chapter lists. It notifies `subscribe()`d listeners on every change.
 
 ## Built-in parsers
 
-Three `ICueParser` implementations ship with the kit and auto-register during `setup()`: `lrcParser` (`.lrc`, plain or word-level enhanced LRC), `vttSubtitleParser` (`.vtt`, WebVTT with inline `<b>` / `<i>` / `<u>` tags preserved and cue-setting alignment), and `spriteVttParser` (sprite-sheet crops via `#xywh=` fragments, only for URLs that hint at sprites). Each has an `id`, a `canParse(url, contentType?)` predicate, and a `parse(raw, opts?)` function.
+Three `ICueParser` implementations ship with the kit and auto-register during `setup()`:
+
+- `lrcParser`: `.lrc`, plain or word-level enhanced LRC
+- `vttSubtitleParser`: `.vtt`, WebVTT with inline `<b>` / `<i>` / `<u>` tags preserved and cue-setting alignment
+- `spriteVttParser`: sprite-sheet crops via `#xywh=` fragments, only for URLs that hint at sprites
+
+Each has an `id`, a `canParse(url, contentType?)` predicate, and a `parse(raw, opts?)` function.
 
 ## The registry
 
@@ -35,11 +43,11 @@ A real player seeds the registry with the three built-ins during `setup()`. So a
 
 The runtime wrappers around the same registry are `player.registerCueParser(parser, prepend?)`, `unregisterCueParser(id)` and `resolveCueParser(url)`.
 
-The example below parses real VTT and LRC text directly (`parseVtt`, `parseVttSubtitles`, `parseLrc`, and their sprite counterpart are exported standalone, no player needed), then registers a small custom format against a bare registry to show the extension point in isolation.
+The example below parses real VTT and LRC text directly. `parseVtt`, `parseVttSubtitles`, `parseLrc`, and their sprite counterpart are exported standalone, no player needed. The example then registers a small custom format against a bare registry, to show the extension point in isolation.
 
 :::snippet{file="tour-cue-parsers" live="false"}
 :::
 
 ## Next steps
 
-- [Typed Errors](/nomercy-player-core/tour/errors): the `PlayerError` hierarchy every failure path in this tour, from a rejected `ready()` to a parse failure, surfaces through.
+- [Typed Errors](/nomercy-player-core/tour/errors): the `PlayerError` hierarchy. Every failure path in this tour surfaces through it, from a rejected `ready()` to a parse failure.

@@ -7,15 +7,18 @@ description: 'time(), duration(), timeData(), rewind()/forward()/restart(), and 
 
 # Time & Seeking
 
-Position and duration come straight from `nomercy-player-core`, same as transport, and so does the `'time'` event's payload: the kit's full `TimeState` snapshot, because a progress bar almost always wants percentage and remaining time in the same read.
+Position and duration come straight from `nomercy-player-core`, same as transport. So does the `'time'` event's payload: the kit's full `TimeState` snapshot. A progress bar almost always wants percentage and remaining time in the same read.
 
 ## Reading and seeking
 
 `time()` reads the current position in seconds. `time(seconds)` seeks to a new one. There is no separate `seek()`.
 
-Position is reported by two different events, for two different reasons.
+Position is reported by two different events, for two different reasons:
 
-Ordinary playback ticks the `time` event per frame, plus the throttled `progress` event. A deliberate jump fires the cancellable `beforeSeek` → `seek` → `seeked` cycle.
+| Trigger | Events |
+| --- | --- |
+| Ordinary playback | Ticks the `time` event per frame, plus the throttled `progress` event. |
+| A deliberate jump | Fires the cancellable `beforeSeek` → `seek` → `seeked` cycle. |
 
 It is the same split the web platform draws between `timeupdate` and `seeking`/`seeked`. The tick against the jump:
 
@@ -28,7 +31,15 @@ const currentTime = player.time(); // seconds
 await player.time(120); // jump to 2:00
 ```
 
-`duration()` returns the total track length once metadata resolves (`0` before then). `buffered()` and `bufferedRanges()` read how far ahead playback has downloaded. `timeData()` bundles all of it into one `TimeState` snapshot, `position`, `duration`, `buffered`, `remaining`, `percentage`, computed together so the values agree at the moment of the call instead of drifting across separate reads:
+Three reads describe playback position:
+
+| Method | What it returns |
+| --- | --- |
+| `duration()` | The total track length once metadata resolves (`0` before then). |
+| `buffered()` / `bufferedRanges()` | How far ahead playback has downloaded. |
+| `timeData()` | One `TimeState` snapshot bundling `position`, `duration`, `buffered`, `remaining`, `percentage`. |
+
+The values in `timeData()` are computed together, so they agree at the moment of the call instead of drifting across separate reads:
 
 ```ts
 const { position, duration, percentage } = player.timeData();
@@ -36,7 +47,7 @@ const { position, duration, percentage } = player.timeData();
 
 ## Relative seeks
 
-`rewind(seconds?)` and `forward(seconds?)` compute a relative target from the current position and run the same cancellable `beforeSeek` → `seek` → `seeked` cycle; both default to a 5 second step when called with no argument. `restart()` seeks to `0` and resumes playback, an atomic intent, not a seek-then-play sequence, so a cancelled seek skips the resulting `play()` too:
+`rewind(seconds?)` and `forward(seconds?)` compute a relative target from the current position and run the same cancellable `beforeSeek` → `seek` → `seeked` cycle. Both default to a 5 second step when called with no argument. `restart()` seeks to `0` and resumes playback. That is one atomic intent, not a seek-then-play sequence, so a cancelled seek skips the resulting `play()` too:
 
 ```ts
 await player.rewind(10); // -10s
@@ -44,11 +55,11 @@ await player.forward(30); // +30s
 await player.restart();
 ```
 
-`seekByPercentage(pct)` seeks to a position expressed as `0`-`100` percent of `duration()`, the calculation a progress bar's click handler would otherwise have to do by hand.
+`seekByPercentage(pct)` seeks to a position expressed as `0`-`100` percent of `duration()`. It is the calculation a progress bar's click handler would otherwise have to do by hand.
 
 ## The `'time'` event payload
 
-Core's `BaseEventMap` defines `'time'` as the full `TimeState` snapshot, everything a scrubber needs in one payload, identical across the music and video players:
+Core's `BaseEventMap` defines `'time'` as the full `TimeState` snapshot: everything a scrubber needs in one payload. The shape is identical across the music and video players:
 
 ```ts
 player.on('time', ({ time, percentage, position, duration, buffered, remaining }) => {
@@ -56,7 +67,12 @@ player.on('time', ({ time, percentage, position, duration, buffered, remaining }
 });
 ```
 
-`position` is an alias for `time` in seconds, `percentage` is elapsed time as `0`-`100` of `duration`, `buffered` is how many seconds are loaded ahead of the position, `remaining` is seconds left. It is the same shape `timeData()` returns, so subscribe to this instead of polling from a render loop.
+- `position`: an alias for `time`, in seconds.
+- `percentage`: elapsed time as `0`-`100` of `duration`.
+- `buffered`: how many seconds are loaded ahead of the position.
+- `remaining`: seconds left.
+
+It is the same shape `timeData()` returns, so subscribe to this instead of polling from a render loop.
 
 ## See it running
 

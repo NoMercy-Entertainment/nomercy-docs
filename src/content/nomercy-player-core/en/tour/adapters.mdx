@@ -11,7 +11,7 @@ Nothing the kit does to a browser API is hardcoded. Every non-lifecycle behavior
 
 ## The adapter ports
 
-Each of these is a field on `BasePlayerConfig`, except stream sources, which you register with `registerStream()`. Supplying the field replaces the kit's default outright; a partial override (`{ ...browserPlatform, wakeLock: myWakeLock }`) composes cleanly for interfaces that bundle several sub-controllers.
+Each of these is a field on `BasePlayerConfig`, except stream sources, which you register with `registerStream()`. Supplying the field replaces the kit's default outright. For interfaces that bundle several sub-controllers, a partial override (`{ ...browserPlatform, wakeLock: myWakeLock }`) composes cleanly.
 
 | Port | Interface | Default | Swap for |
 |---|---|---|---|
@@ -30,7 +30,7 @@ The queue's cursor-follow logic, the crossfade timing math, the retry backoff, n
 
 ## Composing a player from the ports
 
-Three functions turn a plain class into something that behaves like `NMVideoPlayer` or `NMMusicPlayer`, and [Quickstart](/nomercy-player-core/quickstart) shows all three together:
+Three functions turn a plain class into something that behaves like `NMVideoPlayer` or `NMMusicPlayer`. [Quickstart](/nomercy-player-core/quickstart) shows all three together:
 
 - `resolvePlayerConstructor(id, instances, className)`: the three-form factory resolution (`nmplayer()` / `nmplayer('div-id')` / `nmplayer(2)`) both real players' static constructors use.
 - `initPlayerCoreState(player, opts)`: seeds every internal slot (phase, queue, volume, plugin registry, and the rest) to its canonical starting value.
@@ -38,7 +38,7 @@ Three functions turn a plain class into something that behaves like `NMVideoPlay
 
 ## Swapping one at setup
 
-The example below replaces `storage` (so nothing touches `localStorage`) and `shuffleStrategy` (with a deterministic strategy, easy to verify) on the same minimal player composed in [Quickstart](/nomercy-player-core/quickstart).
+The example below runs on the same minimal player composed in [Quickstart](/nomercy-player-core/quickstart). It replaces `storage`, so nothing touches `localStorage`. It also replaces `shuffleStrategy` with a deterministic strategy that is easy to verify.
 
 :::snippet{file="tour-adapters" live="false"}
 :::

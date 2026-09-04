@@ -11,11 +11,18 @@ The last step. Step 3 left a player with a real backend and a registered plugin.
 
 ## Config, not a separate call
 
-[i18n](/nomercy-player-core/tour/i18n) showed `addTranslations()` merging a bundle into an already-running player. That's the right tool for translations that arrive after setup, loaded from a network bundle or registered by a plugin. Here, the translations are known upfront, so they go straight into `setup()` alongside `logLevel` and everything else: `language` and `translations` are ordinary `BasePlayerConfig` fields.
+[i18n](/nomercy-player-core/tour/i18n) showed `addTranslations()` merging a bundle into an already-running player. That's the right tool for translations that arrive after setup, loaded from a network bundle or registered by a plugin.
 
-The kit ships its own `core.*` strings, so a player has working error and status text before you write a single key. Network, auth, DRM and accessibility announcements are all covered.
+Here, the translations are known upfront. So they go straight into `setup()` alongside `logLevel` and everything else. `language` and `translations` are ordinary `BasePlayerConfig` fields.
 
-English is seeded eagerly at `setup()`, underneath whatever `translations.en` you pass. So `t('core.*')` resolves immediately, and a key you do not override falls back to the kit's English.
+The kit ships its own `core.*` strings, so a player has working error and status text before you write a single key. These strings cover:
+
+- Network announcements.
+- Auth announcements.
+- DRM announcements.
+- Accessibility announcements.
+
+English is seeded eagerly at `setup()`, underneath whatever `translations.en` you pass. So `t('core.*')` resolves immediately. A key you do not override falls back to the kit's English.
 
 Every other kit locale loads lazily, the first time `language(lang)` switches to a tag with no bundle seeded. That is the same on-demand mechanism plugin bundles use.
 
@@ -25,7 +32,7 @@ Supplying your own `translator` engine replaces this merge entirely. The kit own
 
 ## Adding it
 
-Nothing about `KitPlayer` from Step 3 changes structurally, two `declare`s, one each for `t()` and `language()`, and two config fields at the `setup()` call site.
+Structurally, `KitPlayer` from Step 3 does not change. It gains two `declare`s, one each for `t()` and `language()`. The `setup()` call gains two config fields.
 
 :::snippet{file="build-4-add-i18n" live="false"}
 :::
@@ -34,7 +41,14 @@ Nothing about `KitPlayer` from Step 3 changes structurally, two `declare`s, one 
 
 Four steps, one class.
 
-`composeMixins` gives it every shared method. `backend()` gives transport and volume something to drive. `addPlugin` layers behaviour on without touching the class. `translations` in `setup()` finishes the config.
+Each step added one piece:
+
+| Step | What it added |
+| --- | --- |
+| `composeMixins` | Every shared method. |
+| `backend()` | Something for transport and volume to drive. |
+| `addPlugin` | Behavior layered on without touching the class. |
+| `translations` in `setup()` | The config, finished. |
 
 Every piece is the same code `nomercy-video-player` and `nomercy-music-player` run. This tutorial built it one capability at a time instead of taking it from a single import.
 

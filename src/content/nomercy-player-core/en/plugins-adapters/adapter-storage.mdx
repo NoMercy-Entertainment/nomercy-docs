@@ -7,7 +7,7 @@ description: 'IStorage: get/set/remove plus JSON helpers, sync or async either w
 
 # Adapter: Storage
 
-`IStorage` is the port every persisted read/write in the kit goes through, equalizer settings, mixer state, and anything a plugin persists via `this.storage`. [Swap an Adapter](/nomercy-player-core/recipes/swap-an-adapter) walks through replacing it end to end; this page is the reference for the port itself.
+`IStorage` is the port every persisted read/write in the kit goes through: equalizer settings, mixer state, and anything a plugin persists via `this.storage`. [Swap an Adapter](/nomercy-player-core/recipes/swap-an-adapter) walks through replacing it end to end. This page is the reference for the port itself.
 
 ## The interface
 
@@ -21,7 +21,7 @@ interface IStorage {
 }
 ```
 
-Every method may return its value directly or as a `Promise`, so a synchronous backend and an asynchronous one satisfy the same interface. Plugin code always `await`s regardless of which is active.
+Every method may return its value directly or as a `Promise`. A synchronous backend and an asynchronous one therefore satisfy the same interface. Plugin code always `await`s regardless of which is active.
 
 ## Shipped implementations
 
@@ -33,12 +33,12 @@ Every method may return its value directly or as a `Promise`, so a synchronous b
 
 ## Rules & restrictions
 
-- `IndexedDBBackend` opens its database lazily on first method call, not at construction, so instantiating it in an environment without `indexedDB` (Node, SSR) doesn't crash. Method calls reject with a `BrowserPolicyError` in that environment instead.
-- A remote/API-backed store for cross-device persistence is a legitimate consumer-supplied implementation, the interface doesn't assume local-only storage.
+- `IndexedDBBackend` opens its database lazily on the first method call, not at construction. Instantiating it in an environment without `indexedDB` (Node, SSR) therefore does not crash. Method calls reject with a `BrowserPolicyError` in that environment instead.
+- The interface does not assume local-only storage. A remote or API-backed store for cross-device persistence is a legitimate consumer-supplied implementation.
 
 ## How to extend it
 
-Implement the five methods against any backing store, swap it in at `setup({ storage })`. See [Swap an Adapter](/nomercy-player-core/recipes/swap-an-adapter) for a complete example including a plugin that reads/writes through it.
+Implement the five methods against any backing store. Swap it in at `setup({ storage })`. See [Swap an Adapter](/nomercy-player-core/recipes/swap-an-adapter) for a complete example including a plugin that reads/writes through it.
 
 ## Next steps
 

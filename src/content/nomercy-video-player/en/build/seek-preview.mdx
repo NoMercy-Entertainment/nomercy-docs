@@ -9,7 +9,14 @@ description: "Step 9 of 10: the hover thumbnail over the scrubber from the item'
 
 Two features left before the touch layer, and they share a home: the scrubber. A thumbnail tooltip that follows the pointer, and chapter marks, ticks on the bar plus the chapter's title inside the tooltip.
 
-Both are fields on the playlist item from [step 1](/nomercy-video-player/build/shell). `previewSpriteUrl` names a VTT manifest whose cues map time ranges to regions of one sprite image (`thumbs.webp#xywh=x,y,w,h`), and `chapters` carries the `{ index, start, end, title }` entries the player exposes through `chapters()` and announces through the `chapters` event. This step is where both fields light up.
+Both are fields on the playlist item from [step 1](/nomercy-video-player/build/shell):
+
+| Field | What it holds |
+| --- | --- |
+| `previewSpriteUrl` | Names a VTT manifest whose cues map time ranges to regions of one sprite image (`thumbs.webp#xywh=x,y,w,h`). |
+| `chapters` | Carries `{ index, start, end, title }` entries. The player exposes them through `chapters()` and announces changes through the `chapters` event. |
+
+This step is where both fields light up.
 
 Six fields and a `PreviewCue` shape:
 
@@ -92,7 +99,7 @@ private renderChapterMarkers(): void {
 }
 ```
 
-Clicking a tick needs no code at all: the ticks don't take pointer events, so the click lands on the slider bar underneath and the step-3 seek handler does what it always did.
+Clicking a tick needs no code at all. The ticks don't take pointer events, so the click lands on the slider bar underneath, and the step-3 seek handler does what it always did.
 
 ## The tooltip: a card above the bar
 
@@ -198,7 +205,14 @@ private async fetchPreviewCues(): Promise<void> {
 }
 ```
 
-The parser is module-level code: split cue blocks, read the `-->` timestamps, match the `#xywh=` region, and resolve the sprite image against the VTT's own URL, sprite paths are relative to their manifest, like every sprite format:
+The parser is module-level code. It works in steps:
+
+1. Split cue blocks.
+2. Read the `-->` timestamps.
+3. Match the `#xywh=` region.
+4. Resolve the sprite image against the VTT's own URL.
+
+Sprite paths are relative to their manifest, like every sprite format:
 
 {/* partial */}
 
@@ -245,7 +259,12 @@ function parsePreviewVtt(raw: string, vttUrl: string): PreviewCue[] {
 
 ## Hover maps X to a cue and a chapter
 
-`mousemove` over the step-3 slider bar does four things. It converts the pointer position to a time with the same math the scrubber uses, finds the covering cue, paints the tooltip by shifting the sprite's `background-position`, and looks up the covering chapter for the title line.
+`mousemove` over the step-3 slider bar does four things on every move:
+
+1. Converts the pointer position to a time, with the same math the scrubber uses.
+2. Finds the covering cue.
+3. Paints the tooltip by shifting the sprite's `background-position`.
+4. Looks up the covering chapter for the title line.
 
 Clamping measures the card's real `offsetWidth`, so the tooltip stays inside the bar at both ends. Leaving the bar fades it out:
 
@@ -309,7 +328,7 @@ this.on('item', () => {
 
 ## See it running
 
-Hover along the scrubber and Big Buck Bunny's chapter ticks mark each act, from "Opening" through "The Bullies" to "End Credits". The demo item ships chapters but no sprite manifest, so those ticks are what you see; give an item a `previewSpriteUrl` and the same hover fills the card with sprite frames, the covering chapter's title, and the timestamp underneath.
+Hover along the scrubber and Big Buck Bunny's chapter ticks mark each act, from "Opening" through "The Bullies" to "End Credits". The demo item ships chapters but no sprite manifest, so those ticks are what you see. Give an item a `previewSpriteUrl`, and the same hover fills the card with sprite frames, the covering chapter's title, and the timestamp underneath.
 
 :::snippet{file="video-build-9-seek-preview" preview="first"}
 :::
