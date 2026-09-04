@@ -46,6 +46,7 @@ export { Button } from './Button';
 
 // Content components (used by directives)
 export { Callout } from './Callout';
+export { Troubleshooting } from './Troubleshooting';
 export { Row } from './Row';
 export { Col } from './Col';
 export { Properties, Property } from './Properties';

@@ -1,13 +1,107 @@
 ---
-title: 'Storage Backends'
-description: 'Configure local and remote storage backends.'
+title: 'Storage'
+description: 'Point NoMercy at disks, network shares and object storage.'
 draft: false
 ---
 
-# Storage Backends
+# Storage
 
-::Callout
+Your media does not have to live on the server's own disk. A storage driver tells the server how to reach somewhere else, and library folders then sit on top of it.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+Only the server owner can add or change storage.
+
+## What you can connect
+
+| Type | For |
+|------|-----|
+| Local | A disk on the server machine, or a path the machine already has mounted |
+| NFS | An NFS export, typically a NAS |
+| S3 | Amazon S3 or anything that speaks the S3 protocol |
+| R2 | Cloudflare R2 |
+| WebDAV | A WebDAV server |
+
+A Windows network share is reached through the local type, using its UNC path.
+
+## Mount it yourself where you can
+
+If your operating system can mount the share, mount it there and use the **Local** type pointed at the mount. That is the faster route, and it is the one to reach for first.
+
+A share mounted by the system is handled by the kernel, with its own caching and read-ahead. A share reached through the NFS or SMB driver is handled inside the server process instead, which is more work for the same bytes.
+
+**Linux.** Add the share to `/etc/fstab` so it mounts at boot, then point a Local driver at the mount point.
+
+```text {{ title: '/etc/fstab' }}
+nas:/volume1/media  /mnt/media  nfs  defaults,_netdev  0  0
+```
+
+**Windows.** Point a Local driver straight at the UNC path, or map the share and use that.
+
+**macOS.** Mount the share and point a Local driver at it under `/Volumes`.
+
+**Docker.** Compose can create a volume that speaks NFS or SMB itself, and the container then sees an ordinary directory. Mount that volume into the container and point a Local driver at it. Preferring this over the in-server drivers is the same choice for the same reason.
+
+```yaml
+volumes:
+  media:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=nas.local,nfsvers=4,ro
+      device: ":/volume1/media"
+```
+
+The NFS, SMB, S3, R2 and WebDAV drivers are there for what the system cannot mount: object storage, a WebDAV host, or a machine where you have no control over mounts. They work, and they are the second choice when the first is available.
+
+## Adding storage
+
+Go to Storage in the dashboard and add a driver. Each type asks for what it needs.
+
+**Local** wants a root path, for example `/mnt/movies` or `\\nas\media`.
+
+**NFS** wants the server address and the export. Version defaults to 3, and you can set the user and group ids the server should present. NFS offers a connection test before you save, which is worth using: a wrong export path is otherwise a mystery later.
+
+**S3** wants the bucket and region, optionally a prefix and a custom endpoint. **R2** is the same, and its endpoint is required.
+
+**WebDAV** wants the URL, and optionally a timeout.
+
+Keys and secrets for S3 and R2 are stored separately from the driver's settings and are never sent back out of the server, so the dashboard shows only whether credentials are configured.
+
+## How storage and libraries fit together
+
+A driver says *where*, a library folder says *which part of it*.
+
+One driver can carry many library folders. A single NAS export can hold your Films, TV Shows and Music folders, each pointing at a different path inside it.
+
+That is why adding storage is a separate step from adding a folder. You describe the location once, then use it as often as you like.
+
+## Changing a folder's storage
+
+A library folder has a **Change storage** action. It repoints that folder at a different driver or a different path inside the same one.
+
+**It changes where the server looks. It does not move any files.** Nothing is copied and nothing is deleted. If you are moving media between disks, move it yourself first, then repoint the folder to match and rescan.
+
+## Remote storage and encoding
+
+Encoding a title needs a real file on disk, so the server fetches what it needs to a local working area, does the work, and writes the result back. It cleans up after itself.
+
+This works, and it means the speed of your network is part of the speed of your encoding. Media on a fast local disk prepares faster than the same media over WebDAV.
+
+::Troubleshooting
+
+**A scan finds nothing after connecting storage.**
+Check the path inside the driver. A driver that connects but points one directory too high or too low finds nothing, and that looks the same from the outside.
+
+**A scan fails after working for weeks.**
+The backend is most likely unreachable: a NAS asleep, an export unmounted, a credential expired. The failure is recorded against the scan task with the reason the storage itself gave.
+
+**Everything is slow over a network share.**
+Encoding a title moves the whole file across and back. That is expected. A local disk is faster, and encoding is where you notice it most.
+
+**Slower through the NFS or SMB driver than it should be.**
+Mount the share with the operating system and point a Local driver at the mount instead. The kernel does that work better than the server can from inside its own process.
 
 ::
+
+## Where to go next
+
+- [Library Management](/nomercy-media-server/libraries) to point a library at your new storage.

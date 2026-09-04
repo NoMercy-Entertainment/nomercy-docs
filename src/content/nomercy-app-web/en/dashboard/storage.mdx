@@ -1,14 +1,54 @@
 ---
 title: 'Storage'
-description: 'View storage usage and manage storage backends.'
+description: 'The places your server can keep media, and adding one.'
 draft: false
-helpKey: '/dashboard/storage'
 ---
 
 # Storage
 
-::Callout
+A storage driver is a place your server can read and write. Libraries point at a driver, so adding one here is what makes a new location available to them.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## What you can add
+
+**Local.** A path on the server's own machine, or anything mounted into it.
+
+**NFS.** A server and an export, with the protocol version.
+
+**S3 and compatible.** A bucket and region, and an endpoint for anything that speaks the same protocol without being that service.
+
+**WebDAV.** A URL.
+
+Each row shows the kind and a summary of where it points, so a list of five is readable at a glance.
+
+## Mount it yourself where you can
+
+A share the server machine can mount belongs to **Local**, pointed at the mount. Mounting is the operating system's job and it does it better: through `/etc/fstab` on Linux, a UNC path on Windows, a volume with `type: nfs` or `type: cifs` in Docker.
+
+Reach for NFS or S3 or WebDAV here when that is not available to you, such as object storage or a machine whose mounts you do not control.
+
+## Adding one
+
+Give it the details and save. Credentials are kept in the machine's own credential store rather than beside the settings, and they are updated separately from the rest of the driver.
+
+The server's own local storage is there from the start and cannot be removed.
+
+Probe before saving where the form offers it: a wrong address is much easier to fix while you are looking at it than after a scan has failed.
+
+## Using it
+
+A driver on its own does nothing. Attach it to a library folder, on [Libraries](/nomercy-app-web/dashboard/libraries).
+
+Changing which driver a folder uses repoints where the server looks. It moves no files, so the media has to already be at the new location.
+
+::Troubleshooting
+
+**A driver saves but a scan finds nothing.** The path is reachable and empty, or points a level above or below the media. Browse it from the folder picker to see what the server sees.
+
+**Removing a driver is refused.** Library folders still use it, and the message says how many. Remove them from their libraries first.
 
 ::
+
+## Where to go next
+
+- [Libraries](/nomercy-app-web/dashboard/libraries)
+- [Storage](/nomercy-media-server/storage)

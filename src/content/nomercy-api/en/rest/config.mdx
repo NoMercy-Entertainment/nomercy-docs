@@ -1,13 +1,61 @@
 ---
 title: 'Configuration'
-description: 'Server configuration endpoints.'
+description: 'Server settings, and the language and country lists behind them.'
 draft: false
 ---
 
 # Configuration
 
-::Callout
+The settings the dashboard edits. Everything here is stored on the server, so a change applies to every client at once.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/configuration` | Moderator |
+| POST | `/api/v1/dashboard/configuration` | Moderator |
+| PATCH | `/api/v1/dashboard/configuration` | Moderator |
+
+## What you can set
+
+::properties
+
+::property {{ name: 'name', type: 'string' }}
+
+The server's display name, as clients show it.
+
+::property {{ name: 'internal_port / external_port', type: 'integer' }}
+
+The ports the server listens on and is reached at.
+
+::property {{ name: 'allow_adult_content', type: 'boolean' }}
+
+Whether adult titles may be shown at all on this server.
+
+::property {{ name: 'swagger', type: 'boolean' }}
+
+Whether the built-in API explorer is served.
+
+::property {{ name: 'use_synthesized_dns', type: 'boolean' }}
+
+Whether the server resolves its own name locally instead of going out to DNS.
 
 ::
+
+## Worker counts
+
+The rest of the settings are worker counts, one per kind of work: `library_workers`, `import_workers`, `encoder_workers`, `image_workers`, `file_workers`, `music_workers`, `extras_workers` and `cron_workers`.
+
+Each is how many of that job may run at once. Raising the encoder count uses more of the machine; lowering it leaves room for other things.
+
+## Languages and countries
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/configuration/languages` | MediaAccess |
+| GET | `/api/v1/dashboard/configuration/countries` | MediaAccess |
+
+These are the lists clients offer in their pickers. They need only media access, because a normal user chooses their own language.
+
+## Where to go next
+
+- [Server](/nomercy-api/rest/server)
+- [Configuration](/nomercy-media-server/configuration)

@@ -31,7 +31,13 @@ Every one of these accepts an `ActionOptions` bag `{ source, silent }` (`next()`
 
 ## Seeking through time()
 
-`time()` reads the current position in seconds; `time(seconds)` seeks to a new one, there is no separate `seek()` method. Position is reported by two different events for two different reasons: ordinary playback ticks the `time` event (per frame) and the throttled `progress` event, while a deliberate jump fires the cancellable `beforeSeek` → `seek` → `seeked` cycle. That is the split the web platform draws between `timeupdate` and `seeking`/`seeked`, the tick versus the jump:
+`time()` reads the current position in seconds. `time(seconds)` seeks to a new one. There is no separate `seek()`.
+
+Position is reported by two different events, for two different reasons.
+
+Ordinary playback ticks the `time` event per frame, plus the throttled `progress` event. A deliberate jump fires the cancellable `beforeSeek` → `seek` → `seeked` cycle.
+
+It is the same split the web platform draws between `timeupdate` and `seeking`/`seeked`. The tick against the jump:
 
 ```ts
 const currentTime = player.time(); // seconds
@@ -48,7 +54,7 @@ player.seekByPercentage(50); // jump to the halfway point
 
 ## Guard first
 
-Every transport method calls the kit's `_assertReady()` guard before doing anything else. Calling `play()` before `setup()` resolves, or after `dispose()`, throws a typed `StateError` instead of silently reaching into missing state — the same contract [Core: Transport Contract](/nomercy-player-core/tour/transport) documents in full, including the `preventDefault()` / `delay()` shape of the `before*` event.
+Every transport method calls the kit's `_assertReady()` guard before doing anything else. Calling `play()` before `setup()` resolves, or after `dispose()`, throws a typed `StateError` instead of silently reaching into missing state, the same contract [Core: Transport Contract](/nomercy-player-core/tour/transport) documents in full, including the `preventDefault()` / `delay()` shape of the `before*` event.
 
 ## Next steps
 

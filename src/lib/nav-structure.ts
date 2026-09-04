@@ -23,13 +23,27 @@ export const navStructure: Record<string, NavGroupDef[]> = {
   'nm-components': nmComponentsNav,
 
   'nomercy-media-server': [
-    { group: "Getting Started", pages: ['installation-guide', 'overview', 'installation/windows', 'installation/linux-deb', 'installation/linux-rpm', 'installation/linux-arch', 'installation/macos', 'installation/docker', 'installation/nas', 'first-run'] },
-    { group: "Plugins", pages: ['plugins/overview', 'plugins/installing', 'plugins/repository-index', 'plugins/trusted-publishers', 'plugins/developing'] },
-    { group: "Configuration", pages: ['configuration', 'libraries', 'users', 'storage', 'networking', 'security'] },
+    // Reader order: what it is, how to install it, how to claim it. The seven
+    // platform pages are a detour from the picker, so they sit in their own
+    // group rather than padding this one out to ten entries.
+    { group: "Getting Started", pages: ['overview', 'installation-guide', 'first-run'] },
+    { group: "Install by platform", pages: ['installation/windows', 'installation/macos', 'installation/linux-deb', 'installation/linux-rpm', 'installation/linux-arch', 'installation/docker', 'installation/nas'] },
+    // Libraries first: it is the step immediately after first-run, before any
+    // of the settings a new user has no reason to touch yet.
+    // storage-model sits after storage: the how-it-works page is for the reader
+    // who has already added a location and wants to know what is under it.
+    { group: "Configuration", pages: ['libraries', 'storage', 'storage-model', 'networking', 'configuration', 'users', 'security'] },
+    // Adding content, in the order a new user does it: a disc or files first,
+    // then how matching works, then the niche case.
+    { group: "Media", pages: ['media/optical', 'media/scanning', 'media/metadata', 'media/specials'] },
+    // encoding/model follows profiles for the same reason: pick one first, then
+    // read what a profile actually is and how a run is put together.
+    { group: "Encoding", pages: ['encoding/overview', 'encoding/profiles', 'encoding/model', 'encoding/hardware', 'encoding/formats', 'encoding/history'] },
+    // connect/watch-parties is drafted out: no watch-party feature exists in the
+    // server or any client. Restore it here when one ships.
+    { group: "Remote Access & Sync", pages: ['connect/overview'] },
     { group: "The CLI", pages: ['cli/overview', 'cli/start-stop', 'cli/logs', 'cli/config', 'cli/plugins-cli', 'cli/queue', 'cli/update', 'cli/autostart'] },
-    { group: "Media", pages: ['media/scanning', 'media/metadata', 'media/specials', 'media/optical'] },
-    { group: "Encoding", pages: ['encoding/overview', 'encoding/profiles', 'encoding/hardware', 'encoding/formats', 'encoding/history'] },
-    { group: "Remote Access & Sync", pages: ['connect/overview', 'connect/watch-parties'] },
+    { group: "Plugins", pages: ['plugins/overview', 'plugins/installing', 'plugins/repository-index', 'plugins/trusted-publishers', 'plugins/developing'] },
     { group: "Maintenance", pages: ['maintenance/backups', 'maintenance/upgrade', 'maintenance/migrate'] },
     { group: "Troubleshooting", pages: ['troubleshooting/logs', 'troubleshooting/common-issues', 'troubleshooting/diagnostics', 'troubleshooting/error-codes'] },
   ],
@@ -38,8 +52,13 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Setup", pages: ['setup/name-device', 'setup/select-server', 'setup/first-run', 'setup/server-offline'] },
     { group: "Browsing", pages: ['home', 'libraries', 'library', 'search', 'info', 'person'] },
     { group: "Watching & Listening", pages: ['watch', 'music/home', 'music/artist', 'music/album', 'music/playlist', 'subtitles', 'chromecast', 'quality'] },
-    { group: "Preferences", pages: ['preferences/display', 'preferences/subtitles', 'preferences/controls', 'preferences/profile', 'preferences/devices'] },
-    { group: "Dashboard (Admin)", pages: ['dashboard/overview', 'dashboard/libraries', 'dashboard/users', 'dashboard/encoder-profiles', 'dashboard/hardware', 'dashboard/storage', 'dashboard/devices', 'dashboard/dlna', 'dashboard/ripper', 'dashboard/specials', 'dashboard/recommendations', 'dashboard/content-analysis', 'dashboard/distribution', 'dashboard/plugins', 'dashboard/logs', 'dashboard/schedule', 'dashboard/notifications', 'dashboard/live-sessions', 'dashboard/metadata', 'dashboard/activity'] },
+    // preferences/controls is drafted out: the route renders a placeholder, so
+    // there is no screen to document. Restore it here when one ships.
+    { group: "Preferences", pages: ['preferences/profile', 'preferences/display', 'preferences/subtitles', 'preferences/devices'] },
+    // Drafted out, all for the same reason — the app has no screen to document:
+    // dashboard/dlna (no DLNA anywhere in the server or clients), and
+    // dashboard/schedule + dashboard/metadata (routes that render a placeholder).
+    { group: "Dashboard (Admin)", pages: ['dashboard/overview', 'dashboard/libraries', 'dashboard/storage', 'dashboard/users', 'dashboard/devices', 'dashboard/specials', 'dashboard/recommendations', 'dashboard/ripper', 'dashboard/encoder-profiles', 'dashboard/hardware', 'dashboard/content-analysis', 'dashboard/distribution', 'dashboard/plugins', 'dashboard/activity', 'dashboard/logs', 'dashboard/live-sessions', 'dashboard/notifications'] },
     { group: "Troubleshooting", pages: ['troubleshooting'] },
   ],
   // v2 rebuild (see .rebuild/progress.md) — full 7-stage arc: introduction,

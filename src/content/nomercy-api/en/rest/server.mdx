@@ -1,13 +1,63 @@
 ---
-title: 'Server Info'
-description: 'Server information and status endpoint.'
+title: 'Server'
+description: 'Server information, lifecycle and paths.'
 draft: false
 ---
 
-# Server Info
+# Server
 
-::Callout
+The server's own state: what it is, what it is using, and the few actions that restart or stop it.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Information
 
-::
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/server` | Moderator |
+| GET | `/api/v1/dashboard/server/info` | MediaAccess |
+| PATCH | `/api/v1/dashboard/server/info` | Moderator |
+| GET | `/api/v1/dashboard/server/setup` | MediaAccess |
+| GET | `/api/v1/dashboard/server/resources` | Moderator |
+| GET | `/api/v1/dashboard/server/paths` | Moderator |
+| GET | `/api/v1/dashboard/server/storage` | Moderator |
+| GET | `/api/v1/dashboard/server/update/check` | MediaAccess |
+
+`info` is the one clients read: name, version and address. `resources` is the live picture of processor, memory and disk.
+
+## Lifecycle
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/server/start` | MediaAccess |
+| POST | `/api/v1/dashboard/server/stop` | Moderator |
+| POST | `/api/v1/dashboard/server/restart` | Moderator |
+| POST | `/api/v1/dashboard/server/shutdown` | Moderator |
+
+`stop` and `restart` act on the media server. `shutdown` ends the process itself, so nothing is left listening to start it again from the outside.
+
+## Files and paths
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/server/directorytree` | Moderator |
+| POST | `/api/v1/dashboard/server/filelist` | Moderator |
+| POST | `/api/v1/dashboard/server/addfiles` | Moderator |
+
+For browsing storage in general, use the [Storage browser](/nomercy-api/rest/storage-browser).
+
+## Adjustments
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/server/loglevel` | Moderator |
+| PATCH | `/api/v1/dashboard/server/workers/{worker}/{count}` | Moderator |
+| POST | `/api/v1/dashboard/server/invalidate` | Moderator |
+| POST | `/api/v1/dashboard/server/wallpaper` | Owner |
+| POST | `/api/v1/dashboard/server/changeIp` | Moderator |
+
+`loglevel` changes how much is logged without a restart. `workers` changes how many run for a given kind of work. `invalidate` drops cached data so the next read rebuilds it.
+
+## Where to go next
+
+- [Configuration](/nomercy-api/rest/config)
+- [Tasks](/nomercy-api/rest/tasks)
+- [Server activity](/nomercy-api/rest/server-activity)

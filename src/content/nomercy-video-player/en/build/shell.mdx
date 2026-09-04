@@ -7,7 +7,11 @@ description: 'Step 1 of 10: write your own UI plugin from scratch. Lay down the 
 
 # Build a Player: Shell & Layout
 
-This is a ten-step tutorial where you write your own control UI, one piece at a time: a shell, play and pause, a progress bar, time and skip, volume, a title bar, fullscreen and speed, the track selectors, a seek preview with chapters, and a touch layer. When you finish, you will understand every line the real `DesktopUiPlugin` runs, because you will have written its shape yourself.
+Ten steps. You write your own control UI, one piece at a time.
+
+A shell, play and pause, a progress bar, time and skip, volume, a title bar, fullscreen and speed, the track selectors, a seek preview with chapters, and a touch layer.
+
+At the end you will understand every line the real `DesktopUiPlugin` runs, because you will have written its shape yourself.
 
 Everything you write rides the player's public method surface, the same `play()`, `volume()`, `time()`, and `duration()` calls any consumer has.
 
@@ -47,13 +51,23 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 
 ::Callout
 
-DOM-construction helpers (`createElement`, `createButton`, `createSVG`, `addClasses`, `removeClasses`) live on the `Plugin` base class, not the player, so every call here is bare `this.*`: `this.mount()` claims the wrapper, `this.addClasses()` styles it. `this.player.container` is the one place `this.player` shows up, reaching the collaborator this plugin extends to read its DOM node. That split, what you *are* versus what you *talk to*, is the organising rule of the whole trio and decides where every behaviour lives. [Player and Plugin](/nomercy-player-core/tour/composition-boundary) is the short read.
+The DOM helpers live on the `Plugin` base class, not the player: `createElement`, `createButton`, `createSVG`, `addClasses`, `removeClasses`.
+
+So every call here is bare `this.*`. `this.mount()` claims the wrapper, `this.addClasses()` styles it.
+
+`this.player.container` is the one place `this.player` appears, reaching the collaborator this plugin extends to read its DOM node.
+
+That split, what you *are* against what you *talk to*, is the organising rule of the whole trio. [Player and Plugin](/nomercy-player-core/tour/composition-boundary) is the short read.
 
 ::
 
 The first line marks the player container as a Tailwind `group` parent. Every state-reactive class in this tutorial (`group-[&.nomercyplayer.active]:opacity-100` on the bars below, the spinner's `.buffering` variant in step 2) resolves against a `.group` ancestor, and the container is the element that carries the state classes, so it is the group.
 
-`mount('overlay')` claims a `<div>` on the player container and, crucially, registers its own teardown. When the plugin disposes, that div and everything you append under it are removed for you, along with every listener you add through `this.listen()` and `this.on()`. That is why this class has no `dispose()` method anywhere in the tutorial: the v1 original had to `remove()` its bars by hand, and in v2 there is nothing left to write.
+`mount('overlay')` claims a `<div>` on the player container, and registers its own teardown.
+
+When the plugin disposes, that div and everything under it go with it. So does every listener added through `this.listen()` and `this.on()`.
+
+That is why this class never gets a `dispose()` method anywhere in the tutorial. There is nothing left to write.
 
 ## Build the bars
 
@@ -136,13 +150,23 @@ Look at the last four classes on each bar. They key off `.active` and `.paused` 
 - `active` / `inactive`, whether the viewer is interacting right now
 - `muted`, `fullscreen`, `pip`, `theater`, the matching toggles
 
-Activity is a player concern: the player itself watches its container for pointer, touch, and key input, shows the controls on any of it, and drops to `.inactive` after four seconds of idle while playing. Pausing always keeps the controls up. Your plugin inherits all of that through those four CSS classes, with zero wiring; `inactivityMs` in the config tunes the delay, and `bumpActivity()` exists for interactions the DOM can't see (see [Reference: VideoPlayerConfig](/nomercy-video-player/reference/config)).
+Activity is a player concern.
+
+The player watches its own container for pointer, touch and key input, shows the controls on any of it, and drops to `.inactive` after a few idle seconds while playing. Pausing always keeps the controls up.
+
+Your plugin inherits all of that through those four CSS classes, with no wiring.
+
+`inactivityMs` tunes the delay, and `bumpActivity()` covers interactions the DOM cannot see. See [Reference: VideoPlayerConfig](/nomercy-video-player/reference/config).
 
 So the bars already fade in when you move the pointer and fade out when you leave playback running. You wrote no timer for that, and you never will in this tutorial.
 
 ## The playlist item
 
-The tutorial plays one real film, declared right in the example, because the item is where half of this tutorial's data lives. Alongside the stream URL it carries the subtitle tracks step 8's menu will list, the chapter list step 9 turns into scrubber ticks and tooltip titles, and the sprite-VTT manifest behind step 9's seek thumbnails. Media paths are relative; the config's `baseUrl` resolves them (and `baseImageUrl` resolves the poster):
+The tutorial plays one real film, declared in the example, because the item is where half of this tutorial's data lives.
+
+Alongside the stream URL it carries three things: the subtitle tracks step 8's menu lists, the chapter list step 9 turns into scrubber ticks and tooltip titles, and the sprite-VTT manifest behind step 9's seek thumbnails.
+
+Media paths are relative. `baseUrl` resolves them, and `baseImageUrl` resolves the poster:
 
 ```ts
 const sintel: VideoPlaylistItem = {
@@ -192,7 +216,9 @@ await player.ready();
 
 ## See it running
 
-Move the pointer over the video: two gradient bars fade in. Leave it running: they fade out. Pause: they stay. Empty bars, but real ones, on the player's own show-hide contract. Step two puts the first control in them.
+The clip plays muted. Leave the pointer off it and the two gradient bars fade out; move over the video and they fade back in.
+
+Empty bars, but real ones, on the player's own show-hide contract. Step two puts the first control in them.
 
 :::snippet{file="video-build-1-shell" preview="first"}
 :::

@@ -1,13 +1,43 @@
 ---
 title: 'Search'
-description: 'Global search endpoint.'
+description: 'Search your own library, for video and for music.'
 draft: false
 ---
 
 # Search
 
-::Callout
+Search looks at what your server holds. Video and music are separate, and each has a variant shaped for a TV.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/search/video` | MediaAccess |
+| GET | `/api/v1/search/video/tv` | MediaAccess |
+| GET | `/api/v1/search/music` | MediaAccess |
+| GET | `/api/v1/search/music/tv` | MediaAccess |
+
+::properties
+
+::property {{ name: 'query', type: 'string' }}
+
+What to look for. Accents and case are normalised, so a query without them still matches.
+
+::property {{ name: 'type', type: 'string' }}
+
+Narrows the result to one kind of thing.
 
 ::
+
+```bash {{ title: 'Searching video' }}
+curl -G https://{server-address}:7626/api/v1/search/video \
+  -H "Authorization: Bearer {token}" \
+  -d query="blade runner"
+```
+
+The `/tv` variants return the same matches described as screen components, so a TV client draws them without a second layout.
+
+Each category is capped, so a very broad query answers quickly with the best matches rather than everything.
+
+## Where to go next
+
+- [Music](/nomercy-api/rest/music)
+- [Genres](/nomercy-api/rest/genres)

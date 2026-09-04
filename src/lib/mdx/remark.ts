@@ -11,6 +11,7 @@ import { remarkSnippet } from './remark-snippet';
 import { remarkIconCards } from './remark-icon-cards';
 import { remarkHero } from './remark-hero';
 import { remarkCallout } from './remark-callout';
+import { remarkTroubleshooting } from './remark-troubleshooting';
 import { remarkLogoCards } from './remark-logo-cards';
 import { remarkCleanup } from './remark-cleanup';
 
@@ -42,6 +43,7 @@ export const remarkPlugins = [
   remarkIconCards, // transform ::IconCards to IconCards component
   remarkHero, // transform ::Hero to Hero component
   remarkCallout, // transform ::Callout to Callout component
+  remarkTroubleshooting, // transform ::Troubleshooting to Troubleshooting component
   remarkLogoCards, // transform ::LogoCards to LogoCards component
   remarkRowCol, // transform ::row / ::col / ::col sticky / :: to Row/Col
   remarkCleanup, // strip orphaned ::/::end closers left over from directive plugins

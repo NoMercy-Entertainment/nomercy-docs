@@ -1,13 +1,76 @@
 ---
 title: 'API Overview'
-description: 'Base URL, versioning, and authentication requirements for the NoMercy REST API.'
+description: 'Base address, versioning and the shape of every response.'
 draft: false
 ---
 
 # API Overview
 
-::Callout
+The server you run is the API. There is no central endpoint to call: every request goes to your own machine, and the data never leaves it.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## The base address
 
-::
+Your server answers on its own domain, issued when you registered it.
+
+```text
+https://{server-address}:7626/api/v1/
+```
+
+The address is shown in the dashboard under Server. It resolves to your machine, and the certificate is issued for it, so an ordinary HTTPS client works with no special handling.
+
+The port is the one your server was configured with. It is the same port the apps use.
+
+## Versioning
+
+The version is part of the path. Everything documented here is version 1.
+
+```text
+/api/v1/libraries
+```
+
+A few routes sit outside the versioned tree because they are not part of the media API: `/health` for liveness, `/manage` for the local control surface, and `/images` for artwork.
+
+## The shape of a response
+
+A successful response is JSON. Anything returning a list wraps it in `data`.
+
+```json {{ title: 'GET /api/v1/libraries' }}
+{
+  "data": [
+    {
+      "id": "01HZY...",
+      "title": "Films",
+      "type": "movie"
+    }
+  ]
+}
+```
+
+Screens that the apps render are described rather than sent as raw rows. Those endpoints return a list of components, each with its own props, and the client draws them. The home screen and library screens work this way, which is why one server change reaches web, phone and TV at once.
+
+## What you need before calling anything
+
+Two things: a token, and a user account on that server.
+
+A token alone is not enough. The server checks that the account behind the token exists on that server, so a token minted for a different NoMercy server is rejected. See [Authentication](/nomercy-api/authentication).
+
+## Reading the reference
+
+Every endpoint page lists the method, the path after `/api/v1/`, and the permission the endpoint requires.
+
+Four permissions appear:
+
+| Permission | Held by |
+|------------|---------|
+| `MediaAccess` | Any user allowed to use the server |
+| `OpticalAccess` | A user allowed to drive the disc drive |
+| `Moderator` | A user who can manage the server |
+| `Owner` | The one account that owns the server |
+
+The owner satisfies all four. See [Users](/nomercy-media-server/users) for what each switch grants.
+
+## Where to go next
+
+- [Authentication](/nomercy-api/authentication)
+- [Pagination](/nomercy-api/pagination)
+- [Errors](/nomercy-api/errors)

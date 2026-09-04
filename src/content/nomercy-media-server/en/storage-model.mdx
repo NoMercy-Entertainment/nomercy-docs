@@ -1,0 +1,83 @@
+---
+title: 'How storage works'
+description: 'Drivers, scopes and the path contract that sits between the server and your disks.'
+draft: false
+---
+
+# How storage works
+
+Your media can live on the machine's own disk, on a NAS, or in a bucket. The rest of the server does not know which, and that is deliberate. This page explains the piece that makes it true.
+
+Read [Storage](/nomercy-media-server/storage) first if you only want to add a location.
+
+## The shape of it
+
+Three layers, each with one job.
+
+**The driver** talks to one kind of backend. Local disk, NFS, SMB, S3 and anything S3-compatible, WebDAV. It knows about mount roots, bucket prefixes and base URLs, and nothing else in the server does.
+
+**The scope** is a driver plus a path inside it. A library folder gets its own scope, so the folder is the whole world as far as that code is concerned.
+
+**The facade** is what the server actually calls: read, write, list, move, exists. Every call is against a scope.
+
+Adding a backend means writing a driver. No feature has to learn about it, because no feature ever asked what kind of storage it was using.
+
+## Why the local driver is the fast one
+
+The Local driver does the least. It hands paths to the operating system and the kernel does the rest: caching, read-ahead, retries, and the protocol itself if the path is a mount.
+
+The NFS, SMB, S3 and WebDAV drivers speak their protocol inside the server process instead. That is more work for the same bytes.
+
+So a share the system can mount should be mounted by the system, with a Local driver pointed at the mount. The protocol drivers earn their place where that is impossible: object storage, a WebDAV host, or a machine whose mounts you do not control. See [Storage](/nomercy-media-server/storage) for how to set that up on each platform.
+
+## The path contract
+
+Six rules hold this together. They are worth knowing because they explain the errors you will see if something is set up wrong.
+
+**Paths are relative to their scope.** Code inside a library folder asks for `Films/Arrival (2016)/`, never for `M:/Libraries/Films/...`. The driver adds its own root.
+
+**Separators are forward slashes.** Backslashes are accepted and normalised, on every platform.
+
+**An empty path means the root of the scope.** That is what lets the dashboard browse a location from its top.
+
+**Absolute paths are rejected.** A path already resolved to a real disk location means something bypassed the abstraction, so it is refused rather than obeyed.
+
+**`..` and null bytes are rejected structurally**, before any backend is touched. This is the check that matters: it is what stops a crafted path reaching outside the folder it was given.
+
+**The driver owns translation.** Local joins with the OS root, NFS prepends the export, S3 prepends the bucket prefix, WebDAV prepends the base URL. None of that is visible above the driver.
+
+## Two facades, on purpose
+
+Most code uses the scoped facade and can only see inside its own folder.
+
+The dashboard's folder picker cannot work that way, because its whole job is to browse places that are not a library yet. It uses a lower-level backend that has no scope, and it is the only thing that does.
+
+That split is why a plugin cannot read your documents folder by asking nicely: it is handed a scope, and a scope has no way to express "somewhere else".
+
+## Tools that need a real path
+
+FFmpeg is a separate program. It cannot be handed an abstraction, so it needs an actual path on disk.
+
+For local storage that is simply the file. For a remote backend the server takes out a short lease: the file is staged locally, the tool is pointed at the staged copy, and the copy is cleaned up when the lease ends.
+
+This is why encoding from a network share is slower than encoding from a local disk. The bytes have to come across, and the result has to go back.
+
+## Folders that share a location
+
+Several library folders often live on one disk or one share. The server works out that they share an endpoint, and groups them under a single driver rooted at the deepest directory they have in common. Each folder then keeps its own path inside that driver.
+
+Folders on genuinely different endpoints are never merged, however similar their paths look.
+
+The effect is one connection and one set of credentials for a share, rather than one per library folder on it.
+
+## Credentials
+
+A driver stores where to connect, not what to connect with. Credentials are held in the machine's credential store and referenced by name, and they are updated on their own route rather than as part of the driver's settings.
+
+Removing a driver removes its stored credentials with it.
+
+## Where to go next
+
+- [Storage](/nomercy-media-server/storage) to add a location.
+- [How encoding works](/nomercy-media-server/encoding/model)
+- [Libraries](/nomercy-media-server/libraries)

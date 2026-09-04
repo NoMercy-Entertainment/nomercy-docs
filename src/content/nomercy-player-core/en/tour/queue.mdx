@@ -11,15 +11,30 @@ description: 'MediaList, the cursor-aware ordered list both real players delegat
 
 ## MediaList
 
-`MediaList<T extends BasePlaylistItem>` is a cursor-aware ordered list: `get()` / `set(items)` for the whole array, `current()` / `currentIndex()` / `setCurrent(target)` for the cursor, `peekNext()` / `peekPrevious()` to read without moving it, and the mutation set (`append`, `prepend`, `insert`, `remove`, `removeAt`, `move`, `clear`, `shuffle`, `sort`). `setCurrent` accepts an item reference, its `id`, a numeric index, or a predicate, so callers never have to resolve an index by hand first.
+`MediaList<T extends BasePlaylistItem>` is an ordered list that knows where the cursor is.
 
-Every mutation that shifts item positions shifts the cursor with it, so it keeps pointing at the same logical item: removing the item before the current one decrements the cursor, a shuffle re-finds the playing item's new position and follows it. Every mutation emits a typed event (`change`, `append`, `current`, and so on) that the player mixin re-emits on the public event bus as `queue`, `queue:append`, `item`, and the rest, so a UI never has to poll.
+- The whole array: `get()`, `set(items)`
+- The cursor: `current()`, `currentIndex()`, `setCurrent(target)`
+- Reading without moving it: `peekNext()`, `peekPrevious()`
+- Mutations: `append`, `prepend`, `insert`, `remove`, `removeAt`, `move`, `clear`, `shuffle`, `sort`
+
+`setCurrent` takes an item reference, its `id`, a numeric index, or a predicate. No caller has to resolve an index first.
+
+Every mutation that shifts positions shifts the cursor with it, so it keeps pointing at the same logical item.
+
+Remove the item before the current one and the cursor decrements. Shuffle, and it re-finds the playing item's new position and follows it.
+
+Every mutation emits a typed event: `change`, `append`, `current` and so on. The player mixin re-emits those on the public bus as `queue`, `queue:append`, `item` and the rest, so a UI never polls.
 
 Two lists exist per player: `_queueList` for what's coming, and `_backlogList` for what already played, so `previous()` can look back past the queue head without the primary list growing unbounded in the wrong direction.
 
 ## The player-facing surface
 
-`queue()` / `queueAppend()` / `queuePrepend()` / `queueInsert()` / `queueRemove()` / `queueRemoveAt()` / `queueMove()` / `queueClear()` / `queueShuffle()` / `queueSort()` all delegate straight to `_queueList`, wiring its events to the public event bus on first use. `item(target)` moves the cursor and, once the player is past `setup`, kicks off a `load()` for the resolved item; `peekNext()` / `peekPrevious()` / `queueLength()` / `queueIndexOf(id)` / `index()` read without side effects.
+The `queue*` methods all delegate straight to `_queueList`, wiring its events to the public bus on first use: `queue()`, `queueAppend()`, `queuePrepend()`, `queueInsert()`, `queueRemove()`, `queueRemoveAt()`, `queueMove()`, `queueClear()`, `queueShuffle()`, `queueSort()`.
+
+`item(target)` moves the cursor. Once the player is past `setup`, it also kicks off a `load()` for the resolved item.
+
+These read with no side effects: `peekNext()`, `peekPrevious()`, `queueLength()`, `queueIndexOf(id)`, `index()`.
 
 `playItem(target)` and `playNow(items, start?)` exist because `queue(items); item(start); play()` races: `item()` fires a fire-and-forget `load()`, and a `play()` called right after it can reach the backend before the source is even set. Both helpers route through `item(target, { autoplay: true })` internally, which only calls `play()` inside the resolved `load()`'s own continuation, never before it.
 

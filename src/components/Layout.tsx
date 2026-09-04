@@ -105,14 +105,31 @@ export function Layout({
             layoutScroll
             className="contents lg:pointer-events-none lg:fixed lg:inset-0 lg:z-40 lg:flex"
           >
-            <div data-sidebar-scroll className="contents lg:pointer-events-auto lg:block lg:w-72 lg:overflow-y-auto lg:border-r lg:border-zinc-900/10 lg:px-6 lg:pt-4 lg:pb-8 xl:w-80 lg:dark:border-white/10">
-              <div className="hidden lg:flex -mt-2.5">
+            {/* On desktop the column is the frame and only the nav inside it
+                scrolls, so the logo stays put while the page list moves under
+                it. `contents` keeps both wrappers out of the way on mobile,
+                where the sidebar is a drawer instead. */}
+            <div className="contents lg:pointer-events-auto lg:flex lg:h-full lg:w-72 lg:flex-col lg:border-r lg:border-zinc-900/10 xl:w-80 lg:dark:border-white/10">
+              <div className="hidden lg:flex lg:shrink-0 lg:items-center lg:px-6 lg:pt-4 lg:pb-4">
                 <Link href="/" aria-label={t('nav.home')}>
                   <Logo className="min-h-11 w-auto" />
                 </Link>
               </div>
               <Header navigation={navigation} apiGroups={apiGroups} initialPathname={initialPathname} />
-              <Navigation className="hidden lg:mt-10 lg:block" navigation={navigation} apiGroups={apiGroups} initialPathname={initialPathname} />
+              {/* Navigation.tsx centres the active link by scrolling
+                  `[data-sidebar-scroll]`, so the attribute has to sit on the
+                  element that actually owns the overflow.
+
+                  The mask fades the first 16px of the scroll region so a link
+                  passing under the pinned logo dissolves instead of being cut
+                  in half at a hard edge. Nothing sits in the fade at rest —
+                  the nav's own top margin clears it. */}
+              <div
+                data-sidebar-scroll
+                className="contents lg:block lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:px-6 lg:pb-8 lg:[mask-image:linear-gradient(to_bottom,transparent_0,black_1rem)]"
+              >
+                <Navigation className="hidden lg:mt-10 lg:block" navigation={navigation} apiGroups={apiGroups} initialPathname={initialPathname} />
+              </div>
             </div>
           </motion.div>
           <div className="relative flex h-full flex-col px-4 pt-14 sm:px-6 lg:px-8">

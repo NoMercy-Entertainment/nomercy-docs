@@ -1,13 +1,57 @@
 ---
-title: 'Backups and Restore'
-description: 'Back up your database and media metadata, and restore from backup.'
+title: 'Backups'
+description: 'What the server backs up on its own, and what you should copy yourself.'
 draft: false
 ---
 
-# Backups and Restore
+# Backups
 
-::Callout
+The server keeps its own recovery points. They protect against a bad upgrade on the same machine, and they do not protect against losing the machine, because they live on it.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## What the server does for you
 
-::
+It snapshots its databases automatically, twice over:
+
+**Before every database change that an upgrade brings.** If a version arrives with a schema change, a snapshot is taken before that change is applied.
+
+**Once a day.** So there is a recent recovery point even on a server that goes months between upgrades.
+
+It keeps the five most recent snapshots and removes older ones. They are written under the server's data directory, in a `backups` folder.
+
+Snapshots are taken through the database's own backup mechanism rather than by copying files, so a snapshot taken while the server is running is consistent.
+
+## What you should copy yourself
+
+The server's data directory is the thing worth backing up, because most of it cannot be regenerated.
+
+| Platform | Directory |
+|----------|-----------|
+| Windows | `%LOCALAPPDATA%\NoMercy\` |
+| Linux and macOS | `~/.local/share/NoMercy/` |
+
+Inside it, two things matter most.
+
+**The databases**, under `data`. They hold your libraries, what you have watched, your users and your settings.
+
+**The `data/keys` folder.** This is the keyring that encrypts the server's secrets. Without it, the encrypted parts of the database cannot be read even though the database itself is intact, so a backup of the databases without this folder is only a partial backup.
+
+Copy the whole data directory and you have both.
+
+## What the backup leaves out
+
+Your media. Libraries live wherever you put them, and are covered by however you back up the rest of your files.
+
+Artwork and details, which the server fetches again by itself.
+
+## In Docker
+
+Everything above lives in the `nomercy-data` volume. Back up the volume and you have the server.
+
+## Restoring
+
+Stop the server, put the data directory back where it was, and start it again.
+
+## Where to go next
+
+- [Upgrading](/nomercy-media-server/maintenance/upgrade)
+- [Moving to another machine](/nomercy-media-server/maintenance/migrate)

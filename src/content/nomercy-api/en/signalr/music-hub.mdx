@@ -1,0 +1,69 @@
+---
+title: 'Music hub'
+description: 'The shared music queue, position reporting, and volume across devices.'
+draft: false
+---
+
+# Music hub
+
+```text
+wss://{server-address}:7626/musicHub?access_token={token}
+```
+
+Music works the way video does: one playback state per user, shared by all their devices. A phone can drive what plays in the living room without either knowing the other's address.
+
+## Starting playback
+
+```text
+StartPlaybackCommand(type, listId, trackId)
+```
+
+The server builds the queue. What it sends back is the state to render, including which transport actions are allowed.
+
+## Reading the state
+
+```text
+GetStateCommand()
+```
+
+Returns the current state directly, for a client that would rather ask than wait to be told.
+
+Every state carries the server's own clock reading. A client works out elapsed time against that stamp, so a slow connection shifts nothing.
+
+## While it plays
+
+```text
+PlaybackCommand(command, data)
+ReportPositionCommand(positionMs)
+ReportPositionAtCommand(positionMs, capturedAtMs)
+CurrentTimeCommand(time)
+```
+
+Position is reported in milliseconds. The `At` form also says when the client took the reading, which keeps the timeline right when the message itself is delayed.
+
+For a queue of mixed items there are per-item forms, `CurrentTimeForItemCommand` and `ReportPositionForItemCommand`, which name the item they refer to.
+
+## Crossfade
+
+```text
+CrossfadeStartCommand(fadeDurationMs)
+CrossfadeCompleteCommand(newTrackId)
+```
+
+The client says a fade has begun and, when the next track has taken over, which track that is. The state follows the audio rather than the other way round.
+
+## Devices and volume
+
+```text
+ChangeDeviceCommand(deviceId)
+ChangeVolumeCommand(volume)
+SetDeviceVolumeCommand(deviceId, volume)
+```
+
+`ChangeVolumeCommand` changes the device that is playing. `SetDeviceVolumeCommand` names a device, so a phone can turn down the speaker it is driving.
+
+## Where to go next
+
+- [Video hub](/nomercy-api/signalr/video-hub)
+- [Device hub](/nomercy-api/signalr/device-hub)
+- [Tracks](/nomercy-api/rest/tracks)

@@ -64,7 +64,7 @@ function rehypeParseCodeBlocks() {
 // multiple highlighters before the cache is set.
 
 const LANGS = [
-  'txt', 'plaintext', 'bash', 'sh', 'shell', 'powershell',
+  'txt', 'plaintext', 'text', 'bash', 'sh', 'shell', 'powershell',
   'js', 'jsx', 'ts', 'tsx', 'json', 'jsonc', 'yaml', 'toml',
   'html', 'xml', 'css', 'scss', 'md', 'mdx',
   'python', 'rust', 'go', 'csharp', 'cs', 'java', 'kotlin', 'swift',
@@ -188,7 +188,11 @@ function rehypeWrapCodeBlocks() {
       const code = (node.properties?.['data-code-raw'] as string | undefined) ?? (node.properties?.code as string | undefined)
       const lang = (node.properties?.['data-language'] as string | undefined)?.toLowerCase() ?? 'txt'
       // Header label: explicit title wins, else the language display name.
-      const headerLabel = dataTitle || LANGUAGE_NAMES[lang] || lang.toUpperCase() || 'Code'
+      // Plain text has neither a language to name nor a file to point at, so
+      // an untitled txt block gets no header bar at all rather than one
+      // reading "Code" over something that is not code.
+      const isPlainText = lang === 'txt' || lang === 'plaintext' || lang === 'text'
+      const headerLabel = dataTitle || (isPlainText ? '' : LANGUAGE_NAMES[lang] || lang.toUpperCase())
 
       // Create wrapper structure — theme-aware (One Light / One Dark Pro).
       const wrapper: Element = {
@@ -207,20 +211,22 @@ function rehypeWrapCodeBlocks() {
 
       const notProseDiv = wrapper.children[0] as Element
 
-      // Always show a header bar with the filename/title or language name.
-      notProseDiv.children.push({
-        type: 'element',
-        tagName: 'div',
-        properties: {
-          className: ['flex', 'items-center', 'gap-2', 'border-b', 'border-zinc-400', 'bg-zinc-300', 'px-5', 'py-2.5', 'dark:border-white/10', 'dark:bg-white/2.5'],
-        },
-        children: [{
+      // Header bar, when there is a filename/title or a language to name.
+      if (headerLabel) {
+        notProseDiv.children.push({
           type: 'element',
-          tagName: 'span',
-          properties: { className: ['font-mono', 'text-xs', 'text-zinc-500', 'dark:text-zinc-400'] },
-          children: [{ type: 'text', value: headerLabel }]
-        }]
-      })
+          tagName: 'div',
+          properties: {
+            className: ['flex', 'items-center', 'gap-2', 'border-b', 'border-zinc-400', 'bg-zinc-300', 'px-5', 'py-2.5', 'dark:border-white/10', 'dark:bg-white/2.5'],
+          },
+          children: [{
+            type: 'element',
+            tagName: 'span',
+            properties: { className: ['font-mono', 'text-xs', 'text-zinc-500', 'dark:text-zinc-400'] },
+            children: [{ type: 'text', value: headerLabel }]
+          }]
+        })
+      }
 
       // Add code block with copy button
       notProseDiv.children.push({

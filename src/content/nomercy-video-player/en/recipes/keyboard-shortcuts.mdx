@@ -7,7 +7,11 @@ description: 'Add a binding, override a default, disable a group entirely, or re
 
 # Recipe: Customizing Keyboard Shortcuts
 
-[Plugin: Key Handler](/nomercy-video-player/plugins-adapters/key-handler) is the full reference for what ships by default. This recipe is the task on top of it: your app wants one more shortcut, a different key for an existing action, or a whole binding set that doesn't look like the default at all. There are three ways in, pick the least invasive one that gets the job done.
+[Plugin: Key Handler](/nomercy-video-player/plugins-adapters/key-handler) is the reference for what ships by default.
+
+This recipe is the task on top of it: one more shortcut, a different key for an existing action, or a binding set that looks nothing like the default.
+
+Three ways in. Pick the least invasive one that does the job.
 
 ## Add one binding at runtime
 
@@ -68,7 +72,13 @@ class MinimalKeyHandler extends KeyHandlerPlugin {
 player.addPlugin(MinimalKeyHandler);
 ```
 
-Set `disableControls: true` on `VideoPlayerConfig` when you don't want `KeyHandlerPlugin` at all, an app driving playback entirely from its own remote-control protocol, for instance. [`VideoPlayerConfig`](/nomercy-video-player/reference/config) declares this field, but `KeyHandlerPlugin` is its only consumer: `addDefaults()` checks it internally and returns before installing any binding group when set, so leaving the plugin registered but flipping this field is equivalent to never adding it, useful when a shared setup path always calls `addPlugin(KeyHandlerPlugin)` and only some app configurations want it live. If you instead only want to silence the W3C hardware media keys (`MediaPlay`, `MediaPause`, `MediaTrackNext`, and the rest) while keeping every other binding live, reach for the narrower `disableMediaControls` field, which gates just that group.
+Set `disableControls: true` on `VideoPlayerConfig` when you want no `KeyHandlerPlugin` at all. An app driving playback from its own remote-control protocol, for instance.
+
+[`VideoPlayerConfig`](/nomercy-video-player/reference/config) declares the field, and `KeyHandlerPlugin` is its only consumer. `addDefaults()` checks it and returns before installing any binding group.
+
+So leaving the plugin registered with this flag set is the same as never adding it. That helps when a shared setup path always calls `addPlugin(KeyHandlerPlugin)` and only some configurations want it live.
+
+To silence only the hardware media keys, `MediaPlay`, `MediaPause`, `MediaTrackNext` and the rest, use the narrower `disableMediaControls`. It gates that group alone.
 
 ## Scoping bindings to the player, not the page
 

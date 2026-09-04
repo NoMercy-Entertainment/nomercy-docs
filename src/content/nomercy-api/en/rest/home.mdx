@@ -1,13 +1,43 @@
 ---
 title: 'Home'
-description: 'GET /home — the home feed endpoint.'
+description: 'The home screen, its rows, and the trailer endpoints.'
 draft: false
 ---
 
 # Home
 
-::Callout
+The home screen is described by the server. It returns a list of components with their content, and the client draws them in its own idiom. That is why the phone, the web app and the TV agree without three implementations.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## The screen
 
-::
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1` | MediaAccess |
+| GET | `/api/v1/home` | MediaAccess |
+| GET | `/api/v1/home/tv` | MediaAccess |
+
+`home/tv` is the same screen shaped for a ten-foot display.
+
+## Filling a row
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/home/card` | MediaAccess |
+| POST | `/api/v1/home/continue` | MediaAccess |
+
+The screen describes its rows; these fill them. `continue` returns what the user was watching, so it changes as they watch.
+
+## Trailers
+
+| Method | Path | Needs |
+|--------|------|-------|
+| HEAD | `/api/v1/trailer/{trailerId}` | MediaAccess |
+| GET | `/api/v1/trailer/{trailerId}` | MediaAccess |
+| DELETE | `/api/v1/trailer/{trailerId}` | MediaAccess |
+
+`HEAD` asks whether the server has the trailer ready, and prepares it if not. `GET` plays it. `DELETE` drops the copy the server made.
+
+## Where to go next
+
+- [Libraries](/nomercy-api/rest/libraries)
+- [User data](/nomercy-api/rest/user-data)

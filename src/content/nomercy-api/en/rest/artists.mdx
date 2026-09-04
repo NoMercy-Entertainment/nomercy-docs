@@ -1,13 +1,40 @@
 ---
 title: 'Artists'
-description: 'Artists endpoints.'
+description: 'Browse artists by letter, and edit one.'
 draft: false
 ---
 
 # Artists
 
-::Callout
+Artists are identified by a MusicBrainz id, so the same artist is the same id across servers.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Reading
 
-::
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/music/artists/letter/{letter}` | MediaAccess |
+| GET | `/api/v1/music/artists/{id}` | MediaAccess |
+
+Artists are browsed by first letter rather than by page number, because that is how the music view presents them. Names that do not start with a letter are grouped under `#`. The listing also takes `page` and `take`.
+
+## User actions
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/music/artists/{id}/like` | MediaAccess |
+
+## Managing
+
+| Method | Path | Needs |
+|--------|------|-------|
+| PATCH | `/api/v1/music/artists/{id}` | Moderator |
+| POST | `/api/v1/music/artists/{id}/cover` | Moderator |
+| POST | `/api/v1/music/artists/{id}/rescan` | Moderator |
+| DELETE | `/api/v1/music/artists/{id}` | Moderator |
+
+`cover` takes an uploaded image as form data.
+
+## Where to go next
+
+- [Albums](/nomercy-api/rest/albums)
+- [Tracks](/nomercy-api/rest/tracks)

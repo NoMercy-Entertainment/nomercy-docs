@@ -7,11 +7,11 @@ description: 'Step 5 of 5: a now-playing panel (cover, title, artist) plus a syn
 
 # Build a Player: Now Playing & Lyrics
 
-[Step 4](/nomercy-music-player/build/track-list) added the track list. This is the last step: a now-playing panel and a synced lyric line — the second (and last) thing the native bar has no concept of.
+[Step 4](/nomercy-music-player/build/track-list) added the track list. This is the last step: a now-playing panel and a synced lyric line, the second (and last) thing the native bar has no concept of.
 
 ## Cover art reads the canonical field
 
-`item.url` (the track itself) resolves against `baseUrl` automatically. Artwork should read the canonical `image` field first, falling back to the deprecated `cover` for older catalogues — the exact resolution `MusicPreloadStrategy`/`CastSenderPlugin` use inside the package itself, and the same fix the [Quickstart](/nomercy-music-player/quickstart) applies:
+`item.url` (the track itself) resolves against `baseUrl` automatically. Artwork should read the canonical `image` field first, falling back to the deprecated `cover` for older catalogues, the exact resolution `MusicPreloadStrategy`/`CastSenderPlugin` use inside the package itself, and the same fix the [Quickstart](/nomercy-music-player/quickstart) applies:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -48,7 +48,11 @@ await player.ready();
 
 ## Wiring the panel
 
-`item` updates the cover, title, and artist together, since they all come from the same track. The lyric line is separate, driven by `LyricsPlugin`'s own namespaced event — subscribed through the typed class-form listener rather than a raw `'plugin:lyrics:lineEnter'` string, so `static readonly requires` (declared with `optional: true`, since the panel still renders without lyrics) guarantees `LyricsPlugin` is loaded before this reads it:
+`item` updates the cover, title and artist together, since all three come from the same track.
+
+The lyric line is separate. It is driven by `LyricsPlugin`'s own namespaced event, subscribed through the typed class-form listener rather than a raw `'plugin:lyrics:lineEnter'` string.
+
+`static readonly requires` guarantees `LyricsPlugin` is loaded before this reads it. It is declared `optional: true`, because the panel still renders without lyrics:
 
 {/* partial */}
 ```ts
@@ -79,7 +83,7 @@ override use(): void {
 
 ## What you built
 
-Five steps, one real player: the native bar for transport (nothing to rebuild there), a track-list toggle for the one gap it has, and a now-playing panel with synced lyrics for the other. Every method behind every piece is documented in full on the [Guided Tour](/nomercy-music-player/tour/transport) — this tutorial only hand-built the two things nothing shipped already covers.
+Five steps, one real player: the native bar for transport (nothing to rebuild there), a track-list toggle for the one gap it has, and a now-playing panel with synced lyrics for the other. Every method behind every piece is documented in full on the [Guided Tour](/nomercy-music-player/tour/transport), this tutorial only hand-built the two things nothing shipped already covers.
 
 ## See it running
 

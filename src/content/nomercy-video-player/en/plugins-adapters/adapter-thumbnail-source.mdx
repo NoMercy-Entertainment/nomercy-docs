@@ -7,7 +7,11 @@ description: 'IThumbnailSource: load(item), lookup(time), unload(). Sprite-sheet
 
 # Adapter: Thumbnail Source
 
-`IThumbnailSource` answers "what sprite sub-region shows this timestamp" for a scrubber's hover-preview thumbnail, load once per item, then a synchronous `lookup(time)` on every hover-move. Like [Adapter: Chapter Source](/nomercy-video-player/plugins-adapters/adapter-chapter-source), this is a standalone contract, not a `setup()` field: `DesktopUiPlugin`'s own scrub-preview (see [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui)) calls the same underlying sprite-parsing helpers directly rather than going through this interface, this adapter exists for custom scrubber UI built outside that plugin.
+`IThumbnailSource` answers "what sprite sub-region shows this timestamp" for a scrubber's hover preview. Load once per item, then a synchronous `lookup(time)` on every hover-move.
+
+Like [Adapter: Chapter Source](/nomercy-video-player/plugins-adapters/adapter-chapter-source), it is a standalone contract rather than a `setup()` field.
+
+`DesktopUiPlugin`'s own scrub preview calls the same sprite-parsing helpers directly, without going through this interface. The adapter is for a custom scrubber built outside that plugin.
 
 ## The interface
 
@@ -50,9 +54,9 @@ if (available) {
 
 ## Rules & restrictions
 
-- `load()` resolves `false` (not a rejected promise) when the item has no `previewSpriteUrl`, treat that as "no preview available," not an error condition.
+- `load()` resolves `false` rather than rejecting when the item has no `previewSpriteUrl`. That means "no preview available", not an error.
 - `lookup()` must stay synchronous in any implementation, it runs on every pointer-move across the scrubber.
-- The default implementation caches exactly one item's sprite set at a time, call `load()` again on every item change, there's no automatic per-item cache eviction to configure.
+- The default implementation caches one item's sprite set at a time, so call `load()` again on every item change. There is no per-item eviction to configure.
 
 ## How to extend it
 

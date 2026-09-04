@@ -1,13 +1,66 @@
 ---
-title: 'Optical Media'
-description: 'Optical media and disc ripper endpoints.'
+title: 'Optical media'
+description: 'Drives, discs, and the path from an inserted disc to a ripped title.'
 draft: false
 ---
 
-# Optical Media
+# Optical media
 
-::Callout
+Everything to do with the disc drive: what is in it, what is on the disc, and turning that into files.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+Reading a disc needs `OpticalAccess`. Changing the library because of one needs `Moderator`.
 
-::
+## The drive
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/optical/drives` | OpticalAccess |
+| GET | `/api/v1/dashboard/optical/{drivePath}` | OpticalAccess |
+| POST | `/api/v1/dashboard/optical/{drivePath}/open` | Moderator |
+| POST | `/api/v1/dashboard/optical/{drivePath}/close` | Moderator |
+
+The drive path identifies the drive, so a machine with two drives is handled without ambiguity.
+
+## Looking at the disc
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/optical/{drivePath}/probe` | OpticalAccess |
+| GET | `/api/v1/dashboard/optical/{drivePath}/title/{titleIndex}` | OpticalAccess |
+| POST | `/api/v1/dashboard/optical/{drivePath}/resolve` | OpticalAccess |
+| POST | `/api/v1/dashboard/optical/{drivePath}/confirm` | Moderator |
+
+`probe` lists the titles on the disc. A disc usually holds many, most of them menus and trailers.
+
+`resolve` asks what film or series this disc is. `confirm` is you agreeing, or correcting it. Nothing is written until you confirm.
+
+## Ripping
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/optical/{drivePath}/rip` | Moderator |
+| POST | `/api/v1/dashboard/optical/{drivePath}/process` | Moderator |
+
+Ripping is queued, not done in the request. Watch it through the [Ripper hub](/nomercy-api/signalr/ripper-hub).
+
+## Playing straight from the disc
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/optical/{drivePath}/play/{playlistId}` | OpticalAccess |
+| POST | `/api/v1/dashboard/optical/{drivePath}/stop` | OpticalAccess |
+
+## Onboarding a disc
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/optical/onboarding/{drivePath}/start` | Moderator |
+| POST | `/api/v1/dashboard/optical/onboarding/{drivePath}/confirm` | Moderator |
+| GET | `/api/v1/dashboard/optical/onboarding/{drivePath}` | Moderator |
+
+This is the guided path the dashboard uses: start it with the library the disc should land in, and the server keeps the state so the page can be closed and reopened.
+
+## Where to go next
+
+- [Discs](/nomercy-media-server/media/optical) for the flow as a person walks it.
+- [Ripper hub](/nomercy-api/signalr/ripper-hub)

@@ -1,13 +1,104 @@
 ---
-title: 'Install with Docker'
-description: 'Run NoMercy Media Server in a Docker container.'
+title: 'Docker'
+description: 'Run NoMercy MediaServer in Docker.'
 draft: false
 ---
 
-# Install with Docker
+# Docker
 
-::Callout
+Official images are published to `ghcr.io/nomercy-entertainment/nomercymediaserver`.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+Images are built for `linux/amd64`.
 
-::
+## Pick a variant
+
+There is one image per hardware-acceleration target. Pick the one that matches the machine.
+
+| Variant | For |
+|---------|-----|
+| `latest` | No GPU acceleration |
+| `nvidia` | NVIDIA GPU |
+| `intel` | Intel Quick Sync |
+| `amd` | AMD GPU |
+
+Encoding works on any of them. A GPU variant makes it faster on hardware that supports it.
+
+## Get the compose file
+
+The compose files ship with each release. Download the one for your variant from the [latest release](https://github.com/NoMercy-Entertainment/nomercy-media-server/releases/latest).
+
+Open it and edit it before you start anything. Two things must be set, and a few more can be.
+
+### Set your media paths
+
+The file ships with placeholder mounts:
+
+```yaml
+- /path/to/your/movies:/media/movies:rw
+- /path/to/your/tv:/media/tv:rw
+- /path/to/your/music:/media/music:rw
+```
+
+Replace the left side of each with a real path on your machine. Keep the right side as it is, and keep `rw`: the server writes thumbnails and encoded titles back into these locations.
+
+Remember the right-hand paths. Inside NoMercy your libraries live at `/media/movies`, `/media/tv` and `/media/music`, because that is what the container sees. Typing the host path into NoMercy finds nothing.
+
+### Media on a NAS
+
+Let Compose mount the share, rather than the server. A volume with `type: nfs` or `type: cifs` is handled by the host kernel, and the container sees an ordinary directory.
+
+```yaml
+volumes:
+  media:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=nas.local,nfsvers=4
+      device: ":/volume1/media"
+```
+
+Mount that volume where the placeholders above are, then point a Local driver at it inside NoMercy. This is faster than reaching the same share through NoMercy's own NFS or SMB driver, which does the protocol work inside the server process.
+
+### Set your host address
+
+The container needs the LAN address of the machine it runs on, in `HOST_IP`. Without it the server advertises an address your other devices cannot reach.
+
+### Optional settings
+
+| Setting | Default | Change it when |
+|---------|---------|----------------|
+| `TZ` | `UTC` | You want timestamps in local time |
+| `PUID` / `PGID` | `1000` | Your media is owned by a different user |
+| `NOMERCY_EXTERNAL_IP` | detected | Detection picks the wrong public address |
+| `NOMERCY_INTERNAL_PORT` | `7626` | Port 7626 is taken |
+| `NOMERCY_EXTERNAL_PORT` | `7626` | Your router maps a different outside port |
+| `NOMERCY_LOG_LEVEL` | `Information` | You are chasing a problem and want more detail |
+
+The last four ship commented out. Uncomment the ones you need.
+
+A `nomercy-data` volume holds the server's own database and settings. Leave it alone; it is what makes your server keep its identity across restarts.
+
+## Start it
+
+```bash
+export HOST_IP=$(hostname -I | awk '{print $1}')
+
+docker compose up -d                                    # CPU only
+docker compose -f docker-compose.nvidia.yml up -d       # NVIDIA GPU
+docker compose -f docker-compose.intel.yml up -d        # Intel Quick Sync
+docker compose -f docker-compose.amd.yml up -d          # AMD GPU
+```
+
+## Complete setup
+
+Browse to `http://<your-host-ip>:7626/setup`.
+
+The container log also prints a sign-in code and a link you can use from another device:
+
+```bash
+docker compose logs -f
+```
+
+## Where to go next
+
+- [First-Run Setup](/nomercy-media-server/first-run) to claim the server and link your account.

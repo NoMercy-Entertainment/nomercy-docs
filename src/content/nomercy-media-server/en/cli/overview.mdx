@@ -1,13 +1,60 @@
 ---
-title: 'CLI Overview'
-description: 'The nomercy command and its global options.'
+title: 'CLI overview'
+description: 'Control a running NoMercy server from the terminal.'
 draft: false
 ---
 
-# CLI Overview
+# CLI overview
 
-::Callout
+`nomercy` is a command-line client for a running server. It is installed alongside the server on every platform, and it is the practical way to work with a machine that has no screen.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+It talks to the server over a local channel, so it works on the machine the server runs on. It is not a remote-control tool.
 
-::
+## The commands
+
+| Command | Does |
+|---------|------|
+| `nomercy start` | Start the server |
+| `nomercy stop` | Stop the server |
+| `nomercy restart` | Restart the server |
+| `nomercy status` | Show whether it is running, and its addresses |
+| `nomercy logs` | Read or follow the log |
+| `nomercy resources` | Show CPU, memory and disk use |
+| `nomercy queue status` | Show what work is queued and running |
+| `nomercy config get` | Print the current configuration |
+| `nomercy config set` | Change one setting |
+| `nomercy plugin list` | List installed plugins |
+| `nomercy autostart` | Turn start-on-boot on or off |
+| `nomercy update` | Download and stage an update |
+
+Every command accepts `--help`.
+
+## Checking on the server
+
+`nomercy status` answers the first question you usually have. `nomercy resources` answers the second one, when something feels slow:
+
+```bash
+nomercy resources
+```
+
+## If a command says the server is not running
+
+```text
+NoMercy MediaServer is not running, or is not reachable on its management socket.
+Start it with: nomercy start
+```
+
+Every command except `start` needs the server up, because they all ask the running server for the answer. This message means exactly what it says rather than that something is broken.
+
+## A server in a container
+
+Run the command inside the container:
+
+```bash
+docker compose exec nomercy nomercy status
+```
+
+## Where to go next
+
+- [Starting and stopping](/nomercy-media-server/cli/start-stop)
+- [Logs](/nomercy-media-server/cli/logs)

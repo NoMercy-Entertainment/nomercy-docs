@@ -11,7 +11,13 @@ Step 2 gave the player something real to drive. This step adds behavior on top o
 
 ## Why the player class doesn't change
 
-A plugin extends the player from the outside. `addPlugin(PluginClass, opts)` queues the plugin before `setup()` runs (registering after `setup()` misses the plugin's `use()` call during the pipeline), and the plugin gets a scoped logger, namespaced storage, and auto-cleaned listeners for free, the full list is in [The Plugin Base](/nomercy-player-core/tour/plugin-base). Nothing about `KitPlayer`'s composition from steps 1-2 has to anticipate this: `addPlugin`/`getPlugin` are already part of `playerCoreMethods`, stamped onto every kit composition whether or not you ever call them.
+A plugin extends the player from the outside.
+
+`addPlugin(PluginClass, opts)` queues the plugin before `setup()` runs. Register after `setup()` and the plugin misses its own `use()` call during the pipeline.
+
+In return the plugin gets a scoped logger, namespaced storage and auto-cleaned listeners. [The Plugin Base](/nomercy-player-core/tour/plugin-base) has the full list.
+
+`KitPlayer`'s composition from steps 1 and 2 needs no change for this. `addPlugin` and `getPlugin` are already in `playerCoreMethods`, stamped onto every kit composition whether you call them or not.
 
 ## Adding one
 
@@ -22,7 +28,11 @@ A plugin extends the player from the outside. `addPlugin(PluginClass, opts)` que
 
 `player.backend().calls` at the end still shows the transport calls from Step 2 (`['play', 'pause', 'play']`), proving the plugin is additive: it observes the same event stream, it doesn't intercept or replace the backend wiring underneath it.
 
-Real players have a declarative shortcut for this: `setup({ plugins: [PlayCounterPlugin] })` (or `{ plugin: PlayCounterPlugin, opts: {...} }` for one that takes options) registers through this exact same `addPlugin()` path, timed identically — sugar over the two calls above, not a second mechanism. `KitPlayer` here builds `playerCoreMethods` by hand for teaching purposes, so this step spells out `addPlugin()` directly; `nomercy-video-player`/`nomercy-music-player` both support the declarative form.
+Real players have a declarative shortcut: `setup({ plugins: [PlayCounterPlugin] })`, or `{ plugin: PlayCounterPlugin, opts: {...} }` when it takes options.
+
+That runs through this same `addPlugin()` path at the same moment. It is sugar over the two calls above, not a second mechanism.
+
+`KitPlayer` builds `playerCoreMethods` by hand here for teaching, so this step spells `addPlugin()` out. Both real players support the declarative form.
 
 ## Next steps
 

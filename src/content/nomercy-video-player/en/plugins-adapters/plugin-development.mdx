@@ -7,7 +7,7 @@ description: 'Writing plugins for nomercy-video-player v2: video-specific concer
 
 # Plugin Development: Video Player
 
-Plugins for `nomercy-video-player` follow the same contract as the player core's plugin system. This page covers the video-player-specific patterns. For the base plugin contract — every helper on `this`, the lifecycle, and the registration pipeline — see [The Plugin Base](/nomercy-player-core/tour/plugin-base) and [Player and Plugin](/nomercy-player-core/tour/composition-boundary).
+Plugins for `nomercy-video-player` follow the same contract as the player core's plugin system. This page covers the video-player-specific patterns. For the base plugin contract, every helper on `this`, the lifecycle, and the registration pipeline, see [The Plugin Base](/nomercy-player-core/tour/plugin-base) and [Player and Plugin](/nomercy-player-core/tour/composition-boundary).
 
 ## Built-in plugin catalog
 
@@ -27,9 +27,9 @@ All built-in plugins are importable from `@nomercy-entertainment/nomercy-video-p
 
 ## Typing against the video player
 
-Use `IVideoPlayer` as the `P` generic. `IVideoPlayer` is the stable public interface for the video player — it is the correct type for plugins and consumer functions. `NMVideoPlayer` is the concrete class (implementation detail); prefer `IVideoPlayer` so your plugin does not depend on the class hierarchy.
+Use `IVideoPlayer` as the `P` generic. `IVideoPlayer` is the stable public interface for the video player, it is the correct type for plugins and consumer functions. `NMVideoPlayer` is the concrete class (implementation detail); prefer `IVideoPlayer` so your plugin does not depend on the class hierarchy.
 
-When a plugin needs to read the active item with `this.player.item()`, add `& WithCurrentItem<YourItemType>` to the `P` generic. Plugins that only call transport methods or `metrics()` can omit it — those are on `IPlayer` directly.
+When a plugin needs to read the active item with `this.player.item()`, add `& WithCurrentItem<YourItemType>` to the `P` generic. Plugins that only call transport methods or `metrics()` can omit it, those are on `IPlayer` directly.
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
@@ -173,7 +173,7 @@ this.on('item', ({ item }) => {
 
 ### Memory-safe cleanup
 
-The lifecycle helpers — `this.on`, `this.listen`, `this.timeout`, `this.interval`, `this.frame`, `this.websocket`, `this.mount`, and `this.lifecycle.observe` — all register automatic cleanup when the plugin is torn down. That is why most plugins need no `dispose()` at all: there is nothing left to release by hand. You override `dispose()` only for a resource none of the helpers track — a third-party library instance, a custom WebGL context.
+The lifecycle helpers, `this.on`, `this.listen`, `this.timeout`, `this.interval`, `this.frame`, `this.websocket`, `this.mount`, and `this.lifecycle.observe`, all register automatic cleanup when the plugin is torn down. That is why most plugins need no `dispose()` at all: there is nothing left to release by hand. You override `dispose()` only for a resource none of the helpers track, a third-party library instance, a custom WebGL context.
 
 A `ResizeObserver` is tracked: wrap it with `this.lifecycle.observe`, which disconnects it on dispose and returns the observer so you chain the `observe(el)` straight on:
 
@@ -200,11 +200,11 @@ export class ResponsiveOverlayPlugin extends Plugin<IVideoPlayer> {
 }
 ```
 
-A raw `new ResizeObserver` that you store and disconnect by hand works, but it is the pattern `this.lifecycle.observe` exists to remove — and the `@nomercy-entertainment/eslint-plugin-player` rules flag it.
+A raw `new ResizeObserver` that you store and disconnect by hand works, but it is the pattern `this.lifecycle.observe` exists to remove, and the `@nomercy-entertainment/eslint-plugin-player` rules flag it.
 
 ### Use `this.listen()` instead of `addEventListener`
 
-`this.listen(target, event, handler)` wraps `addEventListener` and auto-removes on dispose. A raw `addEventListener` inside a plugin needs manual tracking and is a common source of ghost listeners after the player is destroyed — the lint rules flag it for the same reason.
+`this.listen(target, event, handler)` wraps `addEventListener` and auto-removes on dispose. A raw `addEventListener` inside a plugin needs manual tracking and is a common source of ghost listeners after the player is destroyed, the lint rules flag it for the same reason.
 
 {/* partial */}
 
@@ -218,7 +218,7 @@ use(): void {
 
 ### Batch high-frequency time updates with `this.frame()`
 
-The `'time'` event fires on every `timeupdate`, which can reach 25 Hz during playback. Driving DOM mutations straight from that handler causes layout thrashing. Cache the value in the handler and let `this.frame()` synchronise writes with the browser's paint cycle — the kit drives the loop and cancels it on dispose:
+The `'time'` event fires on every `timeupdate`, which can reach 25 Hz during playback. Driving DOM mutations straight from that handler causes layout thrashing. Cache the value in the handler and let `this.frame()` synchronise writes with the browser's paint cycle, the kit drives the loop and cancels it on dispose:
 
 {/* partial */}
 
@@ -262,7 +262,9 @@ use(): void {
 
 ### Prefer container CSS classes over JS for state-driven visibility
 
-The player keeps a set of CSS state classes on `this.player.container` in sync with playback — the play state (`playing` / `paused` / `buffering` / …) plus `active` / `inactive` as the viewer moves or goes idle. Keying visibility on those classes with CSS is cheaper than toggling styles from event handlers and avoids the class of bugs where a handler fires before the DOM is ready.
+The player keeps CSS state classes on `this.player.container` in sync with playback: the play state (`playing`, `paused`, `buffering` and so on), plus `active` and `inactive` as the viewer moves or goes idle.
+
+Key visibility off those classes in CSS rather than toggling styles from event handlers. It is cheaper, and it avoids the whole class of bugs where a handler fires before the DOM is ready.
 
 ```css
 /* plugin stylesheet */
@@ -288,7 +290,7 @@ use(): void {
 
 ### Inter-plugin communication via events, not direct references
 
-Use `this.emit()` to broadcast from a plugin and `this.on(PluginClass, event, fn)` to receive from a specific plugin. This keeps plugins decoupled and independently testable. Direct references — calling methods on another plugin instance — create hidden load-order dependencies.
+Use `this.emit()` to broadcast from a plugin and `this.on(PluginClass, event, fn)` to receive from a specific plugin. This keeps plugins decoupled and independently testable. Direct references, calling methods on another plugin instance, create hidden load-order dependencies.
 
 ```ts
 // Emitting plugin
@@ -319,7 +321,7 @@ export class TimelinePlugin extends Plugin<IVideoPlayer> {
 }
 ```
 
-`this.on(PluginClass, event, fn)` is the typed form for listening to another plugin's events. The consumer-facing string form is `on('plugin:<id>:<event>', fn)` on the player object itself — use the class form inside plugins.
+`this.on(PluginClass, event, fn)` is the typed form for listening to another plugin's events. The consumer-facing string form is `on('plugin:<id>:<event>', fn)` on the player object itself, use the class form inside plugins.
 
 ## Next steps
 

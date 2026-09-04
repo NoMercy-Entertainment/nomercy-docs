@@ -26,16 +26,30 @@ interface ITranslator {
 
 ## Default implementation
 
-`DefaultTranslator` is a key + `{var}` interpolation lookup over a merged bundle table, seeded with the kit's own `core.*` strings, English loaded eagerly, every other kit locale loaded lazily the first time `language(lang)` switches to it. Constructor options (`DefaultTranslatorOptions`): `language` (initial tag, default `'en'`), `translations` (initial bundles), `loadTranslations` (async loader for a tag not yet fetched), `onMissingTranslation` (custom fallback for an unresolved key), and `fallbackLanguage` (final-fallback tag, default `'en'`, pass `null` to disable and rely solely on the BCP-47 parent chain).
+`DefaultTranslator` is a key plus `{var}` interpolation lookup over a merged bundle table.
+
+It is seeded with the kit's own `core.*` strings. English loads eagerly; every other kit locale loads the first time `language(lang)` switches to it.
+
+`DefaultTranslatorOptions`:
+
+- `language`: the initial tag, `'en'` by default
+- `translations`: initial bundles
+- `loadTranslations`: async loader for a tag not yet fetched
+- `onMissingTranslation`: custom fallback for an unresolved key
+- `fallbackLanguage`: final fallback, `'en'` by default. Pass `null` to rely on the BCP-47 parent chain alone.
 
 ## Rules & restrictions
 
-- `removeTranslations(prefix, lang?)` is what the kit calls automatically on plugin dispose for `plugin.<id>.` prefixed keys, a custom engine needs to implement this correctly for plugin translation cleanup to actually work.
-- `language(lang)` returns a `Promise<void>` because a real engine may need to await an async loader before the new language's bundle is ready, callers should `await` it rather than assuming the switch is synchronous.
+- `removeTranslations(prefix, lang?)` is what the kit calls on plugin dispose, for `plugin.<id>.` prefixed keys. A custom engine has to implement it correctly, or plugin translations never get cleaned up.
+- `language(lang)` returns a `Promise<void>`, because a real engine may await a loader before the new bundle is ready. Callers `await` it rather than assuming the switch is synchronous.
 
 ## How to extend it
 
-Swap the whole engine when you need pluralization, gender, or ICU MessageFormat. When you pass your own `translator`, the kit uses it as-is and hands it none of the translation config, your engine owns its translation state end to end. So wire `translations` / `loadTranslations` / `language` into your adapter yourself before you pass it, those options only seed the built-in `DefaultTranslator`:
+Swap the whole engine when you need pluralization, gender, or ICU MessageFormat.
+
+Pass your own `translator` and the kit uses it as-is, handing it none of the translation config. Your engine owns its translation state end to end.
+
+So wire `translations`, `loadTranslations` and `language` into your adapter before you pass it. Those options seed the built-in `DefaultTranslator` only:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically

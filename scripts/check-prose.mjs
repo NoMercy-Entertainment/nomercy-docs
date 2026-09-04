@@ -73,7 +73,37 @@ const TEMPLATE_RESIDUE = [
   'lorem ipsum', 'your product name', 'todo: write', 'coming soon.', 'replace this text',
 ];
 
+// Change history. A page describes the product as it is; what it used to be is
+// invisible to a reader who arrived after the change and useless to one who
+// arrived before it. The rewrite is always the same move: drop the narrative and
+// state the present-tense fact — "X is superseded by Y" becomes "Use Y".
+//
+// A fact about a version somebody may be running right now is NOT history and is
+// allowed: "a deprecated route still answers" describes today. Which is why
+// "deprecated" is absent from this list and "superseded" is on it.
+const CHANGE_HISTORY = [
+  'superseded by', 'supersedes', 'superseded', 'was replaced', 'were replaced', 'has been replaced',
+  'replaced by', 'what replaced what', 'used to be', 'used to have', 'formerly',
+  // Bare "previously" describes runtime state as often as history ("replaces any
+  // previously active window"), so only the forms that can only be history.
+  'was previously', 'were previously', 'previously named', 'previously called',
+  'previously required', 'previously this', 'previously it',
+  'in earlier versions', 'in older versions', 'older versions', 'no longer supported',
+  'this is now', 'has since', 'as of version', 'renamed from', 'moved from',
+];
+
+// Switches that exist for the maintainer are not part of the product. The dev
+// flag points a server at the development API and auth hosts, and a reader who
+// tries it ends up with a server that cannot register against production. It
+// reached the shipped configuration page twice, so it is a tripwire now.
+const INTERNAL_ONLY = [
+  '--dev', '-d,', 'nomercy_dev', 'api-dev.nomercy.tv', 'auth-dev.nomercy.tv',
+  'development mode', 'development flag', 'dev flag',
+];
+
 const CHECKS = [
+  ['internal-only option', INTERNAL_ONLY, 'This exists for the maintainer, not the product. Remove it from the page.'],
+  ['change history', CHANGE_HISTORY, 'A page states what is true now. Drop the narrative: "X is superseded by Y" becomes "Use Y".'],
   ['marketing adjective', MARKETING, 'Say what it does. A reader cannot act on an adjective.'],
   ['hedging preamble', HEDGES, 'Delete the preamble and keep the sentence.'],
   ['corporate verb', CORPORATE, 'Use the short English word: use, build, help, before, to.'],

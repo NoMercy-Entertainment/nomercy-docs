@@ -41,7 +41,11 @@ select.addEventListener('change', () => {
 
 ## Labels need a permission grant first
 
-Browsers gate device *labels* (not the device list itself) behind a permission grant, before one, `audioOutputs()` still resolves with the right number of entries, just with an empty `label` on some or all of them. A device switcher that wants readable names on first render should trigger a microphone permission prompt through `getUserMedia` (or reuse a grant the app already has for another reason) before calling `renderDeviceSelect`, then call it again once the permission resolves:
+Browsers gate device *labels*, not the device list. Before a permission grant, `audioOutputs()` still resolves with the right number of entries, some or all with an empty `label`.
+
+For readable names on first render, trigger a microphone permission prompt through `getUserMedia` before calling `renderDeviceSelect`, or reuse a grant the app already holds.
+
+Then call it again once the permission resolves:
 
 ```ts
 async function ensureDeviceLabels(): Promise<void> {

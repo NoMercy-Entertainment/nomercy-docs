@@ -61,7 +61,17 @@ Video's `setup()` wrapper injects three defaults `BasePlayerConfig` alone doesn'
 
 ## Start-item selection, and what `autoPlay` gates
 
-Every `setup()` call with a non-empty playlist primes a start item once `ready()` resolves, reading each item's `progress` field ([`WatchProgress`](/nomercy-video-player/reference/types)) to pick it: most recently watched wins, over 90% watched rolls forward to the next item, otherwise resumes at the saved `time` (passed as `startAt`, so the backend fetches from the offset directly). This runs regardless of `autoPlay`, a player without it still mounts paused on the right item and the right position instead of blank. `autoPlay: true` decides the one thing this selection doesn't do on its own: whether that primed item also starts playing. See [Recipe: Persistence & Resume](/nomercy-video-player/recipes/resume-playback) for the full pattern, including saving progress in the first place.
+Every `setup()` with a non-empty playlist primes a start item once `ready()` resolves. It reads each item's `progress` field, [`WatchProgress`](/nomercy-video-player/reference/types), to pick one.
+
+- Most recently watched wins.
+- Over 90% watched rolls forward to the next item.
+- Anything else resumes at the saved `time`, passed as `startAt` so the backend fetches from the offset.
+
+This runs regardless of `autoPlay`. Without it, the player still mounts paused on the right item at the right position, rather than blank.
+
+`autoPlay: true` decides the one thing the selection does not: whether that primed item also starts playing.
+
+[Recipe: Persistence & Resume](/nomercy-video-player/recipes/resume-playback) has the full pattern, including saving progress.
 
 ## Next steps
 

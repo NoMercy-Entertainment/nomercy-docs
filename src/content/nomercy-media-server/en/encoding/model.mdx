@@ -1,0 +1,96 @@
+---
+title: 'How encoding works'
+description: 'What a profile is, how one is resolved, and the six steps every encode runs.'
+draft: false
+---
+
+# How encoding works
+
+A preset in the dashboard is a name over a document, and that document is what the encoder reads. This page explains the document and the run.
+
+Read [Encoding profiles](/nomercy-media-server/encoding/profiles) first if you only want to pick one.
+
+## What a profile is
+
+One record describing the output, not a list of ffmpeg flags. It names:
+
+- the **container** the result is written in
+- one **video output**, or none for an audio-only profile
+- the **audio outputs**, one per track you want produced
+- the **subtitle outputs**
+- **thumbnails** for the seek bar
+- a **ladder**, if this profile produces quality steps
+- packaging for **HLS** or **DASH**, and DRM where it applies
+- the **segment length**, and whether the encode is one pass or two
+
+Everything the encoder does is derived from that. Nothing about it names a device or a client.
+
+## Policies, not switches
+
+Alongside the outputs sit a handful of policies, which are what let one profile behave sensibly across very different sources.
+
+**Hardware preference.** Most profiles prefer a graphics card and fall back to the processor. The archival ones ask for quality instead, because a card's output is not what you want to keep forever.
+
+**Bit depth.** What to do when the source is deeper than the output can carry: warn and step down, by default.
+
+**HDR.** Carry it through where that is possible, rather than flattening it silently.
+
+**Crop detection.** Off unless the profile asks for it.
+
+**Custom arguments.** An escape hatch for the case the model does not cover.
+
+## Inheritance
+
+A profile can name a parent, and a chain is resolved from the root down: each child merged over what came before it.
+
+That is what a clone is. Cloning a built-in gives you a profile that carries one or two of your own values and inherits the rest, so it follows the original when the original improves.
+
+Two limits keep this honest. A chain cannot loop, and it cannot run deeper than eight. Both are refused rather than followed.
+
+Because a stored profile is only its own layer, what it says and what the encoder will do are different documents. The dashboard's **resolved** view is the second one, and it is the one to read when a setting seems to have no effect.
+
+## The ladder
+
+A streaming profile does not carry a fixed list of resolutions. It carries the rules for deriving one from the source.
+
+- The **tiers** it may produce, and the bitrate strategy for them.
+- **Never upscale**, so a 720p source is not stretched to fill a 1080p rung.
+- A **minimum gap** between rungs, so two steps too close together are collapsed into one.
+- A **maximum and minimum** number of rungs.
+- A **codec policy**: the same codec throughout, or a split where lower rungs use one and higher rungs another.
+
+So the same profile gives a 4K source eight rungs and a 480p source one, without you maintaining two profiles.
+
+## The six steps
+
+Every encode runs the same sequence. Each step is replaceable, which is how a plugin adds a way of encoding without a fork.
+
+**Analyse.** Probe the source: streams, codecs, resolution, durations, HDR metadata.
+
+**Validate.** Refuse a combination that cannot work, before any time is spent on it.
+
+**Plan.** Turn profile plus source into a concrete plan: which encoder, which graphics device, which filters, which rungs. This is where the ladder rules meet the actual source.
+
+**Build.** Turn the plan into the commands to run.
+
+**Execute.** Run them, and report progress as they go.
+
+**Finalise.** Write the master playlist, the chapters and the sidecar files that make the output a title rather than a pile of parts.
+
+Above the six sits a strategy per container family: HLS, DASH, MP4, MKV, audio-only. A plugin registering its own strategy takes precedence over the built-in one for that family.
+
+## When several machines share one title
+
+A distributed encode splits a title into slices across workers. They write into one output directory, so only the coordinator runs Finalise. The workers stop after Execute.
+
+Without that rule they would race each other to write the master playlist.
+
+## Changing a profile
+
+A profile change applies to titles encoded after it. Titles already in the library keep the format they were encoded in, and the [encoding history](/nomercy-media-server/encoding/history) records which profile produced each one.
+
+## Where to go next
+
+- [Encoding profiles](/nomercy-media-server/encoding/profiles) to pick or build one.
+- [Encoding overview](/nomercy-media-server/encoding/overview) for when encoding happens at all.
+- [How storage works](/nomercy-media-server/storage-model)

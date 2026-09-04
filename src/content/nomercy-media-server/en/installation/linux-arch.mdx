@@ -1,13 +1,44 @@
 ---
-title: 'Install on Linux — Arch'
-description: 'Install on Arch Linux.'
+title: 'Linux (Arch)'
+description: 'Install NoMercy MediaServer from the Arch repository.'
 draft: false
 ---
 
-# Install on Linux — Arch
+# Linux (Arch)
 
-::Callout
+Arch and its derivatives install from the NoMercy pacman repository, so updates arrive with the rest of your system updates.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+Packages are built for x86_64.
 
-::
+## Add the repository and install
+
+```bash
+echo -e "Server = https://repo.nomercy.tv/arch-packages/pool/x86_64" | sudo tee /etc/pacman.d/nomercy-mirrorlist
+echo -e "\n[nomercy]\nInclude = /etc/pacman.d/nomercy-mirrorlist" | sudo tee -a /etc/pacman.conf
+curl -o nomercy.gpg.pub https://repo.nomercy.tv/nomercy_repo.gpg.pub
+sudo pacman-key --add nomercy.gpg.pub
+sudo pacman-key --lsign-key B8CE23865511524D442F7DCF9A4B71002C09D6B8
+sudo pacman -Sy nomercy
+```
+
+The signing key has to be added and locally signed before pacman will accept the packages, which is what the two `pacman-key` lines do.
+
+The package is self-contained. It carries its own .NET runtime.
+
+## Updating
+
+```bash
+sudo pacman -Syu
+```
+
+## Complete setup
+
+A server installed this way runs as a service, so there is no browser to open and no terminal output to watch.
+
+Browse to `http://<your-server-ip>:7626/setup` from any machine on your network.
+
+If you would rather work from the terminal, `nomercy logs` shows the setup link and the sign-in code.
+
+## Where to go next
+
+- [First-Run Setup](/nomercy-media-server/first-run) to claim the server and link your account.

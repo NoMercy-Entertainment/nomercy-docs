@@ -1,13 +1,62 @@
 ---
-title: 'Supported Formats and Codecs'
-description: 'Supported input formats and output codecs.'
+title: 'Formats'
+description: 'The video, audio and container formats the server works with.'
 draft: false
 ---
 
-# Supported Formats and Codecs
+# Formats
 
-::Callout
+This page lists what the server can read and what it can produce. Most people never need it: the presets already pair sensible formats together. It is here for when you are choosing between them.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Video
 
-::
+The server can produce H.264, HEVC, VP9 and AV1, and it can copy a video stream through untouched.
+
+| Codec | Where it fits |
+|-------|---------------|
+| H.264 | Plays on the widest range of devices, including old ones. |
+| HEVC | Roughly half the size of H.264 at the same picture. Needs a reasonably modern device. |
+| AV1 | Smallest of the four, slowest to produce, needs a recent device. |
+| VP9 | Mostly of interest for the web. |
+| Copy | No re-encoding at all. The original video is carried across unchanged. |
+
+Copying is the only option that cannot lose quality, because nothing is re-encoded. It also carries HDR and bit depth across exactly, since those are properties of the stream being copied.
+
+## Audio
+
+AAC, FLAC, Opus, AC-3, E-AC-3, MP3, Vorbis, TrueHD and DTS, plus copy.
+
+Copy matters more for audio than most people expect. Lossless and object-based tracks such as TrueHD and DTS-HD Master Audio cannot survive a re-encode intact, so the archive presets copy audio rather than touch it.
+
+Stereo AAC is what the streaming presets pair with by default. Surround is carried as E-AC-3 where a preset offers it.
+
+## Containers
+
+| Container | Used for |
+|-----------|----------|
+| MKV | Single-file output, archive and remux presets |
+| MP4 | Single-file output meant to be copied elsewhere |
+| HLS in MPEG-TS | Streaming, the widest device support |
+| HLS in fMP4 | Streaming, needed for HEVC and AV1 |
+| DASH | Streaming, for clients that speak DASH rather than HLS |
+
+There are audio-only equivalents for music: MP3, AAC, FLAC, Ogg, and audio HLS.
+
+The container is part of the preset, so choosing a preset chooses this for you.
+
+## Subtitles
+
+Text subtitles are written as separate files next to the video, which is what lets you switch them without the server re-reading anything.
+
+Subtitles that exist as images in the source, which is normal on DVDs and Blu-rays, are converted to text so they can be handled the same way.
+
+## What can be read
+
+The server reads far more than it writes. Anything ffmpeg can decode can be imported, including old formats like AVI and DivX and disc structures like VIDEO_TS.
+
+So a shelf of AVI, DivX and disc rips can be imported and end up as one format, whichever one your library's preset produces.
+
+## Where to go next
+
+- [Encoding profiles](/nomercy-media-server/encoding/profiles) to pick a preset.
+- [Hardware acceleration](/nomercy-media-server/encoding/hardware)

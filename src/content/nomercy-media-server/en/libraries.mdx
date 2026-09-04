@@ -1,13 +1,104 @@
 ---
 title: 'Library Management'
-description: 'Add, scan, and manage your media libraries.'
+description: 'Create libraries, choose the right type, and pick where your media lives.'
 draft: false
 ---
 
 # Library Management
 
-::Callout
+A library is a shelf. It has a type, one or more folders on disk, and rules about what happens to content that arrives in it.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+Most setups need three or four libraries and nothing more.
+
+## Create a library
+
+Open the dashboard and go to **Libraries**, then choose **New library**.
+
+Each library needs three things.
+
+### 1. A type
+
+The type is the most important choice on the page. It decides how NoMercy reads file names and what it matches them against.
+
+| Type | Holds | What it looks like on disk |
+|------|-------|----------------------------|
+| Movies | Films | `Films/2.Fast.2.Furious.(2003)/` |
+| TV Shows | Episodic series | `TV.Shows/2.Broke.Girls.(2011)/2.Broke.Girls.S01E01/` |
+| Music | Albums and tracks | `Music/#/2Pac/[2000] The Rose That Grew From Concrete/` |
+
+A film gets one folder. A series gets a folder, and inside it one folder per episode, named with the season and episode number. There are no season folders. Music nests by first letter, then artist, then album.
+
+Films and series are read differently, so put content in a library of the right type. A film in a TV Shows library is read as if it were an episode, and matches badly or not at all. Fixing that afterwards is more work than choosing correctly now.
+
+NoMercy builds these folders itself for anything you import. You only need the shape when you point a library at files you already have.
+
+## Anime
+
+Anime is a TV Shows library scoped to anime. Same shape, same folder depth, and the episodes are matched against [TheMovieDB](https://www.themoviedb.org) exactly as any other series is.
+
+Two things change when you scope a library to Anime.
+
+It reads absolute episode numbering, so a file named `One Piece - 1109` is understood as episode 1109 rather than nonsense.
+
+It files newly imported shows correctly, by checking anime sources at import to decide whether a series belongs in your Anime library or your TV Shows one.
+
+An anime **film** is still a film, so it goes in a Movies library.
+
+### 2. A folder
+
+Choose **Add folder**. The picker opens.
+
+The picker browses the disks of the **machine running the server**, not the device you are sitting at. If your server runs on a different computer, you are looking at that computer's drives.
+
+You can make the folder here. Browse to where you want your media to live, choose **New folder**, name it, and select it.
+
+One folder per library keeps things simple. You can add more later if your media is spread across drives.
+
+### 3. An encoding preset
+
+Every folder gets a preset. It decides the codec everything imported into that folder is stored in, and how many quality steps are produced.
+
+This is the choice that makes a library uniform. Titles arrive from twenty different sources; the preset is what makes the shelf hold one format instead of twenty.
+
+A new folder is given the standard preset automatically, so you can skip this and come back to it.
+
+The presets, what each one produces, and when to pick something other than the standard one are covered in [Encoding profiles](/nomercy-media-server/encoding/profiles).
+
+## Two ways content arrives
+
+This is worth understanding before you add anything, because the two routes behave differently.
+
+**You add it, with Add content.** NoMercy encodes each file using the library's preset and writes the result into the library folder. Your original file is read, never moved or altered.
+
+**The server finds it, by scanning.** When a library folder already holds files, or files appear in it later, the server reads them and lists them. Whether those are also encoded is controlled by the **Auto-encode files found by scanning** switch in the library's settings. It is off by default, so found files are listed in their original form.
+
+## Which setup to use
+
+MediaServer is an organiser and an archiver. Both setups below are supported, and they answer different questions: one presents a collection you have already organised, the other builds the archive for you.
+
+The recommended setup is one empty folder per library, filled only through **Add content**.
+
+Everything on the shelf is then laid out the same way and stored in the one codec the folder's profile produces. Nothing on the shelf is ambiguous.
+
+You can also point a library at a folder you already have. The server scans it and lists what it finds. This is quicker to set up and suits a collection already organised the way you want it. Your files stay exactly where they are and are not modified, and they play like anything else in the library.
+
+Both work. Mixing them in one folder makes it harder to reason about what is on the shelf, so pick one per library.
+
+::Troubleshooting
+
+**The library stays empty after adding content.**
+Encoding a title takes time. Check the task list on the dashboard to see the work queued and running.
+
+**A film ended up as an episode, or was not recognised.**
+Check the library's type first. That is the usual cause.
+
+**The picker does not show the drive I expect.**
+It shows the server machine's drives. A drive attached to your laptop is not visible to a server running elsewhere. Network shares have to be mounted on the server machine before they appear.
 
 ::
+
+## Where to go next
+
+- [Discs](/nomercy-media-server/media/optical) to rip a DVD or Blu-ray.
+- [Scanning and importing](/nomercy-media-server/media/scanning) for files you already have.
+- [Encoding](/nomercy-media-server/encoding/overview) to understand what a preset does.

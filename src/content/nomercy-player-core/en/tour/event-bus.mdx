@@ -13,7 +13,13 @@ Every event a player emits, from `play` to a plugin's own custom events, flows t
 
 `EventEmitter<E>` is a small, dependency-free pub/sub implementation, generic over an event map `E` that types each event name to its payload shape. Both `NMVideoPlayer` and `NMMusicPlayer` extend it directly, so every player instance already has `on`, `once`, `off`, `emit`, `hasListeners`, and `listenerCount` before a single kit mixin is composed onto it.
 
-It's a plain `Map<event, Set<handler>>` under the hood, not the DOM's `EventTarget`, on purpose: a `Set` lets `off(event, fn)` remove a listener by reference without matching options, and that composes cleanly with `once()` in a way `removeEventListener` doesn't. `emit()` snapshots the listener set before iterating, so a listener that calls `off()` on itself mid-dispatch doesn't corrupt the current pass, and it catches exceptions from individual listeners so one bad handler can't abort the rest of the chain.
+Under the hood it is a plain `Map<event, Set<handler>>`, not the DOM's `EventTarget`, and that is deliberate.
+
+A `Set` lets `off(event, fn)` remove a listener by reference without matching options, which composes with `once()` in a way `removeEventListener` does not.
+
+`emit()` snapshots the listener set before iterating, so a listener calling `off()` on itself mid-dispatch cannot corrupt the pass.
+
+It also catches exceptions per listener, so one bad handler cannot abort the rest of the chain.
 
 ## The firehose
 
@@ -21,7 +27,9 @@ It's a plain `Map<event, Set<handler>>` under the hood, not the DOM's `EventTarg
 
 ## Using it in a player library
 
-You won't usually construct an `EventEmitter` yourself when building on the kit: your player class extends it, and its typed event map is whatever interface you declare (the kit's own `BaseEventMap`, extended with your own events, is the normal starting point). The example below builds a standalone bus with a small custom event map, so the mechanics are visible without a full player around them.
+You rarely construct an `EventEmitter` yourself. Your player class extends it, and its typed event map is whatever interface you declare. The usual starting point is the kit's `BaseEventMap` extended with your own events.
+
+The example below builds a standalone bus with a small custom map, so the mechanics are visible without a player around them.
 
 :::snippet{file="tour-event-bus" live="false"}
 :::

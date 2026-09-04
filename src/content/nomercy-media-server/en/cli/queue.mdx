@@ -1,13 +1,34 @@
 ---
-title: 'queue'
-description: 'Inspect and manage the encoding queue from the CLI.'
+title: 'Queue'
+description: 'See what work the server has queued and running.'
 draft: false
 ---
 
-# queue
+# Queue
 
-::Callout
+The server does its heavy work in a queue: encoding titles, fetching artwork, building preview thumbnails. When a title has not appeared yet, the queue is the answer.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## See the queue
 
-::
+```bash
+nomercy queue status
+```
+
+This shows what is waiting and what is being worked on right now.
+
+## Reading the result
+
+Work is processed in order, so a long list is not a stall. A title added after thirty others waits for those thirty.
+
+Encoding a title is the slow part, and how slow depends on the machine and whether the server can use a GPU. See [Encoding overview](/nomercy-media-server/encoding/overview).
+
+If the queue is empty and a title still has not appeared, the work never started. The log says why:
+
+```bash
+nomercy logs --level Warning,Error
+```
+
+## Where to go next
+
+- [Logs](/nomercy-media-server/cli/logs)
+- [Resource use](/nomercy-media-server/cli/overview) with `nomercy resources`, when work is running but slowly.

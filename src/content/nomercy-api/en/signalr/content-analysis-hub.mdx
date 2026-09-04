@@ -1,0 +1,44 @@
+---
+title: 'Content analysis hub'
+description: 'Progress of analysis work, such as transcribing a track.'
+draft: false
+---
+
+# Content analysis hub
+
+```text
+wss://{server-address}:7626/contentAnalysisHub?access_token={token}
+```
+
+Analysis work runs long, so it reports here. Connect, start the work through its endpoint, and read progress on this connection.
+
+There is nothing to call on this hub. Connect and receive.
+
+## Transcription progress
+
+`WhisperProgress` arrives as each chunk of audio is processed.
+
+```json {{ title: 'WhisperProgress' }}
+{
+  "video_file_id": "01HZY...",
+  "percent_done": 42.5
+}
+```
+
+## Starting the work
+
+The work itself is started over REST:
+
+```text
+POST /api/v1/encoder/content-analysis/whisper/{videoFileId}
+POST /api/v1/encoder/content-analysis/ocr/{videoFileId}
+POST /api/v1/encoder/content-analysis/crop/{videoFileId}
+POST /api/v1/encoder/content-analysis/intro/{seasonId}
+```
+
+These need Owner. Detecting an intro works across a season, because that is where a repeated opening can be found.
+
+## Where to go next
+
+- [Content segments](/nomercy-api/rest/content-segments)
+- [Content analysis](/nomercy-app-web/dashboard/content-analysis)

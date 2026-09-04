@@ -1,13 +1,62 @@
 ---
-title: 'Content Segments'
-description: 'Content segments (skipper) endpoints.'
+title: 'Content segments'
+description: 'The marked ranges that let a player skip an intro or roll credits early.'
 draft: false
 ---
 
-# Content Segments
+# Content segments
 
-::Callout
+A segment marks a range on the timeline: an intro, a recap, an outro or the credits. Players read them to offer a skip button and to move on when the credits start.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+A segment belongs to one episode or one film, never to both.
+
+## Reading
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/content-segments/episode/{episodeId}` | MediaAccess |
+| GET | `/api/v1/content-segments/movie/{movieId}` | MediaAccess |
+| GET | `/api/v1/content-segments` | Moderator |
+
+The two by-item routes are what a player calls. The bare listing is for review and takes `page`, `take` and `type`.
+
+## Editing
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/content-segments` | Moderator |
+| PUT | `/api/v1/content-segments/{id}` | Moderator |
+| DELETE | `/api/v1/content-segments/{id}` | Moderator |
+
+## The shape of a segment
+
+::properties
+
+::property {{ name: 'segment_type', type: 'string' }}
+
+One of `Intro`, `Outro`, `Recap` or `Credits`.
+
+::property {{ name: 'start_seconds', type: 'number' }}
+
+Where the range starts, in seconds on the source timeline.
+
+::property {{ name: 'end_seconds', type: 'number' }}
+
+Where it ends. The end itself is outside the range.
+
+::property {{ name: 'source', type: 'string' }}
+
+How it got there: `detector` for automatic detection, `manual` for one entered by hand, `import` for community data.
+
+::property {{ name: 'confidence', type: 'number' }}
+
+Between zero and one. Always one for a manual entry, so a player can prefer human answers and ignore weak detections.
 
 ::
+
+Times are seconds, not milliseconds, and they are measured on the source, so they stay right whichever version is being played.
+
+## Where to go next
+
+- [Content analysis](/nomercy-app-web/dashboard/content-analysis) for how detection is run.
+- [Streaming](/nomercy-api/rest/streaming)

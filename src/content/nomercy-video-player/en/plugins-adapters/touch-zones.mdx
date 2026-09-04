@@ -7,7 +7,11 @@ description: 'TouchZonesPlugin: a 3x6 tap-zone grid for seek/playback/volume, si
 
 # Plugin: Touch Zones
 
-`TouchZonesPlugin` (id `'touch-zones'`) renders a transparent tap-zone overlay for touch and mobile input, single-tap to show/hide controls or toggle playback, double-tap to seek or adjust volume, the interaction model most streaming apps train users to expect. It sits at a z-index between the video element and the desktop UI controls overlay, so it intercepts taps meant for the video area without blocking button clicks on a control bar mounted above it.
+`TouchZonesPlugin` (id `'touch-zones'`) renders a transparent tap-zone overlay for touch input.
+
+Single-tap shows or hides the controls, or toggles playback. Double-tap seeks or adjusts volume. That is the model most streaming apps have trained people to expect.
+
+It sits at a z-index between the video element and the controls overlay, so it catches taps meant for the video area without blocking buttons on a control bar above it.
 
 ## Options
 
@@ -32,9 +36,11 @@ Each seek zone shows a floating circular indicator (chevron icon plus accumulate
 
 ## Rules & restrictions
 
-- Single-tap "toggle controls" reads a snapshot of visibility captured at `pointerdown` in the capture phase, before `DesktopUiPlugin`'s own bubble-phase wake handler can mutate the DOM. Without this, a tap from a hidden state would show controls on `touchstart` and then immediately hide them again when the deferred single-tap handler read the just-added `.active` class, a show-then-hide flicker that makes the tap look like it did nothing.
-- Mobile detection is a one-shot capability check at plugin startup (`ontouchstart` presence or `maxTouchPoints > 0`), not a live pointer-type check, a touch-capable laptop used with a mouse still gets the mobile volume zones.
-- Emits `player.emit('activity', { active })` to coordinate with `DesktopUiPlugin`'s auto-hide timer, this plugin has no visible chrome of its own to hide.
+- Single-tap "toggle controls" reads a visibility snapshot captured at `pointerdown`, in the capture phase, before `DesktopUiPlugin`'s bubble-phase wake handler can touch the DOM.
+
+- Without that, a tap from a hidden state would show the controls on `touchstart`, then hide them again when the deferred handler read the just-added `.active` class. The flicker makes the tap look like it did nothing.
+- Mobile detection is a one-shot capability check at startup, `ontouchstart` or `maxTouchPoints > 0`, not a live pointer-type check. A touch-capable laptop driven with a mouse still gets the mobile volume zones.
+- Emits `player.emit('activity', { active })` to coordinate with `DesktopUiPlugin`'s auto-hide timer. This plugin has no chrome of its own to hide.
 
 ## How to extend it
 

@@ -1,13 +1,57 @@
 ---
 title: 'Networking'
-description: 'Port forwarding, reverse proxy, and Cloudflare Tunnel setup.'
+description: 'How your server becomes reachable, and what to do when it is not.'
 draft: false
 ---
 
 # Networking
 
-::Callout
+Your server needs to be reachable by your own devices. On your home network that works straight away. From outside, something has to let traffic in, and the server tries to arrange that by itself.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## The port
+
+The server listens on port **7626**, and uses the same number on the outside by default. You can change either with the `--internal-port` and `--external-port` options.
+
+It also opens **7627** for its own health checks. That one is loopback only, so nothing outside the machine can reach it, and it never needs a rule.
+
+## How the server gets itself reachable
+
+Setup does this without asking you anything. In order, it tries to:
+
+1. **Open a port on your router.** The server asks the router directly, using UPnP, and then checks from the outside whether the port really answers. A router that accepts the request but does not actually forward anything is common, which is why the server verifies instead of trusting the reply.
+2. **Connect through your router without a rule.** If the port is closed, the server tries to establish a path anyway by coordinating with a helper server.
+3. **Use a tunnel.** As a last resort the server routes traffic through a tunnel, which works even when your router allows nothing inbound.
+
+If a tunnel has already been assigned to your server, that is tried first instead.
+
+When none of them work, the server stays reachable on your own network only, and keeps retrying in the background with growing gaps between attempts.
+
+## Adding the rule yourself
+
+Some routers have UPnP switched off, and some ignore the request without saying so. If your server works at home but not away from home, add the rule by hand in your router's admin page.
+
+Forward external port **7626** to internal port **7626** on the machine running the server, for **both TCP and UDP**.
+
+Both, because the server speaks HTTP/1.1 over TCP and HTTP/3 over UDP. The automatic mapping the server makes for itself creates both, so a hand-written rule should match it.
+
+A TCP-only rule still connects. Clients that could have used HTTP/3 fall back to the slower route.
+
+Give the server machine a fixed address on your network while you are in there. Your rule points at one address, and a router is free to hand that address to a different device later.
+
+::Troubleshooting
+
+**It works at home, not away from home.**
+Nothing established an outside route. Add the port rule above.
+
+**It stopped working after a router restart or a power cut, and I added the rule by hand.**
+The router most likely gave the server machine a different local address, so your rule now points somewhere else. Give that machine a fixed address and update the rule. The server notices address changes and re-establishes its own route; a rule you wrote by hand is the part that cannot follow.
+
+**Nothing reaches the server at all, even at home.**
+Check the machine's firewall. On Windows the prompt appears the first time the server runs and has to be allowed.
 
 ::
+
+## Where to go next
+
+- [First-Run Setup](/nomercy-media-server/first-run) if you have not claimed your server yet.
+- [Configuration](/nomercy-media-server/configuration) for the rest of the server settings.

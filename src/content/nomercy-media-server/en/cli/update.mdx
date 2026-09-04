@@ -1,13 +1,55 @@
 ---
-title: 'update'
-description: 'Update NoMercy Media Server to a new version.'
+title: 'Updating'
+description: 'Update the server from the terminal.'
 draft: false
 ---
 
-# update
+# Updating
 
-::Callout
+```bash
+nomercy update
+```
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+This downloads a new version and stages it. The staged version takes over when the server next restarts:
+
+```bash
+nomercy restart
+```
+
+Splitting it that way means the download happens while you are watching, and the interruption happens when you choose.
+
+## Updating a package install
+
+A server installed from the apt, rpm or Arch repository updates with the rest of your system instead:
+
+```bash
+sudo apt update && sudo apt upgrade      # Debian and Ubuntu
+sudo dnf upgrade nomercy                 # Fedora, RHEL and CentOS
+sudo pacman -Syu                         # Arch
+```
+
+## Updating a container
+
+Pull the image and recreate:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Your library, database and settings live in the mounted volume, so they survive this.
+
+::Troubleshooting
+
+**The update downloaded but the version has not changed.**
+A staged update applies on restart. Run `nomercy restart`.
+
+**The server did not come back after an update.**
+Read the log with `nomercy logs --level Error`. A staged update that cannot start leaves the reason there.
 
 ::
+
+## Where to go next
+
+- [Starting and stopping](/nomercy-media-server/cli/start-stop)
+- [Upgrading](/nomercy-media-server/maintenance/upgrade)

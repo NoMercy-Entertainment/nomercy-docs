@@ -1,13 +1,39 @@
 ---
-title: 'Storage Browser'
-description: 'Storage browser endpoints.'
+title: 'Storage browser'
+description: 'Browsing folders on the server, and creating one.'
 draft: false
 ---
 
-# Storage Browser
+# Storage browser
 
-::Callout
+The folder picker in the dashboard runs on these. They browse the server's own filesystem, so what you see is what the server can reach, not what your own machine has.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+All of them need Moderator, and all take their arguments in the body rather than the path, so a path with slashes and spaces needs no escaping.
 
-::
+## Through a storage driver
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/storage/probe` | Moderator |
+| POST | `/api/v1/dashboard/storage/list` | Moderator |
+| POST | `/api/v1/dashboard/storage/mkdir` | Moderator |
+
+These go through the storage driver, so they work the same for a local disk, a network share and an object store.
+
+`probe` checks that a location can be reached and written to. Use it before saving a folder, so a wrong address is caught while the user is still looking at it.
+
+## The local filesystem
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/filesystem/ls` | Moderator |
+| POST | `/api/v1/dashboard/filesystem/home` | Moderator |
+| POST | `/api/v1/dashboard/filesystem/roots` | Moderator |
+| POST | `/api/v1/dashboard/filesystem/mkdir` | Moderator |
+
+`roots` lists the drives or mount points to start from, and `home` the account's own folder. Together they give a picker somewhere sensible to open at on any platform.
+
+## Where to go next
+
+- [Storage](/nomercy-media-server/storage)
+- [Libraries (admin)](/nomercy-api/rest/libraries-admin)

@@ -24,9 +24,17 @@ if (upNext) {
 }
 ```
 
-Internally this loads the target into a second audio element (or a second Web Audio node graph on `WebAudioBackend`), primes it, ramps both gains over the window, then swaps it in as the primary and advances the queue cursor, the same `item` event a normal `next()` fires. `isTransitioning()` reports `true` while a fade is in flight; a second `crossfadeTo()` call during that window is ignored rather than stacking.
+Internally it loads the target into a second audio element, or a second Web Audio node graph on `WebAudioBackend`, primes it, ramps both gains over the window, then swaps it in as primary and advances the queue cursor. That fires the same `item` event a normal `next()` does.
 
-`opts.duration` falls back to `crossfadeDefaults.duration` on the config, then to 5 seconds. `opts.curve` is `'linear'` (the default for a manual `crossfadeTo()`) or `'equal-power'` (perceptually smoother, no volume dip at the midpoint); it resolves per call first, then from `crossfadeDefaults.curve` on the config. The automatic track-boundary fade run by `CrossfadeTransitionStrategy` uses equal-power on its own. `opts.startAt` seeks the incoming track to a start position in milliseconds before the fade begins.
+`isTransitioning()` reports `true` while a fade is in flight. A second `crossfadeTo()` during that window is ignored rather than stacked.
+
+`opts.duration` falls back to `crossfadeDefaults.duration` on the config, then to 5 seconds.
+
+`opts.curve` is `'linear'` or `'equal-power'`. Linear is the default for a manual `crossfadeTo()`; equal-power is perceptually smoother, with no volume dip at the midpoint. It resolves per call first, then from `crossfadeDefaults.curve`.
+
+The automatic track-boundary fade, run by `CrossfadeTransitionStrategy`, uses equal-power on its own.
+
+`opts.startAt` seeks the incoming track to a start position in milliseconds before the fade begins.
 
 ## The event sequence
 

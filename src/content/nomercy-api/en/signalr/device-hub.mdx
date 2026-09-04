@@ -1,0 +1,58 @@
+---
+title: 'Device hub'
+description: 'Which of your devices are here, what each can play, and waking one.'
+draft: false
+---
+
+# Device hub
+
+```text
+wss://{server-address}:7626/deviceHub?access_token={token}
+```
+
+This hub answers "what can I send this to". It lists your own devices only.
+
+## Saying what a device can do
+
+```text
+DeclareCapabilities(payload)
+```
+
+A client declares what it can play: audio codecs, how many channels, roughly how much memory it has. The server remembers it, so the answer survives the app closing.
+
+This is what lets the server decide between sending a file as it is and transcoding it. A device that never declares gets safe defaults instead of the best it could have had.
+
+## The device list
+
+```text
+GetDevices()
+```
+
+Returns your devices with, for each one, its name, its type, whether it is online, its address on the local network, when it was last seen, and whether it is in the foreground with the screen on.
+
+That last pair is the difference between a device that is reachable and one someone is actually looking at.
+
+When the list changes, connected clients are told, so a picker updates itself rather than polling.
+
+## Waking one
+
+```text
+WakeForMusic(deviceId)
+WakeForVideo(deviceId)
+```
+
+Asks a device to come forward and be ready to play. The result says whether it worked, so a client can say something useful when the TV does not answer.
+
+## Notices
+
+```text
+PendingNotices()
+```
+
+Anything the server needs to tell this device that happened while it was away, such as playback having been moved off it.
+
+## Where to go next
+
+- [Video hub](/nomercy-api/signalr/video-hub)
+- [Music hub](/nomercy-api/signalr/music-hub)
+- [Devices](/nomercy-api/rest/devices)

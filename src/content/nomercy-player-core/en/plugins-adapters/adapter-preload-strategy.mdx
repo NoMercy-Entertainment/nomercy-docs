@@ -19,12 +19,18 @@ interface IPreloadStrategy {
 }
 ```
 
-`PreloadContext` is a stateless snapshot (`currentTime`, `duration`, `nextItem`), so the strategy never reaches into private player state. `PreloadAsset` is `{ url, category, mode? }`, `category` mirrors `UrlCategory` (`'media'`, `'poster'`, `'subtitle'`, `'sprite'`, `'lyrics'`, or a custom string) so the auth pipeline attaches the right headers per asset, and `mode` is `'metadata'` (headers only, the default, right for manifests and sidecars) or `'auto'` (full fetch, right for small images or short intros).
+`PreloadContext` is a stateless snapshot of `currentTime`, `duration` and `nextItem`, so a strategy never reaches into private player state.
+
+`PreloadAsset` is `{ url, category, mode? }`.
+
+`category` mirrors `UrlCategory`: `'media'`, `'poster'`, `'subtitle'`, `'sprite'`, `'lyrics'`, or a custom string. The auth pipeline uses it to attach the right headers per asset.
+
+`mode` is `'metadata'`, headers only and the default, which suits manifests and sidecars. Or `'auto'`, a full fetch, which suits small images and short intros.
 
 ## Rules & restrictions
 
-- `shouldPreload` is called on every `time` event while a next item is queued, once it returns `true` the player suppresses repeated calls until the cursor moves to a new item, implementations don't need their own debounce.
-- `cancel()` is called when the cursor jumps unexpectedly (a shuffle, a manual `item()` call, an explicit `next()` before the natural end), it must abort any in-flight prefetch this strategy started, not leave it running against a now-irrelevant item.
+- `shouldPreload` is called on every `time` event while a next item is queued. Once it returns `true`, the player suppresses further calls until the cursor moves, so an implementation needs no debounce of its own.
+- `cancel()` is called when the cursor jumps unexpectedly: a shuffle, a manual `item()`, an explicit `next()` before the end. It has to abort any in-flight prefetch this strategy started, rather than leave it running against an item nobody wants.
 
 ## Default implementation
 

@@ -7,23 +7,47 @@ description: 'The shared kit nomercy-video-player and nomercy-music-player are b
 
 # What is nomercy-player-core
 
-`nomercy-player-core` is not a player. It is the kit both NoMercy players are built from: the lifecycle machine, the plugin runtime, the queue, the event bus, i18n, auth, and every swappable adapter port a media player needs before it can play a single frame. `nomercy-video-player` and `nomercy-music-player` each add one thing on top: a media backend and a handful of domain-typed methods for their own medium. Everything else, they get from here.
+`nomercy-player-core` is not a player. It is the kit both NoMercy players are built from.
 
-This page is written for the level below "how do I play a video." If you are building a NoMercy video or music player for end users, you want [`nomercy-video-player`](/nomercy-video-player) or [`nomercy-music-player`](/nomercy-music-player) instead, both of which already do this work for you. This page, and the rest of this collection, is for someone building a *third* player library on the kit, or extending one of ours deeply enough to need to know what's actually underneath.
+It holds the lifecycle machine, the plugin runtime, the queue, the event bus, i18n, auth, and every swappable adapter a media player needs before it can play a frame.
+
+`nomercy-video-player` and `nomercy-music-player` each add one thing on top: a media backend, and a few methods for their own medium. The rest they get from here.
 
 ## Who it's for
 
-Composing a player from `nomercy-player-core` makes sense when you're building a headless media player for a format the trio doesn't cover (a podcast player, a live radio player, a custom streaming protocol) and want the lifecycle, queue, plugin, and auth machinery already solved and already tested, instead of writing it a third time. It's the same reason `nomercy-video-player` and `nomercy-music-player` don't duplicate that machinery between each other: one implementation, shared by every consumer, fixed once for all of them when a bug turns up.
+Building a player for something the trio does not cover: a podcast player, a live radio player, a custom streaming protocol.
+
+You get the lifecycle, queue, plugin and auth machinery already written and already tested, instead of writing it a third time.
+
+If you want to play video or music for end users, use [`nomercy-video-player`](/nomercy-video-player) or [`nomercy-music-player`](/nomercy-music-player) instead. They have done this work.
 
 ## Why it exists
 
-Video and music playback share almost everything except the last mile: how a frame gets decoded and how a UI reacts to it. Queueing up the next track, tracking playback phase, running plugins, resolving auth headers, switching languages, all of it is identical whether the media is a movie or a song. Before this kit existed, that logic lived twice, in two libraries that could quietly drift apart. Now it lives once, and `nomercy-video-player` and `nomercy-music-player` compose it onto their own prototypes instead of reimplementing it. A fix or a new capability that lands here reaches both libraries in the same release.
+Video and music playback differ in one place: how a frame is decoded, and how a UI reacts to it.
 
-## The setup, then freedom, model
+Everything else is the same. Queueing the next track, tracking phase, running plugins, resolving auth headers, switching language. A movie and a song need identical machinery.
 
-The kit borrows a shape you may recognize from other web player setups: `setup()` is strict, everything after it is yours. Call `setup(config)` once and the kit walks a fixed, non-negotiable pipeline: it snapshots your config, wires cross-cutting policies (visibility, network, wake-lock, metrics), then runs through `pluginsRegistering` → `streamsReady` → `authReady` → `playlistReady` → `mediaReady` before settling the `ready()` promise. Call `setup()` twice, or call it after `dispose()`, and it throws instead of leaving your instance in an ambiguous half-configured state. There is exactly one way in.
+So it lives once. Both players compose it rather than reimplementing it, and a fix here reaches both in the same release.
 
-What happens on top of that is not prescribed at all. The kit ships no UI, no DOM beyond a container element, and no opinion about what your `play` button looks like. Every non-lifecycle behavior, from the media backend to the storage layer to how subtitles get parsed, is a named interface with a default implementation you can override wholesale: `IStorage`, `IPlatform`, `IStreamSource`, `IUrlResolver`, `ITranslator`, `ICueParser`, `IPreloadStrategy`, `ITransitionStrategy`, `IShuffleStrategy`, `RealtimeFactory`. Plugins extend behavior without forking core at all, through a `Plugin` base class and a cancellable `before*` event pipeline that lets a plugin veto, delay, or rewrite a mutation before it lands.
+## Setup is strict, the rest is yours
+
+Call `setup(config)` once. The kit then walks a fixed pipeline:
+
+```text
+config snapshot
+  -> cross-cutting policies (visibility, network, wake lock, metrics)
+  -> pluginsRegistering -> streamsReady -> authReady
+  -> playlistReady -> mediaReady
+  -> ready()
+```
+
+Calling `setup()` twice, or calling it after `dispose()`, throws. There is one way in, and a half-configured instance is not one of them.
+
+Above that, nothing is prescribed. The kit ships no UI, no DOM beyond a container, and no opinion about what your play button looks like.
+
+Every behaviour outside the lifecycle is a named interface with a working default, and any of them can be replaced: `IStorage`, `IPlatform`, `IStreamSource`, `IUrlResolver`, `ITranslator`, `ICueParser`, `IPreloadStrategy`, `ITransitionStrategy`, `IShuffleStrategy`, `RealtimeFactory`.
+
+Plugins extend behaviour without forking anything. Through the cancellable `before*` pipeline a plugin can veto, delay or rewrite a mutation before it lands.
 
 ## What you get
 
@@ -45,7 +69,9 @@ What happens on top of that is not prescribed at all. The kit ships no UI, no DO
   { n: 1, name: 'nomercy-player-core', pkg: 'You are here', knows: 'Lifecycle, transport, queue, time, volume, plugins, i18n, auth, adapter ports.' },
 ]} />
 
-Both rows at layer 2 sit on the same foundation and never talk to each other. `nomercy-video-player` and `nomercy-music-player` don't share code because one imports the other; they share it because both are composed from this kit.
+Both rows at layer 2 sit on the same foundation and never talk to each other.
+
+They do not share code because one imports the other. They share it because both are composed from this kit.
 
 ## Next steps
 

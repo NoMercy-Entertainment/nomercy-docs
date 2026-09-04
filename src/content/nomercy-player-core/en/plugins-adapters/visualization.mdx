@@ -1,6 +1,6 @@
 ---
 title: 'Plugin: Visualization'
-description: 'VisualizationPlugin: the abstract base for canvas-based visualizers, layering Canvas (RAF + mount) and Spectrum (frame data) — subclass and implement render().'
+description: 'VisualizationPlugin: the abstract base for canvas-based visualizers, layering Canvas (RAF + mount) and Spectrum (frame data), subclass and implement render().'
 ---
 
 {/* Source: packages/nomercy-player-core/src/plugins/visualization/index.ts */}
@@ -22,7 +22,7 @@ description: 'VisualizationPlugin: the abstract base for canvas-based visualizer
 
 ## Rules & restrictions
 
-- `static requires = [CanvasPlugin, SpectrumPlugin]` — the player refuses to register a visualizer without both already present.
+- `static requires = [CanvasPlugin, SpectrumPlugin]`, the player refuses to register a visualizer without both already present.
 - Cannot be registered directly, it's `abstract`. `addPlugin()` needs a concrete subclass.
 - Degrades gracefully rather than throwing: if the dependencies are missing or spectrum analysis is unavailable, it emits `unsupported` and returns early, the rest of the player keeps running.
 - Kit rule for extension authors: bridges to p5.js, three.js, or shader-based rendering belong in a separate optional package built **on top of** this class. They should never reach into kit internals; override only `render(ctx, frame)`. `CanvasPlugin` owns clearing/compositing and `SpectrumPlugin` owns frame data, a visualizer subclass owns neither.

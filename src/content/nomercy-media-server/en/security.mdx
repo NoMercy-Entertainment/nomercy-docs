@@ -8,7 +8,11 @@ draft: false
 
 Any server reachable from the internet gets scanned. Within minutes of a new hostname appearing in the public certificate transparency logs, automated tools start asking it for WordPress admin pages, `.env` files and PHP shells. None of that exists on a NoMercy server, so every one of those requests is someone checking whether you are worth attacking.
 
-The server watches for that pattern and bans the address it comes from. Offences accumulate inside a rolling window, crossing the threshold produces a ban, and the ban expires on its own. If the same address comes back later, the next ban lasts longer. This is the same shape as fail2ban, running inside the server rather than beside it, which means it works whether you are reachable through a Cloudflare Tunnel or through a port forward on your router.
+The server watches for that pattern and bans the address it comes from.
+
+Offences accumulate inside a rolling window. Crossing the threshold produces a ban, and the ban expires on its own. Come back later and the next one lasts longer.
+
+It is the same shape as fail2ban, running inside the server rather than beside it. So it works whether you are reached through a Cloudflare Tunnel or a port forward on your router.
 
 ## What counts as an offence
 
@@ -20,7 +24,7 @@ The second is a request for a path that never matched anything, from a caller wh
 
 Two things are deliberately **not** offences, because getting either wrong would lock out real people:
 
-- A rejected request that *did* match a real endpoint. A client holding an expired token hammers the API with failures, and none of them count. Your users cannot ban themselves by leaving a tab open over the weekend.
+- A rejected request that *did* match a real endpoint. A client holding an expired token hammers the API with failures and none of them count, so nobody bans themselves by leaving a tab open over the weekend.
 - A missing static file. Browsers ask for stale bundles and old icons after every deploy, and those misses are ignored entirely.
 
 Addresses on your own network are never scored at all. That covers loopback, the private ranges (`10.x`, `172.16-31.x`, `192.168.x`), carrier-grade NAT and IPv6 link-local and unique-local addresses.
@@ -58,7 +62,7 @@ If you ever lock yourself out, the ban only affects the network path it came in 
 
 When the server is reached through a Cloudflare Tunnel, Cloudflare is already blocking most of this traffic before it ever reaches your machine. When you use the regular port forwarding option instead, there is nothing in front of the server, so your firewall is the only place a bad address can be stopped before it costs you bandwidth.
 
-The server publishes its active bans as a plain text list, one address per line, at a URL that only you know. pfBlockerNG on pfSense can pull that URL on a schedule. You do not need SSH, an API key or any credential of ours on the firewall. It is one URL, pasted once.
+The server publishes its active bans as a plain text list, one address per line, at a URL that only you know. pfBlockerNG on pfSense can pull that URL on a schedule. The whole setup is one URL, pasted once, and the firewall holds no credential of yours or ours.
 
 Copy the URL from **Settings > Security**, then in pfSense:
 

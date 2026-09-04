@@ -1,42 +1,81 @@
 ---
 title: 'Authentication'
-description: "In this guide, we'll look at how authentication works. NoMercy offers two ways to authenticate your API requests: Basic authentication and OAuth2 with a token."
+description: 'How the server decides who is calling, and how to get a token.'
+draft: false
 ---
 
 # Authentication
 
-You'll need to authenticate your requests to access any of the endpoints in the NoMercy API. In this guide, we'll look at how authentication works. NoMercy offers two ways to authenticate your API requests: Basic authentication and OAuth2 with a token — OAuth2 is the recommended way. {{ className: 'lead' }}
+Every request carries a token issued by the NoMercy account service. The server validates it, then looks the account up in its own user list.
 
-## Basic authentication
+## Getting a token
 
-With basic authentication, you use your username and password to authenticate your HTTP requests. Unless you have a very good reason, you probably shouldn't use basic auth. Here's how to authenticate using cURL:
+Tokens come from the NoMercy identity service, not from your server.
 
-```bash {{ title: 'Example request with basic auth' }}
-curl https://api.protocol.chat/v1/conversations \
-  -u username:password
+```text
+https://auth.nomercy.tv/realms/NoMercyTV/
 ```
 
-Please don't commit your NoMercy password to GitHub!
+It speaks OpenID Connect, so any standard OIDC client library can obtain a token. The apps use authorization code flow with PKCE on desktop and web, and device code flow where there is no browser, such as a TV.
 
-## OAuth2 with bearer token
+Point your client at the discovery document and let the library do the rest.
 
-The recommended way to authenticate with the NoMercy API is by using OAuth2. When establishing a connection using OAuth2, you will need your access token — you will find it in the [NoMercy dashboard](#) under API settings. Here's how to add the token to the request header using cURL:
+```text
+https://auth.nomercy.tv/realms/NoMercyTV/.well-known/openid-configuration
+```
 
-```bash {{ title: 'Example request with bearer token' }}
-curl https://api.protocol.chat/v1/conversations \
+## Sending it
+
+Put the token in the `Authorization` header.
+
+```bash {{ title: 'Bearer token' }}
+curl https://{server-address}:7626/api/v1/libraries \
   -H "Authorization: Bearer {token}"
 ```
 
-Always keep your token safe and reset it if you suspect it has been compromised.
+Where a header cannot be set, such as a browser opening a SignalR websocket, the token may travel as a query parameter instead.
 
-## Using an SDK
+```text
+?access_token={token}
+```
 
-If you use one of our official SDKs, you won't have to worry about any of the above — fetch your access token from the [NoMercy dashboard](#) under API settings, and the client library will take care of the rest. All the client libraries use OAuth2 behind the scenes.
+## What the server checks
 
-::button {{ url: '/sdks', variant: 'text' }}
+Three things, in order.
 
-Check out our list of first-party SDKs
+**The token is genuine.** Signature, issuer and audience are verified against the identity service. Signing keys are cached, so a server that has lost its internet connection can still validate a token it has seen keys for.
 
-::icon arrow-right
+**The token is for the API.** It has to carry the API scope.
+
+**The account exists here.** The subject of the token has to match a user on this server. One identity service serves every NoMercy install, so this last check is what keeps your server yours: a token from someone else's account is a valid token and still gets a 401 here.
+
+## Permissions
+
+Passing authentication answers "who are you". Each endpoint then asks "may you do this".
+
+::properties
+
+::property {{ name: 'MediaAccess' }}
+
+Allowed to use the server: browse libraries, play, manage own playlists.
+
+::property {{ name: 'OpticalAccess' }}
+
+Allowed to drive the disc drive: probe, play and rip a disc.
+
+::property {{ name: 'Moderator' }}
+
+Allowed to manage the server: libraries, encoding, tasks, logs, users.
+
+::property {{ name: 'Owner' }}
+
+The account that owns the server. Satisfies every other permission.
 
 ::
+
+Each endpoint page names the permission it needs. Which switches a user holds is set in the dashboard, described in [Users](/nomercy-media-server/users).
+
+## Where to go next
+
+- [Errors](/nomercy-api/errors) for what a rejected request looks like.
+- [API Overview](/nomercy-api/overview) for the base address and response shape.

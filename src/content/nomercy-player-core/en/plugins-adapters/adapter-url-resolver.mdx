@@ -21,12 +21,18 @@ interface IUrlResolver {
 
 ## ResolvedUrl
 
-The return shape: `href` (final string, pass to a `<video>.src` / Worker / Cast receiver), `raw` (unparsed input), `scheme` / `origin` / `pathname` / `search` / `hash`, `searchParams` (query accessor), `ext` (lowercase extension, no leading dot, use this to gate on file type instead of splitting on `.`, which breaks on query strings), and `relative` (`true` when the input was relative and no `baseUrl` was available to absolutize against).
+The return shape:
+
+- `href`: the final string. Pass it to a `<video>.src`, a Worker, or a Cast receiver.
+- `raw`: the unparsed input.
+- `scheme`, `origin`, `pathname`, `search`, `hash`, and `searchParams` for the query.
+- `ext`: the lowercase extension with no leading dot. Gate on file type with this rather than splitting on `.`, which breaks on query strings.
+- `relative`: `true` when the input was relative and no `baseUrl` was available to absolutize against.
 
 ## Rules & restrictions
 
-- The default implementation is `auth.transformUrl(url)` followed by structured parsing, that's what `ctx.defaultResolve` calls. A custom resolver that replaces the field wholesale still has that behavior one call away.
-- This port is for URLs handed to something that isn't `fetch()`. If you're calling `fetch` yourself, use [authFetch](/nomercy-player-core/recipes/auth-fetch) instead, it handles the `Authorization` header directly rather than encoding credentials into the URL.
+- The default implementation is `auth.transformUrl(url)` followed by structured parsing, and that is what `ctx.defaultResolve` calls. A custom resolver replacing the field outright still has that behaviour one call away.
+- This port is for URLs handed to something that is not `fetch()`. If you call `fetch` yourself, use [authFetch](/nomercy-player-core/recipes/auth-fetch): it sets the `Authorization` header rather than encoding credentials into the URL.
 
 ## How to extend it
 

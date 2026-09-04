@@ -1,0 +1,55 @@
+---
+title: 'SignalR overview'
+description: 'How live connections work, and which hub does what.'
+draft: false
+---
+
+# SignalR overview
+
+REST answers a question. A hub keeps a conversation open, which is how playback stays in step across devices and how progress reaches a dashboard while it happens.
+
+## Connecting
+
+Hubs sit at the root of the server, not under `/api/v1`.
+
+```text
+wss://{server-address}:7626/videoHub
+```
+
+Two things are fixed:
+
+**WebSockets only.** Long polling and server-sent events are turned off, so a client that cannot open a websocket cannot connect.
+
+**A token is required.** The same token the REST API takes. Browsers cannot set headers on a websocket, so it goes in the query string.
+
+```text
+/videoHub?access_token={token}
+```
+
+The connection closes when the token expires, so a client keeps its token fresh and reconnects.
+
+## Who receives what
+
+The server sends to a user, not to everyone. A message about your devices reaches your connections and nobody else's, which matters on a server with several households on it.
+
+Your own devices are one group, so an action on the phone reaches the TV without either knowing the other's address.
+
+## The hubs
+
+| Hub | For |
+|-----|-----|
+| [`/videoHub`](/nomercy-api/signalr/video-hub) | Video playback, progress, and handing playback to another device |
+| [`/musicHub`](/nomercy-api/signalr/music-hub) | Music playback and the shared queue |
+| [`/deviceHub`](/nomercy-api/signalr/device-hub) | Which devices are here, what they can do, waking one |
+| [`/castHub`](/nomercy-api/signalr/cast-hub) | Chromecast and the NoMercy receiver |
+| [`/dashboardHub`](/nomercy-api/signalr/dashboard-hub) | Live server resources for the dashboard |
+| [`/ripperHub`](/nomercy-api/signalr/ripper-hub) | Disc ripping as it runs |
+| [`/drivesHub`](/nomercy-api/signalr/drives-hub) | Discs going in and out of a drive |
+| [`/contentAnalysisHub`](/nomercy-api/signalr/content-analysis-hub) | Progress of analysis work such as transcription |
+| `/liveTranscodeHub` | Live transcode sessions |
+| `/pluginHub` | Plugins. One hub for all of them, joined by group |
+
+## Where to go next
+
+- [Authentication](/nomercy-api/authentication)
+- [Video hub](/nomercy-api/signalr/video-hub)

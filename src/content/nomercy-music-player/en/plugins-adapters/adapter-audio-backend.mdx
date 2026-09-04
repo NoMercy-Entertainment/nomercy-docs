@@ -95,9 +95,19 @@ Both back the identical `IAudioBackend` surface, so every player-level method, `
 
 ## Crossfade: the dual-buffer contract
 
-`crossfadeTo()` on the player delegates the actual dual-buffer work to whichever backend is active: `loadSecondary(url)` allocates and loads a second playback handle without touching primary playback, `primeSecondary(seekMs)` pre-rolls it to a start position and waits for it to be ready, `crossfade(durationMs, curve?)` ramps both gains over the window (linear by default, constant-power when `'equal-power'` is passed) and swaps the secondary in as primary, disposing the old one. `secondaryGain()` / `secondaryGain(value)` exist for test introspection and advanced callers inspecting mid-crossfade state.
+`crossfadeTo()` on the player delegates the dual-buffer work to whichever backend is active. Three calls do it:
 
-Precision differs by backend: `AudioElementBackend` drives the fade with a `requestAnimationFrame` loop at roughly 50fps, not sample-accurate, expect sub-frame-length seams at track boundaries. `WebAudioBackend` allocates a fresh `<audio>` element + `MediaElementAudioSourceNode` pair per crossfade (`createMediaElementSource()` permanently binds an element to a context, so the same element can't be reattached to a different source node) and ramps through real `AudioParam` automation for a sample-accurate transition.
+- `loadSecondary(url)` allocates and loads a second playback handle, without touching primary playback.
+- `primeSecondary(seekMs)` pre-rolls it to a start position and waits for it to be ready.
+- `crossfade(durationMs, curve?)` ramps both gains over the window, then swaps the secondary in as primary and disposes the old one. The curve is linear by default, constant-power with `'equal-power'`.
+
+`secondaryGain()` and `secondaryGain(value)` exist for tests and for callers inspecting mid-crossfade state.
+
+Precision differs by backend.
+
+`AudioElementBackend` drives the fade with a `requestAnimationFrame` loop. That is not sample-accurate, so expect a sub-frame seam at track boundaries.
+
+`WebAudioBackend` ramps through real `AudioParam` automation, which is sample-accurate. It allocates a fresh `<audio>` element and `MediaElementAudioSourceNode` pair per crossfade, because `createMediaElementSource()` binds an element to a context permanently and the same element cannot be reattached.
 
 `supportsCrossfade()` reports whether a backend can allocate a second playback handle at all, both built-in backends return `true`. A custom backend that returns `false` causes `crossfadeTo()` to throw a `StateError` (a `PlayerError` subclass) with code `core:player/crossfade-unsupported` before any crossfade event fires or buffer is touched, rather than attempting the transition.
 
@@ -107,10 +117,12 @@ Precision differs by backend: `AudioElementBackend` drives the fade with a `requ
 
 ## Rules & restrictions
 
-- `backend()` constructs the instance lazily, on first call, and caches it, calling it before `setup()` returns an instance not yet wired to a loaded source.
-- Only one backend is active per player at a time. Swapping mid-session (`backend('webaudio')`) disposes the previous backend and emits `backend:changed`, it is not itself a crossfade, whatever was playing stops and the new backend comes up with no source loaded, so reload the current item to resume.
-- `mediaKeys()` / `setMediaKeys()` / `outputProtectionState()` exist for EME/DRM coordination on protected audio streams, a backend that never touches encrypted content can implement them as no-ops.
-- `outputNode` / `analysisNode` are the tap points the kit's `AudioGraphPlugin` chain (equalizer, spectrum, visualizers) needs, see [Equalizer](/nomercy-music-player/tour/equalizer). `analysisNode` is optional, backends that don't maintain a separate pre-volume source node omit it and `AudioGraphPlugin` falls back to `outputNode`.
+- `backend()` constructs the instance on first call and caches it. Call it before `setup()` and you get an instance not yet wired to a loaded source.
+- One backend is active per player at a time. Swapping mid-session with `backend('webaudio')` disposes the previous one and emits `backend:changed`.
+
+- A swap is not a crossfade. Whatever was playing stops, and the new backend comes up with no source, so reload the current item to resume.
+- `mediaKeys()`, `setMediaKeys()` and `outputProtectionState()` exist for EME and DRM coordination on protected audio. A backend that never touches encrypted content implements them as no-ops.
+- `outputNode` and `analysisNode` are the tap points the kit's `AudioGraphPlugin` chain needs for the equalizer, spectrum and visualizers. See [Equalizer](/nomercy-music-player/tour/equalizer). `analysisNode` is optional: a backend with no separate pre-volume source node omits it, and the plugin falls back to `outputNode`.
 
 ## How to extend it
 

@@ -1,13 +1,25 @@
 ---
-title: 'Encoder Bundles'
-description: 'Encoder bundle endpoints.'
+title: 'Encoder bundles'
+description: 'Finding encoded output on disk that nothing points at any more.'
 draft: false
 ---
 
-# Encoder Bundles
+# Encoder bundles
 
-::Callout
+An encode writes a bundle: the output files for one title under one profile. Over time a bundle can be left behind, for example when the profile that made it was deleted.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/encoder/bundle-orphans` | Owner |
 
-::
+The sweep walks every folder in every library and reports three kinds of problem: a bundle whose profile no longer exists, a bundle with duplicate manifests, and a bundle whose recorded files do not match what is on disk.
+
+It reports only. Nothing is deleted by this call, so it is safe to run and read before deciding anything.
+
+Remote storage is handled through its own driver, so a library on a network share or object store is swept the same way a local one is.
+
+## Where to go next
+
+- [Encoder profiles](/nomercy-api/rest/encoder-profiles)
+- [Encoding history](/nomercy-api/rest/encoding-history)
+- [Storage](/nomercy-media-server/storage)

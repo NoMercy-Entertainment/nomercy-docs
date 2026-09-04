@@ -1,13 +1,61 @@
 ---
 title: 'Diagnostics'
-description: 'Run diagnostics to identify server issues.'
+description: 'Check the server’s health and find out which part is unhappy.'
 draft: false
 ---
 
 # Diagnostics
 
-::Callout
+When something is wrong, the useful first question is which part is wrong. These checks answer that before you start reading logs.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Is it running
 
-::
+```bash
+nomercy status
+```
+
+This also prints the addresses the server answers on, which is the thing you need on a machine with no screen.
+
+## Is it healthy
+
+The server answers health checks over HTTP:
+
+| Check | Tells you |
+|-------|-----------|
+| `/Health` | It is alive and answering |
+| `/Health/ready` | It is alive and its database is reachable |
+| `/Health/detailed` | The state of each part: database, sign-in, network, registration |
+
+`/Health/detailed` is the one to reach for. It reports each component separately, plus the version and how long the server has been up, so it distinguishes "the whole server is down" from "the server is fine but registration failed".
+
+The server also answers a plain health check on port **7627**, on the loopback address only. That one exists for Docker's own health monitoring and is not reachable from another machine.
+
+## Is it busy
+
+```bash
+nomercy resources
+```
+
+Shows processor, memory and disk use. Worth checking before concluding something is broken, because a server encoding several titles is busy rather than stuck.
+
+```bash
+nomercy queue status
+```
+
+Shows what work is queued and running. An apparently missing title is usually waiting here.
+
+## Narrowing it down
+
+Work outward from the server:
+
+1. `nomercy status` — is the server running at all?
+2. `/Health/detailed` — which component is unhappy?
+3. `nomercy logs --level Warning,Error` — what did it say when it went wrong?
+4. `nomercy queue status` — is the work simply still queued?
+
+Most problems are answered by step two or three.
+
+## Where to go next
+
+- [Reading the logs](/nomercy-media-server/troubleshooting/logs)
+- [Common issues](/nomercy-media-server/troubleshooting/common-issues)

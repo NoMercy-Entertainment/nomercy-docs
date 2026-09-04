@@ -7,7 +7,11 @@ description: 'IChapterSource: load(item), current(time), all(), unload(). A stan
 
 # Adapter: Chapter Source
 
-`IChapterSource` is a small, standalone contract for chapter lookup: load once per item, then answer "which chapter is active at this time" synchronously, cheap enough to call on every scrubber hover. Unlike [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-video-backend), this is not a `setup()` config field, the player's own `chapters()` / `chapter()` / `seekToChapter()` surface (see [Chapters](/nomercy-video-player/tour/chapters)) reads `item.chapters` directly and never consults this interface. `IChapterSource` exists for custom UI code that wants the same lookup shape without re-deriving it, and as an extension point for chapter data that doesn't already live on the item.
+`IChapterSource` is a small contract for chapter lookup. Load once per item, then answer "which chapter is active at this time" synchronously, cheaply enough to call on every scrubber hover.
+
+Unlike [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-video-backend), it is not a `setup()` config field. The player's own `chapters()`, `chapter()` and `seekToChapter()` read `item.chapters` directly and never consult this interface. See [Chapters](/nomercy-video-player/tour/chapters).
+
+It exists for two things: custom UI that wants the same lookup shape without re-deriving it, and chapter data that does not live on the item.
 
 ## The interface
 
@@ -29,7 +33,11 @@ interface IChapterSource {
 
 ## The shipped implementation
 
-`VttChapterSource` reads chapters straight from `item.chapters`, the typed field a consumer populates directly (canonical `ChapterRef[]`) or `normalizePlaylistItem` derives from the server wire format's millisecond-based `chapters` array at queue-ingest time (see [The Queue & Playlist](/nomercy-video-player/tour/queue)). It does not fetch or parse a file itself, the list is already resolved by the time `load()` runs, this class's job is only the synchronous `current(time)` lookup on top of whatever list is already there:
+`VttChapterSource` reads straight from `item.chapters`.
+
+That field is either populated by a consumer as canonical `ChapterRef[]`, or derived by `normalizePlaylistItem` from the server's millisecond-based `chapters` array at queue-ingest time. See [The Queue & Playlist](/nomercy-video-player/tour/queue).
+
+It fetches and parses nothing. The list is already resolved by the time `load()` runs, and this class only does the synchronous `current(time)` lookup on top of it:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -43,9 +51,9 @@ const active = source.current(player.time()); // Chapter | null, no async lookup
 
 ## Rules & restrictions
 
-- `load()` returns an empty array for an item with no `chapters` field, this is a legitimate "no chapters" state, not an error.
-- `current()` and `all()` must stay synchronous in any implementation, they're called from hot paths (scrubber hover, `timeupdate`-driven UI) where an `await` would introduce visible lag.
-- Not wired into `DesktopUiPlugin` either, its own chapter-marker rendering (`chapterMethods.ts`) reads `player.chapters()` directly, the same source of truth this adapter's default implementation reads from, just without going through the `IChapterSource` interface.
+- `load()` returns an empty array for an item with no `chapters` field. That is a legitimate "no chapters" state, not an error.
+- `current()` and `all()` stay synchronous in any implementation. They are called from hot paths, scrubber hover and `timeupdate`-driven UI, where an `await` shows as lag.
+- `DesktopUiPlugin` does not use it either. Its chapter-marker rendering reads `player.chapters()` directly, the same source of truth this adapter's default reads, without going through the interface.
 
 ## How to extend it
 

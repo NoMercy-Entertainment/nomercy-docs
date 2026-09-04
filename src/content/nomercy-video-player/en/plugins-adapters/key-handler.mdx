@@ -7,7 +7,11 @@ description: 'KeyHandlerPlugin (video): the full default binding set for desktop
 
 # Plugin: Key Handler
 
-`KeyHandlerPlugin` (id `'key-handler'`, the same id as the kit base and the music player's subclass) is `nomercy-video-player`'s desktop keyboard-binding set, a subclass of the kit's [`KeyHandlerPlugin`](/nomercy-player-core/plugins-adapters/key-handler) (scope resolution, cooldown, input-field awareness, `bind`/`unbind`/`replace`) that adds every video-specific binding as its own small, individually-overridable group method. [`TvKeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/tv-key-handler) subclasses this one for remote-control input; [Recipe: Customizing Keyboard Shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts) covers extending or replacing bindings on either.
+`KeyHandlerPlugin` (id `'key-handler'`) is this library's desktop keyboard-binding set. The id is shared with the kit base and the music player's subclass.
+
+It subclasses the kit's [`KeyHandlerPlugin`](/nomercy-player-core/plugins-adapters/key-handler), which brings scope resolution, cooldown, input-field awareness and `bind`/`unbind`/`replace`. On top it adds each video binding as its own small group method, overridable on its own.
+
+[`TvKeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/tv-key-handler) subclasses this one for remote-control input. [Recipe: Customizing Keyboard Shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts) covers extending or replacing bindings on either.
 
 ## Options
 
@@ -48,7 +52,7 @@ Same `KeyHandlerOptions` the kit plugin accepts, `scope`, `bindings`, `extend`, 
 - Every group above is its own `protected` method (`addPlaybackKeys`, `addVolumeKeys`, `addFullscreenKeys`, and so on), called from `addDefaults()`. Overriding one group in a subclass leaves the rest untouched.
 - `disableControls` on `VideoPlayerConfig` short-circuits `addDefaults()` entirely, no group runs, only bindings your own `use()` override adds exist.
 - `disableMediaControls` (also on `VideoPlayerConfig`) only gates the hardware `MediaX` bindings and the `MediaTrackNext`/`Previous` pair, it does not touch `Space`, arrows, or any letter-key binding.
-- `shift+?` is bound as `'shift+?'`, not `'?'`, because on standard keyboards pressing `?` sends `key='?'` with `shiftKey=true`; the kit's combo canonicalizer folds modifier state into the key string, so binding the literal `'?'` would never match the real event.
+- `shift+?` is bound as `'shift+?'`, not `'?'`. Pressing `?` on a standard keyboard sends `key='?'` with `shiftKey=true`, and the kit's canonicalizer folds modifier state into the key string, so the literal `'?'` would never match.
 
 ## How to extend it
 

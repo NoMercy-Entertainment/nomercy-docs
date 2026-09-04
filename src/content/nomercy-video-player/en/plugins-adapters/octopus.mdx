@@ -49,14 +49,20 @@ await octopus?.subtitle('https://media.example.com/subs/movie.ass');
 
 ## Font resolution
 
-Fonts come from the item's typed `fonts` field, either a `fonts.json` manifest URL or a list of direct font file URLs, see [`FontTrackRef`](/nomercy-video-player/reference/types). Manifest entries and direct entries can both be present; the plugin fetches whichever is there and resolves each through the player's `resolveUrl` pipeline (so `baseUrl` and auth apply). The plugin-level static `fonts` option is always merged in alongside whatever the item resolves, it is not a fallback used only when the item has none, so a font family every track needs (a house fallback glyph set, for instance) belongs there instead of on every item.
+Fonts come from the item's typed `fonts` field: either a `fonts.json` manifest URL, or a list of direct font file URLs. See [`FontTrackRef`](/nomercy-video-player/reference/types).
+
+Both kinds can be present. The plugin fetches whichever is there and resolves each through the player's `resolveUrl` pipeline, so `baseUrl` and auth apply.
+
+The plugin-level static `fonts` option is always merged alongside what the item resolves. It is not a fallback for items with none.
+
+So a font family every track needs, a house fallback glyph set for instance, belongs there rather than on every item.
 
 ## Rules & restrictions
 
-- `@nomercy-entertainment/nomercy-subtitle-octopus` is a regular dependency of `nomercy-video-player`, it ships with the package, it is not an optional peer you need to install separately.
-- All network I/O for the subtitle body and font binaries goes through the kit's auth-aware `fetch`, the libass worker itself receives pre-fetched content as blob URLs or inline strings, it never performs authenticated XHR of its own.
-- If the dynamic import of the renderer package fails for any reason, the plugin degrades silently: it logs one warning and every subsequent `subtitle()` / `fonts()` call becomes a no-op instead of throwing.
-- Blob URLs created for font binaries are tracked and revoked automatically when the renderer tears down (item change, track change, plugin dispose), nothing to clean up manually.
+- `@nomercy-entertainment/nomercy-subtitle-octopus` is a regular dependency of `nomercy-video-player`. It ships with the package, and is not an optional peer to install separately.
+- All network I/O for the subtitle body and font binaries goes through the kit's auth-aware `fetch`. The libass worker receives pre-fetched content as blob URLs or inline strings, and never performs authenticated XHR of its own.
+- If the dynamic import of the renderer fails, the plugin degrades quietly. It logs one warning, and every later `subtitle()` or `fonts()` call becomes a no-op rather than throwing.
+- Blob URLs for font binaries are tracked and revoked when the renderer tears down, on item change, track change or plugin dispose. Nothing to clean up by hand.
 
 ## How to extend it
 

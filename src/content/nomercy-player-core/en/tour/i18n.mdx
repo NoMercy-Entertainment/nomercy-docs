@@ -11,15 +11,31 @@ Translation is a swappable adapter like storage or the platform bundle, with a w
 
 ## Resolving a key
 
-`t(key, vars?)` walks the active language's BCP-47 fallback chain (`pt-BR` → `pt` → the configured `fallbackLanguage`, `'en'` by default) over an in-memory bundle table, and substitutes `{var}` placeholders from `vars`. A key with no value anywhere in the chain falls through to `onMissingTranslation(key, lang)` if you configured one, then to the key itself, so a missing translation degrades to something legible instead of throwing.
+`t(key, vars?)` walks the active language's BCP-47 fallback chain over an in-memory bundle table, then substitutes `{var}` placeholders from `vars`.
+
+The chain is `pt-BR` → `pt` → the configured `fallbackLanguage`, which is `'en'` by default.
+
+A key with no value anywhere in the chain falls through to `onMissingTranslation(key, lang)` if you configured one, then to the key itself. A missing translation degrades to something legible rather than throwing.
 
 `language()` reads the active tag; `language(lang)` dispatches `beforeLanguage` (cancellable and redirectable, same shape as every other `before*` event), switches the translator, and, for a real player with plugins registered, loads every plugin's translation bundle for the new tag and its BCP-47 parent chain before resolving. `addTranslations(bundle)` merges a bundle into the live table directly, last-write-wins per key.
 
-Swap the whole engine via `setup({ translator })` when you need pluralization, gender, or ICU MessageFormat. The kit uses your engine as-is and does not forward the `translations` or `loadTranslations` config to it; those seed only the built-in `DefaultTranslator`, so a custom engine owns its own bundle loading. The configured startup `language` still reaches it, since the player calls `language()` on whatever translator is active. This is the same DI seam [Adapters & Dependency Injection](/nomercy-player-core/tour/adapters) describes for every other port.
+Swap the whole engine with `setup({ translator })` when you need pluralization, gender, or ICU MessageFormat.
+
+The kit uses your engine as-is. It does not forward `translations` or `loadTranslations` to it, because those seed the built-in `DefaultTranslator` only. A custom engine owns its own bundle loading.
+
+The configured startup `language` still reaches it, since the player calls `language()` on whatever translator is active.
+
+This is the same DI seam [Adapters & Dependency Injection](/nomercy-player-core/tour/adapters) describes for every other port.
 
 ## Plugin translations
 
-A plugin's static `translations` field is auto-merged on `use()` and auto-removed on `dispose()`, walked up the full prototype chain so a subclass's bundle doesn't shadow its parent's. Keys are namespaced `plugin.<id>.*`, which is exactly what `Plugin.t(key)` prepends automatically, so plugin authors never hand-roll the prefix. Bundles can be eager (pre-resolved per language) or lazy (loaded from `translationsFromGlob`-style function loaders), and lazy bundles only fetch the active language and its parent chain, not every language a plugin ships.
+A plugin's static `translations` field is merged on `use()` and removed on `dispose()`. The merge walks the full prototype chain, so a subclass's bundle does not shadow its parent's.
+
+Keys are namespaced `plugin.<id>.*`, which is what `Plugin.t(key)` prepends for you. Plugin authors never write the prefix.
+
+Bundles can be eager, pre-resolved per language, or lazy, loaded from `translationsFromGlob`-style function loaders.
+
+A lazy bundle fetches only the active language and its parent chain, not every language the plugin ships.
 
 ## Title tokens
 

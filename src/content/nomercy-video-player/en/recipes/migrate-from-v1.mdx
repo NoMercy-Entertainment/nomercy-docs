@@ -7,7 +7,11 @@ description: 'Move a v1 video app onto v2 with the opt-in compatibility plugin: 
 
 # Migrating from v1
 
-`V1VideoCompatPlugin` (id `'v1-video-compat'`) attaches the old v1 method names (`seek()`, `speed()`, `playlist()`, `enterFullscreen()`, and the rest of the v1 surface) onto a v2 player instance. Every shim delegates to the real v2 method underneath and logs one deprecation line per call, nothing here is new behavior, it's a compatibility surface over the API this whole collection documents. It is entirely opt-in, a v2 app that never adds this plugin never carries the shim code or the deprecation logging at all.
+`V1VideoCompatPlugin` (id `'v1-video-compat'`) attaches the v1 method names onto a v2 player instance: `seek()`, `speed()`, `playlist()`, `enterFullscreen()` and the rest of that surface.
+
+Every shim delegates to the real v2 method underneath, and logs one deprecation line per call. No new behaviour, only a compatibility surface over the API this collection documents.
+
+It is entirely opt-in. An app that never adds the plugin carries neither the shim code nor the logging.
 
 ## Options
 
@@ -73,17 +77,19 @@ A handful of v1 methods throw `NotImplementedError` rather than silently no-oppi
 A second group keeps working exactly as it did in v1 (nothing throws), but has no v2 method to migrate onto, either because v2 solved the underlying problem structurally or because the behavior is a pure utility outside the player's typed surface. Delete these call sites when you remove the plugin, replicating them yourself if your app still needs them:
 
 - `allowFullscreen` / `setAllowFullscreen(allowed)`: gates `enterFullscreen()` only, `fullscreen()` itself is never gated in v2.
-- `stretchOptions`: the v1 array `['uniform', 'fill', 'exactfit', 'none']`. No v2 accessor reads this list back, `cycleAspectRatio()` cycles the same four values internally, but there's nothing public to iterate yourself against. Hardcode the array in your own app code if you still need to render an aspect-ratio menu from it.
+- `stretchOptions`: the v1 array `['uniform', 'fill', 'exactfit', 'none']`. No v2 accessor reads it back. `cycleAspectRatio()` cycles the same four values internally, with nothing public to iterate. Hardcode the array in your app if you render an aspect-ratio menu from it.
 - `doubleTap(el, callback, thresholdMs)`: a pure DOM double-tap detector, unrelated to player state.
-- `appendScriptFilesToDocument(urls)`: a pure DOM utility, appends `<script>` tags to `document.head` in sequence, awaiting each `onload` before starting the next. Unrelated to player state, replicate it in your own app code if you still need it.
+- `appendScriptFilesToDocument(urls)`: a pure DOM utility. It appends `<script>` tags to `document.head` in sequence, awaiting each `onload`. Unrelated to player state; replicate it in your app if you need it.
 - `snakeToCamel(value)`, `spaceToCamel(value)`: pure string utilities, no player state involved either.
 - `setTitle(title)`: writes `document.title` directly.
-- `tracks(kind)`: reads the item's raw v1 `tracks` field, v2's typed `subtitles()` / `audioTracks()` replace it for the formats they cover, there's no v2 generic-track equivalent.
-- `addTranslations(entries)` (the list-form, `{ key, value }[]`, overload): loops calling `translation(language(), entry.key, entry.value)` for you. The bundle-form overload, `addTranslations(bundle)`, is real v2 API and passes straight through to it, the plugin still logs the deprecation warning first even though that call needed no translation.
+- `tracks(kind)`: reads the item's raw v1 `tracks` field. The typed `subtitles()` and `audioTracks()` cover their own formats, and there is no generic-track equivalent.
+- `addTranslations(entries)`, the `{ key, value }[]` list form: loops calling `translation(language(), entry.key, entry.value)` for you.
+
+- `addTranslations(bundle)`, the bundle form, is real v2 API and passes straight through. The plugin still logs the deprecation warning first, even though that call needed no shim.
 
 ## Rules & restrictions
 
-- Every shim logs `@deprecated player.<method>() is a v1 compatibility shim — migrate to the v2 API before it is removed.` through the player's logger on every call, so grepping logs during a migration surfaces exactly which call sites still need updating.
+- Every shim logs a deprecation line through the player's logger on every call. Grep the logs during a migration and the remaining call sites surface themselves.
 - Two events bridge automatically while this plugin is loaded: `'playbackRate'` also emits as `'speed'`, and `'queue'` also emits as `'playlist'`, matching the v1 event names a legacy listener might still be attached to.
 - Must be added before `setup()`, like any plugin, adding it after `ready()` misses the plugin's own `use()` call during the setup pipeline.
 

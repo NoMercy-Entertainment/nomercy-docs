@@ -1,13 +1,52 @@
 ---
 title: 'Logs'
-description: 'Server log endpoints.'
+description: 'Reading the server log, and the levels and types to filter it by.'
 draft: false
 ---
 
 # Logs
 
-::Callout
+The technical log: what the server itself wrote. For a record of what people did, read [Server activity](/nomercy-api/rest/server-activity) instead.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/logs` | Moderator |
+| GET | `/api/v1/dashboard/logs/levels` | Moderator |
+| GET | `/api/v1/dashboard/logs/types` | Moderator |
+
+::properties
+
+::property {{ name: 'limit', type: 'integer' }}
+
+How many lines to return.
+
+::property {{ name: 'types', type: 'string[]' }}
+
+Which parts of the server to include, such as the encoder or the queue.
+
+::property {{ name: 'levels', type: 'string[]' }}
+
+Which severities to include.
+
+::property {{ name: 'filter', type: 'string' }}
+
+Free text to match within the message.
 
 ::
+
+`levels` and `types` return the values the server actually uses, so a client can build its filter from the server rather than hard-coding a list that drifts.
+
+## Following along live
+
+The local control surface streams the log as it is written:
+
+```text
+GET /manage/logs/stream
+```
+
+That route answers on the machine itself, which is why it needs no token and is unavailable from elsewhere.
+
+## Where to go next
+
+- [Logs](/nomercy-media-server/troubleshooting/logs) for where the files live.
+- [Diagnostics](/nomercy-media-server/troubleshooting/diagnostics)

@@ -18,7 +18,9 @@ import {
 } from '@nomercy-entertainment/nomercy-player-core/testing';
 ```
 
-It exists because both `nomercy-video-player` and `nomercy-music-player`, and any third-party plugin, need a stable way to test against the `IPlayer` contract without depending on Vitest internals or hand-rolling a fake player per package. `describePlugin` / `describePluginAgainst` inject `describe` / `it` / `beforeEach` / `afterEach` from the Vitest globals at runtime, so a project using them needs `test.globals: true` in its Vitest config.
+It exists because both real players, and any third-party plugin, need a stable way to test against the `IPlayer` contract. The alternative is depending on Vitest internals, or hand-rolling a fake player per package.
+
+`describePlugin` and `describePluginAgainst` inject `describe`, `it`, `beforeEach` and `afterEach` from the Vitest globals at runtime. A project using them needs `test.globals: true` in its Vitest config.
 
 ## StubPlayer
 
@@ -29,7 +31,16 @@ A lightweight `IPlayer` test double for plugin and unit tests, real enough to dr
 | `createStubPlayer(opts?)` | `(opts?: ConstructorParameters<typeof StubPlayer>[0]) => StubPlayer` | Factory form. |
 | `StubPlayer` | `class ... implements IPlayer<BaseEventMap>` | The class, for direct instantiation. |
 
-Provided: a real `EventEmitter` spine (`on` / `off` / `once` / `hasListeners` / `emit`), a `phase()` state machine advanced via `setPhase()`, the `dispatching()` stack via `pushDispatch()` / `popDispatch()`, the full i18n surface backed by an in-memory bundle table, a real cue parser registry, overloaded `baseUrl()` / `audioContext()` accessors, the `experimental.override` surface wired to an in-memory map, and `reset()` to clear all state between tests without constructing a new instance.
+What it provides:
+
+- A real `EventEmitter` spine: `on`, `off`, `once`, `hasListeners`, `emit`
+- A `phase()` state machine, advanced with `setPhase()`
+- The `dispatching()` stack, through `pushDispatch()` and `popDispatch()`
+- The full i18n surface, over an in-memory bundle table
+- A real cue parser registry
+- Overloaded `baseUrl()` and `audioContext()` accessors
+- The `experimental.override` surface, wired to an in-memory map
+- `reset()`, to clear state between tests without constructing a new instance
 
 Not provided, tests must not rely on these: plugin registration (`describePlugin` wires `addPlugin` itself, mock it per-test if a plugin's `use()` calls `player.addPlugin` internally), stream resolution or backend lifecycle, and auth-gated fetch (override `Plugin.fetch` in the test instead).
 

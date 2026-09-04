@@ -7,7 +7,11 @@ description: 'LyricsPlugin: fetches item.lyricsUrl on every cursor change, parse
 
 # Plugin: Lyrics
 
-`LyricsPlugin` (id `'lyrics'`) wires a track's synced lyrics to the kit's generic cue machinery: on every `item` change it resolves a lyrics URL, fetches it through the kit's auth-aware fetch, parses it via `resolveCueParser(url)`, and attaches a `CueTracker` that fires as playback crosses each line's timing window. See [Lyrics](/nomercy-music-player/tour/lyrics) for the narrative walkthrough and [Recipe: Synced Lyrics UI](/nomercy-music-player/recipes/lyrics-sync) for a full scrolling-panel build.
+`LyricsPlugin` (id `'lyrics'`) wires a track's synced lyrics to the kit's generic cue machinery.
+
+On every `item` change it resolves a lyrics URL, fetches it through the auth-aware fetch, parses it with `resolveCueParser(url)`, and attaches a `CueTracker` that fires as playback crosses each line's window.
+
+[Lyrics](/nomercy-music-player/tour/lyrics) is the walkthrough. [Recipe: Synced Lyrics UI](/nomercy-music-player/recipes/lyrics-sync) builds a scrolling panel.
 
 ## Options
 
@@ -39,9 +43,13 @@ Namespaced onto the player's own bus as `plugin:lyrics:<event>`:
 ## Rules & restrictions
 
 - `item.lyricsUrl` is fetched exactly as given, it is **not** resolved against `baseUrl` the way `item.url` is. Store a fully-qualified URL, or resolve it yourself in a `getLyricsUrl` override, see [Lyrics: lyricsUrl isn't resolved against baseUrl](/nomercy-music-player/tour/lyrics#lyricsurl-isnt-resolved-against-baseurl).
-- A missing `item.lyricsUrl` (and no `getLyricsUrl` resolver returning one) clears plugin state silently, no fetch attempt, no error. A fetch or parse failure reports through the plugin's error channel (`plugin:lyrics/no-parser`, `plugin:lyrics/fetch-failed`) instead of throwing, a bad lyrics file never interrupts playback.
-- Parsing depends entirely on a cue parser being registered for the URL's format, a `.lrc` file resolves to the kit's built-in parser automatically; a custom format needs its own `ICueParser` registered via `player.registerCueParser()` first, see [Core: Cue Parsers](/nomercy-player-core/tour/cue-parsers).
-- Add it before `setup()` like any plugin, so its `use()` runs inside the setup pipeline and the `item` listener is wired before the first track primes. Added later, after `ready()`, the plugin still gets its `use()` invoked (post-setup registration runs inline, fire-and-forget), but the `item` listener attaches too late for the already-loaded track, so the current item's lyrics only start on the next `item` change or an explicit `fetchLyrics(url)` call.
+- A missing `item.lyricsUrl`, with no `getLyricsUrl` resolver returning one, clears plugin state quietly. No fetch, no error.
+
+- A fetch or parse failure reports through the plugin's error channel, `plugin:lyrics/no-parser` or `plugin:lyrics/fetch-failed`, rather than throwing. A bad lyrics file never interrupts playback.
+- Parsing needs a cue parser registered for that URL's format. A `.lrc` file resolves to the built-in parser. A custom format needs its own `ICueParser` registered first, through `player.registerCueParser()`. See [Core: Cue Parsers](/nomercy-player-core/tour/cue-parsers).
+- Add it before `setup()`, like any plugin, so `use()` runs inside the pipeline and the `item` listener is wired before the first track primes.
+
+- Added after `ready()`, `use()` still runs, inline and fire-and-forget. But the `item` listener attaches too late for the loaded track, so lyrics start on the next `item` change or an explicit `fetchLyrics(url)`.
 
 ## How to extend it
 

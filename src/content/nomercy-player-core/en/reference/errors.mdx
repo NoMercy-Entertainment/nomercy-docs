@@ -62,7 +62,13 @@ type Severity = typeof SEVERITY[keyof typeof SEVERITY];
 const SEVERITY_LEVEL: Record<Severity, 1 | 2 | 3 | 4> = { info: 1, warning: 2, error: 3, fatal: 4 };
 ```
 
-String codes (`'core:auth/forbidden'`) are what you match against in application code. An optional 8-digit numeric form exists alongside it for compact log storage: `VVV S CC EE` (vendor 000-999, severity 1-4, category 00-99, event 00-99). `makeCode(fields)` builds one, `parseCode(code)` decomposes it, `formatCode(code)` zero-pads it to 8 characters for logs. `VENDOR` reserves `KIT: 1`, `MUSIC: 2`, `VIDEO: 3`, third-party plugin authors register a vendor block via PR to the kit's registry, or skip registration entirely and live on string codes only.
+String codes such as `'core:auth/forbidden'` are what application code matches on.
+
+An 8-digit numeric form exists alongside them for compact log storage, shaped `VVV S CC EE`: vendor 000-999, severity 1-4, category 00-99, event 00-99.
+
+`makeCode(fields)` builds one, `parseCode(code)` decomposes it, and `formatCode(code)` zero-pads it to 8 characters.
+
+`VENDOR` reserves `KIT: 1`, `MUSIC: 2` and `VIDEO: 3`. A third-party plugin author registers a vendor block by PR to the kit's registry, or skips registration and lives on string codes.
 
 ## Default retry policy
 

@@ -1,13 +1,47 @@
 ---
 title: 'Movies'
-description: 'CRUD and search endpoints for movies.'
+description: 'Read one film, change how it is held, or ask the server to look at it again.'
 draft: false
 ---
 
 # Movies
 
-::Callout
+Everything about a single film hangs off its id. The id is the film's TheMovieDB id, so the same number identifies it everywhere in the system.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Reading
 
-::
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/movie/{id}` | MediaAccess |
+| GET | `/api/v1/movie/{id}/available` | MediaAccess |
+| GET | `/api/v1/movie/{id}/watch` | MediaAccess |
+
+`available` answers whether the server actually holds a playable file. `watch` returns what a player needs to start.
+
+## User actions
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/movie/{id}/like` | MediaAccess |
+| POST | `/api/v1/movie/{id}/watch-list` | MediaAccess |
+
+Both act for the calling user, not for the server.
+
+## Managing
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/movie/{id}/add` | Moderator |
+| POST | `/api/v1/movie/{id}/refresh` | Moderator |
+| POST | `/api/v1/movie/{id}/rescan` | Moderator |
+| DELETE | `/api/v1/movie/{id}` | Moderator |
+
+`add` takes an optional `libraryId` and puts the film in that library.
+
+`refresh` fetches the details and artwork again. `rescan` looks at the files on disk again. A wrong title is usually a refresh; a file the server has not noticed is a rescan.
+
+## Where to go next
+
+- [TV Shows](/nomercy-api/rest/tv-shows)
+- [Libraries](/nomercy-api/rest/libraries)
+- [Metadata](/nomercy-media-server/media/metadata) for how matching works.

@@ -1,13 +1,69 @@
 ---
-title: 'logs'
-description: 'Stream and filter server logs from the CLI.'
+title: 'Logs'
+description: 'Read and follow the server log from the terminal.'
 draft: false
 ---
 
-# logs
+# Logs
 
-::Callout
+The log is where the server explains itself. When something did not work, this is the first place to look and usually the last.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Read the recent log
 
-::
+```bash
+nomercy logs
+```
+
+## Follow it live
+
+```bash
+nomercy logs --follow
+```
+
+`-f` is the short form. Useful while you reproduce a problem: start following, then do the thing that fails, and watch what appears.
+
+## Show more or fewer entries
+
+```bash
+nomercy logs --tail 200
+```
+
+`-n` is the short form.
+
+## Filter
+
+By level, when you only want the bad news:
+
+```bash
+nomercy logs --level Error
+nomercy logs --level Information,Warning,Error
+```
+
+The levels are Verbose, Debug, Information, Warning, Error and Fatal.
+
+By type, when you know which part of the server you care about:
+
+```bash
+nomercy logs --type Encoder
+```
+
+## Combining them
+
+The options work together, which is how you get a readable answer out of a busy server:
+
+```bash
+nomercy logs --level Warning,Error --tail 100 --follow
+```
+
+## Finding the setup link
+
+On a headless machine the log carries the setup address and the sign-in code:
+
+```bash
+nomercy logs | grep -i setup
+```
+
+## Where to go next
+
+- [Starting and stopping](/nomercy-media-server/cli/start-stop)
+- [Queue](/nomercy-media-server/cli/queue) to see work in progress rather than log lines.

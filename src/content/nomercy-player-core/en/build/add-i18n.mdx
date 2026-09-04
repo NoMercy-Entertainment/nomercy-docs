@@ -13,7 +13,15 @@ The last step. Step 3 left a player with a real backend and a registered plugin.
 
 [i18n](/nomercy-player-core/tour/i18n) showed `addTranslations()` merging a bundle into an already-running player. That's the right tool for translations that arrive after setup, loaded from a network bundle or registered by a plugin. Here, the translations are known upfront, so they go straight into `setup()` alongside `logLevel` and everything else: `language` and `translations` are ordinary `BasePlayerConfig` fields.
 
-The kit ships its own `core.*` strings out of the box, network, auth, DRM, and accessibility-announcement copy among them, so a player has working error and status text before you write a single translation key. English is seeded eagerly at `setup()`, merged directly underneath whatever `translations.en` you pass, so `t('core.*')` resolves immediately and a key you don't override still resolves to the kit's English copy. Every other kit locale loads lazily instead, the first time `language(lang)` switches to a tag with no bundle seeded for it yet, the same on-demand mechanism plugin translation bundles use, passing your own static `translations.nl` (as above) seeds that tag directly and takes over from the kit's lazy `nl` bundle rather than merging with it. Supplying your own `translator` engine replaces this default merge entirely, the kit only owns translation state for its built-in `DefaultTranslator`.
+The kit ships its own `core.*` strings, so a player has working error and status text before you write a single key. Network, auth, DRM and accessibility announcements are all covered.
+
+English is seeded eagerly at `setup()`, underneath whatever `translations.en` you pass. So `t('core.*')` resolves immediately, and a key you do not override falls back to the kit's English.
+
+Every other kit locale loads lazily, the first time `language(lang)` switches to a tag with no bundle seeded. That is the same on-demand mechanism plugin bundles use.
+
+Passing your own static `translations.nl`, as above, seeds that tag directly. It takes over from the kit's lazy `nl` bundle rather than merging with it.
+
+Supplying your own `translator` engine replaces this merge entirely. The kit owns translation state only for its built-in `DefaultTranslator`.
 
 ## Adding it
 
@@ -24,7 +32,11 @@ Nothing about `KitPlayer` from Step 3 changes structurally, two `declare`s, one 
 
 ## What you built
 
-Four steps, one class: `composeMixins` gives it every shared method, `backend()` gives transport and volume something to drive, `addPlugin` layers behavior on top without touching the class, and `translations` in `setup()` finishes the config. Every piece is the same code `nomercy-video-player` and `nomercy-music-player` run, this tutorial just built it up one capability at a time instead of getting it all from a single import.
+Four steps, one class.
+
+`composeMixins` gives it every shared method. `backend()` gives transport and volume something to drive. `addPlugin` layers behaviour on without touching the class. `translations` in `setup()` finishes the config.
+
+Every piece is the same code `nomercy-video-player` and `nomercy-music-player` run. This tutorial built it one capability at a time instead of taking it from a single import.
 
 ## Next steps
 

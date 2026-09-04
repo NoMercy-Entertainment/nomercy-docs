@@ -182,7 +182,11 @@ this.on('time', ({ position, duration, buffered, percentage }) => {
 });
 ```
 
-The `time` event carries the player's full time snapshot, `time`/`position`, `duration`, `buffered`, `remaining`, and a ready-made `percentage`, the same shape `timeData()` returns, so there is no time math to derive inside the handler. The progress fill and nipple take `percentage` as-is; the buffer fill is the one derived value, because "how far ahead is buffered" is a UI choice: `buffered` is seconds ahead of `position`, so the fill ends at `position + buffered`.
+The `time` event carries the player's full time snapshot: `time` and `position`, `duration`, `buffered`, `remaining`, and a ready-made `percentage`. It is the same shape `timeData()` returns, so the handler does no time math.
+
+The progress fill and nipple take `percentage` as it comes.
+
+The buffer fill is the one derived value, because "how far ahead is buffered" is a UI choice. `buffered` is seconds ahead of `position`, so the fill ends at `position + buffered`.
 
 And when the playlist moves to another item, the fills reset to zero through the same `item` event the title bar will use in [step 6](/nomercy-video-player/build/title-bar):
 

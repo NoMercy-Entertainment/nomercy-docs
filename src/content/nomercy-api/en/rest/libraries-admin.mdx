@@ -1,13 +1,77 @@
 ---
-title: 'Library Management'
-description: 'Admin CRUD for libraries.'
+title: 'Libraries (admin)'
+description: 'Create libraries, attach folders, choose encoding, and run scans.'
 draft: false
 ---
 
-# Library Management
+# Libraries (admin)
 
-::Callout
+This is the administrative side of libraries: what exists, which folders feed it, how it encodes, and when it looks again. What a viewer can see is a different surface, described in [Libraries](/nomercy-api/rest/libraries).
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## The library
 
-::
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/libraries` | Moderator |
+| POST | `/api/v1/dashboard/libraries` | Moderator |
+| PATCH | `/api/v1/dashboard/libraries/{id}` | Moderator |
+| DELETE | `/api/v1/dashboard/libraries/{id}` | Moderator |
+| PATCH | `/api/v1/dashboard/libraries/sort` | Moderator |
+
+`sort` sets the order libraries appear in for everyone.
+
+Deleting a library removes it from the server. It does not delete the files.
+
+## Folders
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/libraries/{id}/folders` | Moderator |
+| PATCH | `/api/v1/dashboard/libraries/{id}/folders/{folderId}` | Moderator |
+| DELETE | `/api/v1/dashboard/libraries/{id}/folders/{folderId}` | Moderator |
+
+A library holds folders, and a folder is where its media lives. See [Libraries](/nomercy-media-server/libraries) for how to lay them out.
+
+## Encoding
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/libraries/{id}/folders/{folderId}/encoder_profiles` | Moderator |
+| DELETE | `/api/v1/dashboard/libraries/{id}/folders/{folderId}/encoder_profiles/{encoderProfileId}` | Moderator |
+
+Encoding is chosen per folder, not per library, so two folders in one library can be treated differently.
+
+## Looking again
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/libraries/rescan` | Moderator |
+| POST | `/api/v1/dashboard/libraries/{id}/rescan` | Moderator |
+| POST | `/api/v1/dashboard/libraries/scan-new` | Moderator |
+| POST | `/api/v1/dashboard/libraries/{id}/scan-new` | Moderator |
+| POST | `/api/v1/dashboard/libraries/refresh` | Moderator |
+| POST | `/api/v1/dashboard/libraries/{id}/refresh` | Moderator |
+
+Three different jobs, and picking the right one saves a lot of work:
+
+**scan-new** looks only for files the server has not seen. This is the everyday one.
+
+**rescan** looks at everything again, including what it already knows.
+
+**refresh** fetches details and artwork again, without touching the files.
+
+## Repairs
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/libraries/{id}/repair-track-matches` | Moderator |
+| GET | `/api/v1/dashboard/libraries/anime-classification-audit` | Moderator |
+| POST | `/api/v1/dashboard/libraries/move` | Moderator |
+
+`move` moves media into a different library.
+
+## Where to go next
+
+- [Libraries](/nomercy-media-server/libraries)
+- [Encoder profiles](/nomercy-api/rest/encoder-profiles)
+- [Tasks](/nomercy-api/rest/tasks) for watching a scan run.

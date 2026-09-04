@@ -1,13 +1,56 @@
 ---
 title: 'Playlists'
-description: 'Playlists endpoints.'
+description: 'Music playlists and video playlists, which are two separate things.'
 draft: false
 ---
 
 # Playlists
 
-::Callout
+There are two kinds, and they share nothing. A music playlist holds tracks. A video playlist holds films, series, episodes and specials. Neither can contain the other, which is why they live at different addresses.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Music playlists
 
-::
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/music/playlists` | MediaAccess |
+| GET | `/api/v1/music/playlists/{id}` | MediaAccess |
+| POST | `/api/v1/music/playlists` | MediaAccess |
+| PATCH | `/api/v1/music/playlists/{id}` | MediaAccess |
+| DELETE | `/api/v1/music/playlists/{id}` | MediaAccess |
+
+Tracks are added and removed one at a time.
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/music/playlists/{id}/tracks` | MediaAccess |
+| DELETE | `/api/v1/music/playlists/{id}/tracks/{trackId}` | MediaAccess |
+| POST | `/api/v1/music/playlists/{id}/cover` | Moderator |
+
+## Video playlists
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/playlists` | MediaAccess |
+| GET | `/api/v1/playlists/{id}` | MediaAccess |
+| POST | `/api/v1/playlists` | MediaAccess |
+| PATCH | `/api/v1/playlists/{id}` | MediaAccess |
+| DELETE | `/api/v1/playlists/{id}` | MediaAccess |
+
+These are ordered, so the order is part of what you save.
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/playlists/{id}/items` | MediaAccess |
+| DELETE | `/api/v1/playlists/{id}/items/{itemId}` | MediaAccess |
+| PUT | `/api/v1/playlists/{id}/items/order` | MediaAccess |
+
+Every action here is scoped to the caller's own playlists. Another user's playlist answers as if it were not there.
+
+## Playlist or special?
+
+A playlist is yours. A [special](/nomercy-api/rest/specials) belongs to the server and everyone sees it. Reach for a special when the order is part of the library, and a playlist when it is a personal list.
+
+## Where to go next
+
+- [Tracks](/nomercy-api/rest/tracks)
+- [Specials](/nomercy-api/rest/specials)

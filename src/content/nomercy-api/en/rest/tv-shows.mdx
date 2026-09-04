@@ -1,13 +1,46 @@
 ---
 title: 'TV Shows'
-description: 'CRUD, search, episodes, and seasons endpoints.'
+description: 'Read a series, act on it as a user, or ask the server to look again.'
 draft: false
 ---
 
 # TV Shows
 
-::Callout
+A series is addressed by its TheMovieDB series id. Seasons and episodes are returned inside the series rather than addressed on their own.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Reading
 
-::
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/tv/{id}` | MediaAccess |
+| GET | `/api/v1/tv/{id}/available` | MediaAccess |
+| GET | `/api/v1/tv/{id}/watch` | MediaAccess |
+| GET | `/api/v1/tv/{id}/missing` | MediaAccess |
+
+`missing` lists episodes the series is known to have and the server does not hold. It is the quickest way to see a gap in a season.
+
+## User actions
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/tv/{id}/like` | MediaAccess |
+| POST | `/api/v1/tv/{id}/watch-list` | MediaAccess |
+
+## Managing
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/tv/{id}/add` | Moderator |
+| POST | `/api/v1/tv/{id}/refresh` | Moderator |
+| POST | `/api/v1/tv/{id}/rescan` | Moderator |
+| DELETE | `/api/v1/tv/{id}` | Moderator |
+
+`add` and `refresh` both take an optional `libraryId`.
+
+Anime lives here too. An anime series is a series with an anime library behind it, so it uses these same endpoints.
+
+## Where to go next
+
+- [Movies](/nomercy-api/rest/movies)
+- [Libraries](/nomercy-api/rest/libraries)
+- [Specials](/nomercy-api/rest/specials)

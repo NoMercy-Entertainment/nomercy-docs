@@ -1,13 +1,65 @@
 ---
-title: 'Reading Logs'
-description: 'Find, read, and interpret server logs.'
+title: 'Reading the logs'
+description: 'Where the log lives and how to get an answer out of it.'
 draft: false
 ---
 
-# Reading Logs
+# Reading the logs
 
-::Callout
+The log is where the server explains what it did and why something failed. It is the fastest route to an answer for almost every problem.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## The quickest way
 
-::
+```bash
+nomercy logs --level Warning,Error
+```
+
+That skips the routine chatter and shows only what went wrong. Most problems are visible in that output without any further filtering.
+
+## Where the file lives
+
+| Platform | Path |
+|----------|------|
+| Windows | `%LOCALAPPDATA%\NoMercy\log\` |
+| Linux and macOS | `~/.local/share/NoMercy/log/` |
+
+Files roll daily, so a problem from yesterday is in yesterday's file.
+
+In Docker, read the container's output instead:
+
+```bash
+docker compose logs -f
+```
+
+## Levels
+
+From most detail to least: Verbose, Debug, Information, Warning, Error, Fatal.
+
+The server runs at Information, which records what it is doing without recording every step of it. Raise it to Debug while reproducing something that only happens occasionally, and put it back afterwards; Debug is noisy enough to make a busy server's log hard to read.
+
+## Filtering to one part of the server
+
+The log is tagged by area, so you can look at one thing at a time:
+
+```bash
+nomercy logs --type encoder
+```
+
+Areas worth knowing: `encoder` for encoding titles, `queue` for scheduled work, `ripper` for discs, `setup`, `register` and `certificate` for first-run problems, `auth` for sign-in, `http` and `socket` for clients failing to connect, and `moviedb` for metadata lookups.
+
+## Watching a problem happen
+
+```bash
+nomercy logs --follow
+```
+
+Start following, then do the thing that fails. What appears while you do it is the relevant part, which is much easier than searching a file afterwards.
+
+## Reading an error
+
+Errors name the operation and the reason. Read the reason rather than the stack of technical detail under it; the reason is usually the whole answer, and it is usually something ordinary like a path that does not exist or a device that refused a connection.
+
+## Where to go next
+
+- [Common issues](/nomercy-media-server/troubleshooting/common-issues)
+- [Diagnostics](/nomercy-media-server/troubleshooting/diagnostics) for checking the server's health directly.

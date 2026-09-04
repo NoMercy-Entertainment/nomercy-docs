@@ -33,7 +33,11 @@ render(); // initial paint
 
 ## Jump with playItem(), not item()
 
-`queue(items); item(start); play()` races: `item()` fires a fire-and-forget `load()`, and a `play()` called right after can reach the backend before the new source is even set. A click handler in a queue panel calls `play()` implicitly (the user expects clicking an item to start it), so use `playItem(target)` instead of `item(target)`, it routes through `item(target, { autoplay: true })` internally, which only calls `play()` inside the load's own continuation:
+`queue(items); item(start); play()` races. `item()` fires a fire-and-forget `load()`, and the `play()` right after can reach the backend before the new source is set.
+
+A click handler in a queue panel plays implicitly, because someone clicking an item expects it to start.
+
+So use `playItem(target)` rather than `item(target)`. It routes through `item(target, { autoplay: true })`, which calls `play()` inside the load's own continuation:
 
 ```ts
 // One row per queue item, rendered inside renderList() above.

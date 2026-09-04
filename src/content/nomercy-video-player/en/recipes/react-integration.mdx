@@ -7,7 +7,13 @@ description: 'A useVideoPlayer hook: instance creation in an effect, event subsc
 
 # Recipe: React Integration
 
-React does not own the player instance, `nomercy-video-player` mutates a `<video>` element directly and pushes updates through its own event emitter, neither of which is a React concern. The hook below creates the instance once (inside `useEffect`, after the container exists), mirrors the events it cares about into `useState`, and disposes on unmount. Everything imperative (`play()`, `time()`) goes through the player instance itself, not through React state.
+React does not own the player instance.
+
+`nomercy-video-player` mutates a `<video>` element directly and pushes updates through its own event emitter. Neither is a React concern.
+
+The hook below creates the instance once, inside `useEffect` after the container exists, mirrors the events it cares about into `useState`, and disposes on unmount.
+
+Anything imperative goes through the player itself, not through React state. `play()` and `time()` are player calls.
 
 ## The hook and a component using it
 
@@ -18,22 +24,40 @@ React does not own the player instance, `nomercy-video-player` mutates a `<video
 
 ## Mounting it
 
-`playlist` is a prop, not hardcoded — `VideoPlayerView` above takes real playlist data from whoever renders it. `films` is the real `nomercy-media` fixture catalogue (the same three shorts the testbed uses; the [Quickstart](/nomercy-video-player/quickstart) loads the first, Sintel):
+`playlist` is a prop, not hardcoded, `VideoPlayerView` above takes real playlist data from whoever renders it. `films` is the real `nomercy-media` fixture catalogue (the same three shorts the testbed uses; the [Quickstart](/nomercy-video-player/quickstart) loads the first, Sintel):
 
 :::snippet{file="video-recipe-react-app" live="false"}
 :::
 
 ## Config identity
 
-`config` is deliberately left out of the effect's dependency array. `VideoPlayerConfig` objects are rarely stable across renders (an inline `{ baseUrl, playlist }` literal is a new object every render), and re-running `setup()` on every render is both wrong (it throws once the player is already set up) and wasteful. `VideoPlayerView` above memoizes it with `useMemo`, keyed on `playlist`, instead of fighting the hook.
+`config` is deliberately left out of the effect's dependency array.
+
+`VideoPlayerConfig` objects are rarely stable across renders. An inline `{ baseUrl, playlist }` literal is a new object every time.
+
+Re-running `setup()` on every render is both wrong and wasteful: it throws once the player is already set up.
+
+`VideoPlayerView` above memoizes it with `useMemo`, keyed on `playlist`, rather than fighting the hook.
 
 ## StrictMode
 
-`useVideoPlayer` guards `setup()` with `setupState() === SetupState.NOT_SETUP`. React 18 StrictMode double-invokes effects in development — mount, cleanup, mount, synchronously, before the cleanup's fire-and-forget `dispose()` has actually resolved (a synchronous cleanup can't `await` it). Without the guard, the second mount's `nmplayer(containerId)` call resolves the same still-registered instance and calling `setup()` on it again throws `core:lifecycle/already-setup`. The guard fixes that crash; it does not eliminate every StrictMode-only edge case (a brief listener gap is still possible in dev between the first mount's deferred `dispose()` clearing listeners and the second mount's own subscriptions), but that window is dev-only double-invoke behavior, stripped entirely from production builds.
+`useVideoPlayer` guards `setup()` with `setupState() === SetupState.NOT_SETUP`.
+
+React 18 StrictMode double-invokes effects in development: mount, cleanup, mount, synchronously. That happens before the cleanup's fire-and-forget `dispose()` has resolved, because a synchronous cleanup cannot `await` it.
+
+Without the guard, the second mount's `nmplayer(containerId)` resolves the same still-registered instance, and calling `setup()` on it again throws `core:lifecycle/already-setup`.
+
+The guard fixes that crash. It does not close every StrictMode edge case: a brief listener gap is still possible between the first mount's deferred `dispose()` clearing listeners and the second mount's subscriptions.
+
+That window is double-invoke behaviour, and it is stripped from production builds.
 
 ## Context provider for a shared instance
 
-For a layout where a persistent mini-player and a full-screen view share one instance, wrap the hook in a context instead of calling it twice. Creation happens in the render body (the sanctioned lazy-`useRef`-init pattern), disposal in the effect's cleanup — checking `setupState() === SetupState.DISPOSED` on every render recovers from a StrictMode dev double-invoke disposing the shared instance out from under a still-mounted provider:
+For a layout where a persistent mini-player and a full-screen view share one instance, wrap the hook in a context rather than calling it twice.
+
+Creation happens in the render body, the sanctioned lazy-`useRef`-init pattern. Disposal happens in the effect's cleanup.
+
+Checking `setupState() === SetupState.DISPOSED` on every render recovers from a StrictMode double-invoke disposing the shared instance out from under a still-mounted provider:
 
 :::snippet{file="video-recipe-react-provider" live="false"}
 :::

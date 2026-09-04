@@ -1,13 +1,40 @@
 ---
-title: 'User Data'
-description: 'Watch progress, favorites, and ratings endpoints.'
+title: 'User data'
+description: 'Continue watching, watched state and favourites for the calling user.'
 draft: false
 ---
 
-# User Data
+# User data
 
-::Callout
+What one person has watched and liked. Every endpoint here acts for the account behind the token, so two users on one server never see each other's progress.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/userData/continue` | MediaAccess |
+| DELETE | `/api/v1/userData/continue` | MediaAccess |
+| GET | `/api/v1/userData/watched` | MediaAccess |
+| GET | `/api/v1/userData/favorites` | MediaAccess |
 
-::
+## Continue watching
+
+`GET continue` returns cards for what the user has started and not finished, ready to render.
+
+`DELETE continue` hides one item from that row. It takes the item's type and id, and it does not change the watched state or delete anything on disk.
+
+## Watched
+
+`GET watched` answers for one item. Give it the same type and id pair.
+
+```json {{ title: 'Identifying an item' }}
+{
+  "type": "movie",
+  "id": 1726
+}
+```
+
+Films and series use their numeric id. Items that live only on your server, such as a special, use their own id instead.
+
+## Where to go next
+
+- [Home](/nomercy-api/rest/home)
+- [Streaming](/nomercy-api/rest/streaming) for how progress is reported during playback.

@@ -1,13 +1,71 @@
 ---
-title: 'Upgrade Guide'
-description: 'Upgrade NoMercy Media Server to a new version safely.'
+title: 'Upgrading'
+description: 'Move the server to a newer version safely.'
 draft: false
 ---
 
-# Upgrade Guide
+# Upgrading
 
-::Callout
+Upgrading is a normal update plus a restart. The server handles its own data.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## How to upgrade
+
+It depends on how you installed it.
+
+**Linux packages** upgrade with the rest of your system:
+
+```bash
+sudo apt update && sudo apt upgrade      # Debian and Ubuntu
+sudo dnf upgrade nomercy                 # Fedora, RHEL and CentOS
+sudo pacman -Syu                         # Arch
+```
+
+**Docker** pulls a new image:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+**Windows and macOS** stage an update through the server itself:
+
+```bash
+nomercy update
+nomercy restart
+```
+
+The download and the interruption are separate steps, so the restart happens when it suits you.
+
+## What happens on the first start
+
+If the new version changes the shape of the database, the server updates it during startup. You do not run anything.
+
+Before it makes that change, it takes a snapshot of the databases. That snapshot is what a failed upgrade falls back to, and it is why an upgrade is a low-risk operation rather than a leap.
+
+## Your content is unaffected
+
+Upgrades change the server, not your library. Your titles stay as they are, watch progress is kept, and nothing needs re-importing.
+
+::Troubleshooting
+
+**The version has not changed after updating.**
+A staged update applies on restart. Run `nomercy restart`.
+
+**The server did not come back.**
+Read the log:
+
+```bash
+nomercy logs --level Error
+```
+
+A version that cannot start records the reason there, and the snapshot taken before the upgrade is in the `backups` folder under the data directory.
+
+**A container came back empty.**
+The data volume was not mounted. Check the compose file still has the `nomercy-data` volume, then recreate.
 
 ::
+
+## Where to go next
+
+- [Backups](/nomercy-media-server/maintenance/backups)
+- [Updating from the CLI](/nomercy-media-server/cli/update)

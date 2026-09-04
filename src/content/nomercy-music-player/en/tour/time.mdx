@@ -1,6 +1,6 @@
 ---
 title: 'Time & Seeking'
-description: 'time(), duration(), timeData(), rewind()/forward()/restart(), and seekByPercentage() — the position surface a scrubber reads and drives.'
+description: 'time(), duration(), timeData(), rewind()/forward()/restart(), and seekByPercentage(), the position surface a scrubber reads and drives.'
 ---
 
 {/* Source: packages/nomercy-player-core/src/core/mixins/time.ts, src/core/mixins/transport.ts */}
@@ -11,7 +11,13 @@ Position and duration come straight from `nomercy-player-core`, same as transpor
 
 ## Reading and seeking
 
-`time()` reads the current position in seconds; `time(seconds)` seeks to a new one, there is no separate `seek()` method. Position is reported by two different events for two different reasons: ordinary playback ticks the `time` event (per frame) and the throttled `progress` event, while a deliberate jump fires the cancellable `beforeSeek` → `seek` → `seeked` cycle. That is the split the web platform draws between `timeupdate` and `seeking`/`seeked`, the tick versus the jump:
+`time()` reads the current position in seconds. `time(seconds)` seeks to a new one. There is no separate `seek()`.
+
+Position is reported by two different events, for two different reasons.
+
+Ordinary playback ticks the `time` event per frame, plus the throttled `progress` event. A deliberate jump fires the cancellable `beforeSeek` → `seek` → `seeked` cycle.
+
+It is the same split the web platform draws between `timeupdate` and `seeking`/`seeked`. The tick against the jump:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';

@@ -1,13 +1,34 @@
 ---
 title: 'Devices'
-description: 'Device management endpoints.'
+description: 'The clients that have connected to this server.'
 draft: false
 ---
 
 # Devices
 
-::Callout
+Every client that signs in registers itself: the phone, the TV, each browser. The list is how you see what is connected and remove what is not yours.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/devices` | Moderator |
+| POST | `/api/v1/dashboard/devices` | Moderator |
+| DELETE | `/api/v1/dashboard/devices` | Moderator |
+| DELETE | `/api/v1/dashboard/devices/{id}` | Moderator |
+| DELETE | `/api/v1/dashboard/devices/offline` | Moderator |
 
-::
+`offline` clears the ones no longer connected in one go, which is the usual tidy-up after replacing a device.
+
+A device removed here signs in again the next time it is used, so removing one is not permanent.
+
+## Forgetting a device
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/devices/{deviceId}/forget` | Authenticated |
+
+This is the device removing itself, called during sign-out on that device.
+
+## Where to go next
+
+- [Users (admin)](/nomercy-api/rest/users-admin)
+- [Device hub](/nomercy-api/signalr/device-hub) for how a device stays connected.

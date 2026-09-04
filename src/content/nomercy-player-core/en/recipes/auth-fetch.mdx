@@ -11,7 +11,17 @@ description: 'Call the kit auth-aware fetch pipeline directly from data-layer co
 
 ## What it does that a raw `fetch` doesn't
 
-`auth.transformUrl(url)` runs first, then `Authorization: Bearer <token>` is set from a resolved `bearerToken` (string, sync getter, or async getter, so a Vue ref or reactive store works directly), then `auth.headers` merges in. A 401 response triggers `auth.refreshOnUnauthenticated()` exactly once, then retries the original request with freshly resolved credentials, a 403 propagates immediately and is never retried or refreshed. 5xx and network failures retry per `RetryConfig` (see [Typed Errors](/nomercy-player-core/tour/errors) for the default policy table).
+The order is fixed.
+
+1. `auth.transformUrl(url)` runs.
+2. `Authorization: Bearer <token>` is set from a resolved `bearerToken`. That can be a string, a sync getter or an async getter, so a Vue ref or a reactive store works directly.
+3. `auth.headers` merges in.
+
+A 401 triggers `auth.refreshOnUnauthenticated()` exactly once, then retries the original request with freshly resolved credentials.
+
+A 403 propagates immediately. It is never retried and never refreshed.
+
+5xx and network failures retry per `RetryConfig`. [Typed Errors](/nomercy-player-core/tour/errors) has the default policy table.
 
 `signal` is required, not optional: every call site owns its own `AbortController` and cancellation is explicit, there's no implicit "cancel when some object is garbage collected" behavior to reason about.
 
@@ -72,7 +82,15 @@ class QueueSyncPlugin extends Plugin {
 }
 ```
 
-The type flows differently through the two branches. In the `'text'` branch `T` is inferred from the `parser`'s own return type, so the explicit `<string[]>` above is optional: write `{ parser: (raw): string[] => ... }` and the fetch resolves to `Promise<string[]>` on its own, because the `parser` is the one place your code runs to produce the value, so its return type is the one the compiler can hold you to. The `'json'` and `'arrayBuffer'` branches have no callback to infer from. You name `T` yourself (`fetch<QueueSnapshot>`) and the kit casts the decoded body to it unchecked, the same `response.json() as T` you would write by hand, with nothing validating the shape at runtime. So keep the explicit type parameter for bodies you trust, and reach for a `parser` when you want the transform itself to be type-checked.
+The type flows differently through the two branches.
+
+In the `'text'` branch, `T` is inferred from the `parser`'s return type, so the explicit `<string[]>` above is optional. Write `{ parser: (raw): string[] => ... }` and the fetch resolves to `Promise<string[]>` on its own.
+
+That works because the parser is the one place your code runs to produce the value, so the compiler can hold you to its return type.
+
+The `'json'` and `'arrayBuffer'` branches have no callback to infer from. You name `T` yourself, as `fetch<QueueSnapshot>`, and the kit casts the decoded body to it unchecked. It is the same `response.json() as T` you would write by hand, with nothing validating the shape at runtime.
+
+So keep the explicit type parameter for bodies you trust, and reach for a `parser` when you want the transform itself type-checked.
 
 `isAuthError()` and `isNetworkError()` are the same type guards `Plugin.fetch()` callers use to branch a `catch` block without an `instanceof` import.
 

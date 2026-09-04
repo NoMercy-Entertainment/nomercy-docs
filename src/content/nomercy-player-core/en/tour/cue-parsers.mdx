@@ -11,7 +11,15 @@ Subtitles, lyrics, and sprite-preview thumbnails are all the same shape undernea
 
 ## CueList
 
-`createCueList(cues)` builds an immutable, time-indexed `CueList<T>` from an array of `{ start, end, payload }` entries. Input order doesn't matter, it sorts by `start` on construction, and every lookup is O(log n) via binary search: `active(time)` returns every cue whose interval contains `time` (support for overlapping cues is intentional, parallel subtitle tracks and adjacent sprite thumbnails both need it), `next(time)` and `prev(time)` locate the nearest cue on either side. `createMutableCueList()` exposes the same query surface over a live buffer that grows and shrinks at runtime, for streamed-in captions or chapter lists, notifying `subscribe()`d listeners on every change.
+`createCueList(cues)` builds an immutable, time-indexed `CueList<T>` from `{ start, end, payload }` entries.
+
+Input order does not matter. It sorts by `start` on construction, and every lookup is a binary search.
+
+`active(time)` returns every cue whose interval contains `time`. Overlapping cues are supported on purpose: parallel subtitle tracks and adjacent sprite thumbnails both need it.
+
+`next(time)` and `prev(time)` find the nearest cue on either side.
+
+`createMutableCueList()` gives the same query surface over a live buffer that grows and shrinks at runtime, for streamed-in captions or chapter lists. It notifies `subscribe()`d listeners on every change.
 
 ## Built-in parsers
 
@@ -19,7 +27,13 @@ Three `ICueParser` implementations ship with the kit and auto-register during `s
 
 ## The registry
 
-`CueParserRegistry` resolves most-recently-registered first: `register(parser)` adds one (or replaces an existing entry with the same `id`), `resolve(url, contentType?)` walks the list newest-first and returns the first match. A real player pre-seeds its registry with the three built-ins during `setup()`, so a custom parser registered afterward, or supplied via `setup({ cueParsers: [...] })`, wins resolution over the built-in for the same URL pattern without disabling it. `player.registerCueParser(parser, prepend?)` / `unregisterCueParser(id)` / `resolveCueParser(url)` are the runtime-facing wrappers around the same registry.
+`CueParserRegistry` resolves most-recently-registered first.
+
+`register(parser)` adds one, or replaces an existing entry with the same `id`. `resolve(url, contentType?)` walks the list newest-first and returns the first match.
+
+A real player seeds the registry with the three built-ins during `setup()`. So a parser you register afterwards, or pass as `setup({ cueParsers: [...] })`, wins for the same URL pattern without disabling the built-in.
+
+The runtime wrappers around the same registry are `player.registerCueParser(parser, prepend?)`, `unregisterCueParser(id)` and `resolveCueParser(url)`.
 
 The example below parses real VTT and LRC text directly (`parseVtt`, `parseVttSubtitles`, `parseLrc`, and their sprite counterpart are exported standalone, no player needed), then registers a small custom format against a bare registry to show the extension point in isolation.
 

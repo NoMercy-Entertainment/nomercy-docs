@@ -7,7 +7,7 @@ description: 'Writing plugins for nomercy-music-player v2: the plugin catalog, t
 
 # Plugin Development: Music Player
 
-Plugins for `nomercy-music-player` follow the same contract as the player core's plugin system. This page covers the music-player-specific patterns. For the base plugin contract — every helper on `this`, the lifecycle, and the registration pipeline — see [The Plugin Base](/nomercy-player-core/tour/plugin-base) and [Player and Plugin](/nomercy-player-core/tour/composition-boundary).
+Plugins for `nomercy-music-player` follow the same contract as the player core's plugin system. This page covers the music-player-specific patterns. For the base plugin contract, every helper on `this`, the lifecycle, and the registration pipeline, see [The Plugin Base](/nomercy-player-core/tour/plugin-base) and [Player and Plugin](/nomercy-player-core/tour/composition-boundary).
 
 ## Built-in plugin catalog
 
@@ -24,9 +24,9 @@ All built-in plugins are importable from `@nomercy-entertainment/nomercy-music-p
 
 ## Typing against the music player
 
-Use `IMusicPlayer` as the `P` generic. `IMusicPlayer` is the stable public interface for the music player — it is the correct type for plugins and consumer functions. `NMMusicPlayer` is the concrete class (implementation detail); prefer `IMusicPlayer` so your plugin does not depend on the class hierarchy.
+Use `IMusicPlayer` as the `P` generic. `IMusicPlayer` is the stable public interface for the music player, it is the correct type for plugins and consumer functions. `NMMusicPlayer` is the concrete class (implementation detail); prefer `IMusicPlayer` so your plugin does not depend on the class hierarchy.
 
-When a plugin needs to read the active item with `this.player.item()`, add `& WithCurrentItem<YourItemType>` to the `P` generic. Plugins that only call transport methods or `metrics()` can omit it — those are on `IPlayer` directly.
+When a plugin needs to read the active item with `this.player.item()`, add `& WithCurrentItem<YourItemType>` to the `P` generic. Plugins that only call transport methods or `metrics()` can omit it, those are on `IPlayer` directly.
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
@@ -85,9 +85,9 @@ use(): void {
 }
 ```
 
-- `this.player.backend()` — the active `IAudioBackend` (audio-element or Web Audio).
-- `this.player.crossfadeTo(item, opts?)` — start a dual-buffer crossfade to another item.
-- `this.player.isTransitioning()` — whether a crossfade is in progress.
+- `this.player.backend()`, the active `IAudioBackend` (audio-element or Web Audio).
+- `this.player.crossfadeTo(item, opts?)`, start a dual-buffer crossfade to another item.
+- `this.player.isTransitioning()`, whether a crossfade is in progress.
 
 ## Listening to music-specific events
 
@@ -110,13 +110,17 @@ use(): void {
 }
 ```
 
-`itemEndingSoon` is a core event shared by both players (the video player fires the same one) — it replaces v1's track-specific ending signal.
+`itemEndingSoon` is a core event shared by both players (the video player fires the same one), it replaces v1's track-specific ending signal.
 
 ## Best practices
 
 ### Memory-safe cleanup
 
-The lifecycle helpers — `this.on`, `this.listen`, `this.timeout`, `this.interval`, `this.frame`, `this.websocket`, `this.mount`, and `this.lifecycle.observe` — all register automatic cleanup when the plugin is torn down. That is why most plugins need no `dispose()` at all: there is nothing left to release by hand. You override `dispose()` only for a resource none of the helpers track — a third-party library instance, a raw `AudioNode` graph you built outside the backend.
+The lifecycle helpers all register their own cleanup: `this.on`, `this.listen`, `this.timeout`, `this.interval`, `this.frame`, `this.websocket`, `this.mount`, `this.lifecycle.observe`.
+
+That is why most plugins need no `dispose()`. There is nothing left to release by hand.
+
+Override `dispose()` only for a resource none of them track: a third-party library instance, or a raw `AudioNode` graph you built outside the backend.
 
 A `ResizeObserver` is tracked: wrap it with `this.lifecycle.observe`, which disconnects it on dispose and returns the observer so you chain the `observe(el)` straight on:
 
@@ -128,15 +132,19 @@ this.lifecycle
   .observe(this.player.container);
 ```
 
-A raw `new ResizeObserver` that you store and disconnect by hand works, but it is the pattern `this.lifecycle.observe` exists to remove — and the `@nomercy-entertainment/eslint-plugin-player` rules flag it, alongside raw `setTimeout` / `addEventListener`, a raw `throw`, and the global `fetch`.
+A raw `new ResizeObserver` that you store and disconnect by hand works, but it is the pattern `this.lifecycle.observe` exists to remove, and the `@nomercy-entertainment/eslint-plugin-player` rules flag it, alongside raw `setTimeout` / `addEventListener`, a raw `throw`, and the global `fetch`.
 
 ### Use the scoped helpers, not the raw primitives
 
-`this.listen(target, event, handler)` wraps `addEventListener` and auto-removes on dispose. `this.fetch(url, options?)` runs the player's auth pipeline and aborts on teardown. `this.throw(payload)` surfaces a structured error. Reaching past these to the raw form leaks a listener, sends an unauthenticated request, or drops an error off the contract — which is why the lint rules flag each one. A genuine exception (a public URL that must not carry auth) takes an `eslint-disable-next-line` with a one-line reason.
+`this.listen(target, event, handler)` wraps `addEventListener` and removes it on dispose. `this.fetch(url, options?)` runs the player's auth pipeline and aborts on teardown. `this.throw(payload)` surfaces a structured error.
+
+Reaching past these to the raw form leaks a listener, sends an unauthenticated request, or drops an error off the contract. That is why the lint rules flag each one.
+
+A genuine exception, such as a public URL that must not carry auth, takes an `eslint-disable-next-line` with a one-line reason.
 
 ### Inter-plugin communication via events, not direct references
 
-Use `this.emit()` to broadcast from a plugin and `this.on(PluginClass, event, fn)` to receive from a specific plugin. This keeps plugins decoupled and independently testable. Direct references — calling methods on another plugin instance — create hidden load-order dependencies.
+Use `this.emit()` to broadcast from a plugin and `this.on(PluginClass, event, fn)` to receive from a specific plugin. This keeps plugins decoupled and independently testable. Direct references, calling methods on another plugin instance, create hidden load-order dependencies.
 
 ```ts
 // Emitting plugin: declares its own event map as the third generic
@@ -166,7 +174,7 @@ export class QueuePanelPlugin extends Plugin<IMusicPlayer> {
 }
 ```
 
-`this.on(PluginClass, event, fn)` is the typed form for listening to another plugin's events. The consumer-facing string form is `on('plugin:<id>:<event>', fn)` on the player object itself — use the class form inside plugins.
+`this.on(PluginClass, event, fn)` is the typed form for listening to another plugin's events. The consumer-facing string form is `on('plugin:<id>:<event>', fn)` on the player object itself, use the class form inside plugins.
 
 ## Next steps
 

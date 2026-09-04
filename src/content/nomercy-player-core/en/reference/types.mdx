@@ -76,7 +76,13 @@ Every one of these is a real TypeScript `enum` (not a string union), returned by
 
 `DeviceCapabilities` (returned by `player.device()`): `isTv` / `isMobile` / `isDesktop` (mutually exclusive environment flags), `pipSupported` / `fullscreenSupported` / `webLocksSupported` (API availability), `autoplayAllowed` (`boolean | 'unknown'`), `preferred` (`'smooth' | 'powerEfficient'`, a decode-preference hint).
 
-`PlaybackMetrics` (returned by `player.metrics()`, emitted periodically as `playback:metrics`): `ttfb` and `avgBitrate` and `decoderStalls` and `droppedFrames` are `number | null` (`null` means the active backend structurally can't report the counter, always guard before using), `ttff` / `rebufferRatio` / `joinTime` / `sessionDurationMs` are always `number`. An index signature `[customMetric: string]: number | null` lets plugins publish their own namespaced counters onto the same object.
+`PlaybackMetrics` is returned by `player.metrics()` and emitted periodically as `playback:metrics`.
+
+`ttfb`, `avgBitrate`, `decoderStalls` and `droppedFrames` are `number | null`. A `null` means the active backend cannot report that counter at all, so guard before using one.
+
+`ttff`, `rebufferRatio`, `joinTime` and `sessionDurationMs` are always `number`.
+
+An index signature, `[customMetric: string]: number | null`, lets plugins publish their own namespaced counters onto the same object.
 
 ## i18n & plugin declaration types
 

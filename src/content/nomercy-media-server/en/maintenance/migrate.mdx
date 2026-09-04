@@ -1,13 +1,61 @@
 ---
-title: 'Migrating to a New Machine'
-description: 'Move your NoMercy installation to new hardware.'
+title: 'Moving to another machine'
+description: 'Move your server and library to new hardware.'
 draft: false
 ---
 
-# Migrating to a New Machine
+# Moving to another machine
 
-::Callout
+Two things move separately: your library, which is portable, and your server's identity, which is tied to the hardware it was set up on.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+Read this before you start, because the order matters.
+
+## Your server's identity
+
+A server identifies itself with a fingerprint taken from the machine it runs on, built from the motherboard and system drive.
+
+That identity is what its address, its DNS entry and its certificate are issued against. New hardware produces a new fingerprint, so a server on a new machine is a new server, and copying the old machine's data does not carry the old identity across.
+
+That is the part to plan around. Everything else moves cleanly.
+
+## What moves cleanly
+
+**Your media.** Copy the library folders. They are ordinary files.
+
+**Your data directory**, which holds your libraries, watch progress, users and settings. See [Backups](/nomercy-media-server/maintenance/backups) for where it lives per platform.
+
+## Moving
+
+1. Copy your media to the new machine, or connect the same storage to it.
+2. Install NoMercy on the new machine and complete setup, signing in with the same account. It registers as a new server and gets its own address and certificate.
+3. Copy the data directory across from the old machine, replacing the new one's, then restart the server.
+4. Check the library folder paths in the dashboard. If the media sits at a different path on the new machine, update each folder to match and rescan.
+5. Open the app, pick the new server, and confirm your libraries and watch progress came across.
+6. Once you are satisfied, retire the old server.
+
+Keep the old machine intact until step five passes. It is your fallback.
+
+## In Docker
+
+Moving a container is easier because the identity problem is smaller. Copy the `nomercy-data` volume to the new host, bring the container up with the same compose file and the same media mounts, and the server keeps its own identity.
+
+The mount paths inside the container must match what they were, since your libraries refer to container paths.
+
+## Your users
+
+People you invited follow the account, not the machine, so they do not need re-inviting. They select the new server the same way you do.
+
+::Troubleshooting
+
+**The app shows two servers.**
+Expected while both exist. Remove the old one once you are satisfied with the new one.
+
+**The libraries are there but every title is missing.**
+The folder paths do not match the new machine. Correct each folder's path in the dashboard and rescan.
 
 ::
+
+## Where to go next
+
+- [Backups](/nomercy-media-server/maintenance/backups)
+- [Storage](/nomercy-media-server/storage) if the media moved to a different disk or share.

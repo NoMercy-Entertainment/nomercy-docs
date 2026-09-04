@@ -1,13 +1,45 @@
 ---
 title: 'Music'
-description: 'Music root endpoint.'
+description: 'The music home screen and music search.'
 draft: false
 ---
 
 # Music
 
-::Callout
+Music has its own home screen, described by the server the same way the video home is.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## The screen
 
-::
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/music` | MediaAccess |
+| GET | `/api/v1/music/start` | MediaAccess |
+
+The two are the same endpoint. It takes `page` and `take`.
+
+## Filling the rows
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/music/start/favorites` | MediaAccess |
+| POST | `/api/v1/music/start/favorite-artists` | MediaAccess |
+| POST | `/api/v1/music/start/favorite-albums` | MediaAccess |
+| POST | `/api/v1/music/start/playlists` | MediaAccess |
+
+Each fills one row of the screen for the calling user.
+
+## Search
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/music/search` | MediaAccess |
+
+Takes `query`, and optionally `type` to narrow it.
+
+The result is shaped for the music view: one top result, a handful of tracks, and carousels for the rest. Each category is capped so a broad query stays fast.
+
+## Where to go next
+
+- [Artists](/nomercy-api/rest/artists)
+- [Albums](/nomercy-api/rest/albums)
+- [Playlists](/nomercy-api/rest/playlists)

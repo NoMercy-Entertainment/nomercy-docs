@@ -1,6 +1,6 @@
 ---
 title: 'Transport'
-description: 'play(), pause(), stop(), togglePlayback(), and next()/previous() — the queue-driven playback commands every music UI wires first.'
+description: 'play(), pause(), stop(), togglePlayback(), and next()/previous(), the queue-driven playback commands every music UI wires first.'
 ---
 
 {/* Source: packages/nomercy-player-core/src/core/mixins/transport.ts */}
@@ -28,7 +28,15 @@ Every one of these accepts `ActionOptions`: `{ source, silent }`. `source` defau
 
 ## Moving through the queue
 
-`next()` and `previous()` move the queue cursor and load the resulting item (see [The Queue](/nomercy-music-player/tour/queue) for how the cursor itself works). `next()` honors whatever `repeatState()` is set to: `'one'` reloads the current item without moving the cursor, `'all'` wraps back to the first item once you run off the end, and `'off'` fires `queue:exhausted` when there's no next item. `previous()` doesn't consult repeat at all, it just steps back one item and quietly no-ops at the start of the queue:
+`next()` and `previous()` move the queue cursor and load the resulting item. [The Queue](/nomercy-music-player/tour/queue) covers the cursor itself.
+
+`next()` honours `repeatState()`:
+
+- `'one'` reloads the current item without moving the cursor.
+- `'all'` wraps back to the first item at the end.
+- `'off'` fires `queue:exhausted` when there is no next item.
+
+`previous()` ignores repeat. It steps back one item, and no-ops at the start of the queue:
 
 ```ts
 await player.next();

@@ -15,7 +15,11 @@ The three functions [Build a Player](/nomercy-player-core/build/compose-methods)
 function composeMixins<T extends object>(prototype: T, ...modules: object[]): void;
 ```
 
-Stamps one or more mixin objects onto a prototype via `Object.getOwnPropertyDescriptors` + `Object.defineProperty`, so getters/setters land as accessors instead of being triggered during the copy. Collision order is left-to-right: a later module in the argument list overrides an earlier one on the same key, list more specific modules after more general ones. Idempotent, calling it twice with the same module just overwrites identical descriptors.
+Stamps one or more mixin objects onto a prototype, through `Object.getOwnPropertyDescriptors` and `Object.defineProperty`. Getters and setters land as accessors rather than being triggered during the copy.
+
+Collisions resolve left to right: a later module in the argument list wins on the same key. So list specific modules after general ones.
+
+It is idempotent. Calling it twice with the same module overwrites identical descriptors.
 
 ## resolvePlayerConstructor
 
@@ -31,7 +35,13 @@ type PlayerCtorResolution<C> =
 	| { kind: 'mount'; id: string; div: HTMLDivElement };
 ```
 
-The three-form factory resolution `nmplayer()` / `nmplayer('div-id')` / `nmplayer(2)` use. `id === undefined` returns the first registered instance (throws `core:player/no-element` if the registry is empty). A numeric `id` indexes the registry's insertion order (throws `core:player/not-found` out of range). A string `id` checks the registry first; if not found, resolves `document.getElementById(id)` and requires it to be a `<div>` (throws `core:player/element-missing` or `core:player/element-not-div`). SSR-safe, the `document` call is guarded.
+The resolution behind all three factory forms: `nmplayer()`, `nmplayer('div-id')` and `nmplayer(2)`.
+
+- **No id**: returns the first registered instance. Throws `core:player/no-element` on an empty registry.
+- **A number**: indexes the registry's insertion order. Throws `core:player/not-found` out of range.
+- **A string**: checks the registry first. Failing that, resolves `document.getElementById(id)` and requires a `<div>`. Throws `core:player/element-missing` or `core:player/element-not-div`.
+
+SSR-safe: the `document` call is guarded.
 
 ## initPlayerCoreState
 
@@ -51,7 +61,11 @@ Compared against a plugin's `static readonly minCoreVersion` at `addPlugin()` ti
 
 ## playerCoreMethods and the individually-exported mixin groups
 
-`playerCoreMethods` is the full `as const` tuple of every shared mixin, the exact aggregate `NMVideoPlayer` and `NMMusicPlayer` compose. It bundles 26 mixin groups internally, but only 16 are individually importable from the package's public entry, the other 10 (stream registration, media tracks, device detection, audio output, cast state, ABR, metrics, loading, activity, and generic DOM helpers) are internal building blocks meant to be consumed only as part of the full aggregate, not recomposed piecemeal.
+`playerCoreMethods` is the `as const` tuple of every shared mixin. It is the exact aggregate both real players compose.
+
+It bundles 26 mixin groups, and 16 of those are importable individually from the public entry.
+
+The other 10 are internal building blocks, meant to be taken as part of the aggregate rather than recomposed piecemeal: stream registration, media tracks, device detection, audio output, cast state, ABR, metrics, loading, activity, and generic DOM helpers.
 
 Individually exported, for composing a narrower surface than the full aggregate:
 

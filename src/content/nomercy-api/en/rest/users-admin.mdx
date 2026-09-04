@@ -1,13 +1,48 @@
 ---
-title: 'User Management'
-description: 'Admin CRUD for users.'
+title: 'Users (admin)'
+description: 'Invite a user, see what they may do, and change it.'
 draft: false
 ---
 
-# User Management
+# Users (admin)
 
-::Callout
+Managing who may use the server. Most of this is owner-only, because it decides who gets in.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## The user list
 
-::
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/users` | Owner |
+| POST | `/api/v1/dashboard/users` | Owner |
+| GET | `/api/v1/dashboard/users/{id}` | Moderator |
+| DELETE | `/api/v1/dashboard/users/{id}` | Owner |
+
+A user is added by their NoMercy account, not by creating a password here. Accounts live with the identity service; this list decides which of them your server accepts.
+
+Removing a user takes away their access. Nothing of theirs is removed from disk.
+
+## Permissions
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/users/permissions` | Owner |
+| GET | `/api/v1/dashboard/users/{id}/permissions` | Moderator |
+| PATCH | `/api/v1/dashboard/users/{id}/permissions` | Moderator |
+
+The switches map onto the permissions every endpoint page names: allowed to use the server, allowed to manage it, allowed to use the disc drive.
+
+There is one owner and it does not move. See [Users](/nomercy-media-server/users).
+
+## Notifications
+
+| Method | Path | Needs |
+|--------|------|-------|
+| PATCH | `/api/v1/dashboard/users/notifications` | Moderator |
+| PATCH | `/api/v1/dashboard/users/{id}/notifications` | Moderator |
+
+Which events reach a user. The first form sets it for the calling user.
+
+## Where to go next
+
+- [Users](/nomercy-media-server/users)
+- [Devices](/nomercy-api/rest/devices)

@@ -7,13 +7,19 @@ description: 'ISimilarityEngine: a reserved "find similar tracks" port with no d
 
 # Adapter: Similarity Engine
 
-`ISimilarityEngine` is a reserved port for "find items similar to this seed", for a future radio-mode or "more like this" feature, and for [`SmartShuffleGenerator`](/nomercy-music-player/plugins-adapters/auto-advance) when its local tag-based scoring (genre/decade overlap) isn't enough. It exists today as a defined contract with **no shipped implementation and no plugin wiring it in**, documented here so it's visible rather than silently absent, not because there's a feature to configure yet.
+`ISimilarityEngine` is a reserved port for "find items similar to this seed".
+
+It is there for a future radio mode or "more like this", and for [`SmartShuffleGenerator`](/nomercy-music-player/plugins-adapters/auto-advance) when its local genre and decade scoring is not enough.
+
+Today it is a defined contract with **no shipped implementation and no plugin wiring it in**. It is documented so it is visible rather than silently absent, not because there is something to configure.
 
 ## Current status: reserved, not wired
 
 - No default adapter ships. Unlike [Audio Backend](/nomercy-music-player/plugins-adapters/adapter-audio-backend), which always has `AudioElementBackend` behind it, there is no `NoopSimilarityEngine` or equivalent.
 - No plugin in this package calls `findSimilar()`. `AutoAdvancePlugin`'s `SmartShuffleGenerator` does its own local scoring today and does not depend on this interface, see [Plugin: Auto-Advance](/nomercy-music-player/plugins-adapters/auto-advance).
-- **Not re-exported from either public entry point.** `src/adapters/index.ts` (the package's `./adapters` subpath) re-exports only the audio-backend module, `ISimilarityEngine` has no `./adapters/similarity-engine` subpath export in `package.json` either. Importing it today means reaching into the package's internal file path, which is not a supported import, define your own matching local interface instead of importing the internal one if you need this shape now.
+- **Not re-exported from either public entry point.** The `./adapters` subpath re-exports the audio-backend module only, and `package.json` declares no `./adapters/similarity-engine` subpath.
+
+- Importing it today means reaching into an internal file path, which is not supported. If you need this shape now, define a matching interface of your own.
 
 ## The interface, for reference
 
@@ -36,11 +42,11 @@ interface SimilarityQueryOptions {
 
 Once wired, an implementation would come from one of:
 
-- **Server-driven** — the NoMercy media server's own recommendation endpoint.
-- **Audio-feature-based** — BPM / key / energy similarity computed from the audio itself.
-- **Tag-based** — genre / decade / mood overlap, a generalized version of what `SmartShuffleGenerator` already does locally.
-- **ML embedding** — vector proximity over a precomputed embedding space.
-- **External service** — Last.fm similar-tracks, or an equivalent third-party API.
+- **Server-driven**, the NoMercy media server's own recommendation endpoint.
+- **Audio-feature-based**, BPM / key / energy similarity computed from the audio itself.
+- **Tag-based**, genre / decade / mood overlap, a generalized version of what `SmartShuffleGenerator` already does locally.
+- **ML embedding**, vector proximity over a precomputed embedding space.
+- **External service**, Last.fm similar-tracks, or an equivalent third-party API.
 
 ## Next steps
 

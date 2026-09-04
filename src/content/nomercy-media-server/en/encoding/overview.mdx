@@ -1,13 +1,60 @@
 ---
-title: 'Encoding Overview'
-description: 'How the encoder works and when it runs.'
+title: 'Encoding overview'
+description: 'What the server does to a title when you add it, and why.'
 draft: false
 ---
 
-# Encoding Overview
+# Encoding overview
 
-::Callout
+When you import a title, the server encodes it with the library folder's profile. This page explains what that produces and when it happens.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Why encode anything
 
-::
+For one reason: so the library is uniform.
+
+Your content arrives from everywhere. A disc, a file from years ago, a file from last week. Left alone, the shelf holds a different format for every source it came from. Encoding on import means the whole library is stored in the codec you chose, whichever one that is.
+
+Playback is not part of this. The server converts anything a client cannot take directly, while it plays, so what is on the shelf never decides whether something plays.
+
+## When the machine is the reason
+
+Converting while someone watches is real work, and a heavy source is heavy work. A 4K Dolby Atmos remux asks more of a machine than a small server or a NAS can manage in real time.
+
+Encoding that title once, up front, into something the machine can send as it is, moves the work off playback entirely. The same goes for a ladder: several bitrates written ahead of time, so a client picks a step it can take instead of asking the server to make one.
+
+This is a decision about your hardware, not about your library. A machine that keeps up needs neither.
+
+## What encoding produces
+
+This depends on the preset the library folder uses, and the presets differ a lot. See [Encoding profiles](/nomercy-media-server/encoding/profiles).
+
+Every preset produces the audio tracks, subtitles as separate files including ones that were images in the original, chapter markers, and preview thumbnails for the seek bar.
+
+What differs is the video.
+
+**A streaming preset** writes the video at several sizes, so a phone on mobile data and a TV on the LAN each get something sensible. The output is a folder of parts rather than one file, which is what makes seeking and quality switching instant.
+
+**An archive or single-file preset** writes one file at the source resolution.
+
+**A remux preset** copies the video across untouched and only changes the container.
+
+## When it happens
+
+**Content you add with Add content is always encoded.** Choosing files by hand is treated as asking for them to be brought into the library's format, whatever else the library is set to.
+
+**Content the server finds by scanning is not**, unless you switch on **Auto-encode files found by scanning** in the library's settings. Found files are listed as they are, and are part of the library either way.
+
+Discs are always encoded, because a disc holds a structure of titles and streams rather than a file.
+
+## How long it takes
+
+Longer than copying, shorter than you fear, and it happens once per title.
+
+Speed depends mostly on whether the machine has a GPU the server can use. The Docker images come in variants for NVIDIA, Intel and AMD hardware for exactly this reason.
+
+Work is queued, so adding thirty films at once is fine. They are processed in order and you can watch the queue on the dashboard.
+
+## Where to go next
+
+- [Encoding profiles](/nomercy-media-server/encoding/profiles) to choose what the output looks like.
+- [Library Management](/nomercy-media-server/libraries) to set a preset on a library.

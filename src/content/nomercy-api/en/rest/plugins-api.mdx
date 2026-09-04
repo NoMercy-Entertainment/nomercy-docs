@@ -1,13 +1,67 @@
 ---
-title: 'Plugin API'
-description: 'Plugin management API endpoints.'
+title: 'Plugins'
+description: 'Installing plugins, consenting to what they ask for, and the screens they add.'
 draft: false
 ---
 
-# Plugin API
+# Plugins
 
-::Callout
+Plugin management is owner-only, because installing one is letting code run inside your server.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Installed plugins
 
-::
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/plugins` | Owner |
+| GET | `/api/v1/dashboard/plugins/{id}` | Owner |
+| POST | `/api/v1/dashboard/plugins/install` | Owner |
+| DELETE | `/api/v1/dashboard/plugins/{id}` | Owner |
+| POST | `/api/v1/dashboard/plugins/{id}/enable` | Owner |
+| POST | `/api/v1/dashboard/plugins/{id}/disable` | Owner |
+
+`install` takes an uploaded file, so a plugin can be installed without a repository.
+
+## Consent
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/plugins/{id}/consent` | Owner |
+| DELETE | `/api/v1/dashboard/plugins/{id}/consent` | Owner |
+| GET | `/api/v1/dashboard/plugins/grants/pending` | Owner |
+| POST | `/api/v1/dashboard/plugins/{id}/grants` | Owner |
+
+A plugin that asks for more than the ordinary set installs switched off and waits here. Withdrawing consent disables it and clears what was granted.
+
+Grants are the narrower requests a plugin makes while running, such as one network host. They are answered one at a time. See [Plugins overview](/nomercy-media-server/plugins/overview).
+
+## Repositories
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/plugins/repositories` | Owner |
+| POST | `/api/v1/dashboard/plugins/repositories` | Owner |
+| DELETE | `/api/v1/dashboard/plugins/repositories/{name}` | Owner |
+| POST | `/api/v1/dashboard/plugins/repositories/refresh` | Owner |
+| GET | `/api/v1/dashboard/plugins/repositories/available` | Owner |
+| POST | `/api/v1/dashboard/plugins/repositories/{pluginId}/install` | Owner |
+
+`available` is what the configured repositories offer. Installing from one takes an optional `version`.
+
+## The screens plugins add
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/plugins/ui` | Authenticated |
+| GET | `/api/v1/plugins/ui/browse` | Authenticated |
+| GET | `/api/v1/plugins/{id}/view` | Authenticated |
+| GET | `/api/v1/plugins/{id}/translations/{locale}` | Authenticated |
+
+These are what a client calls to draw plugin screens. A plugin describes its view and each client renders it in its own style, which is why one plugin looks native on web, phone and TV.
+
+`browse` takes a `surface` so a client asks only for what it can show.
+
+## Where to go next
+
+- [Plugins overview](/nomercy-media-server/plugins/overview)
+- [Repositories and trust](/nomercy-media-server/plugins/trusted-publishers)
+- [Writing a plugin](/nomercy-media-server/plugins/developing)

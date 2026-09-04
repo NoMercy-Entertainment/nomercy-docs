@@ -1,74 +1,81 @@
 ---
 title: 'Errors'
-description: 'In this guide, we will talk about what happens when something goes wrong while you work with the API.'
+description: 'The shape of a failed response, and what each status means here.'
+draft: false
 ---
 
 # Errors
 
-In this guide, we will talk about what happens when something goes wrong while you work with the API. Mistakes happen, and mostly they will be yours, not ours. Let's look at some status codes and error types you might encounter. {{ className: 'lead' }}
+A failed request answers with a problem document: the standard `application/problem+json` shape, plus the trace id for that request.
 
-You can tell if your request was successful by checking the status code when receiving an API response. If a response comes back unsuccessful, you can use the error type and error message to figure out what has gone wrong and do some rudimentary debugging (before contacting support).
-
-::Callout
-
-Every error response carries a type and a message that name what went wrong. Read those first, since most errors are answered there. If the message does not explain it, that is worth reporting: an unclear error is a bug in the API, not in your code.
-
-::
-
----
-
-## Status codes
-
-Here is a list of the different categories of status codes returned by the NoMercy API. Use these to understand if a request was successful.
-
-::properties
-
-::property {{ name: '2xx' }}
-
-A 2xx status code indicates a successful response.
-
-::property {{ name: '4xx' }}
-
-A 4xx status code indicates a client error — this means it's a _you_ problem.
-
-::property {{ name: '5xx' }}
-
-A 5xx status code indicates a server error — you won't be seeing these.
-
-::
-
----
-
-## Error types
-
-::row
-
-::col
-
-Whenever a request is unsuccessful, the NoMercy API will return an error response with an error type and message. You can use this information to understand better what has gone wrong and how to fix it. Most of the error messages are pretty helpful and actionable.
-
-Here is a list of the two error types supported by the NoMercy API — use these to understand what you have done wrong.
-
-::properties
-
-::property {{ name: 'api_error' }}
-
-This means that we made an error, which is highly speculative and unlikely.
-
-::property {{ name: 'invalid_request' }}
-
-This means that you made an error, which is much more likely.
-
-::
-
-::col
-
-```bash {{ title: "Error response" }}
+```json {{ title: 'A rejected request' }}
 {
-  "type": "api_error",
-  "message": "No way this is happening!?",
-  "documentation_url": "https://protocol.chat/docs/errors/api_error"
+  "type": "/docs/errors/forbidden",
+  "title": "Unauthorized.",
+  "detail": "You do not have permission to manage libraries",
+  "instance": "/api/v1/dashboard/libraries",
+  "status": 403,
+  "traceId": "0HN7GK3P1QK2M:00000003"
 }
 ```
 
+::properties
+
+::property {{ name: 'type', type: 'string' }}
+
+An identifier for the kind of failure. Stable, so it is safe to branch on.
+
+::property {{ name: 'title', type: 'string' }}
+
+The category, translated to the caller's language.
+
+::property {{ name: 'detail', type: 'string' }}
+
+What went wrong in this particular request. Read this one first.
+
+::property {{ name: 'instance', type: 'string' }}
+
+The path that was called.
+
+::property {{ name: 'status', type: 'integer' }}
+
+The HTTP status, repeated in the body.
+
+::property {{ name: 'traceId', type: 'string' }}
+
+Identifies this request in the server log. Quote it when reporting a problem.
+
 ::
+
+## The statuses you will meet
+
+| Status | Means |
+|--------|-------|
+| 400 | The request was malformed |
+| 401 | No token, an invalid token, or an account this server does not know |
+| 403 | Authenticated, but without the permission this endpoint needs |
+| 404 | No such item, or none you may see |
+| 409 | The change conflicts with the current state |
+| 422 | The request was understood but the values will not do |
+| 429 | Too many requests |
+| 500 | The server failed |
+| 503 | The server is not ready to answer yet |
+
+## Telling 401 and 403 apart
+
+This pair is worth getting right, because the fix differs.
+
+**401** means the server did not accept the token. Either it is missing or expired, or the account behind it is not a user on this server. A token for a different NoMercy server lands here.
+
+**403** means the token was fine and the account is real, but it lacks the permission. Granting the permission is a change the server owner makes in the dashboard.
+
+## Finding the request in the log
+
+Every problem document carries `traceId`, and the same id is written into the server log. Search for it there to see what the server was doing.
+
+Log locations are listed in [Logs](/nomercy-media-server/troubleshooting/logs).
+
+## Where to go next
+
+- [Authentication](/nomercy-api/authentication)
+- [API Overview](/nomercy-api/overview)

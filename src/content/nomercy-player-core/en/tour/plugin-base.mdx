@@ -23,7 +23,13 @@ Subclass `Plugin` and `initialize()` (called by the player, never by you) wires 
 - `throw(payload)` / `report(payload)`: structured error escalation, `throw` aborting the current flow, `report` just surfacing a warning.
 - `mount(name)`: a `<div>` on the player container, namespaced `nmplayer-<id>-<name>`, removed on dispose.
 
-Reach for these helpers rather than the raw primitives. Calling `this.player.on` / `.emit` directly, or using a raw `setTimeout`, `addEventListener`, `new ResizeObserver`, a raw `throw`, or the global `fetch`, all skip the scoping, cleanup, auth, and structured-error handling the helpers give you. Each one leaks something past `dispose()` or drops off a contract, so the `@nomercy-entertainment/eslint-plugin-player` rules flag them at write time. When a plugin genuinely needs the raw form — a public URL that must not carry auth, a third-party emitter that is not an `EventTarget` — an `eslint-disable-next-line` with a one-line reason is the intended escape hatch.
+Reach for these helpers rather than the raw primitives.
+
+Calling `this.player.on` or `.emit` directly, or using a raw `setTimeout`, `addEventListener`, `new ResizeObserver`, a raw `throw`, or the global `fetch`, skips the scoping, cleanup, auth and structured errors the helpers give you.
+
+Each one leaks something past `dispose()`, or drops a contract. The `@nomercy-entertainment/eslint-plugin-player` rules flag them as you write.
+
+Sometimes the raw form is genuinely right: a public URL that must not carry auth, or a third-party emitter that is not an `EventTarget`. An `eslint-disable-next-line` with a one-line reason is the intended escape hatch.
 
 ## Declaring the contract
 

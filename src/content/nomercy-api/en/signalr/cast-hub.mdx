@@ -1,0 +1,76 @@
+---
+title: 'Cast hub'
+description: 'Driving a Chromecast, and the receiver reporting back.'
+draft: false
+---
+
+# Cast hub
+
+```text
+wss://{server-address}:7626/castHub?access_token={token}
+```
+
+This hub carries both halves of casting: the app telling a receiver what to do, and the receiver saying what it is doing.
+
+## Choosing a receiver and starting
+
+```text
+SelectChromecast(name)
+Launch()
+CastPlaylist(value)
+Stop()
+Disconnect()
+```
+
+Pick a receiver by name, launch on it, then hand it what to play. `Stop` ends playback; `Disconnect` gives the receiver back.
+
+## Transport
+
+```text
+Play()
+Pause()
+SetSeek(time)
+SetVolume(volume)
+SetMuted(muted)
+SetPlaylistItem(item)
+```
+
+## Tracks
+
+```text
+SetAudioTrack(audioTrack)
+SetSubtitleTrack(subtitleTrack)
+```
+
+## What the receiver reports
+
+The receiver uses the same connection to say what it has:
+
+```text
+Time(time)
+Ended()
+Volume(volume)
+Muted(muted)
+Item(item)
+Playlist(items)
+AudioTracks(tracks)
+CurrentAudioTrack(track)
+SubtitleTracks(tracks)
+CurrentSubtitleTrack(track)
+PlayerState(state)
+```
+
+`Time` carries the position, the duration, how far through it is and how much is left, so a controller draws a progress bar without doing arithmetic of its own.
+
+## Asking where things stand
+
+```text
+GetPlayerState()
+```
+
+For a controller that joined part way through, rather than one that has been listening from the start.
+
+## Where to go next
+
+- [Video hub](/nomercy-api/signalr/video-hub)
+- [Device hub](/nomercy-api/signalr/device-hub)

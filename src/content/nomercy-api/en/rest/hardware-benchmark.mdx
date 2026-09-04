@@ -1,13 +1,39 @@
 ---
-title: 'Hardware Benchmark'
-description: 'Hardware benchmark endpoints.'
+title: 'Hardware benchmark'
+description: 'Measuring what this machine can encode with, and watching it work.'
 draft: false
 ---
 
-# Hardware Benchmark
+# Hardware benchmark
 
-::Callout
+The benchmark measures what your machine actually manages, rather than what its parts claim. The result is what the server uses when choosing an accelerator.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## The cached result
 
-::
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/hardware/benchmark` | Moderator |
+| POST | `/api/v1/dashboard/hardware/benchmark/run` | Owner |
+
+The result is kept, so reading it is cheap. Running it again is owner-only, because it puts the machine under load for as long as it takes.
+
+## The encoder view
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/encoder/capabilities` | Moderator |
+| GET | `/api/v1/encoder/hardware/utilization` | Moderator |
+| POST | `/api/v1/encoder/hardware/benchmark` | Moderator |
+| GET | `/api/v1/encoder/hardware/benchmark` | Moderator |
+| GET | `/api/v1/encoder/hardware/benchmark/{jobId}` | Moderator |
+
+`capabilities` lists what this machine can do: which accelerators are present and what each can encode and decode.
+
+`utilization` is the live picture while encoding runs.
+
+Starting a benchmark here returns a job id. Poll that id for the result, rather than holding the request open.
+
+## Where to go next
+
+- [Hardware acceleration](/nomercy-media-server/encoding/hardware)
+- [Encoder profiles](/nomercy-api/rest/encoder-profiles)

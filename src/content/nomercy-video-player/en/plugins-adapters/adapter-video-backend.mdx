@@ -76,7 +76,17 @@ Method conventions mirror the player class itself: stateful values are overloade
 
 ## The shipped implementation
 
-`Html5VideoBackend` wraps a real `<video>` element. Native HLS on Safari, `hls.js` (dynamically imported, so the bundle cost is zero on Safari) everywhere else, one call surface either way, `player.play()` never branches on browser. It applies HDR-aware level constraints itself (capping or lifting HLS renditions as the display's HDR capability changes) and emits the full `BackendEventPayload` map (`levels`, `level-switched`, `audioTracks`, `stream:error`, `stream:recovering`, `subtitleCue`, and the standard media element events) that `NMVideoPlayer` bridges onto its own public event surface. ABR bandwidth estimation (`bandwidth()` / `bandwidthEstimator()`) and dropped-frame metrics are backend-agnostic instead: the kit's own `abrMethods` mixin owns the former, `NMVideoPlayer`'s own `timeupdate` bridging polls `mediaElement().getVideoPlaybackQuality()` for the latter, both work the same regardless of which `IVideoBackend` is active.
+`Html5VideoBackend` wraps a real `<video>` element.
+
+Native HLS on Safari, `hls.js` everywhere else. The import is dynamic, so the bundle cost is zero on Safari, and `player.play()` never branches on browser.
+
+It applies HDR-aware level constraints itself, capping or lifting HLS renditions as the display's HDR capability changes.
+
+It emits the full `BackendEventPayload` map, which `NMVideoPlayer` bridges onto its own public events: `levels`, `level-switched`, `audioTracks`, `stream:error`, `stream:recovering`, `subtitleCue`, and the standard media element events.
+
+Two things are deliberately not the backend's. Bandwidth estimation, `bandwidth()` and `bandwidthEstimator()`, belongs to the kit's `abrMethods` mixin. Dropped-frame metrics come from `NMVideoPlayer` polling `mediaElement().getVideoPlaybackQuality()`.
+
+Both work the same whichever `IVideoBackend` is active.
 
 `canStartAt` reports whether the backend consumes `startTime` natively, when `true`, the kit skips its own post-load seek fallback, `hls.js` supports this directly (`startPosition`), so a resume-at-offset load fetches the correct segment from the first request instead of downloading and discarding the stream's beginning.
 
@@ -86,10 +96,12 @@ Method conventions mirror the player class itself: stateful values are overloade
 
 ## Rules & restrictions
 
-- `backend()` constructs the instance lazily, on first call, and caches it, calling it before `setup()` returns an instance not yet wired to a loaded source.
-- Only one backend is active per player at a time. `player.backend(kind)` swaps it mid-session, disposing the previous instance and emitting `backend:changed`, it is not itself a crossfade, whatever was playing stops and the new backend comes up with no source loaded, so you reload to resume playback. See [Reference: Video Player Methods](/nomercy-video-player/reference/player-methods#video-element--geometry). Cast handoff is a separate, `transferTo()` / plugin-level concern, unrelated to this swap.
-- `mediaKeys()` / `setMediaKeys()` / `outputProtectionState()` exist for EME/DRM coordination (see [Plugin: DRM](/nomercy-video-player/plugins-adapters/drm)), a backend that never touches encrypted content can implement them as no-ops.
-- `outputNode` / `analysisNode` are optional, only implement them if the backend wants to support `AudioGraphPlugin`-style Web Audio taps (equalizer, spectrum visualizers, re-exported from the kit); a backend that never builds a Web Audio graph pays zero cost by omitting them.
+- `backend()` constructs the instance on first call and caches it. Call it before `setup()` and you get an instance not yet wired to a loaded source.
+- One backend is active per player at a time. `player.backend(kind)` swaps it mid-session, disposes the previous instance and emits `backend:changed`.
+
+- A swap is not a crossfade. Whatever was playing stops, and the new backend comes up with no source, so reload to resume. See [Reference: Video Player Methods](/nomercy-video-player/reference/player-methods#video-element--geometry). Cast handoff is a separate concern, through `transferTo()` at plugin level.
+- `mediaKeys()`, `setMediaKeys()` and `outputProtectionState()` exist for EME and DRM coordination. See [Plugin: DRM](/nomercy-video-player/plugins-adapters/drm). A backend that never touches encrypted content implements them as no-ops.
+- `outputNode` and `analysisNode` are optional. Implement them only to support Web Audio taps such as the equalizer and spectrum visualizers re-exported from the kit. A backend that never builds a Web Audio graph omits them and pays nothing.
 
 ## How to extend it
 

@@ -1,13 +1,82 @@
 ---
-title: 'How Library Scanning Works'
-description: 'Understanding the library scan pipeline and file matching rules.'
+title: 'Adding and scanning files'
+description: 'Add video files you already have, and understand what scanning does.'
 draft: false
 ---
 
-# How Library Scanning Works
+# Adding and scanning files
 
-::Callout
+You have files already: things you ripped before, or downloads of content you own. This page covers getting them into a library.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+There are two routes and they do different things. Read [Library Management](/nomercy-media-server/libraries) first if you have not.
+
+## Add content
+
+This is the route that files a title onto the shelf for you and stores it in the library's format.
+
+1. Open the dashboard and go to **Libraries**, then open the library you want.
+2. Choose **Add content**.
+3. **Source folder**: type or browse to where your files are. This is a path on the server machine, or a share the server can reach.
+4. **Destination folder**: pick the library folder the results should go into.
+5. Tick the files you want. There is a **Select all** if you want the lot.
+6. Choose **Add selection**.
+
+NoMercy queues one job per file. Each is identified, encoded with the library's preset, and written into the destination folder under the name and layout the rest of the shelf uses.
+
+Your source files are only read. They are not moved, renamed or deleted. When you are happy with the result you can remove them yourself.
+
+Every file added this way is encoded, whatever the library's auto-encode switch is set to. Choosing files by hand is treated as asking for them to be brought into the library's format.
+
+## Scanning
+
+The other route is to let the server find files itself.
+
+When you add a folder that already holds media, the server scans it and lists what it finds. It does the same for files that appear in a library folder afterwards.
+
+Scanned files are listed in their original form. They are not converted unless you switch on **Auto-encode files found by scanning** in the library's settings.
+
+They play like anything else in the library. The server converts whatever a client cannot take directly, while it plays.
+
+The trade is a shelf holding whatever format each file happened to arrive in, rather than the one your library's preset produces.
+
+## Getting matched correctly
+
+Names matter. NoMercy works out what a file is from its name and the folder around it.
+
+These match reliably:
+
+```text
+Arrival (2016).mkv
+The Expanse/Season 01/The Expanse - S01E03.mkv
+```
+
+Release-style names usually work too, because the year and the episode numbering are still in there.
+
+What causes trouble:
+
+- No year on a film with a common title.
+- A folder name that disagrees with the file name inside it.
+- Episode numbering the name does not actually contain.
+
+You can correct a wrong match afterwards from the title's page.
+
+::Troubleshooting
+
+**Nothing appears after adding.**
+Check the task list on the dashboard. Encoding a title takes real time and several may be queued behind each other.
+
+**The files are on my laptop, not the server.**
+Move them to the server first, or share the folder and mount it on the server machine. The server can only read paths it can see.
+
+**Old formats take much longer.**
+An AVI or a ripped DVD folder has to be converted rather than repackaged. That is expected, and it only happens once.
+
+**Everything matched the wrong thing.**
+Check the library's type before anything else. Films in a TV Shows library are read as episodes.
 
 ::
+
+## Where to go next
+
+- [Discs](/nomercy-media-server/media/optical) for DVDs and Blu-rays.
+- [Metadata](/nomercy-media-server/media/metadata) for fixing a wrong match.

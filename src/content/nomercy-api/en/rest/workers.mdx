@@ -1,13 +1,51 @@
 ---
-title: 'Workers'
-description: 'Worker status endpoints.'
+title: 'Distribution workers'
+description: 'Extra machines that take encoding work from this server.'
 draft: false
 ---
 
-# Workers
+# Distribution workers
 
-::Callout
+A worker is another machine that encodes for your server. The server keeps the library and the queue; the worker just does the work and reports back.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+Distributed encoding is switched on by giving the server a signing key. Until then every route here answers 503 and the registry stays empty, so a single-machine install is unaffected by any of this.
 
-::
+## The worker list
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/distribution/workers` | Owner |
+| DELETE | `/api/v1/distribution/workers/{workerId}` | Owner |
+| GET | `/api/v1/distribution/workers/tasks/progress` | Owner |
+
+The same routes answer under `/api/v1/dashboard/workers`.
+
+## What a worker calls
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/distribution/workers/register` | Owner |
+| POST | `/api/v1/distribution/workers/{workerId}/heartbeat` | Owner |
+| POST | `/api/v1/distribution/workers/{workerId}/tasks/{taskId}/progress` | Owner |
+
+A worker registers itself on boot, then keeps a heartbeat going to stay active. It either unregisters cleanly on shutdown, or drops out of the registry after a short silence.
+
+## Dispatching
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/distribution/workers/dispatch` | Owner |
+| GET | `/api/v1/distribution/workers/dispatch/{taskId}/status` | Owner |
+
+## Reading the source
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/worker/source` | Signed link |
+
+A worker reads its source file over this route. The link is signed and timestamped rather than open, so it grants one file for a short window instead of access to the library.
+
+## Where to go next
+
+- [Tasks and the queue](/nomercy-api/rest/tasks)
+- [Hardware benchmark](/nomercy-api/rest/hardware-benchmark)

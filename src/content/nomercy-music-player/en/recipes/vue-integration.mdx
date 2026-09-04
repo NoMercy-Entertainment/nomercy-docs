@@ -7,7 +7,11 @@ description: 'A Vue 3 composable wrapping NMMusicPlayer: reactive state from eve
 
 # Recipe: Vue Integration
 
-`nomercy-music-player` is not a Vue library and never will be, it ships one factory function and a typed method surface, nothing that knows what a component is. Vue owns nothing about the player; the player owns nothing about Vue. A composable is the seam between them: it subscribes to player events, writes the values into `ref`s, and returns both the reactive state and the player instance itself so a template can call methods directly.
+`nomercy-music-player` is not a Vue library. It ships one factory function and a typed method surface, and nothing in it knows what a component is.
+
+Vue owns nothing about the player. The player owns nothing about Vue.
+
+A composable is the seam. It subscribes to player events, writes the values into `ref`s, and returns both the reactive state and the player instance, so a template can call methods directly.
 
 ## The composable
 
@@ -72,7 +76,11 @@ export function useMusicPlayer(containerId: string, config: MusicPlayerConfig) {
 }
 ```
 
-`player` is `null` until `onMounted` runs — a template reads it through `player?.togglePlayback()` the same way it reads any other ref that starts empty, and `playState()`/the `seek()` handler below guard the same way. This is the one shape that's correct regardless of how the caller renders the container (always-present markup, `v-if`, a route transition): the composable never assumes the DOM is ready before Vue says it is.
+`player` is `null` until `onMounted` runs.
+
+A template reads it through `player?.togglePlayback()`, the same as any other ref that starts empty. `playState()` and the `seek()` handler below guard the same way.
+
+That shape is correct however the caller renders the container: always-present markup, `v-if`, or a route transition. The composable never assumes the DOM is ready before Vue says it is.
 
 ## Using it in a component
 
@@ -123,7 +131,7 @@ function seek(event: MouseEvent) {
 </template>
 ```
 
-`player` is a top-level `<script setup>` ref, so the template above reads it unwrapped (`player?.togglePlayback()`, no `.value`) — Vue does that unwrapping automatically for refs returned from a composable and used directly in the template. Inside `<script>` itself (the `seek()` handler), it stays an explicit ref: `player.value?.seekByPercentage(...)`.
+`player` is a top-level `<script setup>` ref, so the template above reads it unwrapped (`player?.togglePlayback()`, no `.value`), Vue does that unwrapping automatically for refs returned from a composable and used directly in the template. Inside `<script>` itself (the `seek()` handler), it stays an explicit ref: `player.value?.seekByPercentage(...)`.
 
 ## Mounting it
 
@@ -173,7 +181,11 @@ const songs = [
 
 ## Providing the player globally
 
-For an app where multiple components (a mini-player, a queue sidebar, a lyrics panel) need the same instance, provide it once at the root instead of re-deriving state per component. Unlike the composable above, this is safe to call at `main.ts`'s top level, not inside `onMounted`: `#global-player` is a static element already present in `index.html` (a sibling of `#app`, not something Vue itself renders), so it exists in the DOM before this module even runs:
+When several components need the same instance, a mini-player, a queue sidebar, a lyrics panel, provide it once at the root instead of re-deriving state in each.
+
+Unlike the composable above, this is safe at `main.ts`'s top level rather than inside `onMounted`.
+
+`#global-player` is a static element in `index.html`, a sibling of `#app` that Vue never renders, so it exists in the DOM before this module runs:
 
 ```ts
 // main.ts

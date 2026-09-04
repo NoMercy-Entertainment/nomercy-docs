@@ -1,13 +1,61 @@
 ---
-title: 'Hardware Acceleration'
-description: 'Enable NVIDIA NVENC, Intel QSV, and AMD AMF hardware encoding.'
+title: 'Hardware acceleration'
+description: 'Use a GPU to encode titles faster.'
 draft: false
 ---
 
-# Hardware Acceleration
+# Hardware acceleration
 
-::Callout
+Encoding a title is the slowest thing the server does. A graphics card can do that work far faster than a processor, and the server uses one when it can.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## What is supported
+
+| Vendor | Used through |
+|--------|--------------|
+| NVIDIA | NVENC |
+| Intel | Quick Sync |
+| AMD | AMF on Windows, VAAPI on Linux |
+| Apple | VideoToolbox |
+
+H.264, HEVC and AV1 can all be accelerated, depending on what the card itself supports. An older card often accelerates H.264 and HEVC but not AV1.
+
+## Finding out what you have
+
+The server probes the machine at startup and remembers what it found. The dashboard shows the result under hardware, along with a benchmark of how fast each encoder actually is on your machine.
+
+That benchmark matters more than the specification sheet. The server uses it to choose, so a card that benchmarks poorly is not preferred just for being present.
+
+## In Docker
+
+The container needs to be given access to the card, which is why there is one image per vendor. Use the compose file that matches:
+
+```bash
+docker compose -f docker-compose.nvidia.yml up -d       # NVIDIA
+docker compose -f docker-compose.intel.yml up -d        # Intel Quick Sync
+docker compose -f docker-compose.amd.yml up -d          # AMD
+```
+
+The plain image has no GPU access, so it encodes on the processor.
+
+## Quality against speed
+
+A hardware encoder is faster. A software encoder produces a slightly smaller file at the same picture quality, because it can spend more effort on each frame.
+
+Presets carry a preference for this, and it is why the archive presets lean on software: an archive is written once and kept, so the extra time buys something permanent. A streaming ladder leans on hardware, because it is rebuilt whenever you change your mind.
+
+You do not choose the encoder directly. You choose a preset, and the preset's preference plus the benchmark decide.
+
+::Troubleshooting
+
+**Encoding is slow and the dashboard shows no GPU.**
+On Docker, check that you started the compose file for your vendor. Outside Docker, check that the machine's graphics drivers are installed; the server can only use a card the system already exposes.
+
+**A GPU is detected but the server encodes on the processor anyway.**
+Not every card supports every codec. A preset asking for AV1 on a card without AV1 encoding falls back to software rather than failing.
 
 ::
+
+## Where to go next
+
+- [Encoding profiles](/nomercy-media-server/encoding/profiles)
+- [Docker](/nomercy-media-server/installation/docker) for the GPU images.

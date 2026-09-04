@@ -1,13 +1,77 @@
 ---
-title: 'Live Transcode'
-description: 'Start a live transcode session, get the manifest URL, and tear down the session.'
+title: 'Streaming'
+description: 'Live transcode sessions: starting one, playing it, and steering it.'
 draft: false
 ---
 
-# Live Transcode
+# Streaming
 
-::Callout
+A live session transcodes a file while it plays, for a client that cannot play the original as it stands. Every route needs MediaAccess.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Starting
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/streaming/live/sessions` | MediaAccess |
+| GET | `/api/v1/streaming/live/sessions` | MediaAccess |
+| DELETE | `/api/v1/streaming/live/sessions/{sessionId}` | MediaAccess |
+
+The client says what it can play, and the server works out what to do with that.
+
+::properties
+
+::property {{ name: 'video_file_id', type: 'string' }}
+
+Which file to play.
+
+::property {{ name: 'client_caps', type: 'object' }}
+
+What this client can decode. The server transcodes only what it has to.
+
+::property {{ name: 'start_time_seconds', type: 'number' }}
+
+Where to begin, so resuming does not start at the beginning.
+
+::property {{ name: 'preferred_quality', type: 'string' }}
+
+An optional starting quality.
+
+::property {{ name: 'audio_language', type: 'string' }}
+
+The language of the audio track the viewer chose. Leaving it out lets the server pick.
 
 ::
+
+The audio track is chosen by language, not by its position in the file, so the choice survives a file whose track order differs.
+
+## Playing
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/streaming/live/sessions/{sessionId}/master.m3u8` | MediaAccess |
+| GET | `/api/v1/streaming/live/sessions/{sessionId}/playlist.m3u8` | MediaAccess |
+| GET | `/api/v1/streaming/live/sessions/{sessionId}/segment/{epoch}/{index}.ts` | MediaAccess |
+
+Ordinary HLS: hand the master playlist to a player and it follows the rest.
+
+## Steering it
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/streaming/live/sessions/{sessionId}/position` | MediaAccess |
+| POST | `/api/v1/streaming/live/sessions/{sessionId}/buffer-health` | MediaAccess |
+| POST | `/api/v1/streaming/live/sessions/{sessionId}/quality` | MediaAccess |
+| POST | `/api/v1/streaming/live/sessions/{sessionId}/seek` | MediaAccess |
+
+`position` is the client saying where it is, so the server transcodes ahead of the viewer instead of racing to the end.
+
+`seek` moves the session, rather than asking the player to wait for segments that will never be wanted.
+
+The epoch in the segment path says which run of the transcoder produced that segment, so a seek or a quality change does not leave the player fetching segments from the run before it.
+
+Ending the session frees the machine. A session nobody is watching expires on its own after an idle period.
+
+## Where to go next
+
+- [Content segments](/nomercy-api/rest/content-segments)
+- [Encoding overview](/nomercy-media-server/encoding/overview)

@@ -1,14 +1,48 @@
 ---
-title: 'Server Offline / Switching Servers'
-description: 'What to do when your server is unreachable and how to switch servers.'
+title: 'Server offline'
+description: 'What to check when NoMercy cannot reach your server.'
 draft: false
-helpKey: '/setup/server-offline'
 ---
 
-# Server Offline / Switching Servers
+# Server offline
 
-::Callout
+This screen means the app could not reach the server you selected. The app is fine. Something between it and the server is not.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+Work through these in order. They are ordered by how often each one turns out to be the cause.
 
-::
+## Is the server running
+
+Check the machine it runs on.
+
+On Windows and macOS, look for the NoMercy tray icon. On Linux, on a NAS, or in Docker, check that the service or container is up.
+
+If the machine sleeps, it is not running while it sleeps. A server needs a machine that stays awake.
+
+## Are you away from home
+
+If it works at home and not elsewhere, the problem is remote access rather than the server.
+
+The server tries to arrange a route by itself. When your router blocks that, you need to add the rule yourself. See [Networking](/nomercy-media-server/networking).
+
+## Is setup actually finished
+
+A server that never completed setup answers every request with "setup required", which reaches the app as unreachable.
+
+Open the server's setup page and finish or retry it. See [First-Run Setup](/nomercy-media-server/first-run).
+
+## Did the certificate lapse
+
+Your server renews its certificate automatically. A server that was switched off for a long stretch can come back with an expired one.
+
+Leave it running for a few minutes. The renewal runs on its own. If it does not recover, the server log says why.
+
+## Still nothing
+
+Check the server's own logs. `nomercy logs` on the machine, or the container log for Docker.
+
+The log says which of the above it is, and it is faster than guessing.
+
+## Where to go next
+
+- [Selecting a server](/nomercy-app-web/setup/select-server) to pick a different one.
+- [Networking](/nomercy-media-server/networking) for access from outside your home.

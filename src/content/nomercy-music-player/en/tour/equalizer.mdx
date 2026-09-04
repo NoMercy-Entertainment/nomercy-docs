@@ -33,7 +33,11 @@ player.setup({
 });
 ```
 
-Both plugins register *before* `setup()` so they install as part of the setup pipeline, the same rule every plugin in the trio follows. Register either after `setup()` and its `use()` still runs, just inline and fire-and-forget rather than inside that pass, so completion surfaces through the `plugin:installed` event or `ready()` instead of `setup()` resolving. `AudioElementBackend` (the default backend) lazily creates the Web Audio source node the first time `AudioGraphPlugin` requests it, so registering the equalizer doesn't force `WebAudioBackend` or cost anything on a player that never taps the graph.
+Both plugins register *before* `setup()`, so they install as part of the setup pipeline. That is the rule every plugin in the trio follows.
+
+Register either one after `setup()` and its `use()` still runs, inline and fire-and-forget rather than inside that pass. Completion then surfaces through the `plugin:installed` event or `ready()`, not through `setup()` resolving.
+
+`AudioElementBackend`, the default, creates the Web Audio source node the first time `AudioGraphPlugin` asks for it. So registering the equalizer neither forces `WebAudioBackend` nor costs anything on a player that never taps the graph.
 
 ## Driving it
 

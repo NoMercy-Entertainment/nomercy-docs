@@ -1,13 +1,44 @@
 ---
-title: 'Install on a NAS'
-description: 'Install on Synology or QNAP network-attached storage.'
+title: 'NAS'
+description: 'Run NoMercy MediaServer on a NAS.'
 draft: false
 ---
 
-# Install on a NAS
+# NAS
 
-::Callout
+A NAS runs NoMercy through Docker. Synology, QNAP, Unraid and TrueNAS all provide a way to run a container, and NoMercy is a normal container.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+Read the [Docker page](/nomercy-media-server/installation/docker) first. This page covers what is different on a NAS.
 
-::
+## Check the processor first
+
+Images are built for `linux/amd64` only.
+
+Many NAS units, especially smaller Synology and QNAP models, run an ARM processor. Check your model's specification before going further.
+
+## Paths inside the container
+
+Your NAS presents your media at a path like `/volume1/media`. The container sees whatever path you mount it to.
+
+Every path you enter in NoMercy afterwards is the path **inside** the container. If you mount `/volume1/media` to `/media`, then in NoMercy your library folder is under `/media`.
+
+This trips up almost everyone once.
+
+A NAS holds its media locally, so mount the volume into the container and use a **Local** driver in NoMercy. The NFS and SMB drivers are for reaching a share the machine cannot mount, which is not the case here.
+
+## Permissions
+
+The container needs to read your media, and it needs to write into the library folders you give it.
+
+If a scan finds nothing, or importing fails immediately, check the ownership of those folders on the NAS before looking anywhere else.
+
+## Completing setup
+
+There is no browser on the NAS. Browse to `http://<your-nas-ip>:7626/setup` from your computer.
+
+The container log also prints a sign-in code and a link you can open on your phone.
+
+## Where to go next
+
+- [Docker](/nomercy-media-server/installation/docker) for the compose files and variants.
+- [First-Run Setup](/nomercy-media-server/first-run) to claim the server and link your account.

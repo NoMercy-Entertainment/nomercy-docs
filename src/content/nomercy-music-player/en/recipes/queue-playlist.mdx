@@ -48,7 +48,11 @@ Subscribing to both instead of polling means the panel updates immediately on a 
 
 ## playItem() closes the item()/play() race
 
-A naive click handler, `player.item(item.id); player.play();`, races: `item()` fires a fire-and-forget `load()`, and a `play()` called right after can reach the backend before the new source is even set. `playItem(target)` (and `playNow(items, start?)` for replacing the whole queue) exist specifically to close that race, both route through `item(target, { autoplay: true })` internally, which only calls `play()` inside the resolved `load()`'s own continuation:
+A naive click handler races. `player.item(item.id); player.play();` fires a fire-and-forget `load()`, and the `play()` right after can reach the backend before the new source is set.
+
+`playItem(target)` closes that race, and `playNow(items, start?)` does the same when replacing the whole queue.
+
+Both route through `item(target, { autoplay: true })`, which calls `play()` inside the resolved `load()`'s own continuation:
 
 ```ts
 player.playItem(item.id);            // jump to a track already in the queue and play it

@@ -1,13 +1,89 @@
 ---
-title: 'Common Issues'
-description: 'Solutions to frequently encountered problems.'
+title: 'Common issues'
+description: 'The problems people hit most, and what fixes each one.'
 draft: false
 ---
 
-# Common Issues
+# Common issues
 
-::Callout
+Grouped by where you notice the problem. Each one names the check that confirms it before you change anything.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Setup will not finish
+
+::Troubleshooting
+
+**Every address on the server says setup is required.**
+Setup did not complete. Open `/setup` and finish or retry it. Until it completes the server answers this on every other address by design, so it is not a fault.
+
+**Setup ends with the certificate not acquired.**
+Choose retry. This is the normal fix and it is safe to repeat.
+
+**Setup cannot get past sign-in.**
+It needs an internet connection to reach the sign-in service and register. Neither works offline.
 
 ::
+
+## The app cannot find the server
+
+::Troubleshooting
+
+**No servers listed.**
+Almost always a different account. The account that owns the server is the one that sees it. Confirm the email matches.
+
+**The server is listed but unreachable.**
+Check it is running with `nomercy status`. If it runs, check whether you are outside your own network; that is a separate problem covered in [Networking](/nomercy-media-server/networking).
+
+**It worked at home and stopped when you left.**
+Nothing established an outside route. See [Networking](/nomercy-media-server/networking).
+
+::
+
+## Content does not appear
+
+::Troubleshooting
+
+**Nothing arrived after adding files.**
+Check `nomercy queue status`. Encoding titles takes real time and they are processed in order.
+
+**The queue is empty and it still has not appeared.**
+The work never started. `nomercy logs --level Warning,Error` says why.
+
+**A scan found nothing.**
+Check the folder path, and check the library type. A folder one level too high or too low finds nothing and looks identical from outside.
+
+**Everything matched the wrong title.**
+Check the library type first. Films in a TV Shows library are read as episodes. See [Metadata and matching](/nomercy-media-server/media/metadata).
+
+::
+
+## Playback problems
+
+::Troubleshooting
+
+**It plays on one device and not another.**
+The server converts while you watch for devices that need it. If one device fails, check that person's transcoding settings in Users.
+
+**Playback stutters over the internet but is fine at home.**
+The connection is the limit. A streaming preset gives clients smaller versions to fall back on; a single-file preset does not.
+
+**No subtitles.**
+Subtitles are written when the title is encoded. Something imported without them will not gain them later without being encoded again.
+
+::
+
+## The server is slow
+
+::Troubleshooting
+
+**Everything is slow while titles are being encoded.**
+Expected. Check `nomercy resources`. Encoding is the heaviest thing the server does, and a graphics card changes it dramatically. See [Hardware acceleration](/nomercy-media-server/encoding/hardware).
+
+**Slow with media on a network share.**
+Encoding moves the file across and back. If you reach the share through NoMercy's NFS or SMB driver, mount it with the operating system instead and point a Local driver at the mount. See [Storage](/nomercy-media-server/storage).
+
+::
+
+## Where to go next
+
+- [Reading the logs](/nomercy-media-server/troubleshooting/logs)
+- [Diagnostics](/nomercy-media-server/troubleshooting/diagnostics)

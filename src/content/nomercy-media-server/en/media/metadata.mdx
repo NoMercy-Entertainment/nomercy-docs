@@ -1,13 +1,81 @@
 ---
-title: 'Metadata Providers'
-description: 'TMDB, MusicBrainz, and other metadata sources.'
+title: 'Metadata and matching'
+description: 'How titles are identified, and how to correct a wrong match.'
 draft: false
 ---
 
-# Metadata Providers
+# Metadata and matching
 
-::Callout
+Every title in your library is matched against [TheMovieDB](https://www.themoviedb.org) to get its name, artwork, cast, and episode list. This page covers how that match is made and what to do when it is wrong.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## How a match is made
 
-::
+The server works from the file name and the folder around it. It pulls out a title, a year, and for series a season and episode number, then searches for that.
+
+The library's type decides what it searches. A Movies library looks for films. A TV Shows library looks for series. A library scoped to Anime also searches TheMovieDB for series, and additionally reads absolute episode numbering.
+
+This is why the type matters so much. See [Library Management](/nomercy-media-server/libraries).
+
+## Naming that matches reliably
+
+For films, the title and the year:
+
+```text
+Arrival (2016).mkv
+Blade Runner (1982)/Blade Runner (1982).mkv
+```
+
+For series, the series folder, a season folder, and episode numbering in the file:
+
+```text
+The Expanse/Season 01/The Expanse - S01E03.mkv
+```
+
+Release-style names generally work too, because the year and the episode numbers survive in them.
+
+## What causes a wrong match
+
+**A missing year on a common title.** Several films share a name. Without a year the server picks one, and it may not be yours.
+
+**A misleading year.** A year in the name that is not the release year sends the search somewhere else entirely.
+
+**A folder that disagrees with the file.** When the folder says one film and the file says another, one of them wins and it may not be the one you meant.
+
+**The wrong library type.** A film in a TV Shows library is read as an episode of something.
+
+## Correcting a match
+
+Open the title in the dashboard and choose to change the match. Search for the correct title and select it.
+
+For discs, correct the match in the Ripper **before** you start ripping. The match decides where the result is filed, so fixing it first saves redoing the rip.
+
+## Forcing a specific match
+
+When a title refuses to match correctly, put its [TheMovieDB](https://www.themoviedb.org) id in the filename. The id is the number in that title's TheMovieDB address.
+
+Put it on the video file's own name. A folder carrying the id does not count.
+
+**For a film, use the movie id.** This pins the film exactly and no searching happens at all.
+
+```text
+Some Ambiguous Title (2019) [tmdb-12345].mkv
+```
+
+**For an episode, use the id of the series.** The series is then fixed, and the episode is taken from the season and episode numbers in the filename.
+
+```text
+Some Ambiguous Show [tmdb-67890] - S02E05.mkv
+```
+
+Both skip the title search, which is where wrong matches come from. For an episode the `SxxExx` still has to be right, because TheMovieDB reaches an episode through its series rather than by an id of its own.
+
+## Refreshing metadata
+
+Artwork and descriptions are fetched once when a title is added.
+
+If a title was added before its artwork existed online, refresh its metadata from its page in the dashboard. Changing a library's metadata settings does not retroactively update titles already in it.
+
+## Where to go next
+
+- [Scanning and importing](/nomercy-media-server/media/scanning) for adding files.
+- [Library Management](/nomercy-media-server/libraries) for library types.

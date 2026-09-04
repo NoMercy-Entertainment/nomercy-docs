@@ -1,19 +1,67 @@
 ---
-title: 'Developing a Plugin'
-description: 'Build a plugin for NoMercy Media Server.'
+title: 'Writing a plugin'
+description: 'Build a plugin for NoMercy MediaServer.'
 draft: false
 ---
 
-# Developing a Plugin
+# Writing a plugin
 
-::Callout
+A plugin is a .NET assembly the server loads at runtime. This page covers the shape of one; the interfaces themselves are documented in the contract package.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Starting from the template
 
-::
+The repository ships a project template under `templates/NoMercy.Plugin.Template`, which is the fastest correct start.
+
+There are sample plugins under `tests/` as well, including a minimal one, one that adds dashboard UI, and ones that fail deliberately so you can see how the server reacts.
+
+## The shape of a plugin
+
+Implement `IPlugin`. It gives the server a name, a description, an id and a version, and receives an `IPluginContext` when it initialises.
+
+Then implement whichever extension points you need:
+
+| Interface | For |
+|-----------|-----|
+| `IMediaSourcePlugin` | Finding media the server would not find |
+| `IMetadataPlugin` | Supplying titles, artwork and details |
+| `IEncoderPlugin` | Overriding the encoding profile for a title |
+| `IScheduledTaskPlugin` | Work on a cron schedule |
+| `IAuthPlugin` | Taking part in authentication |
+| `IUiPlugin` | Adding navigation and screens |
+
+`IPluginServiceRegistrator` and `IPluginConfiguration` are available when you need dependency injection or your own settings.
 
 ## Building a user interface
 
-The part a plugin uses to draw a screen is settled and documented. A plugin
-returns a tree of components rather than markup, targets each surface, and ships
-its own translations, all of which is covered in [Building a dashboard](/nm-components/en/dashboards).
+`IUiPlugin` describes screens rather than rendering them. You return a description of the view and each client draws it in its own idiom: web, phone and TV.
+
+Write the screen once and it looks native everywhere, which is the reason for the indirection.
+
+## Declaring capabilities
+
+Your manifest declares what the plugin needs: hooks it implements, network hosts it will reach, where it mounts UI, and whether it serves endpoints or sockets.
+
+Declare the narrowest set that works. A plugin needing only media source, metadata or UI is installed and enabled straight away. Anything asking for network access or its own endpoints waits for the server owner to consent, which is friction you inflict on every one of your users.
+
+Network access is limited to the hosts you declared. Reaching elsewhere fails unless the owner grants that host.
+
+## Asking at runtime
+
+When you cannot know something in advance, such as a host the user configures themselves, ask for it while running through `IPluginGrants.RequestAsync`. Give a real reason: the owner sees it and decides on it.
+
+## Packaging
+
+Ship a `.zip` containing your manifest and assembly, or a bare `.dll` for something trivial.
+
+To publish through a repository, list it in a catalogue with a download address and a checksum. The server verifies the checksum on install.
+
+## Compatibility
+
+The server checks that your plugin targets a compatible version before loading it. A plugin built against a different version is rejected outright rather than loaded and left half-working.
+
+Rebuild against the contract package when the server has a major update.
+
+## Where to go next
+
+- [Plugins overview](/nomercy-media-server/plugins/overview) for the consent model your users will meet.
+- [Repositories and trust](/nomercy-media-server/plugins/trusted-publishers) for distribution.

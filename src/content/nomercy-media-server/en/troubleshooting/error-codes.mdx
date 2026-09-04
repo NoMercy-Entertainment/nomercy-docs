@@ -1,13 +1,56 @@
 ---
-title: 'Error Code Reference'
-description: 'HTTP error codes and their meanings.'
+title: 'Error messages'
+description: 'What the messages you are most likely to see actually mean.'
 draft: false
 ---
 
-# Error Code Reference
+# Error messages
 
-::Callout
+The server writes errors in plain language rather than numeric codes, so this page explains the ones whose wording does not tell the whole story.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## From the command line
 
-::
+**"NoMercy MediaServer is not running, or is not reachable on its management socket."**
+
+Every command except `start` asks the running server for its answer, so they all need it up. Start it with `nomercy start`. If that fails too, the log says why.
+
+## During setup
+
+**"Registered, but the SSL certificate could not be acquired."**
+
+Your server exists and is linked to your account. Only the certificate is missing. Choose retry; this is the expected fix and repeating it is safe.
+
+**"Setup required" on every address.**
+
+Not an error. Until setup finishes, the server deliberately answers this everywhere except the setup page itself.
+
+## During a scan
+
+**A scan task that failed with a storage message.**
+
+The reason comes from the storage backend rather than from NoMercy: a refused connection, a missing export, a rejected credential. The text is the backend's own, which is why it reads differently from the rest of the server's messages. Fix the backend, then rescan.
+
+## During playback
+
+**A title that will not play on one device only.**
+
+Not usually a server error. Check that person's transcoding permissions, since a device needing conversion cannot play anything when conversion is off for them.
+
+## When a title will not match
+
+**Nothing in the log, and the title is simply absent or wrong.**
+
+Matching does not fail loudly, because a wrong match is a plausible answer rather than an error. Check the library type, then fix the match by hand. See [Metadata and matching](/nomercy-media-server/media/metadata).
+
+## Finding the rest
+
+Anything not here is in the log with its reason attached:
+
+```bash
+nomercy logs --level Warning,Error
+```
+
+## Where to go next
+
+- [Common issues](/nomercy-media-server/troubleshooting/common-issues)
+- [Reading the logs](/nomercy-media-server/troubleshooting/logs)

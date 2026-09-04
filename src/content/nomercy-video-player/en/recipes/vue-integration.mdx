@@ -7,7 +7,11 @@ description: 'A Vue 3 composable wrapping NMVideoPlayer: reactive state from eve
 
 # Recipe: Vue Integration
 
-`nomercy-video-player` is not a Vue library and never will be, it ships one factory function and a typed method surface, nothing that knows what a component is. Vue owns nothing about the player; the player owns nothing about Vue. A composable is the seam between them: it subscribes to player events, writes the values into `ref`s, and returns both the reactive state and the player instance itself so a template can call methods directly.
+`nomercy-video-player` is not a Vue library. It ships one factory function and a typed method surface, and nothing in it knows what a component is.
+
+Vue owns nothing about the player. The player owns nothing about Vue.
+
+A composable is the seam. It subscribes to player events, writes the values into `ref`s, and returns both the reactive state and the player instance, so a template can call methods directly.
 
 ## The composable
 
@@ -68,11 +72,19 @@ export function useVideoPlayer(containerId: string, config: VideoPlayerConfig) {
 }
 ```
 
-`player` is `null` until `onMounted` runs — a template reads it through `player?.togglePlayback()` the same way it reads any other ref that starts empty, and `playState()`/the `seek()` handler below guard the same way. This is the one shape that's correct regardless of how the caller renders the container (always-present markup, `v-if`, a route transition): the composable never assumes the DOM is ready before Vue says it is.
+`player` is `null` until `onMounted` runs.
+
+A template reads it through `player?.togglePlayback()`, the same as any other ref that starts empty. `playState()` and the `seek()` handler below guard the same way.
+
+That shape is correct however the caller renders the container: always-present markup, `v-if`, or a route transition. The composable never assumes the DOM is ready before Vue says it is.
 
 ## Using it in a component
 
-`VideoPlayer.vue` below takes `baseUrl` and `playlist` as props instead of owning them, the same two values `useVideoPlayer`'s `config` already needs, just threaded one level up so whoever mounts the component supplies the real catalogue. `muted: true` + `autoPlay: false` are the constant part of the config (the player loads the first item on mount but waits for a user gesture to play it, exactly like every other runnable example on this site) — only `baseUrl` and `playlist` vary by caller:
+`VideoPlayer.vue` takes `baseUrl` and `playlist` as props rather than owning them. They are the same two values `useVideoPlayer`'s `config` needs, threaded one level up so whoever mounts the component supplies the real catalogue.
+
+`muted: true` and `autoPlay: false` are the constant part. The player loads the first item on mount and waits for a user gesture to play it, like every other runnable example here.
+
+Only `baseUrl` and `playlist` vary by caller:
 
 ```vue
 <!-- VideoPlayer.vue -->
@@ -121,7 +133,7 @@ function seek(event: MouseEvent) {
 </template>
 ```
 
-`player` is a top-level `<script setup>` ref, so the template above reads it unwrapped (`player?.togglePlayback()`, no `.value`) — Vue does that unwrapping automatically for refs returned from a composable and used directly in the template. Inside `<script>` itself (the `seek()` handler), it stays an explicit ref: `player.value?.seekByPercentage(...)`.
+`player` is a top-level `<script setup>` ref, so the template above reads it unwrapped (`player?.togglePlayback()`, no `.value`), Vue does that unwrapping automatically for refs returned from a composable and used directly in the template. Inside `<script>` itself (the `seek()` handler), it stays an explicit ref: `player.value?.seekByPercentage(...)`.
 
 ## Mounting it
 
@@ -162,7 +174,11 @@ const films = [
 
 ## Providing the player globally
 
-For an app where multiple components (a mini-player, a full-screen view, a queue sidebar) need the same instance, provide it once at the root instead of re-deriving state per component. Unlike the composable above, this is safe to call at `main.ts`'s top level, not inside `onMounted`: `#global-player` is a static element already present in `index.html` (a sibling of `#app`, not something Vue itself renders), so it exists in the DOM before this module even runs:
+When several components need the same instance, a mini-player, a full-screen view, a queue sidebar, provide it once at the root instead of re-deriving state in each.
+
+Unlike the composable above, this is safe at `main.ts`'s top level rather than inside `onMounted`.
+
+`#global-player` is a static element in `index.html`, a sibling of `#app` that Vue never renders, so it exists in the DOM before this module runs:
 
 ```ts
 // main.ts

@@ -11,7 +11,19 @@ Every failure the kit or a plugin raises is a `PlayerError`, never a bare thrown
 
 ## The hierarchy
 
-`PlayerError` is the base: a stable `code` (`core:auth/forbidden`, `fillz:viz/canvas-init-failed`), a `severity` (`'fatal' | 'error' | 'warning' | 'info'`), a discriminated `scope` (`{ kind: 'core' }`, `{ kind: 'backend'; id }`, `{ kind: 'plugin'; id }`, and the rest), an optional `cause`, `context`, and a user-facing `suggestion`. Subclasses narrow the failure category: `AuthError` (extends `NetworkError`, thrown on 401/403), `DrmError`, `MediaFormatError`, `NetworkError`, `ResourceError`, `StateError` (wrong lifecycle phase), `StreamError`, `PluginError`, and `BrowserPolicyError` (a browser-enforced restriction like a blocked autoplay policy, or an unsupported browser API such as RemotePlayback or the audio-output picker). `isHttp(century)` checks `context.httpStatus` against a 1xx-5xx range without a manual range comparison at every call site.
+`PlayerError` is the base. Every error carries:
+
+- a stable `code`, such as `core:auth/forbidden` or `fillz:viz/canvas-init-failed`
+- a `severity`: `'fatal' | 'error' | 'warning' | 'info'`
+- a discriminated `scope`: `{ kind: 'core' }`, `{ kind: 'backend'; id }`, `{ kind: 'plugin'; id }`, and the rest
+- an optional `cause` and `context`
+- a user-facing `suggestion`
+
+Subclasses narrow the category: `AuthError` (extends `NetworkError`, thrown on 401 and 403), `DrmError`, `MediaFormatError`, `NetworkError`, `ResourceError`, `StateError` for the wrong lifecycle phase, `StreamError`, `PluginError`.
+
+`BrowserPolicyError` is the odd one: a restriction the browser enforces, such as a blocked autoplay policy, or an API it does not support like RemotePlayback or the audio-output picker.
+
+`isHttp(century)` checks `context.httpStatus` against a 1xx to 5xx range, so no call site writes that comparison by hand.
 
 Construct one with a factory rather than the raw constructor where the kit provides one: `stateError(code, message, context?)`, `mediaFormatError(...)`, `resourceError(...)`, `pluginError(...)`, `browserPolicyError(...)`. Each stamps the right `scope` and a sensible default `severity` for you.
 
@@ -21,7 +33,15 @@ Four severities map to four event channels: `fatal` (unrecoverable, the player i
 
 ## Retry policy
 
-`DEFAULT_RETRY_POLICY` is an exported preset table mapping error codes to a `RetryConfig` (`attempts`, `backoff`, `baseMs`, `maxMs`, `refreshFirst`), keyed by precedence from most to least specific: exact code, then category prefix, then an HTTP range (`'4xx'` / `'5xx'`), then a `'*'` wildcard. Neither the kit's own `authFetch` pipeline nor `Plugin.fetch` consults it automatically, `Plugin.fetch()` defaults to `{ attempts: 0 }` (no retry) unless you pass a `RetryConfig` explicitly. In the table itself a `core:auth/forbidden` entry never retries, a `core:network/timeout` entry retries five times with exponential backoff. Pass an entry from this map, or your own `RetryConfig`, as the per-call `retry` option on `Plugin.fetch()` to apply it at one call site.
+`DEFAULT_RETRY_POLICY` is an exported table mapping error codes to a `RetryConfig` of `attempts`, `backoff`, `baseMs`, `maxMs` and `refreshFirst`.
+
+Lookup runs from most to least specific: exact code, then category prefix, then an HTTP range (`'4xx'`, `'5xx'`), then the `'*'` wildcard.
+
+Nothing consults it automatically. Neither `authFetch` nor `Plugin.fetch` reads it, and `Plugin.fetch()` defaults to `{ attempts: 0 }` unless you pass a `RetryConfig`.
+
+In the table, `core:auth/forbidden` never retries, and `core:network/timeout` retries five times with exponential backoff.
+
+To use it, pass an entry from the map, or your own config, as the per-call `retry` option on `Plugin.fetch()`.
 
 :::snippet{file="tour-errors" live="false"}
 :::

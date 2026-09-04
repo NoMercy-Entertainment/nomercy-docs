@@ -50,7 +50,15 @@ function escapeHtml(str: string): string;
 function perceptualGain(position01: number): number;
 ```
 
-Maps a linear 0..1 slider position to a linear 0..1 gain amplitude using a quadratic power taper (`gain = position²`), the standard consumer volume-slider curve, so equal slider increments sound like equal loudness increments instead of compressing all the audible range into the bottom third of the slider. Position `0` maps to exact silence with no floor hack needed. This is deliberately not the −60dB…0dB taper professional DAW/mixing-console faders use, that range is built for fine gain-riding on a mix already at a sensible level, not a media player's master volume. Called only at the point a backend writes a gain value (`GainNode.gain`, `element.volume`), the player's own `volume()` always stores and returns the raw 0-100 position, never a gain value.
+Maps a linear 0..1 slider position to a 0..1 gain amplitude with a quadratic taper, `gain = position²`.
+
+That is the standard consumer volume curve. Equal slider steps sound like equal loudness steps, rather than squeezing the audible range into the bottom third of the slider.
+
+Position `0` maps to exact silence, with no floor hack.
+
+It is deliberately not the −60dB to 0dB taper a professional fader uses. That range is built for fine gain-riding on a mix already at a sensible level, not for a media player's master volume.
+
+It is called only where a backend writes a gain value, such as `GainNode.gain` or `element.volume`. The player's own `volume()` always stores and returns the raw 0-100 position.
 
 ## Title-token interpolation
 

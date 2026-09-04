@@ -18,7 +18,11 @@ A CDN needs a signed `token` query parameter on media URLs specifically, poster 
 
 ## Reading the result
 
-`player.resolveUrl(url, category)` is what a plugin or your own UI code calls to get a `ResolvedUrl`: `href` for the final string, `searchParams` for query inspection, `ext` for gating on file type (prefer it over splitting on `.`, it survives query strings and fragments). `relative` is `true` when the input was relative and no `baseUrl` was configured to absolutize against, useful for catching a missing `baseUrl` in a test rather than shipping a broken relative URL to production.
+`player.resolveUrl(url, category)` is what a plugin or your own UI calls to get a `ResolvedUrl`.
+
+`href` is the final string, `searchParams` inspects the query, and `ext` gates on file type. Prefer `ext` over splitting on `.`, because it survives query strings and fragments.
+
+`relative` is `true` when the input was relative and no `baseUrl` was configured to absolutize against. Assert on it in a test and a missing `baseUrl` fails there, rather than shipping a broken URL.
 
 ## Swapping again later
 

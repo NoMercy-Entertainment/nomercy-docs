@@ -7,7 +7,11 @@ description: 'DesktopUiPlugin: the official prebuilt overlay, full control bar, 
 
 # Plugin: Desktop UI
 
-Everything on the [Build a Player](/nomercy-video-player/build/shell) tutorial is code you can write yourself against the typed method surface. `DesktopUiPlugin` (id `'desktop-ui'`) is the alternative: a complete prebuilt overlay, top bar, center play button, bottom bar with scrubber and transport, a settings menu, an auto-hide activity cycle, still built from the same public methods (`play()`, `subtitle()`, `quality()`) and still restylable through plain CSS, not a black box.
+`DesktopUiPlugin` (id `'desktop-ui'`) is the prebuilt overlay: top bar, centre play button, bottom bar with scrubber and transport, a settings menu, and an auto-hide cycle.
+
+It is not a black box. It is built from the same public methods you would use yourself, `play()`, `subtitle()`, `quality()`, and it restyles with plain CSS.
+
+The alternative is writing it yourself, which is what [Build a Player](/nomercy-video-player/build/shell) walks through.
 
 ## Options
 
@@ -32,9 +36,19 @@ Everything on the [Build a Player](/nomercy-video-player/build/shell) tutorial i
 
 Default-on: `play`, `mute`, `volume`, `fullscreen`, `settings`, `next`, `previous`, `chapterPrev`, `chapterNext`. Chapter buttons hide automatically when the current item has no chapters; `next` / `previous` stay rendered but go disabled at the first / last item and whenever the queue holds a single item.
 
-Default-off (opt in via `buttons: { theater: true }`, etc.): `theater`, `pip`, `speed`, `quality`, `subtitles`, `audio`, `playlist`, `seekBack`, `seekForward`, `aspectRatio`, `cast`. `seekBack`/`seekForward` default off because a quick seek is already reachable elsewhere: the keyboard's bare `ArrowLeft`/`ArrowRight` (5s, `KeyHandlerPlugin`'s default `rewind()`/`forward()` step) and touch zones' double-tap (10s by default, its own `seekSeconds` option), the control-bar buttons are a deliberate opt-in for a UI with no keyboard or touch input at all.
+Default-off, opt in with `buttons: { theater: true }` and so on: `theater`, `pip`, `speed`, `quality`, `subtitles`, `audio`, `playlist`, `seekBack`, `seekForward`, `aspectRatio`, `cast`.
 
-The top-bar `cast` button (`buttons: { cast: true }`, next to `back`/`close`) only emits the player's `'cast'` event on click, the same no-opinion pattern as `back`/`close`. Unlike those two, its visibility does not depend on a listener being registered, since it defaults off rather than on. Wire a listener to open your own device picker; never route the click through `CastSenderPlugin` or `session.loadMedia()` directly, that plugin drives an active cast session once a target is already chosen, it doesn't own device selection.
+`seekBack` and `seekForward` are off because a quick seek is already reachable two other ways. The keyboard's bare `ArrowLeft` and `ArrowRight` seek 5 seconds, and a double-tap in the touch zones seeks 10.
+
+The buttons are the opt-in for a UI with neither keyboard nor touch.
+
+The top-bar `cast` button sits next to `back` and `close`, and emits the player's `'cast'` event on click. Nothing else. That is the same no-opinion pattern as its neighbours.
+
+Unlike them, its visibility does not depend on a listener being registered, because it defaults off.
+
+Wire a listener and open your own device picker.
+
+Do not route the click through `CastSenderPlugin` or `session.loadMedia()`. That plugin drives a cast session once a target is chosen; it does not own device selection.
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -48,7 +62,20 @@ player.addPlugin(DesktopUiPlugin, {
 
 ## Responsive collapsing
 
-As the player container narrows, buttons at the end of `buttonPriority` (default order: `play` -> `mute` -> `volume` -> `fullscreen` -> `settings` -> `next` -> `previous` -> `chapterPrev` -> `chapterNext` -> `seekBack` -> `seekForward` -> `theater` -> `pip` -> `speed` -> `quality` -> `subtitles` -> `audio` -> `aspectRatio` -> `playlist`) drop off first, so the most essential buttons survive longest. `collapseStages: [2, 4, 6]` is a shorthand for hiding after rank 2/4/6 at the sm/md/lg breakpoints (xs always shows rank 1 only, xl always shows all); `breakpoints` gives full control over both the pixel thresholds and the rank cutoffs when the shorthand doesn't fit:
+As the container narrows, buttons at the end of `buttonPriority` drop off first, so the essential ones survive longest.
+
+The default order:
+
+```text
+play -> mute -> volume -> fullscreen -> settings
+  -> next -> previous -> chapterPrev -> chapterNext
+  -> seekBack -> seekForward -> theater -> pip -> speed
+  -> quality -> subtitles -> audio -> aspectRatio -> playlist
+```
+
+`collapseStages: [2, 4, 6]` is shorthand for hiding after rank 2, 4 and 6 at the sm, md and lg breakpoints. `xs` always shows rank 1 only, `xl` always shows everything.
+
+`breakpoints` gives full control over both the pixel thresholds and the rank cutoffs when the shorthand does not fit:
 
 ```ts
 player.addPlugin(DesktopUiPlugin, {
@@ -64,7 +91,11 @@ player.addPlugin(DesktopUiPlugin, {
 
 ## Portrait
 
-Portrait fits about five or six controls whatever the priority list says, so a set is forced off there regardless of available width. Which set is yours to choose: `portraitHidden` replaces the default (`chapterPrev`, `chapterNext`, `previous`, `next`, `subtitles`, `audio`, `quality`, `playlist`) rather than merging with it, so name every button you want gone. An episodic app usually wants `next` and `chapterNext` to survive, since skipping an intro one-handed is the reason a phone viewer reaches for the controls at all:
+Portrait fits five or six controls whatever the priority list says, so a set is forced off there regardless of width.
+
+Which set is yours to choose. `portraitHidden` replaces the default rather than merging with it, so name every button you want gone. The default is `chapterPrev`, `chapterNext`, `previous`, `next`, `subtitles`, `audio`, `quality`, `playlist`.
+
+An episodic app usually keeps `next` and `chapterNext`. Skipping an intro one-handed is why a phone viewer reaches for the controls at all:
 
 ```ts
 player.addPlugin(DesktopUiPlugin, {
@@ -105,9 +136,9 @@ This plugin's own menus don't need it, they already pin internally. It's for UI 
 ## Rules & restrictions
 
 - Loading `DesktopUiPlugin` alongside native `controls: true` or `TvKeyHandlerPlugin`'s own key bindings without disabling one results in doubled UI or conflicting handlers, pick one control surface per platform.
-- Menu-driven vs. cycle-driven is a deliberate split: quality, subtitles, audio, speed, and aspect ratio open a menu on click (multi-state, needs a list); theater, PiP, and fullscreen are direct binary toggles on click. `cycleAspectRatio()` and friends exist for remote-control / key-bind contexts where the user can't pick from a list, not as the pointer-input default.
-- `disable(reason?)` hides the overlay outright (not just its handlers) and cancels the inactivity timer, the pattern a disc-menu interpreter or another plugin that needs to own the screen uses to take over without doubling chrome. `enable()` restores it and re-arms auto-hide.
-- Built from `composeMixins`, the same primitive [`NMVideoPlayer`](/nomercy-video-player/reference/player-methods) itself is composed from, nine mixin groups (feedback, shortcuts, activity, menus, icon state, transport state, chapters, sprites, DOM) stamped onto one prototype rather than one enormous class body.
+- Menu-driven and cycle-driven is a deliberate split. Quality, subtitles, audio, speed and aspect ratio open a menu on click, because each has a list. Theater, PiP and fullscreen are binary toggles. `cycleAspectRatio()` and friends are for remote-control and key-bind contexts where there is no list to pick from, not the pointer default.
+- `disable(reason?)` hides the overlay outright, not just its handlers, and cancels the inactivity timer. That is how a disc-menu interpreter, or any plugin that needs the screen, takes over without doubling chrome. `enable()` restores it and re-arms auto-hide.
+- Built from `composeMixins`, the same primitive [`NMVideoPlayer`](/nomercy-video-player/reference/player-methods) is composed from. Nine mixin groups stamped onto one prototype rather than one enormous class body: feedback, shortcuts, activity, menus, icon state, transport state, chapters, sprites, DOM.
 
 ## How to extend it
 

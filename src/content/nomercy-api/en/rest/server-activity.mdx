@@ -1,13 +1,41 @@
 ---
-title: 'Server Activity'
-description: 'Server activity endpoints.'
+title: 'Server activity'
+description: 'The record of what happened on the server, and who did it.'
 draft: false
 ---
 
-# Server Activity
+# Server activity
 
-::Callout
+The activity log answers "what happened here". Sign-ins, playback, configuration changes, encoder work, scans and the server's own defensive actions all land in one place.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/activity` | Moderator |
+| POST | `/api/v1/dashboard/activity` | MediaAccess |
+| DELETE | `/api/v1/dashboard/activity` | Moderator |
 
-::
+Reading it needs Moderator, because it shows what everyone did. Writing needs only media access, because clients record their own playback here.
+
+## Categories
+
+Rows are filed under one category, and the listing filters by it.
+
+| Category | Covers |
+|----------|--------|
+| Auth | Signing in and out |
+| Connection | Clients connecting and dropping |
+| Playback | What was played, and where |
+| Configuration | Settings that changed |
+| Failure | Something that went wrong |
+| Encoder | Encode jobs starting, finishing or giving up |
+| Library | Scans, and files arriving or leaving |
+| Security | Addresses the server banned or released by itself |
+
+## Clearing it
+
+`DELETE` takes `category` and `before`, so you can drop one kind of row, or everything older than a date, without losing the rest.
+
+## Where to go next
+
+- [Activity](/nomercy-app-web/dashboard/activity)
+- [Logs](/nomercy-api/rest/logs-api) for the technical log, which is a different thing.

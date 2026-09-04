@@ -1,13 +1,67 @@
 ---
-title: 'Tasks'
-description: 'Task management endpoints.'
+title: 'Tasks and the queue'
+description: 'Watching the queue, reordering it, and dealing with what failed.'
 draft: false
 ---
 
-# Tasks
+# Tasks and the queue
 
-::Callout
+Work the server does in the background: scans, imports, artwork, and encodes. Everything here needs Moderator.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## The queue
 
-::
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/tasks/queue` | Moderator |
+| GET | `/api/v1/dashboard/tasks/queue/status` | Moderator |
+| GET | `/api/v1/dashboard/tasks/queue/eta` | Moderator |
+| GET | `/api/v1/dashboard/tasks/runners` | Moderator |
+
+`status` is the summary the dashboard header shows. `eta` estimates when the queue drains. `runners` is what is executing right now.
+
+## Changing the order
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/tasks/reorder` | Moderator |
+| PATCH | `/api/v1/dashboard/tasks/queue/{id}` | Moderator |
+| DELETE | `/api/v1/dashboard/tasks/queue/{id}` | Moderator |
+
+The queue runs in order, so moving an item is how you get one film encoded tonight instead of tomorrow.
+
+## Pausing
+
+| Method | Path | Needs |
+|--------|------|-------|
+| POST | `/api/v1/dashboard/tasks/pause-queue` | Moderator |
+| POST | `/api/v1/dashboard/tasks/resume-queue` | Moderator |
+| POST | `/api/v1/dashboard/tasks/pause/{id}` | Moderator |
+| POST | `/api/v1/dashboard/tasks/resume/{id}` | Moderator |
+
+Pausing the queue lets what is running finish and starts nothing new, so the machine frees up without losing work.
+
+## What failed
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/tasks/failed` | Moderator |
+| POST | `/api/v1/dashboard/tasks/failed/retry` | Moderator |
+| POST | `/api/v1/dashboard/tasks/failed/retry/{id}` | Moderator |
+
+Retrying without an id retries all of them.
+
+## Encodes that stopped part way
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/tasks/queue/incomplete` | Moderator |
+| POST | `/api/v1/dashboard/tasks/queue/incomplete/{id}/retry` | Moderator |
+| DELETE | `/api/v1/dashboard/tasks/queue/incomplete/{id}` | Moderator |
+| DELETE | `/api/v1/dashboard/tasks/queue/incomplete` | Moderator |
+
+An encode interrupted by a restart or a power cut lands here. Retrying queues that title's encode again from its source file.
+
+## Where to go next
+
+- [Queue](/nomercy-media-server/cli/queue) for the same view from the command line.
+- [Dashboard hub](/nomercy-api/signalr/dashboard-hub) for live progress.

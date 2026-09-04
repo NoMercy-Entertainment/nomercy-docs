@@ -7,7 +7,11 @@ description: 'ScrobblePlugin: threshold-based listen reporting (Last.fm 50%-or-4
 
 # Plugin: Scrobble
 
-`ScrobblePlugin` (id `'scrobble'`) tracks listened time per track against the player's own `item`, `time`, and `ended` events, and reports it to a configured {`IScrobbler`} backend: `nowPlaying(item)` once per item on cursor change, `scrobble(item, context)` once the accumulated listened time crosses a threshold. Ships with a no-op scrobbler by default, so the plugin is inert, tracked but never reported, until a real backend is wired in. See [Recipe: Scrobbling](/nomercy-music-player/recipes/scrobbling) for implementing one.
+`ScrobblePlugin` (id `'scrobble'`) tracks listened time per track, against the player's own `item`, `time` and `ended` events.
+
+It reports to a configured {`IScrobbler`} backend: `nowPlaying(item)` once per item on cursor change, and `scrobble(item, context)` once accumulated listened time crosses a threshold.
+
+The default scrobbler is a no-op, so the plugin is inert until a real backend is wired in. Time is tracked and never reported. [Recipe: Scrobbling](/nomercy-music-player/recipes/scrobbling) implements one.
 
 ## Options
 
@@ -66,9 +70,9 @@ console.log(scrobble?.listened(), scrobble?.isScrobbled());
 
 ## Rules & restrictions
 
-- A failed `scrobble()` or `nowPlaying()` call never interrupts playback, the plugin catches the rejection and reports it through its own error channel (`plugin:scrobble/scrobble-failed`, `plugin:scrobble/now-playing-failed`) instead of throwing.
-- Once a track is scrobbled, it's scrobbled, `isScrobbled()` latches `true` for the rest of that item's playback, a second threshold crossing (replaying the same track without advancing) doesn't scrobble again.
-- Tracking resets fully on every `item` change, including a scrobble mid-track from a manual `crossfadeTo()`, there's no cross-track carryover of listened time.
+- A failed `scrobble()` or `nowPlaying()` never interrupts playback. The plugin catches the rejection and reports it through its own error channel, `plugin:scrobble/scrobble-failed` or `plugin:scrobble/now-playing-failed`.
+- Once a track is scrobbled it stays scrobbled. `isScrobbled()` latches `true` for the rest of that item's playback, so replaying it without advancing does not scrobble again.
+- Tracking resets on every `item` change, including a mid-track `crossfadeTo()`. Listened time never carries across tracks.
 
 ## How to extend it
 

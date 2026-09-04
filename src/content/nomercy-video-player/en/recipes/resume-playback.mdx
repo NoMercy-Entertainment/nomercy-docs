@@ -7,7 +7,9 @@ description: 'Save watch position from the progress event, resume from item.prog
 
 # Recipe: Persistence & Resume
 
-The player never persists watch position on its own, it reads `item.progress` if your data already carries it, and it emits `'progress'` so you can save new values, but the storage round-trip is your app's job. This recipe covers both halves: writing progress out as it plays, and feeding it back in so the next session resumes where the last one left off.
+The player never persists watch position. It reads `item.progress` if your data carries it, and it emits `'progress'` so you can save new values. The storage round-trip is your app's job.
+
+This recipe covers both halves: writing progress out as it plays, and feeding it back in so the next session resumes where the last one stopped.
 
 ## Saving progress as it plays
 
@@ -62,7 +64,17 @@ player.setup({
 
 ## What setup() does with it, and what autoPlay gates
 
-Every `setup()` call with a non-empty playlist picks a start item from `progress` on its own, no extra config needed, and does it whether or not `autoPlay` is set: the most recently watched item (`progress.timestamp`) wins, over 90% watched rolls forward to the next item instead of replaying the credits, anything else resumes at `progress.time`. `startAt` rides the load down to the backend, so the stream begins fetching at the offset directly, no play-then-immediately-seek flash. `autoPlay: true` is the one thing this selection doesn't do by itself: it decides whether that primed item also starts playing, or the player mounts paused and ready on the right item and position instead.
+Every `setup()` with a non-empty playlist picks a start item from `progress` on its own. No extra config, and it happens whether or not `autoPlay` is set.
+
+The rules:
+
+- The most recently watched item wins, by `progress.timestamp`.
+- An item over 90% watched rolls forward to the next one, rather than replaying the credits.
+- Anything else resumes at `progress.time`.
+
+`startAt` rides the load down to the backend, so the stream starts fetching at the offset. There is no play-then-seek flash.
+
+`autoPlay: true` is the one thing this does not decide for you. It only says whether the primed item also starts playing, or the player mounts paused on the right item and position.
 
 This means the *feed-in* half of the recipe is just: know the last-watched item and its `WatchProgress` before you call `setup()`. Everything else, picking which item, deciding whether to resume or roll forward, is already built.
 
@@ -79,7 +91,13 @@ player.item(item, { autoplay: true, startAt: saved?.time });
 
 ## See it running
 
-This demo proves the persistence half of the recipe, not the built-in `autoPlay`/`progress`/`startAt` path described above: it sets `autoPlay: false` and hand-rolls its own resume, reading `localStorage` on mount and calling `player.time(saved.time)` once `'mediaReady'` confirms the source is ready to seek, because a docs preview can't reload the page for you the way a real app's next visit would. The badge shows the value read from `localStorage` on mount, then updates on every `'progress'` tick. Reload this page (or open it in a new tab) and the badge on mount still reflects the position saved by your last visit, since it re-reads the same key.
+This demo proves the persistence half, not the built-in path above.
+
+It sets `autoPlay: false` and hand-rolls its own resume: read `localStorage` on mount, then call `player.time(saved.time)` once `'mediaReady'` confirms the source can be seeked. A docs preview cannot reload the page for you the way a real app's next visit would.
+
+The badge shows the value read on mount, then updates on every `'progress'` tick.
+
+Reload this page, or open it in a new tab, and the badge still reflects the position your last visit saved. It re-reads the same key.
 
 :::snippet{file="video-recipe-resume-playback" live="false"}
 :::

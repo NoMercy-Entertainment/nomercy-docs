@@ -1,0 +1,58 @@
+---
+title: 'Video hub'
+description: 'Starting playback, reporting progress, and moving a film to another screen.'
+draft: false
+---
+
+# Video hub
+
+```text
+wss://{server-address}:7626/videoHub?access_token={token}
+```
+
+The video hub holds one playback state per user. Every device of that user sees the same state, which is what makes "carry on in the bedroom" work.
+
+## Starting playback
+
+```text
+StartPlaybackCommand(type, listId, itemId)
+```
+
+`type` says what kind of thing is being played, such as a film or a series. `listId` identifies it, and `itemId` picks an episode within it.
+
+The server builds the queue itself. A client asks for a title and receives a state to render, rather than assembling a playlist of its own.
+
+## While it plays
+
+```text
+PlaybackCommand(command, data)
+SetTime(request)
+```
+
+`PlaybackCommand` carries the transport actions: play, pause, seek, next and so on. The state that comes back says which of them are allowed right now, so a client greys out what cannot be done instead of guessing.
+
+`SetTime` reports where the viewer is, which is what keeps continue watching honest.
+
+## Moving to another screen
+
+```text
+ChangeDeviceCommand(deviceId)
+```
+
+Playback moves to that device. The queue and position stay with the user, so nothing restarts.
+
+Which devices are available comes from the [device hub](/nomercy-api/signalr/device-hub).
+
+## Clearing progress
+
+```text
+RemoveWatched(request)
+```
+
+Drops the recorded progress for one item.
+
+## Where to go next
+
+- [Device hub](/nomercy-api/signalr/device-hub)
+- [Music hub](/nomercy-api/signalr/music-hub)
+- [User data](/nomercy-api/rest/user-data)

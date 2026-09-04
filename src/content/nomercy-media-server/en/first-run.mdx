@@ -1,13 +1,80 @@
 ---
 title: 'First-Run Setup'
-description: 'Claim your server, link your account, and add your first library.'
+description: 'Claim your server and link it to your NoMercy account.'
 draft: false
 ---
 
 # First-Run Setup
 
-::Callout
+The first time your server starts it has no account attached, so it opens a setup page and waits for you there. This page walks that once-only step.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+You can create a NoMercy account during setup.
+
+## Opening the setup page
+
+What happens depends on where the server runs.
+
+**On a desktop machine**, the server opens the setup page in your browser by itself. The address is `http://localhost:7626/setup`.
+
+**On a headless machine** such as a NAS, a Docker host, or a system service, there is no browser to open. The server prints a code and a link in its terminal output instead, together with a QR code. Open the link on any device that has a browser, phone or laptop or another computer, and enter the code. The QR code is a shortcut for phones.
+
+Both routes reach the same place. You can also just browse to the setup page yourself from another machine on your network.
+
+## Signing in
+
+The setup page checks first whether you are already signed in to NoMercy in that browser. If you are, it moves straight on and you never see a login screen.
+
+If you are not, you get two ways in.
+
+**Sign in on this device.** Choose **Login with NoMercy**. You go to the NoMercy sign-in page and come back automatically.
+
+**Sign in on another device.** Use the code and QR shown on the page. This is the route to take when the machine you are setting up has no convenient browser.
+
+Both are live at the same time. Whichever you finish first is the one that counts.
+
+### If you do not have an account yet
+
+The sign-in screen has a registration link. Create your account there and verify your email address, then carry on. Setup waits for you.
+
+Take your time over it. The sign-in code has a short life and setup replaces it with a fresh one while you are still registering. If the code on screen has changed by the time you come back, use the new one.
+
+## What the server does next
+
+Once you are signed in, the server sets itself up without further input.
+
+1. It registers itself against your account.
+2. It gets its own internet address and DNS entry.
+3. It requests an SSL certificate so clients can reach it securely.
+
+The certificate is the slow part. The page reports progress while it works. Do not restart the server during this step.
+
+When everything is in place the page shows **All done!**, tells you your server's address, and opens the NoMercy app for you. Your new server is waiting there.
+
+## Reaching your server from outside your home
+
+Inside your own network your server works as soon as setup finishes.
+
+For access from elsewhere the server arranges a route by itself. It asks your router to open a port, and if that does not work it tries other routes without involving you.
+
+Some routers refuse that request or ignore it silently. If yours does, and nothing else gets through, add the port rule on your router yourself. See [Networking](/nomercy-media-server/networking).
+
+::Troubleshooting
+
+**Every page of the server says setup is required.**
+Setup did not finish. Open `/setup` again and complete it, or use the retry button. This state is expected until setup is done, so it is not a sign that anything is broken.
+
+**Setup ends with "the SSL certificate could not be acquired".**
+Choose retry. Retrying is safe and is the normal fix.
+
+**Nothing works and the machine has no internet.**
+Setup cannot finish offline. Signing in and registering both need a connection. Once a server has completed setup once, it keeps working on your local network without one.
+
+**Windows asks about the firewall.**
+Allow it. The server needs to accept connections from your other devices.
 
 ::
+
+## Where to go next
+
+- [Library Management](/nomercy-media-server/libraries) to create your first library.
+- [Networking](/nomercy-media-server/networking) if you need access from outside your home.

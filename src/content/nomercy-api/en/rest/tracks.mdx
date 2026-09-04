@@ -1,13 +1,33 @@
 ---
 title: 'Tracks'
-description: 'Tracks endpoints.'
+description: 'Favourite tracks, lyrics, and reporting a play.'
 draft: false
 ---
 
 # Tracks
 
-::Callout
+Track endpoints are per user. The listing is the user's favourites rather than every track on the server, which is browsed through albums and artists instead.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/music/tracks` | MediaAccess |
+| POST | `/api/v1/music/tracks/{id}/like` | MediaAccess |
+| POST | `/api/v1/music/tracks/{id}/playback` | MediaAccess |
 
-::
+`playback` records that the track was played. Players call it themselves; nothing else has to.
+
+## Lyrics
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/music/tracks/{id}/lyrics` | MediaAccess |
+| PATCH | `/api/v1/music/tracks/{id}/lyrics-offset` | MediaAccess |
+
+Lyrics are cached on the server after the first look-up. Where a look-up found nothing, that answer is remembered too, so the providers are not asked again for the same track.
+
+`lyrics-offset` shifts synced lyrics in time for a track whose timing is out. It is saved, so it applies on every later play.
+
+## Where to go next
+
+- [Albums](/nomercy-api/rest/albums)
+- [Playlists](/nomercy-api/rest/playlists)

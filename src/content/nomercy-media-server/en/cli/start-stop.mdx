@@ -1,13 +1,59 @@
 ---
-title: 'start, stop, restart, status'
-description: 'Start, stop, restart, and check the status of the server process.'
+title: 'Starting and stopping'
+description: 'Start, stop, restart and check the server from the terminal.'
 draft: false
 ---
 
-# start, stop, restart, status
+# Starting and stopping
 
-::Callout
+Four commands cover the server's life cycle.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## Start
+
+```bash
+nomercy start
+```
+
+On a machine where the server is installed as a service, it is already running after a reboot and you rarely need this.
+
+## Stop
+
+```bash
+nomercy stop
+```
+
+The server finishes what it is doing before it exits. An encode in progress is checkpointed, so stopping does not throw away the work; it resumes from where it stopped when you start again.
+
+## Restart
+
+```bash
+nomercy restart
+```
+
+Use this after changing a setting that says it needs a restart. It is a stop and a start, with the same safety around work in progress.
+
+## Status
+
+```bash
+nomercy status
+```
+
+Tells you whether the server is running and which addresses it answers on. This is the fastest way to find the address to open in a browser, which matters on a headless machine where nothing told you.
+
+::Troubleshooting
+
+**Every command says the server is not running.**
+Start it with `nomercy start`. If that fails too, read [Logs](/nomercy-media-server/cli/logs) to find out why.
+
+**The server starts and then stops again.**
+The log says why. The usual causes are port 7626 already being in use and a data directory the server cannot write to.
+
+**Stop takes a while to return.**
+It is finishing an operation rather than hanging. Let it complete; killing the process is what causes work to be lost.
 
 ::
+
+## Where to go next
+
+- [Logs](/nomercy-media-server/cli/logs) to find out why something failed.
+- [Autostart](/nomercy-media-server/cli/autostart) to control start-on-boot.

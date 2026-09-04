@@ -1,13 +1,65 @@
 ---
-title: 'Plugin System Overview'
-description: 'How the NoMercy plugin system works.'
+title: 'Plugins overview'
+description: 'What plugins can add to your server, and how they are kept in check.'
 draft: false
 ---
 
-# Plugin System Overview
+# Plugins overview
 
-::Callout
+A plugin adds capability to your server without changing the server itself. Only the server owner can install one.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+## What a plugin can extend
 
-::
+| Extension point | Lets a plugin |
+|-----------------|---------------|
+| Media source | Find media somewhere the server does not look on its own |
+| Metadata | Supply titles, artwork and details from another source |
+| Encoder | Decide the encoding profile for a title |
+| Scheduled task | Run work on a schedule |
+| Authentication | Take part in signing users in |
+| User interface | Add screens and navigation to the dashboard |
+
+A single plugin can do several of these.
+
+The user interface point is worth understanding: the plugin describes the screen and each client renders it in its own style. One plugin therefore looks native on the web, on a phone and on a TV without shipping three interfaces.
+
+## Where plugins come from
+
+Repositories. Your server starts with the official NoMercy repository configured, and you can add others.
+
+You can also install a plugin from a file, as a `.zip` carrying its manifest or as a bare `.dll`.
+
+See [Repositories and trust](/nomercy-media-server/plugins/trusted-publishers) for how a repository is trusted and what that changes.
+
+## Consent
+
+This is the part worth reading before you install anything.
+
+A plugin declares what it needs. A plugin that only reads media, supplies metadata or adds a screen is treated as ordinary and is enabled when you install it.
+
+A plugin that wants more, such as reaching the network, adding its own endpoints, or opening a socket, **installs but stays switched off until you allow it**. It cannot switch itself on. You see it listed as waiting for consent, you read what it asked for, and you decide.
+
+Consent can be withdrawn later. Withdrawing it disables the plugin and clears what you granted.
+
+## Grants
+
+Beyond that first decision, a plugin can ask for something specific while it runs: one network host, the ability to write into one named library, permission to play a source outside your library.
+
+Each request arrives separately with the reason the plugin gave, and you approve them one at a time. A plugin cannot widen its own reach by asking once and taking everything.
+
+## What this protects you from
+
+Plugins run inside the server, so this is a permission model rather than a wall. The protections that exist are real, and knowing their shape is better than assuming more:
+
+- A plugin only reaches the network hosts it declared or you granted.
+- A plugin needing anything beyond the ordinary set cannot run until you say so.
+- Its version compatibility is checked before it loads, so a plugin built against a different server version is rejected rather than half-loaded.
+- Downloads from a repository are checked against the checksum the repository published.
+
+Install plugins you have reason to trust, the same way you would with any software that runs on your machine.
+
+## Where to go next
+
+- [Installing plugins](/nomercy-media-server/plugins/installing)
+- [Repositories and trust](/nomercy-media-server/plugins/trusted-publishers)
+- [Writing a plugin](/nomercy-media-server/plugins/developing)

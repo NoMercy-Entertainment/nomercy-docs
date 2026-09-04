@@ -1,13 +1,44 @@
 ---
 title: 'Libraries'
-description: 'GET /libraries and GET /libraries/:id — list and fetch libraries.'
+description: 'What a signed-in user can see, and how a library is listed for each surface.'
 draft: false
 ---
 
 # Libraries
 
-::Callout
+These endpoints answer what the calling user may see. They return only libraries that user has access to, which is why two accounts on one server can get different lists.
 
-This page is a stub. The surface this documents is still in active development and content will be added once it stabilises.
+Administering libraries is a separate surface: see [Libraries (admin)](/nomercy-api/rest/libraries-admin).
 
-::
+## Listing
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/libraries` | MediaAccess |
+| GET | `/api/v1/libraries/mobile` | MediaAccess |
+| GET | `/api/v1/libraries/tv` | MediaAccess |
+
+`mobile` and `tv` return the same libraries shaped for those screens. They describe rows and cards for the client to draw, rather than raw records, which is how one server change reaches every client at once.
+
+## One library
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/libraries/{libraryId}` | MediaAccess |
+| GET | `/api/v1/libraries/{libraryId}/letter/{letter}` | MediaAccess |
+
+The letter form returns the titles starting with that letter. Titles that do not start with a letter are grouped under `#`. This is how the apps page a large library, rather than by number.
+
+## Import failures
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/libraries/{libraryId}/import-failures` | MediaAccess |
+
+Media that failed to import after the server had retried. Pass `resolved=false` to see only the ones still outstanding.
+
+## Where to go next
+
+- [Libraries (admin)](/nomercy-api/rest/libraries-admin)
+- [Home](/nomercy-api/rest/home)
+- [Libraries](/nomercy-media-server/libraries) for the concepts behind them.

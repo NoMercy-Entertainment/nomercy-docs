@@ -25,7 +25,13 @@ If you open the web app on the same network as your server and it never connects
 
 ### Why this happens
 
-app.nomercy.tv is served over the public internet. When you open it from a device on the same network as your server, DNS resolves your server's hostname (something like `192-168-2-60.<id>.srv.nomercy.tv`) straight to its private LAN address (`192.168.2.x`). Modern browsers treat any request from a public site into a private or local-network address as sensitive and hold it back until you grant permission. Chrome and Edge call this Private Network Access; Firefox calls it Local Network Access. It applies to every public site reaching into your LAN, not just NoMercy.
+app.nomercy.tv is served over the public internet.
+
+Open it from a device on the same network as your server, and DNS resolves your server's hostname, something like `192-168-2-60.<id>.srv.nomercy.tv`, straight to its private LAN address.
+
+Browsers treat a request from a public site into a private address as sensitive, and hold it until you grant permission. Chrome and Edge call this Private Network Access. Firefox calls it Local Network Access.
+
+It applies to every public site reaching into your LAN, not only this one.
 
 Your server already does its part: it sends `Access-Control-Allow-Private-Network: true` on the CORS preflight and serves a valid public TLS certificate. The piece that's missing is the one-time permission your browser wants from you, not a fix on the server side.
 
@@ -41,8 +47,10 @@ This only comes up when you're on the same network as your server. From outside 
 
 ## Firefox reconnects to the server in a rapid loop
 
-If the web app reaches your server but then Firefox hammers it with a fast loop of failed connections (the console fills with repeated `deviceHub/negotiate` errors that end in `Status code: (null)`), that was a server-side problem with how the live connections rode over HTTP/2. Firefox is the only browser that carries WebSockets over HTTP/2, so it was the only one that looped; Chrome, Edge, and the Android app were never affected.
+The console fills with repeated `deviceHub/negotiate` errors ending in `Status code: (null)`, and the app never settles.
+
+Firefox is the only browser that carries WebSockets over HTTP/2, so it is the only one that shows this. Chrome, Edge and the Android app connect normally against the same server.
 
 ### Fix
 
-This is fixed on the server. Update your NoMercy Media Server to the latest version and the loop stops on its own, with no browser setting to change. If you can't update right away, the loop also stops if you set `network.http.http2.enabled` to `false` in Firefox's `about:config`, but updating the server is the real fix and you can turn that back on afterward.
+Update your NoMercy Media Server. Current versions do not do this, and the loop stops on its own with no browser setting to change.

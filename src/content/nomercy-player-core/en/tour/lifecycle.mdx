@@ -11,15 +11,46 @@ description: 'The setup pipeline and phase machine every player built on the kit
 
 ## The pipeline
 
-`setup(config)` snapshots your config, wires every cross-cutting policy (visibility, network, wake lock, metrics, preload and transition orchestration), then runs an ordered async sequence: `setupStart` → `configResolved` → `pluginsRegistering` → `pluginsRegistered` → `streamsReady` → `authReady` → `playlistResolving` (only when the playlist is a URL) → `playlistReady` → `mediaReady` → `ready`. Each stage emits its own name on success or a matching `<stage>Error` event on failure, and a failure short-circuits the rest of the pipeline and rejects `ready()` — except playlist resolution, which never throws: a fetch or parse failure emits `playlistError` and the pipeline still proceeds to `mediaReady` and `ready` with an empty queue.
+`setup(config)` snapshots your config and wires the cross-cutting policies: visibility, network, wake lock, metrics, preload and transition orchestration.
+
+Then it runs an ordered async sequence.
+
+```text
+setupStart -> configResolved
+  -> pluginsRegistering -> pluginsRegistered
+  -> streamsReady -> authReady
+  -> playlistResolving   (only when the playlist is a URL)
+  -> playlistReady -> mediaReady -> ready
+```
+
+Each stage emits its own name on success, or a matching `<stage>Error` on failure. A failure short-circuits the rest and rejects `ready()`.
+
+Playlist resolution is the exception. It never throws. A fetch or parse failure emits `playlistError`, and the pipeline still reaches `mediaReady` and `ready` with an empty queue.
 
 `ready()` returns a promise that resolves once the pipeline reaches `ready`, or rejects if a stage failed or `dispose()` ran first. It's memoised, so calling it from multiple places in your player library returns the same promise rather than re-running anything.
 
-Call `setup()` a second time on the same instance and it throws `core:lifecycle/already-setup` — that guard checks first and stays tripped even across a `dispose()` in between, so reuse after teardown needs a fresh instance, not a second `setup()` call. The narrower `core:player/disposed` guard only fires when `setup()` runs for the first time on an instance that was disposed before `setup()` ever ran once. There is exactly one way in.
+Call `setup()` a second time on the same instance and it throws `core:lifecycle/already-setup`.
+
+That guard is checked first and stays tripped across a `dispose()` in between. Reuse after teardown needs a fresh instance, not a second `setup()`.
+
+The narrower `core:player/disposed` guard fires only when `setup()` runs for the first time on an instance that was disposed before `setup()` ever ran.
+
+There is exactly one way in.
 
 ## The phase machine
 
-Underneath the pipeline sits a closed set of phases: `idle` → `setup` → `ready` → `loading` / `starting` / `playing` / `paused` / `buffering` / `seeking` / `ended` / `stopped` → `disposing` → `disposed`. `phase()` reads the current one; the `phase` event fires `{ from, to }` on every transition, so a UI layer or a plugin can drive an overlay off phase changes alone instead of piecing state together from a dozen separate flags.
+Underneath the pipeline sits a closed set of phases.
+
+```text
+idle -> setup -> ready
+     -> loading / starting / playing / paused
+      / buffering / seeking / ended / stopped
+     -> disposing -> disposed
+```
+
+`phase()` reads the current one. The `phase` event fires `{ from, to }` on every transition.
+
+So a UI layer or a plugin drives an overlay off phase changes alone, instead of piecing state together from a dozen flags.
 
 Two guard methods sit on top of the phase machine, and every transport method (`play`, `pause`, `stop`, `next`, `previous`, and the rest) calls the first one before doing anything else:
 
@@ -28,14 +59,24 @@ Two guard methods sit on top of the phase machine, and every transport method (`
 
 ## Composing a player-library author sees
 
-Building a player library on the kit means your constructor calls `initPlayerCoreState()` and your prototype gets `lifecycleMethods` (among the rest of `playerCoreMethods`) stamped onto it via `composeMixins`. From that point, `setup()` / `ready()` / `dispose()` and the phase machine work exactly as described above, whether or not a media backend is attached yet. The example below composes the same minimal player from [Quickstart](/nomercy-player-core/quickstart), with no backend at all, and drives the whole lifecycle to prove it's kit behavior, not something a backend has to supply.
+Building a player library on the kit means two things. Your constructor calls `initPlayerCoreState()`, and `composeMixins` stamps `lifecycleMethods` onto your prototype along with the rest of `playerCoreMethods`.
+
+From there, `setup()`, `ready()`, `dispose()` and the phase machine work as described above, with or without a media backend attached.
+
+The example below composes the minimal player from [Quickstart](/nomercy-player-core/quickstart) with no backend at all, and drives the whole lifecycle. The lifecycle is kit behaviour, not something a backend supplies.
 
 :::snippet{file="tour-lifecycle" live="false"}
 :::
 
 ## Disposal
 
-`dispose()` is idempotent: a second call is a no-op. It dispatches `beforeDispose` first, and a listener can call `preventDefault()` to keep the player alive (`disposePrevented` fires instead). Otherwise it drains every cleanup callback the `setup()` policy wiring registered, in order, before emitting `dispose` and moving to `disposed`, so a handler observing the transition sees a consistent final state rather than a half-torn-down one.
+`dispose()` is idempotent. A second call does nothing.
+
+It dispatches `beforeDispose` first, and a listener can call `preventDefault()` to keep the player alive. `disposePrevented` fires instead.
+
+Otherwise it drains every cleanup callback the `setup()` wiring registered, in order, then emits `dispose` and moves to `disposed`.
+
+A handler watching that transition sees a consistent final state, not a half-torn-down one.
 
 ## Next steps
 

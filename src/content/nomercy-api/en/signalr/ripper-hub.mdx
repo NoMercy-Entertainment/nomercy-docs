@@ -1,0 +1,41 @@
+---
+title: 'Ripper hub'
+description: 'The state of a drive, and rip progress as it runs.'
+draft: false
+---
+
+# Ripper hub
+
+```text
+wss://{server-address}:7626/ripperHub?access_token={token}
+```
+
+Ripping takes a while, so it reports here rather than through a request the client holds open. Connect before starting a rip and watch it work.
+
+## Asking about a drive
+
+```text
+GetDriveState(drivePath)
+```
+
+Needs Moderator; anyone else gets nothing back.
+
+What comes back depends on what is there:
+
+**No disc.** The drive itself: path, label, and that it is empty.
+
+**A disc the server can read.** A light probe as well, so the page can name the disc without a full scan.
+
+**A disc of a type with no reader.** The drive-level answer only, rather than a failure.
+
+The probe is deliberately light. Reading every title on a Blu-ray takes minutes, and this call is what a page makes on open.
+
+## Watching a rip
+
+Progress arrives on this connection while the rip runs. Start the rip through [Optical media](/nomercy-api/rest/optical-media) and read the progress here.
+
+## Where to go next
+
+- [Optical media](/nomercy-api/rest/optical-media)
+- [Drives hub](/nomercy-api/signalr/drives-hub)
+- [Discs](/nomercy-media-server/media/optical)
