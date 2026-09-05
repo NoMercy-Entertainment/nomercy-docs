@@ -134,6 +134,16 @@ function rehypeShiki() {
         themes: { light: 'one-light', dark: 'one-dark-pro' },
         defaultColor: 'light',
         structure: 'inline',
+        colorReplacements: {
+          // One Dark Pro paints every variable, parameter and property #e06c75,
+          // a saturated red. Ordinary code carries enough keywords and strings
+          // to balance it, but a block that is only a signature is almost all
+          // identifiers, so it rendered as a wall of red. Same hue family, far
+          // less shout: identifiers read as content, not as an error.
+          'one-dark-pro': { '#e06c75': '#d99aa4' },
+          // One Light's variable red has the same problem on a pale ground.
+          'one-light': { '#e45649': '#b4574e' },
+        },
       })
       // Parse shiki's HTML into HAST and replace the code element's
       // children with the parsed span tree. Round-tripping through a

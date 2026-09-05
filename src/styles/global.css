@@ -163,6 +163,7 @@
     overflow-wrap: anywhere;
   }
 
+
   /* Tables — mobile. Stack each row as its own card. The rehype plugin
      stamps `data-label="<column header>"` on every <td>, and the ::before
      below renders that label above each value, so a 5-column table reads as
@@ -295,6 +296,30 @@
   }
 }
 
+/* Identifiers in a table read as text, not as chips.
+   A Notes cell often names half a dozen fields in one breath. With the prose
+   treatment each one becomes a bordered, filled box, so the cell turns into a
+   row of pills and the sentence between them disappears. Inside a table the
+   monospace face and a distinct color already say "this is code": the ring,
+   the fill and the padding only add edges to count.
+   The first column keeps a faint fill, because there the identifier IS the
+   row's subject rather than a word inside a sentence. */
+.prose table :not(pre) > code,
+.prose li :not(pre) > code,
+.prose li > code {
+  padding: 0;
+  box-shadow: none;
+  background-color: transparent;
+  color: var(--tw-prose-code);
+  font-size: 0.8125rem;
+}
+
+.prose tbody td:first-child :not(pre) > code {
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.375rem;
+  background-color: var(--tw-prose-code-bg);
+}
+
 /* Reading measure. Unlayered on purpose: the width it overrides comes from a
    Tailwind utility, and a rule inside `@layer base` loses to the utilities
    layer no matter how specific it is.
@@ -309,7 +334,7 @@
    every block shares one left edge. */
 @media (min-width: 1024px) {
   .prose > :where(p, ul, ol, dl, blockquote) {
-    max-width: 66ch;
+    max-width: 123ch;
     margin-inline: 0;
   }
 
