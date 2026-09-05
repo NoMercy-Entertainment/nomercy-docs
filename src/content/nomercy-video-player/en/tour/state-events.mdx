@@ -13,15 +13,9 @@ Both ways come from the kit. Video only adds the events specific to its own medi
 
 ## Typed state readers
 
-These come straight from `nomercy-player-core` (see [Core: Time & State](/nomercy-player-core/tour/time-and-state) for the full contract) and work identically here:
+These come straight from `nomercy-player-core` (see [Core: Time & State](/nomercy-player-core/tour/time-and-state) for the full contract) and work identically here. Each one returns a typed enum value or a snapshot object, never a raw string to compare by hand.
 
-| Reader | Returns |
-| --- | --- |
-| `playState()` | `PlayState.IDLE` / `LOADING` / `PLAYING` / `PAUSED` / `STOPPED` / `ERROR` |
-| `bufferState()` | `BufferState.IDLE` / `LOADING` / `SEEKING` / `STALLED` |
-| `networkState()` | `NetworkState.ONLINE` / `OFFLINE` / `SLOW` |
-| `volumeState()` | `VolumeState.UNMUTED` / `MUTED` (see [Volume](/nomercy-video-player/tour/volume)) |
-| `timeData()` | One `TimeState` snapshot bundling `position`, `duration`, `buffered`, `remaining`, and `percentage`, computed together so the values agree at the moment of the call. |
+The full [state enum list](/nomercy-player-core/reference/types#state-enums) and the [`TimeState` shape](/nomercy-player-core/reference/types#time--tracks) `timeData()` returns are on Reference: Domain Types. `volumeState()` is the one a mute-icon component reads most, see [Volume](/nomercy-video-player/tour/volume).
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -40,24 +34,9 @@ const { position, duration, percentage } = player.timeData();
 
 Most of what follows is unique to `VideoEventMap`, layered over the kit's `BaseEventMap`. That base carries transport, queue, volume, and i18n. Every tour page so far has covered those events.
 
-Three rows are the exception. `firstFrame`, `level-switched` and `subtitleCue` are `BaseEventMap` members, listed here because they matter most in a video context.
+Three rows are the exception. `firstFrame`, `level-switched` and `subtitleCue` are `BaseEventMap` members, listed here because they matter most in a video context. The music player and a raw core consumer see the same three.
 
-The music player and a raw core consumer see the same three.
-
-| Event | Payload | Fires when |
-| --- | --- | --- |
-| `firstFrame` | `void` | The first decoded frame paints. |
-| `waiting` / `canplay` / `stalled` | `void` | Backend buffering signals, for a spinner. |
-| `levels` | `{ levels }` | HLS manifest parsed; quality list is now populated. |
-| `level-switched` | `{ level }` | ABR (or a manual `quality()` call) actually switched renditions. |
-| `audioTracks` | `{ tracks }` | Audio-track list is now populated. |
-| `subtitleCue` | `SubtitleCueChange` | Every cue change, sidecar VTT or native text track alike. |
-| `fullscreen` / `pip` / `theater` | `{ active }` | The matching toggle settled. |
-| `aspectRatio` | `{ value }` | `aspectRatio()` or `cycleAspectRatio()` changed the object-fit mode. |
-| `videoRect` | `{ rect }` | The displayed content rectangle changed (resize, fullscreen, metadata). |
-| `segmentBoundary` | `{ startSec, endSec, onEnd }` | A `playSegment()` window's `endSec` was reached (see [Chapters](/nomercy-video-player/tour/chapters)). |
-| `display-message` / `remove-message` | `{ text, ms? }` / `void` | OSD toast request/dismiss; the active UI plugin renders it. |
-| `back` / `close` | `void` | Navigation intent from a UI plugin's back/close button. |
+The events fall into a handful of groups: playback signals (`firstFrame`, `waiting`/`canplay`/`stalled`), quality and track population (`levels`, `audioTracks`), subtitle cues, display state (`fullscreen`, `pip`, `theater`, `aspectRatio`, `videoRect`), segment boundaries, and OSD/navigation intents (`display-message`, `back`, `close`). Every name, payload shape, and firing condition is on [Reference: Events](/nomercy-video-player/reference/events).
 
 ```ts
 player.on('levels', ({ levels }) => {

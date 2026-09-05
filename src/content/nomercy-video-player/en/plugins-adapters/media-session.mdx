@@ -1,30 +1,17 @@
 ---
-title: 'Plugin: Media Session'
-description: 'MediaSessionPlugin (video): the OS "Now Playing" surface, artist filled from show and album from the season label so series metadata reads correctly.'
+title: 'Plugin: Media Session (video)'
+description: 'MediaSessionPlugin registration for video: the OS "Now Playing" surface, artist filled from show and album from the season label. Full surface lives in core.'
 ---
 
 {/* Source: packages/nomercy-video-player/src/plugins/media-session/index.ts */}
 
 # Plugin: Media Session
 
-`MediaSessionPlugin` (id `'media-session'`) is a one-method specialization of the kit's [`MediaSessionPlugin`](/nomercy-player-core/plugins-adapters/media-session), which owns the actual `navigator.mediaSession` wiring: action handlers (`play`, `pause`, `seekto`, `nexttrack`, `previoustrack`), position-state sync, and artwork resolution through `resolveUrl(url, 'poster')`. This subclass only overrides `getMetadata()`, how a `VideoPlaylistItem` becomes the OS lock-screen / notification text.
+## Purpose
 
-## What the video subclass builds
+`MediaSessionPlugin` (id `'media-session'`) feeds a video item's title, show, and season into the OS "Now Playing" surface: lock-screen controls, hardware media keys, Bluetooth remotes. It is a one-method specialization of the kit's [`MediaSessionPlugin`](/nomercy-player-core/plugins-adapters/media-session), which owns the actual `navigator.mediaSession` wiring. This subclass only overrides `getMetadata()`, how a `VideoPlaylistItem` becomes the lock-screen text.
 
-| MediaSession field | Video source |
-|---|---|
-| `title` | `item.title` |
-| `artist` | `item.show` (empty string when unset, a movie has no show). |
-| `album` | The season label, translated through `this.t('season', { season })`, locale-dependent (English default `"Season {season}"`) when `item.season` is set, empty string otherwise. |
-
-Artwork comes from the kit base class, `poster` resolved through the same `resolveUrl` pipeline every other image on the item uses, nothing video-specific to configure there.
-
-## Rules & restrictions
-
-- Reads only fields defined on the canonical `VideoPlaylistItem`. Consumers carrying server-specific fields (a `year`, a localized `name`) should subclass and override `getMetadata()` themselves rather than expecting this built-in to read fields it isn't typed against. The kit deliberately avoids casting to a richer intersection type inside its own built-ins.
-- Everything else, browser support detection, action handler wiring, is identical to the kit base, see [Plugin: Media Session (core)](/nomercy-player-core/plugins-adapters/media-session) for options and events.
-
-## How to extend it
+## Using it
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -32,18 +19,37 @@ import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-video-player/
 
 const player = nmplayer('player');
 
+player.addPlugin(MediaSessionPlugin);
+await player.ready();
+```
+
+Subclass and override `getMetadata()` for fields beyond the canonical item, such as a release `year`:
+
+```ts
 class MyMediaSessionPlugin extends MediaSessionPlugin {
-  protected override getMetadata(item) {
-    const base = super.getMetadata(item);
-    return {
-      ...base,
-      album: item.year ? `${base.album} (${item.year})`.trim() : base.album,
-    };
-  }
+	protected override getMetadata(item) {
+		const base = super.getMetadata(item);
+		return {
+			...base,
+			album: item.year ? `${base.album} (${item.year})`.trim() : base.album,
+		};
+	}
 }
 
 player.addPlugin(MyMediaSessionPlugin);
 ```
+
+## Reference
+
+`getMetadata()` builds:
+
+| MediaSession field | Video source |
+|---|---|
+| `title` | `item.title` |
+| `artist` | `item.show` (empty string when unset, a movie has no show). |
+| `album` | The season label, translated through `this.t('season', { season })`, locale-dependent (English default `"Season {season}"`) when `item.season` is set, empty string otherwise. |
+
+Artwork comes from the kit base class unchanged, `poster` resolved through the same `resolveUrl` pipeline every other image on the item uses. See [Plugin: Media Session (core)](/nomercy-player-core/plugins-adapters/media-session) for options, events, action handlers, and the artwork priority chain.
 
 ## Next steps
 

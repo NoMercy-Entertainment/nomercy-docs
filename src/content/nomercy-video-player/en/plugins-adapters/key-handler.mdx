@@ -1,23 +1,50 @@
 ---
-title: 'Plugin: Key Handler'
-description: 'KeyHandlerPlugin (video): the full default binding set for desktop, built as small overridable group methods on top of the kit KeyHandlerPlugin.'
+title: 'Plugin: Key Handler (video)'
+description: 'KeyHandlerPlugin registration for video: the full desktop default binding set, built as small overridable group methods. Full surface lives in core.'
 ---
 
 {/* Source: packages/nomercy-video-player/src/plugins/key-handler/index.ts */}
 
 # Plugin: Key Handler
 
-`KeyHandlerPlugin` (id `'key-handler'`) is this library's desktop keyboard-binding set. The id is shared with the kit base and the music player's subclass.
+## Purpose
 
-It subclasses the kit's [`KeyHandlerPlugin`](/nomercy-player-core/plugins-adapters/key-handler), which brings scope resolution, cooldown, input-field awareness and `bind`/`unbind`/`replace`. On top it adds each video binding as its own small group method, overridable on its own.
+`KeyHandlerPlugin` (id `'key-handler'`) is this library's desktop keyboard-binding set: transport, volume, tracks, seek modifiers, and more. It subclasses the kit's [`KeyHandlerPlugin`](/nomercy-player-core/plugins-adapters/key-handler), which brings scope resolution, cooldown, input-field awareness, and `bind`/`unbind`/`replace`. On top, it adds every video binding as its own small group method, each overridable on its own.
 
 [`TvKeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/tv-key-handler) subclasses this one for remote-control input. [Recipe: Customizing Keyboard Shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts) covers extending or replacing bindings on either.
 
-## Options
+## Using it
 
-Same `KeyHandlerOptions` the kit plugin accepts, `scope`, `bindings`, `extend`, `when`, `cooldownMs`, `disableMediaControls`, see [Plugin: Key Handler (core)](/nomercy-player-core/plugins-adapters/key-handler) for the full table. This subclass adds no new option fields, only more default groups.
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player';
 
-## Default bindings
+const player = nmplayer('player');
+
+player.addPlugin(KeyHandlerPlugin);
+await player.ready();
+```
+
+Override one group method to change just that group; the rest of `addDefaults()` stays intact:
+
+```ts
+class MyKeyHandler extends KeyHandlerPlugin {
+	protected override addFullscreenKeys(): void {
+		this.bind('f', () => { void this.player.toggleFullscreen(); });
+		// F11 and Escape from the default binding intentionally dropped.
+	}
+}
+
+player.addPlugin(MyKeyHandler);
+```
+
+See [Recipe: Customizing Keyboard Shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts) for the full range, from one runtime `bind()` call up to overriding `addDefaults()` entirely.
+
+## Reference
+
+This subclass adds no new option fields to `KeyHandlerOptions`, only more default groups. See [Plugin: Key Handler (core)](/nomercy-player-core/plugins-adapters/key-handler) for `scope`, `bindings`, `extend`, `when`, `cooldownMs`, `disableMediaControls`, and the modifier-canonicalization rule.
+
+### Default bindings
 
 | Keys | Action |
 |---|---|
@@ -47,32 +74,11 @@ Same `KeyHandlerOptions` the kit plugin accepts, `scope`, `bindings`, `extend`, 
 | `s` | Stop. |
 | `shift+?` | Calls `DesktopUiPlugin.toggleShortcuts()` directly via `getPlugin()` (opens the shortcuts overlay when that plugin is mounted, no-ops otherwise). |
 
-## Rules & restrictions
+### Rules & restrictions
 
 - Every group above is its own `protected` method (`addPlaybackKeys`, `addVolumeKeys`, `addFullscreenKeys`, and so on), called from `addDefaults()`. Overriding one group in a subclass leaves the rest untouched.
 - `disableControls` on `VideoPlayerConfig` short-circuits `addDefaults()` entirely. No group runs. Only bindings your own `use()` override adds still exist.
 - `disableMediaControls` (also on `VideoPlayerConfig`) only gates the hardware `MediaX` bindings and the `MediaTrackNext`/`Previous` pair. It does not touch `Space`, arrows, or any letter-key binding.
-- `shift+?` is bound as `'shift+?'`, not `'?'`. Pressing `?` on a standard keyboard sends `key='?'` with `shiftKey=true`. The kit's canonicalizer folds modifier state into the key string, so the literal `'?'` would never match.
-
-## How to extend it
-
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player';
-
-const player = nmplayer('player');
-
-class MyKeyHandler extends KeyHandlerPlugin {
-  protected override addFullscreenKeys(): void {
-    this.bind('f', () => { void this.player.toggleFullscreen(); });
-    // F11 and Escape from the default binding intentionally dropped.
-  }
-}
-
-player.addPlugin(MyKeyHandler);
-```
-
-See [Recipe: Customizing Keyboard Shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts) for the full range of options, from one runtime `bind()` call up to overriding `addDefaults()` entirely.
 
 ## Next steps
 

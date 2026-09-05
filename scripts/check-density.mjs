@@ -26,7 +26,7 @@ const CONTENT = join(ROOT, 'src', 'content');
 // before it. Zero long paragraphs is the floor: it can only be held, not beaten.
 const BUDGET = {
   longParagraphs: 0,
-  longSentences: 155,
+  longSentences: 151,
 };
 
 const MAX_PARAGRAPH_WORDS = 60;

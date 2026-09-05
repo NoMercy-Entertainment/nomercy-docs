@@ -13,12 +13,19 @@ description: 'MediaSessionPlugin: bridges transport state to navigator.mediaSess
 
 Currently empty (`MediaSessionOptions = {}`), reserved for future options.
 
+## Artwork resolution
+
+The base class picks the first non-empty image URL off the item, in this priority: `image` → `poster` → `thumbnail` → `cover`.
+
+`image` and `cover` exist on every item shape. `poster` and `thumbnail` are video-only fields, so a music item falls straight to `image` then `cover`. The winning URL resolves through `resolveUrl(url, 'poster')`, the same pipeline every other image on the item uses.
+
 ## Rules & restrictions
 
 - When `navigator.mediaSession` is absent (Node, JSDOM, some older WebViews), the plugin silently no-ops. Every method is guarded at the top. Nothing throws.
 - When duration is zero, `NaN`, or `Infinity`, the plugin skips position reporting. Some browsers throw on an invalid `setPositionState` call.
 - Not every browser supports `setActionHandler('stop')`. The plugin catches the resulting `TypeError` rather than propagating it.
 - When embedded, Safari requires the `autoplay` attribute on the host `<iframe>` for MediaSession to activate at all. See the note on the [Embed](/nomercy-player-core/plugins-adapters/embed) plugin.
+- `getMetadata()` reads only fields defined on the canonical playlist item type. It never casts to a richer intersection to reach a consumer's own fields. Carrying application-specific fields beyond the canonical item? Subclass and override `getMetadata()` yourself.
 
 ## How to extend it
 

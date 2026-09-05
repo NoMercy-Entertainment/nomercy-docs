@@ -11,30 +11,11 @@ Every failure the kit or a plugin raises is a `PlayerError`, never a bare thrown
 
 ## The hierarchy
 
-`PlayerError` is the base. Every error carries:
+`PlayerError` is the base. Every error carries the same shape: a stable `code`, a `severity`, a discriminated `scope` naming where it came from, an optional `cause` and `context`, and a user-facing `suggestion`.
 
-- a stable `code`, such as `core:auth/forbidden` or `fillz:viz/canvas-init-failed`
-- a `severity`: `'fatal' | 'error' | 'warning' | 'info'`
-- a discriminated `scope`: `{ kind: 'core' }`, `{ kind: 'backend'; id }`, `{ kind: 'plugin'; id }`, and the rest
-- an optional `cause` and `context`
-- a user-facing `suggestion`
+Subclasses narrow the category. There is one for auth, DRM, media format, network, a resource that failed to load, the wrong lifecycle phase, a stream fault, a plugin fault, and a browser policy restriction such as a blocked autoplay.
 
-Subclasses narrow the category:
-
-- `AuthError`: extends `NetworkError`, thrown on 401 and 403
-- `DrmError`
-- `MediaFormatError`
-- `NetworkError`
-- `ResourceError`
-- `StateError`: the wrong lifecycle phase
-- `StreamError`
-- `PluginError`
-
-`BrowserPolicyError` is the odd one: a restriction the browser enforces, such as a blocked autoplay policy, or an API it does not support like RemotePlayback or the audio-output picker.
-
-`isHttp(century)` checks `context.httpStatus` against a 1xx to 5xx range, so no call site writes that comparison by hand.
-
-Construct one with a factory rather than the raw constructor where the kit provides one: `stateError(code, message, context?)`, `mediaFormatError(...)`, `resourceError(...)`, `pluginError(...)`, `browserPolicyError(...)`. Each stamps the right `scope` and a sensible default `severity` for you.
+The full class hierarchy, every field, and the factory functions that construct one with the right `scope` and a sensible default `severity` are on [Reference: Errors](/nomercy-player-core/reference/errors).
 
 ## Severity tiers and the error event
 
@@ -51,15 +32,9 @@ Every one delivers a `PlayerErrorEvent`: the underlying `error`, its `severity` 
 
 ## Retry policy
 
-`DEFAULT_RETRY_POLICY` is an exported table mapping error codes to a `RetryConfig` of `attempts`, `backoff`, `baseMs`, `maxMs` and `refreshFirst`.
+`DEFAULT_RETRY_POLICY` maps error codes to attempts, backoff, and whether to refresh auth first, looked up from most to least specific. Nothing consults it automatically: `Plugin.fetch()` defaults to no retry unless you pass a `RetryConfig`, an entry from the map or your own.
 
-Lookup runs from most to least specific: exact code, then category prefix, then an HTTP range (`'4xx'`, `'5xx'`), then the `'*'` wildcard.
-
-Nothing consults it automatically. Neither `authFetch` nor `Plugin.fetch` reads it, and `Plugin.fetch()` defaults to `{ attempts: 0 }` unless you pass a `RetryConfig`.
-
-In the table, `core:auth/forbidden` never retries, and `core:network/timeout` retries five times with exponential backoff.
-
-To use it, pass an entry from the map, or your own config, as the per-call `retry` option on `Plugin.fetch()`.
+The full table, every code, and the lookup precedence are on [Reference: Errors](/nomercy-player-core/reference/errors#default-retry-policy).
 
 :::snippet{file="tour-errors" live="false"}
 :::

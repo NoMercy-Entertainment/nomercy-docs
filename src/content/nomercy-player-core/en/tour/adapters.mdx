@@ -11,20 +11,13 @@ Nothing the kit does to a browser API is hardcoded. Every non-lifecycle behavior
 
 ## The adapter ports
 
-Each of these is a field on `BasePlayerConfig`, except stream sources, which you register with `registerStream()`. Supplying the field replaces the kit's default outright. For interfaces that bundle several sub-controllers, a partial override (`{ ...browserPlatform, wakeLock: myWakeLock }`) composes cleanly.
+Each port is a named interface with a working default: storage, platform, stream sources, URL resolution, translation, cue parsing, and the preload, transition and shuffle strategies among them.
 
-| Port | Interface | Default | Swap for |
-|---|---|---|---|
-| Storage | `IStorage` | `LocalStorageBackend` | `IndexedDBBackend`, `MemoryStorageBackend`, a remote store |
-| Platform | `IPlatform` | `browserPlatform` | Capacitor, Tauri, Electron, or a partial override |
-| Stream source | `IStreamSource` / `IStreamFactory` | native + HLS, registered at setup | a DASH or custom-protocol factory via `registerStream()` |
-| URL resolver | `IUrlResolver` | `auth.transformUrl` + structured parse | CDN-specific signing, per-category routing |
-| Translator | `ITranslator` | `DefaultTranslator` | i18next, FormatJS, any pluralization-aware engine |
-| Cue parser | `ICueParser` | VTT, sprite-VTT, LRC | TTML, SRT, a proprietary format |
-| Preload strategy | `IPreloadStrategy` | `DefaultPreloadStrategy` | custom prefetch timing or asset lists |
-| Transition strategy | `ITransitionStrategy` | crossfade (music) / gapless (video) | a custom fade or cut |
-| Shuffle strategy | `IShuffleStrategy` | `FisherYatesShuffle` | cursor-aware or weighted ordering |
-| Realtime channel | `RealtimeFactory` | `nativeWebSocketAdapter` | SignalR, Socket.IO, a custom transport |
+Every port except stream sources is a field on `BasePlayerConfig`. Stream sources register through `registerStream()` instead.
+
+Supplying the field replaces the kit's default outright. When an interface bundles several sub-controllers, a partial override composes cleanly: `{ ...browserPlatform, wakeLock: myWakeLock }`.
+
+The full port list, with the interface name, the default implementation, and what you would swap it for, is on [Reference: BasePlayerConfig](/nomercy-player-core/reference/config#adapters). Each port also has its own adapter page under [Plugins & Adapters](/nomercy-player-core/plugins-adapters/adapter-storage).
 
 The queue's cursor-follow logic, the crossfade timing math, the retry backoff, none of it needs to know which concrete implementation is active. Every mixin reads through the interface, so a swap changes behavior without touching kit code.
 

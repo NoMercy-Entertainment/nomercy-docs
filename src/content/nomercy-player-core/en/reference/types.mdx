@@ -72,6 +72,61 @@ Every one of these is a real TypeScript `enum` (not a string union), returned by
 | `VolumeState` | `UNMUTED` `MUTED` | `volumeState()` |
 | `CastState` | `UNAVAILABLE` `AVAILABLE` `CONNECTING` `CONNECTED` `DISCONNECTED` | `castState()` |
 
+## Queue methods
+
+The player-facing surface over `MediaList<T>`, see [Tour: Queue](/nomercy-player-core/tour/queue) for the delegation model behind it. Every mutation fires a typed event, see [Reference: Events](/nomercy-player-core/reference/events#queue-backlog-item).
+
+| Method | What it does |
+|---|---|
+| `queue()` | Returns the current items as a readonly array. |
+| `queue(items, opts?)` | Replaces the queue contents. |
+| `item()` | Reads the active item. |
+| `item(target, opts?)` | Moves the cursor to `target` (id, index, or item reference) and loads it. |
+| `index()` | Reads the cursor's position. |
+| `queueLength()` | Reads the queue's size. |
+| `queueIndexOf(id)` | Finds an item's index by id. |
+| `peekNext()` / `peekPrevious()` | Read what `next()` / `previous()` would load, without moving the cursor or triggering a load. |
+| `queueAppend(item)` | Adds to the end. |
+| `queuePrepend(item)` | Adds to the front. |
+| `queueInsert(item, index)` | Adds at a specific position. |
+| `queueRemove(id)` / `queueRemoveAt(index)` | Removes by id or position. |
+| `queueMove(from, to)` | Reorders in place. |
+| `queueClear()` | Empties the queue. |
+| `queueShuffle()` | Randomizes order. The cursor follows the currently-playing item to its new position. |
+| `queueSort(compare)` | Sorts with a custom comparator. |
+| `playItem(target)` | Jumps to an item already in the queue and plays it, closing the `item(); play()` race. |
+| `playNow(items, start?)` | Replaces the queue and starts playing the given item, the same race-free path as `playItem()`. |
+
+Removing the item before the cursor decrements the cursor automatically, so it keeps pointing at the same logical item. None of these methods ever silently jump playback to the wrong entry.
+
+## Volume & mute methods
+
+| Method | What it does |
+|---|---|
+| `volume()` | Reads the current level, `0`-`100`. |
+| `volume(level)` | Sets it, clamped to that range, returns `Promise<void>` once the backend applies it. |
+| `mute()` / `unmute()` | Absolute. No-op when already in the target state. |
+| `toggleMute()` | Flips based on the current state. |
+| `volumeUp(step?)` / `volumeDown(step?)` | Nudges the level by `step` (a sane default when omitted), clamped to `[0, 100]`. |
+| `volumeState()` | Reads `VolumeState.UNMUTED` / `MUTED`. |
+
+`mute()`, `unmute()`, and `toggleMute()` dispatch `beforeMute` first, the same cancellable shape as transport. See [Reference: Events](/nomercy-player-core/reference/events#language-volume-mode-state).
+
+## Time & seek methods
+
+| Method | What it does |
+|---|---|
+| `time()` | Reads the current position in seconds. |
+| `time(seconds)` | Seeks to a new position. There is no separate `seek()`. |
+| `duration()` | Total item length once metadata resolves (`0` before then). |
+| `buffered()` / `bufferedRanges()` | How far ahead playback has downloaded. |
+| `timeData()` | One `TimeState` snapshot bundling `position`, `duration`, `buffered`, `remaining`, `percentage`, computed together so the values agree at the moment of the call. |
+| `rewind(seconds?)` / `forward(seconds?)` | Relative seek from the current position. Both default to a 5 second step when called with no argument. |
+| `restart()` | Seeks to `0` and resumes playback, one atomic intent rather than a seek-then-play sequence, so a cancelled seek skips the resulting `play()` too. |
+| `seekByPercentage(pct)` | Seeks to a position expressed as `0`-`100` percent of `duration()`. |
+
+`time(seconds)`, `rewind()`, and `forward()` all run the cancellable `beforeSeek` → `seek` → `seeked` cycle. See [Reference: Events](/nomercy-player-core/reference/events#standard-transport).
+
 ## Device & metrics
 
 `DeviceCapabilities` is what `player.device()` returns. It groups four kinds of information:
@@ -111,6 +166,19 @@ type PluginCtorWithId = (new (...args: never[]) => unknown) & {
 
 type RequireSpec = PluginCtorWithId | { plugin: PluginCtorWithId; optional?: boolean; minVersion?: string };
 ```
+
+Static fields describe the plugin to the registration pipeline:
+
+| Field | What it does |
+| --- | --- |
+| `id` | Required. |
+| `description` | One human-readable line. |
+| `version` | A semver string. |
+| `minCoreVersion` | Checked against the running kit build at `addPlugin()` time. A mismatch throws `core:plugin/incompatible-core-version`. |
+| `requires` | Class refs, optionally `{ plugin, optional, minVersion }`. A missing required dependency throws `core:plugin/missing-dep`; an unmet `minVersion` throws `core:plugin/version-mismatch`. |
+| `replaces` | Opt-in same-id swap. |
+| `priority` | Plugin ordering via `enabledPlugins()`. |
+| `translations` | Auto-merged on `use()`, auto-removed on dispose. |
 
 `PluginAdvisory` (`static advisories` on a `Plugin` class) declares an invariant without handler code: `{ method, duringPhase?, duringEvent?, severity, reason, message }`. At registration every plugin's advisories merge into one lookup, and a matching mutation auto-fires the declared severity event.
 

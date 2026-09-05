@@ -1,69 +1,17 @@
 ---
-title: 'Plugin: Cast Sender'
-description: 'CastSenderPlugin (music): the shared kit Chromecast bridge specialized for music, audio/mpeg content type and MusicTrackMediaMetadata built from name/artist/album/cover.'
+title: 'Plugin: Cast Sender (music)'
+description: 'CastSenderPlugin registration for music: audio/mpeg default content type, MusicTrackMediaMetadata built from name/artist/album/cover. Full surface lives in core.'
 ---
 
 {/* Source: packages/nomercy-music-player/src/plugins/cast-sender/index.ts */}
 
 # Plugin: Cast Sender
 
-`CastSenderPlugin` (id `'cast-sender'`) is a thin, two-method specialization of the kit's [`CastSenderPlugin`](/nomercy-player-core/plugins-adapters/cast-sender). The base plugin owns everything medium-agnostic:
+## Purpose
 
-- SDK probing
-- session lifecycle
-- `RemotePlayer` event mirroring
-- resume-on-disconnect
+`CastSenderPlugin` (id `'cast-sender'`) sends a track to a Chromecast receiver: session lifecycle, remote-state mirroring, and resume-on-disconnect. It is a two-method specialization of the kit's [`CastSenderPlugin`](/nomercy-player-core/plugins-adapters/cast-sender). This subclass supplies only the two things that differ per medium: the default MIME type, and how a `MusicPlaylistItem` becomes Cast metadata.
 
-This subclass only supplies the two things that differ between video and music: the default MIME type, and how a `MusicPlaylistItem` becomes Cast metadata.
-
-## Options
-
-This plugin uses the same `CastSenderOptions` the kit plugin defines:
-
-- `chromecastAppId`
-- `enableAirPlay`
-- `customReceiverNamespace`
-- `resumeLocalOnDisconnect`
-- `defaultContentType`
-- `live`
-
-See [Plugin: Cast Sender (core)](/nomercy-player-core/plugins-adapters/cast-sender) for the full table. `defaultContentType` defaults to `'audio/mpeg'` here unless you override it explicitly.
-
-## Events
-
-This plugin uses the same `CastSenderEvents` as the base:
-
-- `cast:connected`
-- `cast:disconnected`
-- `cast:error`
-- `cast:remote-state`
-- `cast:media-changed`
-- `unsupported`
-
-## What the music subclass builds
-
-`buildMetadata(item, ctors)` reads only fields already on the canonical `MusicPlaylistItem`, building a `MusicTrackMediaMetadata` (falling back to `GenericMediaMetadata` if the SDK build lacks the music-track constructor):
-
-| Item field | Metadata field |
-|---|---|
-| `item.name` | `title` |
-| `item.artist` (if set) | `artist` |
-| `item.album` (if set) | `albumName` |
-| `item.image` (falls back to the deprecated `item.cover`) | Resolved through `resolveUrl(item.image ?? item.cover, 'poster')` (auth-aware, respects `baseImageUrl`) and set as `images`. |
-
-## Translations
-
-Cast Sender's UI strings (connect/disconnect prompts, error copy) are auto-discovered from this plugin's own `./i18n/*.ts` folder via `translationsFromGlob`, on top of the kit base's own translation bundle. Each plugin in the chain ships only its own keys. The kit's plugin registration walks the prototype chain, so both bundles end up in the translation table. See [Core: i18n](/nomercy-player-core/tour/i18n).
-
-## Rules & restrictions
-
-- All the base plugin's restrictions apply unchanged:
-  - Chrome/Chromium Web Sender SDK only.
-  - Requires `cast.framework` / `chrome.cast.media` already loaded on the page.
-  - The player's 0-100 volume level is divided by 100 and clamped at the boundary, to match the SDK's native 0-1 `volumeLevel` float.
-- Consumers carrying application-specific fields beyond the canonical `MusicPlaylistItem`, such as linked artist/album entities instead of plain strings, should subclass this plugin. Override `buildMetadata()` yourself rather than expecting it to read fields it was never typed against.
-
-## How to extend it
+## Using it
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -71,19 +19,39 @@ import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-music-player/pl
 
 const player = nmplayer('player');
 
-class MyCastSenderPlugin extends CastSenderPlugin {
-  protected override async buildMetadata(item, ctors) {
-    const meta = await super.buildMetadata(item, ctors);
-    // add app-specific fields on top of the canonical set super() already built
-    return meta;
-  }
-}
-
-player.addPlugin(MyCastSenderPlugin, { chromecastAppId: 'ABCD1234' });
+player.addPlugin(CastSenderPlugin, { chromecastAppId: 'ABCD1234' });
 await player.ready();
-await player.getPlugin(MyCastSenderPlugin)?.connect();
+
+await player.getPlugin(CastSenderPlugin)?.connect();
 ```
+
+Subclass and override `buildMetadata()` when your items carry fields beyond the canonical `MusicPlaylistItem`, such as linked artist/album entities instead of plain strings:
+
+```ts
+class MyCastSenderPlugin extends CastSenderPlugin {
+	protected override async buildMetadata(item, ctors) {
+		const meta = await super.buildMetadata(item, ctors);
+		// add app-specific fields on top of the canonical set super() already built
+		return meta;
+	}
+}
+```
+
+## Reference
+
+`defaultContentType` defaults to `'audio/mpeg'` here, unless you override it explicitly.
+
+`buildMetadata(item, ctors)` reads only fields already on the canonical `MusicPlaylistItem`, building a `MusicTrackMediaMetadata` (falls back to `GenericMediaMetadata` if the SDK build lacks the music-track constructor):
+
+| Item field | Metadata field |
+|---|---|
+| `item.name` | `title` |
+| `item.artist` (if set) | `artist` |
+| `item.album` (if set) | `albumName` |
+| `item.image` (falls back to the deprecated `item.cover`) | Resolved through `resolveUrl(item.image ?? item.cover, 'poster')` and set as `images`. |
+
+Options, events, browser restrictions, the volume conversion, and the `transferTo('cast')` boundary are unchanged from the kit. See [Plugin: Cast Sender (core)](/nomercy-player-core/plugins-adapters/cast-sender) for the full surface, including the translation auto-discovery this plugin's own `i18n/` folder plugs into.
 
 ## Next steps
 
-- [Plugin: Media Session](/nomercy-music-player/plugins-adapters/media-session): surface now-playing metadata and lock-screen controls alongside cast.
+- [Plugin: Media Session](/nomercy-music-player/plugins-adapters/media-session): the same name/artist/album/cover fields feeding the OS lock screen instead of a Chromecast receiver.

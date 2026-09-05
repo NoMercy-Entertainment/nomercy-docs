@@ -1,35 +1,46 @@
 ---
-title: 'Plugin: Key Handler'
-description: 'KeyHandlerPlugin (music): the kit default bindings (space, arrows, m) plus n/p/r/s for next, previous, repeat cycling, and shuffle toggling.'
+title: 'Plugin: Key Handler (music)'
+description: 'KeyHandlerPlugin registration for music: the kit defaults plus n/p/r/s for next, previous, repeat cycling, and shuffle toggling. Full surface lives in core.'
 ---
 
 {/* Source: packages/nomercy-music-player/src/plugins/key-handler/index.ts */}
 
 # Plugin: Key Handler
 
-`KeyHandlerPlugin` (id `'key-handler'`) is `nomercy-music-player`'s keyboard-binding set, a thin subclass of the kit's [`KeyHandlerPlugin`](/nomercy-player-core/plugins-adapters/key-handler) (scope resolution, cooldown, input-field awareness, `bind`/`unbind`/`replace`). It inherits every kit default unchanged and overrides only `addMediaKeys()` to add four listening-specific bindings.
+## Purpose
 
-## Options
+`KeyHandlerPlugin` (id `'key-handler'`) is `nomercy-music-player`'s keyboard-binding set. It is a thin subclass of the kit's [`KeyHandlerPlugin`](/nomercy-player-core/plugins-adapters/key-handler): scope resolution, cooldown, input-field awareness, `bind`/`unbind`/`replace`. It inherits every kit default unchanged and overrides only `addMediaKeys()` to add four listening-specific bindings.
 
-This plugin uses the same `KeyHandlerOptions` the kit plugin accepts:
+## Using it
 
-- `scope`
-- `bindings`
-- `extend`
-- `when`
-- `cooldownMs`
-- `disableMediaControls`
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/key-handler';
 
-See [Plugin: Key Handler (core)](/nomercy-player-core/plugins-adapters/key-handler) for the full table. This subclass adds no new option fields.
+const player = nmplayer('player');
 
-## Bindings
+player.addPlugin(KeyHandlerPlugin);
+await player.ready();
+```
 
-Inherited unchanged from the kit:
+Add your own bindings on top without losing the defaults, call `super` first:
 
-- `Space` toggles playback.
-- Arrow keys seek and adjust volume.
-- `m` toggles mute.
-- The hardware `MediaX` keys work as usual.
+```ts
+class MyKeyHandler extends KeyHandlerPlugin {
+	protected override addMediaKeys(): void {
+		super.addMediaKeys(); // keep n/p/r/s and the kit defaults
+		this.bind('l', () => { void this.player.forward(15); }); // custom 15s skip
+	}
+}
+
+player.addPlugin(MyKeyHandler);
+```
+
+## Reference
+
+This subclass adds no new option fields to `KeyHandlerOptions`. See [Plugin: Key Handler (core)](/nomercy-player-core/plugins-adapters/key-handler) for `scope`, `bindings`, `extend`, `when`, `cooldownMs`, `disableMediaControls`.
+
+Inherited unchanged from the kit: `Space` toggles playback, arrow keys seek and adjust volume, `m` toggles mute, the hardware `MediaX` keys work as usual.
 
 Added by this subclass:
 
@@ -40,28 +51,9 @@ Added by this subclass:
 | `r` | Cycle repeat state: off → all → one → off. |
 | `s` | Toggle shuffle on/off. |
 
-## Rules & restrictions
+`addMediaKeys()` calls `super.addMediaKeys()` first, then adds the four bindings above. Override it again in a further subclass without calling `super`, and you drop the kit's own media-key bindings too, not just these four.
 
-- `addMediaKeys()` calls `super.addMediaKeys()` first, then adds the four bindings above. If you override it again in a further subclass without calling `super`, you drop the kit's own media-key bindings too, not just these four.
-- `r` and `s` call `repeatState()` / `shuffleState()` directly. They reflect and mutate the same state a UI-driven repeat/shuffle button would. There is no separate "key handler state" to keep in sync.
-
-## How to extend it
-
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-music-player';
-import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/key-handler';
-
-const player = nmplayer('player');
-
-class MyKeyHandler extends KeyHandlerPlugin {
-  protected override addMediaKeys(): void {
-    super.addMediaKeys(); // keep n/p/r/s and the kit defaults
-    this.bind('l', () => { void this.player.forward(15); }); // custom 15s skip
-  }
-}
-
-player.addPlugin(MyKeyHandler);
-```
+`r` and `s` call `repeatState()` / `shuffleState()` directly. They reflect and mutate the same state a UI-driven repeat/shuffle button would. There is no separate "key handler state" to keep in sync.
 
 ## Next steps
 

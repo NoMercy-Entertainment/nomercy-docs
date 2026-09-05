@@ -28,54 +28,23 @@ player.setup({
 
 `file` (not `url`) is accepted here because `normalizePlaylistItem` reshapes the v1/server wire format into the canonical `VideoPlaylistItem` on ingest. The real media server's response goes through the same normalization. Pass canonical items (`url` instead of `file`) directly and they pass through unchanged.
 
-## Reading and moving the cursor
+## Reading, moving, and mutating the queue
 
-Four calls read or move the cursor:
+Reading the cursor, moving it, and mutating the queue (append, prepend, insert, remove, move, clear, shuffle, sort) are all unchanged kit methods. `playItem(target)` and `playNow(items, start?)` are the race-free way to jump to an item and play it in one call, closing a gap where `queue(items); item(start); play()` can reach the backend before the source is even set.
 
-| Call | What it does |
-| --- | --- |
-| `queue()` | Returns the current items as a readonly array. |
-| `item()` | Reads the active item. |
-| `item(target)` | Moves the cursor and loads that item. |
-| `index()` | Reads the cursor's position. |
-| `queueLength()` | Reads the queue's size. |
+Every mutation fires a typed event (`queue:append`, `queue:move`, ...) that a reactive playlist UI subscribes to instead of re-reading `queue()` after every call. The full method list, signatures, and event names are on [Reference: Domain Types](/nomercy-player-core/reference/types#queue-methods).
 
 ```ts
 const items = player.queue(); // ReadonlyArray<VideoPlaylistItem>
 const current = player.item();
 player.item('big-buck-bunny'); // by id
 player.item(1); // by index
-```
 
-`peekNext()` / `peekPrevious()` read what `next()` / `previous()` (see [Transport](/nomercy-video-player/tour/transport)) would load. They do not move the cursor or trigger a load. That makes them right for a "coming up next" thumbnail.
-
-## Mutating the queue
-
-Every mutation method below fires a typed event (`queue:append`, `queue:move`, ...) that a reactive playlist UI subscribes to instead of re-reading `queue()` after every call.
-
-| Method | What it does |
-| --- | --- |
-| `queueAppend(item)` | Add to the end. |
-| `queuePrepend(item)` | Add to the front. |
-| `queueInsert(item, index)` | Add at a specific position. |
-| `queueRemove(id)` / `queueRemoveAt(index)` | Remove by id or position. |
-| `queueMove(from, to)` | Reorder in place. |
-| `queueClear()` | Empty the queue. |
-| `queueShuffle()` | Randomize order; the cursor follows the currently-playing item to its new position. |
-| `queueSort(compare)` | Sort with your own comparator. |
-
-When you remove an item before the cursor, the cursor decrements automatically. It keeps pointing at the same logical item. None of these methods ever silently jump playback to the wrong entry.
-
-## playItem() and playNow()
-
-`queue(items); item(start); play()` races. `item()` fires a fire-and-forget `load()`. A `play()` called immediately after can reach the backend before the source is even set.
-
-`playItem(target)` and `playNow(items, start?)` exist to close that race. Both route through `item(target, { autoplay: true })` internally. That path only calls `play()` inside the resolved `load()`'s own continuation.
-
-```ts
 player.playNow(films, 'big-buck-bunny'); // replace the queue and start playing this item
 player.playItem('sintel'); // jump to an item already in the queue and play it
 ```
+
+`peekNext()` / `peekPrevious()` read what `next()` / `previous()` (see [Transport](/nomercy-video-player/tour/transport)) would load. They do not move the cursor or trigger a load. That makes them right for a "coming up next" thumbnail.
 
 ## See it running
 

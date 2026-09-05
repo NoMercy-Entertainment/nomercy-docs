@@ -33,20 +33,9 @@ Sometimes the raw form is genuinely right: a public URL that must not carry auth
 
 ## Declaring the contract
 
-Static fields describe the plugin to the registration pipeline:
+Static fields describe the plugin to the registration pipeline: an `id`, an optional `description` and `version`, a `minCoreVersion` floor, `requires` for other plugins it depends on, `replaces` for an opt-in same-id swap, a `priority` for ordering, and `translations` merged in on `use()`. A missing required dependency or an unmet version floor throws at registration rather than failing silently later.
 
-| Field | What it does |
-| --- | --- |
-| `id` | Required. |
-| `description` | One human-readable line. |
-| `version` | A semver string. |
-| `minCoreVersion` | Checked against the running kit build. |
-| `requires` | Class refs, optionally `{ plugin, optional, minVersion }`. |
-| `replaces` | Opt-in same-id swap. |
-| `priority` | Plugin ordering via `enabledPlugins()`. |
-| `translations` | Auto-merged on `use()`, auto-removed on dispose. |
-
-A missing required dependency throws `core:plugin/missing-dep` at registration. An unmet `minVersion` throws `core:plugin/version-mismatch`.
+The full field list and what each error code means is on [Reference: Domain Types](/nomercy-player-core/reference/types#i18n--plugin-declaration-types).
 
 Override `use()` to wire up (it can return a `Promise`, awaited by the player before `ready` fires, bounded by `pluginInitTimeoutMs`). Override `dispose()` only for resources the lifecycle helpers above don't already track.
 

@@ -31,15 +31,7 @@ const currentTime = player.time(); // seconds
 await player.time(120); // jump to 2:00
 ```
 
-Three reads describe playback position:
-
-| Method | What it returns |
-| --- | --- |
-| `duration()` | The total track length once metadata resolves (`0` before then). |
-| `buffered()` / `bufferedRanges()` | How far ahead playback has downloaded. |
-| `timeData()` | One `TimeState` snapshot bundling `position`, `duration`, `buffered`, `remaining`, `percentage`. |
-
-The values in `timeData()` are computed together, so they agree at the moment of the call instead of drifting across separate reads:
+`duration()`, `buffered()`/`bufferedRanges()`, and `timeData()` round out playback position. `timeData()` bundles them into one `TimeState` snapshot, computed together so the values agree at the moment of the call instead of drifting across separate reads. Full signatures are on [Reference: Domain Types](/nomercy-player-core/reference/types#time--seek-methods).
 
 ```ts
 const { position, duration, percentage } = player.timeData();
@@ -67,12 +59,7 @@ player.on('time', ({ time, percentage, position, duration, buffered, remaining }
 });
 ```
 
-- `position`: an alias for `time`, in seconds.
-- `percentage`: elapsed time as `0`-`100` of `duration`.
-- `buffered`: how many seconds are loaded ahead of the position.
-- `remaining`: seconds left.
-
-It is the same shape `timeData()` returns, so subscribe to this instead of polling from a render loop.
+`position` aliases `time`, `percentage` is elapsed time as `0`-`100` of `duration`, `buffered` is seconds loaded ahead, and `remaining` is seconds left. It is the same shape `timeData()` returns, so subscribe to this instead of polling from a render loop. See [Reference: Events](/nomercy-player-core/reference/events#standard-transport) for the full field list.
 
 ## See it running
 

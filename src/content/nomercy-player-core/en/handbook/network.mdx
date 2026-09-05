@@ -15,26 +15,11 @@ A plugin talks to servers through two helpers: `fetch()` for HTTP and `websocket
 protected fetch<T = string>(url: string, options?: FetchOptions<T>): Promise<T>;
 ```
 
-Auth-aware HTTP. It runs the same `authFetch` pipeline the kit uses for playlist URLs, lyrics, and subtitles, so a plugin's requests carry the consumer's credentials without any wiring. [Recipe: Use authFetch](/nomercy-player-core/recipes/auth-fetch) covers the standalone form.
+Auth-aware HTTP. It runs the same `authFetch` pipeline the kit uses for playlist URLs, lyrics, and subtitles, so a plugin's requests carry the consumer's credentials without any wiring. Auth is applied automatically; you never build the header yourself.
 
-The auth source is live. The helper reads the player's current `AuthConfig` at call time, falling back to the `setup({ auth })` value, so a rotated token is picked up. The fixed order per attempt:
+The auth source is live. The helper reads the player's current `AuthConfig` at call time, falling back to the `setup({ auth })` value, so a rotated token is picked up. [Recipe: Use authFetch](/nomercy-player-core/recipes/auth-fetch) has the fixed per-attempt order and the failure-by-failure retry table.
 
-1. `auth.transformUrl(url)` rewrites the URL.
-2. `Authorization: Bearer <token>` is set from the resolved `auth.bearerToken` (string, sync getter, or async getter).
-3. `auth.headers` merges in; per-call `headers` win on collision.
-4. `auth.signRequest(request)` runs last, the escape hatch for HMAC or sigv4.
-
-Each kind of failure gets its own treatment:
-
-| Failure | What the helper does |
-| --- | --- |
-| 401 | Calls `auth.refreshOnUnauthenticated()` once, then retries for free. |
-| 403 | Gives up at once. Never refreshed, never retried. |
-| 5xx, timeout, network | Retries on the schedule in `RetryConfig`. |
-
-A failure throws `AuthError` or `NetworkError`. Both extend `PlayerError`.
-
-Narrow with `isAuthError` or `isNetworkError` to tell the two apart.
+A failure throws `AuthError` or `NetworkError`. Both extend `PlayerError`. Narrow with `isAuthError` or `isNetworkError` to tell the two apart.
 
 Every call registers a fresh `AbortController` with the lifecycle registry. On `dispose()`, in-flight requests abort; the promise rejects with `core:network/aborted` instead of resolving into a dead plugin.
 
@@ -79,25 +64,7 @@ Bypassing the helper with global `fetch` loses the auth pipeline, the retry poli
 protected websocket(url: string, opts?: RealtimeFactoryOptions): IRealtimeChannel;
 ```
 
-Opens a realtime channel and returns it as `IRealtimeChannel`, one interface whatever the transport underneath.
-
-The channel carries:
-
-- `send(data)` and `close(code?, reason?)`
-- `on` and `off` for `'open'`, `'message'`, `'close'`, and `'error'`
-- `readyState`, mirroring the WebSocket states
-
-The transport comes from a factory, resolved highest priority first:
-
-1. `opts.factory`, a per-call override.
-2. `setup({ websocketFactory })`, the consumer-supplied default.
-3. The built-in `nativeWebSocketAdapter`, wrapping a native `WebSocket`.
-
-`RealtimeFactoryOptions` also carries `protocols` and the reconnect knobs `reconnect`, `baseDelayMs`, and `maxDelayMs`.
-
-The kit forwards those options to whichever factory builds the channel. It does not act on them itself.
-
-The built-in native adapter wraps one `WebSocket` and never reconnects. Reconnection comes from a factory that implements it, such as a SignalR or Socket.IO adapter.
+Opens a realtime channel and returns it as `IRealtimeChannel`, bound to the plugin's lifecycle the same way `fetch()` is. [Adapter: Realtime Channel](/nomercy-player-core/plugins-adapters/adapter-realtime-channel) has the interface, the factory resolution order, and the `RealtimeFactoryOptions` table.
 
 The channel is registered with the lifecycle registry. On `dispose()`, the kit calls `close()` unless the channel is already closing or closed. You keep the reference only if you need to `send()` later; the teardown is not your job.
 
@@ -119,4 +86,3 @@ channel.on('message', data => this.logger.debug('frame', data));
 ## Next steps
 
 - [Plugin i18n](/nomercy-player-core/handbook/i18n): translated strings for whatever the network gave you.
-- [Recipe: Use authFetch](/nomercy-player-core/recipes/auth-fetch): the same pipeline outside a plugin.

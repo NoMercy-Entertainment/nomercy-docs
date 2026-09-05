@@ -26,26 +26,14 @@ const withUnsupported = player.qualityLevels({ includeUnsupported: true });
 
 ## Reading and setting the selection
 
-`quality()` and `quality(idx)` cover reading and setting the level:
-
-| Call | Result |
-| --- | --- |
-| `quality()`, level picked manually | `{ index, track }` for that level. |
-| `quality()`, ABR driving | The string `'auto'`. |
-| `quality(idx)` | Locks a specific level. |
-| `quality('auto')` | Hands control back to the backend. |
+`quality()` reads the current level, `{ index, track }` when picked manually or the string `'auto'` when ABR is driving. `quality(idx)` locks a specific level, `quality('auto')` hands control back to the backend:
 
 ```ts
 player.quality(0); // lock the first (usually lowest) rendition
 player.quality('auto'); // back to adaptive
 ```
 
-Setting a level emits two events, each suited to a different UI need:
-
-| Event | Fires | Subscribe for |
-| --- | --- | --- |
-| `'quality:requested'` | Immediately, before the backend confirms the switch. Video-specific. | A UI that must reflect the request instantly, without waiting on the network. |
-| `'level-switched'` | Once the backend actually applies the switch. | A "now playing at 1080p" toast. |
+Setting a level emits two events, each suited to a different UI need: `'quality:requested'` fires immediately, before the backend confirms, for a UI that must reflect the request instantly. `'level-switched'` fires once the backend actually applies the switch, for a "now playing at 1080p" toast. Full signatures and payloads are on [Reference: Video Player Methods](/nomercy-video-player/reference/player-methods#track-selection) and [Reference: Events](/nomercy-video-player/reference/events#quality--tracks).
 
 ## Default quality
 
@@ -61,15 +49,9 @@ player.setup({
 
 ## Bandwidth and capability checks
 
-Three calls round out level selection:
+`bandwidth()` reads the backend's current throughput estimate, the number ABR decides against. `canPlay(profile)` asks the platform's `MediaCapabilities` whether a content profile (`contentType`, resolution, bitrate, framerate) is decodable, ask it before offering a level in a menu. `bandwidthEstimator(fn)` replaces the estimator with your own, useful for a measurement shared across several players on one page.
 
-| Method | What it does |
-| --- | --- |
-| `bandwidth()` | Reads the backend's current estimate in bits per second, the number ABR decides against. |
-| `bandwidthEstimator(fn)` | Replaces the estimator with your own, for a measurement shared across several players on one page. |
-| `canPlay(profile)` | Asks the platform's `MediaCapabilities` whether a content profile is decodable. |
-
-A profile names a `contentType`, resolution, bitrate, and framerate. Ask `canPlay()` before offering a level in a menu.
+These three are shared kit surface, not video-specific. Full signatures are on [Reference: Metrics, Clock & Accessibility](/nomercy-player-core/reference/metrics-and-accessibility#bandwidth--capability-checks).
 
 ## See it running
 

@@ -38,6 +38,12 @@ The plugin fires six events across the session's lifecycle:
 - Chrome/Chromium Web Sender SDK only. In Firefox, Safari, or a non-Chromium browser, `connect()` emits `unsupported` and throws a `BrowserPolicyError` (`core:policy/castUnavailable`). Everything else stays a harmless no-op rather than crashing.
 - The plugin requires the global `cast.framework` / `chrome.cast.media` SDK to already be loaded on the page. It does not load the script for you.
 - Volume arrives on the kit's own 0-100 `volume()` scale. The plugin divides it to the 0-1 float range the receiver's SDK expects.
+- `buildMetadata()` reads only fields defined on the canonical playlist item type. It never casts to a richer intersection to reach a consumer's own fields. Carrying application-specific fields beyond the canonical item? Subclass and override `buildMetadata()` yourself.
+- `transferTo('cast')` and this plugin are separate, unlinked mechanisms. `transferTo('cast')` is the kit's own coarse handoff; it drives the Cast SDK directly and knows nothing about `CastSenderPlugin`. Adding this plugin does not wire it into `transferTo()`, and calling `transferTo('cast')` does not go through this plugin's `connect()` / metadata pipeline. Pick one Cast strategy per app.
+
+## Translations
+
+Cast Sender's UI strings (connect/disconnect prompts, error copy) are auto-discovered from the plugin's own `./i18n/*.ts` folder via `translationsFromGlob`. A subclass in `nomercy-video-player` or `nomercy-music-player` ships its own `i18n/` folder too, with only its own keys. The kit's plugin registration walks the prototype chain, so every bundle in the chain ends up in the translation table. See [Core: i18n](/nomercy-player-core/tour/i18n).
 
 ## How to extend it
 

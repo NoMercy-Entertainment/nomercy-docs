@@ -7,7 +7,7 @@ description: 'Call the kit auth-aware fetch pipeline directly from data-layer co
 
 # Recipe: Use authFetch
 
-[The Plugin Base](/nomercy-player-core/tour/plugin-base) covers `Plugin.fetch()`, the auth-aware HTTP helper every plugin gets bound to its own lifecycle. `authFetch` is the same pipeline underneath, exported standalone. It is for code that isn't a plugin: a data layer, a prefetch routine, anything that needs the kit's auth handling without a player around it.
+[Network Helpers](/nomercy-player-core/handbook/network) covers `this.fetch()`, the auth-aware HTTP helper every plugin gets bound to its own lifecycle. `authFetch` is the same pipeline underneath, exported standalone. It is for code that isn't a plugin: a data layer, a prefetch routine, anything that needs the kit's auth handling without a player around it.
 
 ## What it does that a raw `fetch` doesn't
 
@@ -15,7 +15,8 @@ The order is fixed.
 
 1. `auth.transformUrl(url)` runs.
 2. `Authorization: Bearer <token>` is set from a resolved `bearerToken`. That can be a string, a sync getter or an async getter, so a Vue ref or a reactive store works directly.
-3. `auth.headers` merges in.
+3. `auth.headers` merges in; per-call `headers` win on collision.
+4. `auth.signRequest(request)` runs last, the escape hatch for HMAC or sigv4.
 
 Each kind of failure gets its own treatment:
 
