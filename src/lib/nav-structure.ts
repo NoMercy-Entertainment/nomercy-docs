@@ -77,7 +77,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
   // quickstart, tour, build, recipes, plugins-adapters, reference.
   'nomercy-video-player': [
     { group: "Getting Started", pages: ['introduction', 'quickstart'] },
-    { group: "Guided Tour", pages: ['tour/transport', 'tour/volume', 'tour/queue', 'tour/subtitles', 'tour/audio-tracks', 'tour/quality', 'tour/chapters', 'tour/state-events'] },
+    { group: "Guided Tour", pages: ['tour/how-it-works', 'tour/transport', 'tour/volume', 'tour/queue', 'tour/subtitles', 'tour/audio-tracks', 'tour/quality', 'tour/chapters', 'tour/state-events'] },
     { group: "Build a Player", pages: ['build/shell', 'build/play-pause', 'build/progress-bar', 'build/time-skip', 'build/volume', 'build/title-bar', 'build/fullscreen-speed', 'build/selectors', 'build/seek-preview', 'build/full-plugin'] },
     { group: "Recipes", pages: ['recipes/vue-integration', 'recipes/react-integration', 'recipes/svelte-integration', 'recipes/vanilla-integration', 'recipes/resume-playback', 'recipes/keyboard-shortcuts', 'recipes/quality-selection', 'recipes/playlist-queue', 'recipes/auth-tokens', 'recipes/migrate-from-v1'] },
     { group: "Plugins & Adapters", pages: ['plugins-adapters/plugin-development', 'plugins-adapters/desktop-ui', 'plugins-adapters/tv-key-handler', 'plugins-adapters/key-handler', 'plugins-adapters/cast-sender', 'plugins-adapters/subtitle-overlay', 'plugins-adapters/octopus', 'plugins-adapters/media-session', 'plugins-adapters/drm', 'plugins-adapters/touch-zones', 'plugins-adapters/adapter-video-backend', 'plugins-adapters/adapter-chapter-source', 'plugins-adapters/adapter-thumbnail-source', 'plugins-adapters/adapter-subtitle-style-store'] },
@@ -88,7 +88,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
   // quickstart, tour, build, recipes, plugins-adapters, reference.
   'nomercy-music-player': [
     { group: "Getting Started", pages: ['introduction', 'quickstart'] },
-    { group: "Guided Tour", pages: ['tour/transport', 'tour/time', 'tour/volume', 'tour/queue', 'tour/crossfade', 'tour/equalizer', 'tour/audio-output', 'tour/lyrics', 'tour/state-events'] },
+    { group: "Guided Tour", pages: ['tour/how-it-works', 'tour/transport', 'tour/time', 'tour/volume', 'tour/queue', 'tour/crossfade', 'tour/equalizer', 'tour/audio-output', 'tour/lyrics', 'tour/state-events'] },
     { group: "Build a Player", pages: ['build/shell', 'build/scrubber', 'build/volume', 'build/track-list', 'build/now-playing'] },
     { group: "Recipes", pages: ['recipes/vue-integration', 'recipes/react-integration', 'recipes/svelte-integration', 'recipes/vanilla-integration', 'recipes/crossfade-gapless', 'recipes/lyrics-sync', 'recipes/equalizer-presets', 'recipes/scrobbling', 'recipes/queue-playlist', 'recipes/audio-output-switching', 'recipes/migrate-from-v1'] },
     { group: "Plugins & Adapters", pages: ['plugins-adapters/plugin-development', 'plugins-adapters/scrobble', 'plugins-adapters/auto-advance', 'plugins-adapters/lyrics', 'plugins-adapters/media-session', 'plugins-adapters/key-handler', 'plugins-adapters/cast-sender', 'plugins-adapters/adapter-audio-backend', 'plugins-adapters/adapter-similarity-engine'] },
