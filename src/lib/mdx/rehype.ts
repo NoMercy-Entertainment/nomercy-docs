@@ -87,6 +87,26 @@ function getHighlighter(): HighlighterPromise {
   return cached
 }
 
+/**
+ * Drop the opening and closing quote a `str` span was highlighted with. The
+ * quotes exist only so Shiki tokenizes the value as a string; the reader is
+ * meant to see the value in the string color and nothing around it.
+ */
+function stripOuterQuotes(nodes: ElementContent[]): void {
+  const texts: { value: string }[] = []
+  const walk = (list: ElementContent[]): void => {
+    for (const n of list) {
+      if (n.type === 'text') texts.push(n)
+      else if (n.type === 'element') walk(n.children as ElementContent[])
+    }
+  }
+  walk(nodes)
+  const first = texts[0]
+  const last = texts[texts.length - 1]
+  if (first && /^['"]/u.test(first.value)) first.value = first.value.slice(1)
+  if (last && /['"]$/u.test(last.value)) last.value = last.value.slice(0, -1)
+}
+
 function rehypeShiki() {
   return async (tree: Root) => {
     const highlighter = await getHighlighter()
@@ -102,7 +122,9 @@ function rehypeShiki() {
       if ((parent as Element | undefined)?.tagName === 'pre') return
       if (node.properties?.['data-inline-highlighted']) return
 
-      const raw = toString(node)
+      // Triple-backtick inline spans keep a padding space around their content,
+      // so the tag is not the first character. Trim before matching the tag.
+      const raw = toString(node).trim()
       if (!raw || raw.length > 160) return
 
       // An explicit language prefix inside the backticks, written as
@@ -111,7 +133,13 @@ function rehypeShiki() {
       // author says "this one is code" for a span the heuristic below would
       // read as prose. The tag is stripped before highlighting and never shown.
       const tagged = /^([a-z]+)[ 	]+([\s\S]+)$/.exec(raw)
-      const taggedLang = tagged && LANGS.includes(tagged[1]) ? tagged[1] : null
+      // `str` is not a Shiki language. It is the tag for a value that IS a
+      // string but is written without quotes, like an error code quoted in
+      // prose. The text is highlighted as a string literal and the quote
+      // characters are stripped afterwards, so it takes the theme's string
+      // color without punctuation the reader has to look past.
+      const isStringTag = tagged?.[1] === 'str'
+      const taggedLang = tagged && (isStringTag || LANGS.includes(tagged[1])) ? tagged[1] : null
       const text = taggedLang ? tagged![2] : raw
 
       // Only spans that are actually code. A page's backticks carry far more
@@ -125,8 +153,8 @@ function rehypeShiki() {
       node.properties = node.properties || {}
       node.properties['data-inline-highlighted'] = 'true'
 
-      const html = highlighter.codeToHtml(text, {
-        lang: taggedLang ?? 'ts',
+      const html = highlighter.codeToHtml(isStringTag ? `'${text.replace(/'/gu, "\'")}'` : text, {
+        lang: isStringTag ? 'ts' : (taggedLang ?? 'ts'),
         themes: { light: 'one-light', dark: 'one-dark-pro' },
         defaultColor: 'light',
         structure: 'inline',
@@ -135,7 +163,9 @@ function rehypeShiki() {
           'one-light': { '#e45649': '#b4574e' },
         },
       })
-      node.children = fromHtml(html, { fragment: true }).children as ElementContent[]
+      const parsed = fromHtml(html, { fragment: true }).children as ElementContent[]
+      if (isStringTag) stripOuterQuotes(parsed)
+      node.children = parsed
     })
 
     visit(tree, 'element', (node: Element) => {

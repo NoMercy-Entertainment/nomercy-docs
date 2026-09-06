@@ -34,8 +34,8 @@ The player marks it `nomercyplayer` and keeps state classes on it as playback ch
 
 The video element is created inside it when the stream is attached, which is after `setup()` has returned and after `ready()` has resolved.
 
-**It must be a `<div>`.**
-Any other tag throws `core:player/element-not-div`, and an id matching no element throws `core:player/element-missing`.
+**It must be a ```html <div>```.**
+Any other tag throws `str core:player/element-not-div`, and an id matching no element throws `str core:player/element-missing`.
 
 Size it yourself.
 
@@ -52,8 +52,10 @@ The container takes its height from the video inside it, so a width is all it ne
 While the poster is showing, the video element takes that image's own size, and a replaced element does not shrink to fit the column around it.
 An item whose image is 780 pixels wide therefore hangs out of any container narrower than that.
 
-`aspect-ratio` on the container does not change that, because the video is not taking its size from the container in the first place.
-Add the ratio once you add a controls plugin, which is what stretches the video to fill its container.
+An item with no `image` skips that and takes the video's own dimensions from the start.
+
+`aspect-ratio` on the container changes neither case, because the video is not taking its size from the container in the first place.
+Add/content/no the ratio once you add a controls plugin, which is what stretches the video to fill its container.
 
 There is no stylesheet to import at any point.
 A controls plugin injects its own.
@@ -74,7 +76,7 @@ The artwork is the item's `image`, which the player sets as the element's poster
 If the picture is there but nothing you wrote in CSS applies, the id in your stylesheet and the id on the div do not match.
 The player reads only the div's own id, so a selector that misses is invisible to it.
 
-An id passed to `nmplayer()` that matches no element is the other case, and it throws `core:player/element-missing` before anything mounts.
+An id passed to `nmplayer()` that matches no element is the other case, and it throws ```str core:player/element-missing``` before anything mounts.
 
 Calling `nmplayer('player')` again with the same id gives back the same player rather than a second one.
 The registry is checked before the element is, so a repeat call holds up even after the div has gone.
@@ -86,7 +88,7 @@ A real second player therefore needs a second container with a different id.
 
 `setup` returns straight away, and the player is not usable yet. That is what the last line of the block above is for.
 
-`await player.ready()` resolves once setup has finished and every plugin has come up.
+```ts await player.ready()``` resolves once setup has finished and every plugin has come up.
 
 **Past that line every method is safe to call.** Restoring a saved position or selecting a track belongs after it, and a method called before it may quietly do nothing.
 
