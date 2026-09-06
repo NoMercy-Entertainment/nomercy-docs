@@ -15,9 +15,11 @@ npm install @nomercy-entertainment/nomercy-video-player
 
 That is the whole install. `hls.js` arrives with it, as a dependency of the core package underneath, and the player imports it only when the browser cannot play HLS on its own.
 
-Two kinds of source play with nothing further: HLS, and progressive files such as `.mp4` and `.webm`. The player picks between them from the URL, so an `.m3u8` needs no flag.
+The player makes one decision about a URL: whether it ends in `.m3u8`.
+An `.m3u8` plays as HLS and needs no flag.
 
-Anything else needs a stream factory of your own. [Streams](/nomercy-video-player/reference/streams) lists every extension and content type that is matched, and the call that registers one.
+Everything else is handed to the video element, so `.mp4`, `.webm` and anything else your browser decodes play with nothing further.
+[Streams](/nomercy-video-player/reference/streams) has the rule in full, including the one case where a query string makes an `.mp4` play as HLS.
 
 ## 2. Give it a container
 
@@ -27,13 +29,15 @@ The player fills an element you provide.
 <div id="player"></div>
 ```
 
-That div becomes the player root. The player marks it `nomercyplayer` and keeps state classes on it as playback changes, so `paused`, `playing` and `active` are available to your own CSS without a line of JavaScript.
+That div becomes the player root.
+The player marks it `nomercyplayer` and keeps state classes on it as playback changes, so `playing`, `paused` and `active` are available to your own CSS without a line of JavaScript.
 
-The video element is created inside it, on the first frame rather than at setup.
+The video element is created inside it when the stream is attached, which is after `setup()` has returned and after `ready()` has resolved.
 
-**It must be a `<div>`.** Any other tag throws `core:player/element-not-div`, and an id matching no element throws `core:player/element-missing`.
+**It must be a `<div>`.**
+Any other tag throws `core:player/element-not-div`, and an id matching no element throws `core:player/element-missing`.
 
-Give it a width. A bare player needs nothing else, because the video element sizes itself and takes the container along with it.
+Size it yourself.
 
 ```css
 #player {
@@ -42,9 +46,17 @@ Give it a width. A bare player needs nothing else, because the video element siz
 }
 ```
 
-**Pinning the box to a ratio at this stage overflows it.** The video keeps its own dimensions until something styles it, so `aspect-ratio: 16 / 9` on the container leaves the picture hanging out of the side. Add the ratio once you add the interface, which is what makes the video fill its container.
+The container takes its height from the video inside it, so a width is all it needs at this stage.
 
-There is no stylesheet to import at any point. The interface plugin injects its own.
+**A bare player is as wide as the artwork you gave it.**
+While the poster is showing, the video element takes that image's own size, and a replaced element does not shrink to fit the column around it.
+An item whose image is 780 pixels wide therefore hangs out of any container narrower than that.
+
+`aspect-ratio` on the container does not change that, because the video is not taking its size from the container in the first place.
+Add the ratio once you add a controls plugin, which is what stretches the video to fill its container.
+
+There is no stylesheet to import at any point.
+A controls plugin injects its own.
 
 ## 3. Create the player and give it something to play
 
@@ -53,13 +65,20 @@ The argument is your container's id.
 :::snippet{file="quickstart" preview="first"}
 :::
 
-**You should now see Sintel sitting on its first frame, with the browser's own controls under it.** Press play and it runs.
+**You should now see Sintel's artwork, with the browser's own controls across the bottom of it.**
+Those controls are drawn inside the video element, over the picture rather than under it.
+Press play and the film starts.
 
-If the picture is there and stays black, the source could not load. If nothing appears at all, the id in your CSS and the id you passed do not match, and the player threw `core:player/element-missing` rather than mounting.
+The artwork is the item's `image`, which the player sets as the element's poster and leaves up until playback begins.
+
+If the picture is there but nothing you wrote in CSS applies, the id in your stylesheet and the id on the div do not match.
+The player reads only the div's own id, so a selector that misses is invisible to it.
+
+An id passed to `nmplayer()` that matches no element is the other case, and it throws `core:player/element-missing` before anything mounts.
 
 Calling `nmplayer('player')` again with the same id gives back the same player rather than a second one.
-
-The registry is checked before the element is, so a repeat call holds up even after the div has gone. That is what makes it safe inside a component that re-renders.
+The registry is checked before the element is, so a repeat call holds up even after the div has gone.
+That is what makes it safe inside a component that re-renders.
 
 A real second player therefore needs a second container with a different id.
 
