@@ -91,6 +91,44 @@ function rehypeShiki() {
   return async (tree: Root) => {
     const highlighter = await getHighlighter()
 
+    // Inline `code` spans get the same two themes as a fence. A page names
+    // `await player.ready()` in prose far more often than it shows a block, and
+    // an unhighlighted span beside a highlighted fence reads as two different
+    // languages. Everything inline is treated as TypeScript: the identifiers,
+    // strings and punctuation a docs page quotes are all TS-shaped, and a token
+    // TS cannot place falls back to the plain foreground rather than erroring.
+    visit(tree, 'element', (node: Element, _index, parent) => {
+      if (node.tagName !== 'code') return
+      if ((parent as Element | undefined)?.tagName === 'pre') return
+      if (node.properties?.['data-inline-highlighted']) return
+
+      const text = toString(node)
+      if (!text || text.length > 120) return
+
+      // Only spans that are actually code. A page's backticks carry far more
+      // than TypeScript: file extensions, error codes, config keys, language
+      // tags. Highlighting those as TS tokenizes `.m3u8` into punctuation plus
+      // a red identifier, which is noise wearing the colors of meaning. A call,
+      // an arrow, an object literal or a generic is code; a bare word is not.
+      const isCode = /\(\)|\(.*\)|=>|[{};]|<[A-Za-z]/.test(text)
+      if (!isCode) return
+
+      node.properties = node.properties || {}
+      node.properties['data-inline-highlighted'] = 'true'
+
+      const html = highlighter.codeToHtml(text, {
+        lang: 'ts',
+        themes: { light: 'one-light', dark: 'one-dark-pro' },
+        defaultColor: 'light',
+        structure: 'inline',
+        colorReplacements: {
+          'one-dark-pro': { '#e06c75': '#d99aa4' },
+          'one-light': { '#e45649': '#b4574e' },
+        },
+      })
+      node.children = fromHtml(html, { fragment: true }).children as ElementContent[]
+    })
+
     visit(tree, 'element', (node: Element) => {
       if (node.tagName !== 'pre' || node.children[0]?.type !== 'element') return
       const codeNode = node.children[0] as Element
