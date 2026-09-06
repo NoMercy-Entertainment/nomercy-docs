@@ -1,48 +1,213 @@
 ---
 title: 'The Queue'
-description: 'MediaList, the cursor-aware ordered list both real players delegate their entire queue surface to instead of maintaining parallel state.'
+description: 'How a playlist becomes a queue, where the cursor lives, and every method that moves the list or the cursor.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/adapters/media-list/default.ts, src/core/mixins/queue.ts, src/core/mixins/play-queue.ts */}
+{/* Source: packages/nomercy-player-core/src/core/mixins/queue.ts, src/core/mixins/play-queue.ts, src/adapters/media-list/default.ts, src/core/mixins/lifecycle.ts */}
 
-# Core: The Queue
+# The Queue
 
-`NMMusicPlayer` and `NMVideoPlayer` don't maintain their own array of playlist items with a separate cursor variable. They delegate to one `MediaList<T>` instance each, and every queue method on the player is a thin wrapper over it.
+A queue is two things: an ordered list of items, and a cursor pointing at one of them.
 
-## MediaList
+Every method on this page moves one or the other.
+The kit keeps both in a single `MediaList` per player, so there is no second copy of the list to fall out of step.
 
-`MediaList<T extends BasePlaylistItem>` is an ordered list that knows where the cursor is.
+## The playlist becomes the queue
 
-- The whole array: `get()`, `set(items)`
-- The cursor: `current()`, `currentIndex()`, `setCurrent(target)`
-- Reading without moving it: `peekNext()`, `peekPrevious()`
-- Mutations: `append`, `prepend`, `insert`, `remove`, `removeAt`, `move`, `clear`, `shuffle`, `sort`
+`setup({ playlist })` seeds the queue during the ready pipeline.
 
-`setCurrent` takes an item reference, its `id`, a numeric index, or a predicate. No caller has to resolve an index first.
+Pass an array and the items go straight in.
+Pass a string and the player fetches it, expects a JSON array, and puts that in instead.
 
-Every mutation that shifts positions shifts the cursor with it, so it keeps pointing at the same logical item.
+A fetch that fails, or a body that is not an array, emits `playlistError` and then `playlistReady` with `length: 0`.
+Setup still reaches `ready`, with an empty queue.
+`playlistReady` fires even when you configured no playlist at all, so a listener can rely on it.
 
-Remove the item before the current one and the cursor decrements. Shuffle, and it re-finds the playing item's new position and follows it.
+The array form only seeds when the queue is still empty.
 
-Every mutation emits a typed event: `change`, `append`, `current` and so on. The player mixin re-emits those on the public bus as `queue`, `queue:append`, `item` and the rest, so a UI never polls.
+{/* partial */}
+```ts
+player.setup({ playlist: items });
+player.queue(myAlreadyResolvedItems);
+await player.ready();
+```
 
-Two lists exist per player: `_queueList` for what's coming, and `_backlogList` for what already played, so `previous()` can look back past the queue head without the primary list growing unbounded in the wrong direction.
+Your `queue()` call wins there.
+The config array is skipped rather than clobbering what you put in.
 
-## The player-facing surface
+After ready, `loadQueue(url, parser?)` fetches a queue the same way.
+It throws on failure, unlike the setup path, and emits `playlistResolveError` and `error` first.
 
-The `queue*` methods all delegate straight to `_queueList`, wiring its events to the public bus on first use: `queue()`, `queueAppend()`, `queuePrepend()`, `queueInsert()`, `queueRemove()`, `queueRemoveAt()`, `queueMove()`, `queueClear()`, `queueShuffle()`, `queueSort()`.
+## Reading and replacing the list
 
-`item(target)` moves the cursor. Once the player is past `setup`, it also kicks off a `load()` for the resolved item.
+{/* partial */}
+```ts
+const items = player.queue();
+player.queue(newItems);
+```
 
-These read with no side effects: `peekNext()`, `peekPrevious()`, `queueLength()`, `queueIndexOf(id)`, `index()`.
+`queue()` hands back the player's own array, not a copy.
+Its type says read-only, and that is the contract to honor: change the list through the methods below, never by writing into what you were handed.
 
-`playItem(target)` and `playNow(items, start?)` exist because `queue(items); item(start); play()` races: `item()` fires a fire-and-forget `load()`, and a `play()` called right after it can reach the backend before the source is even set. Both helpers route through `item(target, { autoplay: true })` internally, which only calls `play()` inside the resolved `load()`'s own continuation, never before it.
+Replacing the list keeps the cursor on the same item when an item with that `id` is still in the new array.
+Otherwise the cursor goes to the first item, or to nothing when the new array is empty.
 
-Every entry ingested by `queue()` / `queueAppend()` / `queuePrepend()` / `queueInsert()` passes through a normalization step first: your player class's optional `normalizePlaylistItem` (for accepting a legacy wire format), then the consumer's `transformPlaylistItem` config callback, then title-token interpolation for any tokens your player registered via `registerTitleTokens()`.
+## Every item is ingested on the way in
+
+`queue()`, `queueAppend()`, `queuePrepend()` and `queueInsert()` all run each item through three steps before it lands.
+
+Your player class's optional `normalizePlaylistItem` runs first, which is where a library adapts a wire format of its own.
+Your `transformPlaylistItem` config callback runs second, on the result.
+Title tokens are resolved last.
+
+A title token is `%` plus a letter plus digits, such as `%S2`.
+`registerTitleTokens({ S: 'some.translation.key' })` maps the letter to a translation key, and the digits arrive as `number` for the translation to place.
+An unregistered letter is left exactly as written, so a player that registers nothing changes no titles.
+
+Token resolution leaves nothing behind for a second pass to find, and the kit expects your two callbacks to behave the same way.
+Putting an already-queued item back into the queue then costs nothing.
+
+## Where the cursor is
+
+{/* partial */}
+```ts
+player.item();   // the item it points at, or undefined
+player.index();  // its position, or -1 on an empty queue
+```
+
+`peekNext()` and `peekPrevious()` read the neighbors without moving anything.
+Both are `undefined` at their respective end of the list.
+
+`queueLength()` counts the items and `queueIndexOf(id)` finds one, returning `-1` when there is no such item.
+
+## Changing the list under the cursor
+
+Nine methods change the list: `queueAppend`, `queuePrepend`, `queueInsert`, `queueRemove`, `queueRemoveAt`, `queueMove`, `queueClear`, `queueShuffle` and `queueSort`.
+
+`queueInsert`, `queueRemoveAt` and `queueMove` take zero-based indices.
+`queueRemove` takes an item's `id`.
+`queueSort` takes the same comparator `Array.prototype.sort` takes.
+
+The cursor is adjusted on every one of them so it keeps pointing at the item it was on.
+
+| What you do | What the cursor does |
+| --- | --- |
+| Add items before it | Moves up by that many positions. |
+| Remove an item before it | Moves down one position. |
+| Remove the item it is on | Stays put, so it now points at the following item. |
+| Move, shuffle or sort | Follows its item to the item's new position. |
+| Clear the queue | Goes to `-1`, and `item()` is empty. |
+
+Removing the last item while the cursor is on it clamps the cursor to the new final position.
+
+An out-of-range index is a no-op, not an error.
+`queueMove(2, 2)` and `queueShuffle()` on a one-item queue also do nothing, and emit nothing.
+
+## Moving the cursor
+
+`item(target)` moves the cursor and starts playing what it lands on.
+
+{/* partial */}
+```ts
+player.item('episode-3');
+player.item(2);
+```
+
+A target is an item, its `id`, a zero-based integer index, or a predicate.
+A number that is not an integer is matched against `id` rather than used as an index.
+A target that resolves to nothing leaves the cursor where it was.
+
+**Playing is the default.** Pass `autoplay: false` to move the cursor without starting playback.
+
+{/* partial */}
+```ts
+player.item('episode-3', { autoplay: false });
+```
+
+**`item()` returns nothing to await.** It starts a load and does not wait for it, so a `play()` on the next line runs against the source that is still mounted.
+
+`playItem(target, opts?)` is that call with `autoplay: true` already set.
+`playNow(items, start?, opts?)` replaces the queue and plays from `start`, or from the first item when you omit it.
+Both route through `item()` internally, which is what keeps the `play()` inside the load's own continuation rather than racing it.
+
+`playNow([])` does nothing at all: no replacement, no cursor move.
+
+`next()` and `previous()` move this same cursor, and both resolve once the new item has loaded.
+
+## Moving by ordinal
+
+`seekToIndex(position)` counts from 1, so `seekToIndex(1)` is the first item and `seekToIndex(queueLength())` is the last.
+
+{/* partial */}
+```ts
+player.seekToIndex(1);
+```
+
+**It moves the cursor and loads nothing.** That is the difference from `item()`, and it is what makes it the call for repositioning a list without interrupting what is playing.
+
+A position past the end is ignored silently.
+A position that is zero, negative or fractional throws a `RangeError`.
+
+## Stopping a cursor move
+
+Both `item(target)` and `seekToIndex(position)` fire `beforeMutation` first, with `method` set to `'current'`.
+
+{/* partial */}
+```ts
+player.on('beforeMutation', (event) => {
+	if (event.data.method === 'current' && isLocked())
+		event.preventDefault();
+});
+```
+
+A prevented move emits `mutationPrevented` carrying the same `method`, and the cursor does not move.
+
+## What the queue announces
+
+Each list method has an event of its own: `queue:append`, `queue:prepend`, `queue:insert`, `queue:remove`, `queue:move`, `queue:clear`, `queue:shuffle` and `queue:sort`.
+Each one is followed by `queue`, which carries the whole list as its payload.
+A cursor move emits `item`, carrying the item and its index.
+
+{/* partial */}
+```ts
+player.on('queue', items => renderList(items));
+player.on('item', ({ item, index }) => highlightRow(index));
+```
+
+**Replacing the list emits `queue` and not `item`**, even though the cursor lands on the first item.
+Read the cursor yourself after a replacement rather than waiting for an event.
+
+A method that changes nothing emits nothing, so an out-of-range remove is silent.
+
+## The backlog
+
+A second list runs alongside the queue, reached through `backlog()`, `backlogAppend()`, `backlogRemove()` and `backlogClear()`.
+It emits `backlog`, `backlog:append`, `backlog:remove` and `backlog:clear` in the same shapes.
+
+**Nothing fills it for you.** Playing past an item does not put it there, `previous()` never reads it, and its contents skip the ingest pipeline above.
+
+It is storage for a history your own code keeps.
+
+## Choosing an item before the queue exists
+
+Calling `item(target)` between `setup()` and `ready()` addresses a queue that has not been seeded yet.
+
+The choice is parked rather than dropped.
+The pipeline applies it the moment the playlist lands, which is still inside `ready()`, so a deep link into episode four arrives in time.
+
+## Shuffle order
+
+`queueShuffle()` and shuffle mode both reorder through a strategy object, which defaults to a Fisher-Yates shuffle.
+
+Replace it with `setup({ shuffleStrategy })` to decide the order yourself.
+[Shuffle strategy](/nomercy-player-core/plugins-adapters/adapter-shuffle-strategy) has the contract.
+
+## The whole surface at work
 
 :::snippet{file="tour-queue" live="false"}
 :::
 
 ## Next steps
 
-- [The Plugin Base](/nomercy-player-core/tour/plugin-base): the class that lets behavior extend the player without forking it.
+- [Reference: Types](/nomercy-player-core/reference/types) for `BasePlaylistItem`, `LoadOptions` and the rest of the shapes named here.
+- [Shuffle strategy](/nomercy-player-core/plugins-adapters/adapter-shuffle-strategy) for deciding the order a shuffle produces.

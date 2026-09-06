@@ -1,0 +1,150 @@
+---
+title: 'State'
+description: 'The typed values the player reports about itself, when each one changes, and the CSS classes that carry the same state onto your container.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/player-state.ts, src/core/mixins/state-mutators.ts, src/core/state.ts, src/core/mixins/container-class-emit.ts */}
+
+# State
+
+The player keeps its state in fields you never touch, and gives you a method for each one you can read.
+
+Every reader hands back a typed enum, and every one of those enums is exported from the package root.
+None of them is reactive. A reader is a snapshot taken at the moment you call it.
+
+The event that changed a value is what tells you to read it again, so a reader paired with a listener is the normal shape.
+
+[Playback position](/nomercy-player-core/tour/time) is the one piece of state carrying a unit rather than an enum, and it has a page of its own.
+
+## Playback state
+
+`playState()` answers what playback is doing, as one of `IDLE`, `LOADING`, `PLAYING`, `PAUSED`, `STOPPED` or `ERROR`.
+
+A player that has been constructed and nothing more reports `IDLE`.
+
+**The field is written before the matching event is emitted**, so a listener already sees the settled value:
+
+```ts
+player.on('play', () => {
+  console.log(player.playState()); // 'playing'
+});
+```
+
+**`play()` writes `PLAYING` optimistically.**
+When the backend refuses, which is what a blocked autoplay looks like, the state rolls back to `PAUSED` and `playPrevented` arrives with reason `backend-refused`.
+
+Without that rollback a UI rendered from state shows a pause button over a silent element, and the viewer's first click pauses what never played.
+
+**`load()` sets `LOADING` before it hands the URL to the backend.**
+Once the media is mounted and nothing has started playback, the state settles to `PAUSED`.
+
+A `play()` that landed during the load keeps `PLAYING` instead, and a load that fails puts back the state it displaced.
+
+**`fatal` sets `ERROR` before any listener runs**, so a `fatal` handler reads the settled state rather than the one it is replacing.
+
+An `error`, `warning` or `info` never touches the play state, and the next `load()` moves off `ERROR` on its own.
+
+## Volume state
+
+`volumeState()` reports the gain stage, `UNMUTED` or `MUTED`, and not the level.
+
+A fresh player is `UNMUTED`.
+
+Setting a positive level while muted counts as an unmute: the state flips to `UNMUTED`, `mute` is emitted with `{ muted: false }`, and the backend is unmuted with it.
+
+## Repeat and shuffle
+
+These two are the state you write as well as read.
+
+Called with no argument, each returns the current value. Called with one, each returns a promise, because a write runs the full cancellable cycle.
+
+`beforeRepeat` or `beforeShuffle` dispatches first.
+A listener that cancels gets `repeatPrevented` or `shufflePrevented` and no change.
+Otherwise the value is written and `repeat` or `shuffle` is emitted.
+
+```ts
+import { RepeatState } from '@nomercy-entertainment/nomercy-player-core';
+
+await player.repeatState(RepeatState.ALL);
+```
+
+Both start at `OFF`.
+
+`repeatState()` is read by `next()` and by nothing else.
+`ONE` reloads the current item, `ALL` returns to the first item when the queue runs out, and `OFF` emits `queue:exhausted` there instead.
+
+`shuffleState('on')` randomizes the queue order at once, and takes `true` as shorthand.
+`shuffleState('off')` changes the value and leaves the order as it stands, so getting the original order back means supplying the queue again.
+
+## The four coarse readers
+
+These turn backend and platform detail into something you can render, and each has a safe answer when the thing it reads is absent.
+
+| Reader | Returns | With nothing to read |
+| --- | --- | --- |
+| `bufferState()` | `IDLE`, `LOADING`, `SEEKING` or `STALLED`, mapped from the backend's own state string | `IDLE` |
+| `networkState()` | `ONLINE`, `OFFLINE`, or `SLOW` below a 1.5 Mbps downlink | `ONLINE` |
+| `streamState()` | the backend's raw state string | `'idle'` |
+| `visibilityState()` | `VISIBLE` or `HIDDEN` | `VISIBLE` |
+
+That last column is what a player composed from the kit reports before you attach a backend or a platform monitor.
+
+Reach for `bufferState()` over `streamState()` whenever you want the typed value.
+
+## How a selection was made
+
+`qualityMode()` and `audioTrackMode()` report the way the current choice was arrived at, not what was chosen.
+
+`qualityMode()` is `AUTO` until a level is locked, then `MANUAL`.
+`audioTrackMode()` is `DEFAULT` until a track is picked, then `MANUAL`.
+
+Each change announces itself, on `qualityState` and `audioTrackState`.
+
+## The container carries the same state
+
+Every emit passes through one wrapper that keeps CSS classes on your container in step, so this state is readable from a stylesheet with no JavaScript of your own.
+
+- `playing` from the `play` and `playing` events, `paused` from `pause`, `stopped` from `stop`, `ended` from `ended`. These are one at a time, and adding one removes the others.
+- `buffering` from `waiting` and `stalled`, removed again on `canplay`.
+- `muted` from the `mute` event's `muted` flag.
+- `fullscreen`, `pip` and `theater` from the event of the same name, each following its `active` flag.
+- `active` or `inactive` from the `activity` event's `active` flag.
+
+**An advancing clock removes `buffering` as well.**
+Every `time` event drops that class, which is the backstop for an engine that recovers without emitting `canplay`.
+
+The `phase` event moves the same group. Reaching `ready` leaves the container `playing` when playback is running and `paused` otherwise.
+
+A `loading` phase on a player that has already been ready leaves the resting class alone, because a background load is not a stall.
+
+Classes are applied before the listener chain runs, so a handler that reads the container finds the class already set:
+
+```css
+#player.buffering .my-spinner {
+	display: block;
+}
+```
+
+## Stopping a state write
+
+One state write is cancellable through a shared guard rather than a `before` event of its own, and that is the queue cursor move.
+
+```ts
+player.on('beforeMutation', (event) => {
+  if (event.data.method === 'current')
+    event.preventDefault();
+});
+```
+
+The listener runs synchronously, so `delay()` on that event does nothing.
+
+Cancelling emits `mutationPrevented` carrying the same `method`, and the cursor stays where it was.
+Passing `mutationGuards: false` to `setup()` turns the dispatch off.
+
+The same pass fires any advisory a registered plugin declares against that method, as an `info`, `warning` or `error` event.
+A caution about a state write can therefore reach you from a plugin rather than from the kit.
+
+## Next steps
+
+- [Reference: Types](/nomercy-player-core/reference/types) for every enum named here and the shapes each reader returns.
+- [The Event Bus](/nomercy-player-core/tour/event-bus) for the listener side of every event on this page.

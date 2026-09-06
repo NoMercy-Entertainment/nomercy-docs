@@ -1,52 +1,153 @@
 ---
-title: 'The Plugin Base'
-description: 'The Plugin class: scoped logger and storage, auto-cleanup timers and listeners, namespaced i18n and events, and a cancellable dispatchBefore surface for your own actions.'
+title: 'Plugins'
+description: 'What a plugin is, what the runtime does with one, and why the base class hands you a scoped helper for everything a plugin would otherwise reach for globally.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/plugin/base.ts, src/core/mixins/plugin-registration.ts */}
+{/* Source: packages/nomercy-player-core/src/core/plugin/base.ts, src/core/plugin/index.ts, src/core/plugin/lifecycle.ts, src/core/mixins/plugin-registration.ts */}
 
-# Core: The Plugin Base
+# Plugins
 
-Everything a plugin needs to extend a player without forking it lives on one class: `Plugin<P, O, E>`.
+A plugin is a class that extends `Plugin`. That is the whole of the definition.
 
-## What you get for free
+You never construct one yourself.
+You hand the class to the player, and the runtime instantiates it, wires it, and tears it down again.
 
-Subclass `Plugin` and `initialize()` (called by the player, never by you) wires a scoped `logger` (prefixed `[nmplayer][<id>]`) and a namespaced `storage` (keys auto-prefixed `nmplayer-<id>-` so plugins never collide with each other or with player-level keys). From there, every helper on the base class auto-cleans on `dispose()`:
+```ts
+player.addPlugin(PlayCounterPlugin, { everyNPlays: 2 });
+```
 
-- `on` / `once` / `off` / `hasListeners`: two forms, a string for player events or a plugin class for another plugin's namespaced events (`on(OtherPlugin, 'event', fn)`), both auto-removed on teardown.
-- `listen` / `timeout` / `interval` / `frame` / `abortable`: DOM listeners, timers, an animation-frame loop, and an `AbortController`, all released together.
-- `lifecycle.observe(observer)`: wraps a `ResizeObserver`, `MutationObserver`, or `IntersectionObserver` so it disconnects on dispose. Returns the observer, so you chain the `observe(el)` straight onto it.
-- `emit(event, data)`: fire-and-forget, auto-namespaced under `plugin:<id>:`.
-- `dispatchBefore(event, data, opts?)`: the cancellable, mutable, async-aware pattern from [Transport Contract](/nomercy-player-core/tour/transport), available for your own actions.
-- `fetch(url, options?)` / `websocket(url, opts?)`: auth-aware HTTP and a realtime channel, both bound to the plugin's lifecycle. See [Recipe: Use authFetch](/nomercy-player-core/recipes/auth-fetch#response-typing) for the `parser` callback on a `'text'` response.
-- `t(key, vars?)`: translation, auto-namespaced under `plugin.<id>.*`.
-- `throw(payload)` / `report(payload)`: structured error escalation, `throw` aborting the current flow, `report` just surfacing a warning.
-- `mount(name)`: a `<div>` on the player container, namespaced `nmplayer-<id>-<name>`, removed on dispose.
+The class is the handle for everything afterwards, which is why the class and not an id is what you pass.
 
-Reach for these helpers rather than the raw primitives.
+`getPlugin(PluginClass)` hands back the live instance typed as that class.
+`static requires` names other plugin classes rather than their ids.
+`on(PluginClass, 'event', fn)` types the payload from the class you name.
 
-Calling `this.player.on` or `.emit` directly, or using a raw `setTimeout`, `addEventListener`, `new ResizeObserver`, a raw `throw`, or the global `fetch`, skips the scoping, cleanup, auth and structured errors the helpers give you.
+`addPlugin` returns the player, so registrations chain.
+The `plugins` array in `setup()` is the same call under another spelling, with identical validation and timing.
 
-Each one leaks something past `dispose()`, or drops a contract. The `@nomercy-entertainment/eslint-plugin-player` rules flag them as you write.
+## The id is a namespace, not a label
 
-Sometimes the raw form is genuinely right: a public URL that must not carry auth, or a third-party emitter that is not an `EventTarget`. An `eslint-disable-next-line` with a one-line reason is the intended escape hatch.
+`static id` is the one field every plugin must set, and nearly every other behavior on this page derives from it.
 
-## Declaring the contract
+A plugin with `id = 'play-counter'` gets a logger prefixed `[nmplayer][play-counter]`, storage keys prefixed `nmplayer-play-counter-`, and a mount node classed `nmplayer-play-counter-<name>`.
+Its events go out as `plugin:play-counter:<event>`, its translation keys resolve under `plugin.play-counter.*`, and every error it raises is stamped with that id.
 
-Static fields describe the plugin to the registration pipeline: an `id`, an optional `description` and `version`, a `minCoreVersion` floor, `requires` for other plugins it depends on, `replaces` for an opt-in same-id swap, a `priority` for ordering, and `translations` merged in on `use()`. A missing required dependency or an unmet version floor throws at registration rather than failing silently later.
+Two plugins can therefore do the same thing without ever colliding, and none of them has to remember to prefix anything.
 
-The full field list and what each error code means is on [Reference: Domain Types](/nomercy-player-core/reference/types#i18n--plugin-declaration-types).
+## `use()` is the hook you write
 
-Override `use()` to wire up (it can return a `Promise`, awaited by the player before `ready` fires, bounded by `pluginInitTimeoutMs`). Override `dispose()` only for resources the lifecycle helpers above don't already track.
+`use()` is the one method a plugin author overrides to do setup work.
 
-## Registering one
+The runtime calls it once, after it has wired the instance with the player, your options, the scoped logger and the scoped storage.
+It may return a promise, and the runtime awaits it before the player reports itself ready.
 
-`player.addPlugin(PluginClass, opts?)` queues the plugin before `setup()` completes, or registers it inline afterward. `getPlugin(PluginClass)` (class-typed) or `getPluginById(id)` retrieves the live instance later. The example below defines a small plugin that counts `play()` calls and emits a namespaced milestone event.
+The default body is empty, so a plugin that only declares statics needs no `use()` at all.
+
+Subscribing, building DOM, fetching, opening a socket: all of it starts here.
+
+**A plugin that throws from `use()` is torn back down rather than left half-installed.**
+The player keeps going without it, and announces the loss on `plugin:failed`.
+
+`this.player` is the player itself, so its methods are yours to call normally.
+`this.opts` is exactly the object you passed to `addPlugin`, and `undefined` when you passed none.
+
+## Helpers, so nothing outlives the plugin
+
+The base class carries a helper for every global a plugin would otherwise reach for.
+
+Every helper that opens something registers the matching cleanup as you call it, so teardown releases the lot and the plugin holds no handles of its own.
+
+- **Listening.** `on`, `once`, `off` and `hasListeners`, in two forms: a string for the player's own events, a plugin class for another plugin's.
+- **Timers and observers.** `listen`, `timeout`, `interval`, `frame` and `abortable`. `this.lifecycle.observe(observer)` does the same for a `ResizeObserver` or any object with `disconnect()`.
+- **Speaking.** `emit(event, data)` for fire-and-forget, and `dispatchBefore(name, data)` when listeners should be able to mutate, cancel or delay the action.
+- **Failing.** `throw(payload)` surfaces the error and aborts the flow. `report(payload)` surfaces it and returns, defaulting to `warning` severity.
+- **Network.** `fetch(url, options?)` runs the player's own auth pipeline and aborts on teardown. `websocket(url, opts?)` closes on teardown. `resolveUrl(url, category?)` covers the URLs you cannot attach a header to.
+- **Building.** `mount(name)` claims a `<div>` on the player container and removes it again. `createElement`, `createButton`, `createSVG`, `appendStyles` and `appendInlineStyles` build the rest.
+- **Translating.** `t(key, vars?)`, which looks the key up under the plugin's own namespace.
+
+The raw equivalent of any of these leaks something past teardown, or drops a contract the helper carries.
+`this.player.on` skips both the scoping and the auto-removal.
+A bare `setTimeout` outlives the plugin, a bare `fetch` sends no credentials, and a bare `throw` reaches nobody's error handler.
+
+The `@nomercy-entertainment/eslint-plugin-player` rules flag each of those as you write them.
+
+Override `dispose()` only for something the helpers cannot already track, such as a third-party library instance.
+Whatever they do track is released before your `dispose()` runs.
+
+## What a plugin declares about itself
+
+Statics are how a plugin describes itself to the registration pipeline, before any of its code has run.
+
+Three describe identity: `id`, `description`, and a `version` that defaults to `'0.0.0'`.
+
+Three form the registration contract and are settled before the plugin is constructed: `requires`, `replaces` and `minCoreVersion`.
+A missing dependency, an unmet version floor or a duplicate id throws at that point rather than failing quietly later.
+
+`priority` defaults to `0` and is read later, by `enabledPlugins()`.
+
+Three more are behavior expressed as data instead of code.
+`translations` are merged into the player's bundle and removed again on teardown.
+`onError` maps an error code to a recovery action, and `advisories` declares that a given method is risky in a given phase, which the player then reports for you.
+
+## Disabled is not removed
+
+A plugin is enabled from the moment it is constructed.
+
+`disable(reason?)` stops the behavior without unloading anything.
+Listeners stay subscribed, timers keep their handles, and mounted DOM stays on the page.
+This is also what the runtime does to a plugin whose declared dependency failed to install.
+
+| State | Listeners, timers and DOM | Reached by |
+| --- | --- | --- |
+| Enabled | Live | `addPlugin`, then `enable()` |
+| Disabled | Still live | `disable(reason?)` |
+| Removed | Released | `removePlugin(PluginClass)` |
+
+Because nothing is unsubscribed, a disabled plugin's handlers still run.
+Guarding them is the plugin author's job:
+
+{/* partial */}
+```ts
+override use(): void {
+  this.on('time', () => {
+    if (!this.enabled())
+      return;
+    this.redraw();
+  });
+}
+```
+
+Both calls are idempotent, and both announce themselves on `plugin:enabled` and `plugin:disabled`.
+
+**Removal is the one that actually releases.**
+`removePlugin(PluginClass)` runs the plugin's `dispose()`, drops everything its helpers registered, unmerges the translations it declared, and emits `plugin:disposed`.
+
+Plugins that declared a dependency on it are removed first.
+Pass `{ cascade: false }` to refuse instead, which throws `core:plugin/has-dependents` and names them.
+
+A removed plugin is gone. Getting it back means calling `addPlugin` again.
+
+`plugins()` lists every registered plugin in registration order.
+`enabledPlugins()` lists only the enabled ones, ordered by `priority`, highest first.
+
+## Reading and changing a plugin from outside
+
+`state()` returns a snapshot: the id, the version, whether it is enabled, its options, and a `runtime` object.
+
+That last one is empty until the plugin fills it, by overriding `getRuntimeState()`.
+
+`options()` returns a frozen copy of the current options.
+`options(partial)` merges into them and announces the change on `plugin:opts:changed`, which is where a plugin reacts to being reconfigured while it runs.
+
+## The whole thing
+
+A plugin that counts `play()` calls, reports a milestone on its own namespaced event, and exposes its count through `state()`:
 
 :::snippet{file="tour-plugin-base" live="false"}
 :::
 
 ## Next steps
 
-- [Plugin Handbook](/nomercy-player-core/handbook/anatomy): every helper on this page taught in full, one concern per page, with signatures, cleanup semantics, and examples. Start there when you are writing a plugin rather than skimming what exists.
-- [Adapters & Dependency Injection](/nomercy-player-core/tour/adapters): the swappable ports (`IStorage`, `IPlatform`, `IStreamSource`, and the rest) a plugin's own dependencies are built from.
+- [Add a Plugin](/nomercy-player-core/build/add-a-plugin) to write, register and dispose one of your own.
+- [Anatomy](/nomercy-player-core/handbook/anatomy) for the shape of the class, member by member.
+- [Registration](/nomercy-player-core/handbook/registration) for declaring dependencies, priority and options in full.

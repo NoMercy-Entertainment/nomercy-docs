@@ -1,43 +1,166 @@
 ---
 title: 'The Event Bus'
-description: 'EventEmitter, the typed pub/sub primitive every kit mixin, plugin, and player class is built on, plus the firehose listener every debugging overlay uses.'
+description: 'How the player announces what it is doing, how you subscribe, and how a listener cancels an action before it runs.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/adapters/event-bus/default.ts, src/adapters/event-bus/IEventBus.ts */}
+{/* Source: packages/nomercy-player-core/src/adapters/event-bus/default.ts, src/adapters/event-bus/index.ts, src/core/dispatch.ts */}
 
-# Core: The Event Bus
+# The Event Bus
 
-Every event a player emits, from `play` to a plugin's own custom events, flows through one class: `EventEmitter`.
+A player announces everything it does as an event.
 
-## What it is
+All of it runs through one class, `EventEmitter`, and the player instance is one.
+So `player.on(...)` is the whole subscription surface, with nothing to wire up first.
 
-`EventEmitter<E>` is a small, dependency-free pub/sub implementation, generic over an event map `E` that types each event name to its payload shape. Both `NMVideoPlayer` and `NMMusicPlayer` extend it directly, so every player instance already has `on`, `once`, `off`, `emit`, `hasListeners`, and `listenerCount` before a single kit mixin is composed onto it.
+## Subscribing
 
-Under the hood it is a plain `Map<event, Set<handler>>`, not the DOM's `EventTarget`. That choice is deliberate, and it buys three guarantees:
+```ts
+player.on('play', () => showPauseButton());
+```
 
-| Guarantee | Why it matters |
-| --- | --- |
-| A `Set`, not `EventTarget` | `off(event, fn)` removes a listener by reference without matching options, composing with `once()` in a way `removeEventListener` does not. |
-| `emit()` snapshots the listener set before iterating | A listener calling `off()` on itself mid-dispatch cannot corrupt the pass. |
-| Exceptions are caught per listener | One bad handler cannot abort the rest of the chain. |
+`on` runs your handler on every emit of that name.
+`once` runs it on the next emit and then removes it.
+Remove one yourself with `off`:
+
+```ts
+player.off('play', showPauseButton);
+```
+
+Pass the same function reference you subscribed with.
+That is also how a `once` handler is cancelled before it has fired.
+
+Registering one function twice for one event registers it once.
+The second call is not a second subscription.
+
+**`off(name)` with no handler drops every listener for that name.**
+
+**`off('all')` with no handler drops every listener for every name.**
+Disposal uses that second form, so reach for it only when you are finished with the player.
+
+### What the types catch, and what they do not
+
+A name from the player's event map hands your handler the right shape:
+
+```ts
+player.on('playlistReady', ({ length }) => {
+  // length is a number here.
+});
+```
+
+**A name that is not in the map still compiles.**
+A bare string is a valid call, because a plugin's own `plugin:<id>:<event>` names have to be subscribable too.
+So a misspelled name gives you a handler that never runs, rather than a build error.
+
+The runtime covers part of that gap.
+Subscribing to a name the bus knows will never fire logs a console warning naming the one to use instead.
 
 ## The firehose
 
-`on('all', fn)` registers a listener called for every emit, with `(eventName, data)` as its arguments. This is what `player.on('all', console.log)` and every debug overlay in the trio is built on. `off('all')` with no function removes every listener across every event, which is what `dispose()` calls to guarantee a disposed player leaks nothing.
+```ts
+player.on('all', (event, data) => console.log(event, data));
+```
 
-## Using it in a player library
+`'all'` calls your handler for every emit, with the name first and the payload second.
+That is the debugging hook. Remove one with `off('all', fn)`.
 
-You rarely construct an `EventEmitter` yourself. Your player class extends it, and its typed event map is whatever interface you declare. The usual starting point is the kit's `BaseEventMap` extended with your own events.
+Firehose listeners are held apart from named ones.
+`hasListeners('all')` is false while one is registered, because it answers about named subscriptions only.
 
-The example below builds a standalone bus with a small custom map, so the mechanics are visible without a player around them.
+## What an emit guarantees
+
+`hasListeners(name)` exists for a payload that costs something to build:
+
+```ts
+if (player.hasListeners('debug:frame'))
+  player.emit('debug:frame', buildFrameReport());
+```
+
+Three things hold on every dispatch.
+
+- Handlers run in subscription order, synchronously.
+- The listener set is snapshotted first, so an `off()` inside a handler takes effect on the next emit rather than this one.
+- A handler that throws is caught and logged, and the remaining handlers still run.
+
+That last one is why one broken listener cannot stop the player telling everybody else what happened.
+
+Whenever a name gains its first listener or loses its last, the bus emits `listeners-changed` with `{ name, count }`.
+It arrives on a microtask, not inside your `on()` call.
+
+The example below drives all of that on a bus of its own, so the mechanics are visible with no player around them.
 
 :::snippet{file="tour-event-bus" live="false"}
 :::
 
-## The cancellable variant
+## Cancelling an action
 
-Plain `emit()` is fire-and-forget: it can't be cancelled, delayed, or mutated by a listener. Every `before*` event (`beforePlay`, `beforeSeek`, `beforeMutation`, and the equivalent on a `Plugin`'s own custom events) runs through a different dispatcher built on top of this same listener registry, one that gives listeners a mutable, preventable payload. That's the subject of the next page.
+An action the player is about to take announces itself first, on an event named `before` plus the action.
+Eighteen events in the core map work this way, `beforePlay`, `beforeSeek` and `beforeLoad` among them.
+
+A handler for one of those receives an event object rather than the payload:
+
+```ts
+player.on('beforeSeek', (event) => {
+  if (isAdPlaying())
+    event.preventDefault();
+});
+```
+
+`preventDefault()` cancels the action.
+The player skips the work and the event that would have followed it, and emits `<action>Prevented` in its place:
+
+```ts
+player.on('seekPrevented', ({ reason }) => console.log(reason));
+```
+
+`event.data` is the payload, and it is writable.
+The player reads it back, so a handler can change what the action does rather than stopping it:
+
+```ts
+player.on('beforeSeek', (event) => {
+  event.data.time = clampToChapter(event.data.time);
+});
+```
+
+`stopImmediatePropagation()` skips the handlers subscribed after yours.
+It cancels nothing on its own, so combine it with `preventDefault()` when you mean both.
+
+## Holding an action open
+
+`delay(promise)` makes the player wait before it acts:
+
+```ts
+player.on('beforePlay', (event) => {
+  event.delay(refreshCredentials());
+});
+```
+
+Several handlers may delay one action, and their promises are awaited together.
+
+The wait is capped, and the cap is 10000 ms.
+Set your own with `beforeEventTimeoutMs` in the setup config.
+
+A delayed promise that rejects cancels the action. So does running out of time.
+
+`reason` on the `<action>Prevented` payload says which of four cases you are in.
+
+| `reason` | The action stopped because |
+| --- | --- |
+| `listener-prevented` | A handler called `preventDefault()`. |
+| `delay-rejected` | A delayed promise rejected. The rejection arrives beside it as `cause`. |
+| `delay-timeout` | The delays outlasted the cap. |
+| `backend-refused` | The browser or the backend declined the call itself. |
+
+`backend-refused` is the one no handler causes.
+A browser blocking autoplay is the case you will actually meet.
+
+**Order decides whether a delay is honored.**
+Every handler runs to the end before any promise is awaited.
+So a handler that stops propagation silences a later handler's `delay()`, and the action goes ahead unwaited.
+
+`player.dispatching()` returns the names being dispatched right now, innermost last.
+Reach for it when a handler needs to know which chain it is inside.
 
 ## Next steps
 
-- [Transport Contract](/nomercy-player-core/tour/transport): the cancellable `before*` dispatch pattern, demonstrated on `play()` / `pause()` / `seek()`.
+- [Reference: Events](/nomercy-player-core/reference/events) for every event name and the payload it carries.
+- [Adapter: Event Bus](/nomercy-player-core/plugins-adapters/adapter-event-bus) for replacing the bus with your own.

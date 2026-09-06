@@ -65,7 +65,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
   // quickstart, tour, build, recipes, plugins-adapters, reference.
   'nomercy-player-core': [
     { group: "Getting Started", pages: ['introduction', 'quickstart'] },
-    { group: "Guided Tour", pages: ['tour/lifecycle', 'tour/event-bus', 'tour/transport', 'tour/time-and-state', 'tour/queue', 'tour/composition-boundary', 'tour/plugin-base', 'tour/adapters', 'tour/i18n', 'tour/cue-parsers', 'tour/errors'] },
+    { group: "Guided Tour", pages: ['tour/lifecycle', 'tour/event-bus', 'tour/transport', 'tour/time', 'tour/state', 'tour/queue', 'tour/composition-boundary', 'tour/plugin-base', 'tour/adapters', 'tour/i18n', 'tour/cue-parsers', 'tour/errors'] },
     { group: "Build a Player", pages: ['build/compose-methods', 'build/backend-contract', 'build/add-a-plugin', 'build/add-i18n'] },
     { group: "Plugin Handbook", pages: ['handbook/anatomy', 'handbook/building-dom', 'handbook/styling', 'handbook/listening', 'handbook/timing', 'handbook/emitting', 'handbook/network', 'handbook/i18n', 'handbook/errors-state', 'handbook/registration'] },
     { group: "Recipes", pages: ['recipes/swap-an-adapter', 'recipes/custom-cue-parser', 'recipes/auth-fetch', 'recipes/custom-url-resolver'] },

@@ -1,41 +1,100 @@
 ---
-title: 'Adapters & Dependency Injection'
-description: 'Every swappable port the kit ships a default for, and the three composition primitives (composeMixins, resolvePlayerConstructor, initPlayerCoreState) that turn a class into a player.'
+title: 'Adapters'
+description: 'Why the kit takes storage, platform, formats and strategies as named interfaces with working defaults, and the three shapes a replacement comes in.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/compose.ts, src/core/constructor.ts, src/core/state.ts, src/types/config.ts */}
+# Adapters
 
-# Core: Adapters & Dependency Injection
+The kit needs things it does not own. Somewhere to save a value, a way to know the device went offline, code that understands an `.m3u8`.
 
-Nothing the kit does to a browser API is hardcoded. Every non-lifecycle behavior is a named interface with a working default, swappable at `setup()` with no subclassing.
+None of that is written into the player. Each one is a named interface, and the kit ships a working implementation of it.
+
+That pairing is an adapter: one interface, one default.
+
+## What an adapter answers
+
+An adapter answers a single question the kit refuses to answer for itself.
+
+`IStorage` answers where a saved value lives. `IPlatform` answers what the device can do. `IStreamFactory` answers which code claims a URL.
+
+Every port has a default, so a player set up with nothing but a playlist is already fully wired.
+
+**Nothing in the kit checks which implementation is active.** Every read goes through the interface, so replacing one changes behavior without a fork, a subclass, or a patched call site.
+
+## An adapter is not a plugin
+
+Both are things you hand the player, and they do opposite jobs.
+
+**A plugin adds a capability the player does not have.** It carries an id, you register it with `addPlugin`, and leaving it out means the capability is missing.
+
+**An adapter replaces a capability the player already has.** It carries no id, there is nothing to register, and leaving it out means the kit's own version runs.
+
+The two meet inside a plugin. `this.storage`, `this.logger` and `this.websocket()` all resolve through the adapter ports, so a plugin that persists a setting writes into whichever backend the consumer chose.
+
+Each plugin gets its own namespaced slice of that backend, keyed by the plugin id, so plugin keys never collide. [Adapter: Storage](/nomercy-player-core/plugins-adapters/adapter-storage) is the port those calls land on.
 
 ## The adapter ports
 
-Each port is a named interface with a working default: storage, platform, stream sources, URL resolution, translation, cue parsing, and the preload, transition and shuffle strategies among them.
+The ports group into five families.
 
-Every port except stream sources is a field on `BasePlayerConfig`. Stream sources register through `registerStream()` instead.
+| Family | What it decides | Kit default |
+| --- | --- | --- |
+| Storage | Where a saved value lives | `LocalStorageBackend` |
+| Platform | What the device can do | `browserPlatform` |
+| Formats | Which code claims a URL | `nativeFactory`, `hlsFactory`, three cue parsers |
+| Strategies | What plays next, and when | `FisherYatesShuffle`, `DefaultPreloadStrategy` |
+| Services | Translation, logging, URLs, sockets | `DefaultTranslator`, `Logger`, `nativeWebSocketAdapter` |
 
-Supplying the field replaces the kit's default outright. When an interface bundles several sub-controllers, a partial override composes cleanly: `{ ...browserPlatform, wakeLock: myWakeLock }`.
+One default is not the kit's to give. The transition strategy comes from the player library wrapped around the kit: `GaplessTransitionStrategy` for video, `CrossfadeTransitionStrategy` for music.
 
-The full port list, with the interface name, the default implementation, and what you would swap it for, is on [Reference: BasePlayerConfig](/nomercy-player-core/reference/config#adapters). Each port also has its own adapter page under [Plugins & Adapters](/nomercy-player-core/plugins-adapters/adapter-storage).
+Not everything filed under adapters is a port you replace. The element builder, the event emitter and the lifecycle registry are the kit's own machinery, published as contracts so a plugin can build on the same pieces.
 
-The queue's cursor-follow logic, the crossfade timing math, the retry backoff, none of it needs to know which concrete implementation is active. Every mixin reads through the interface, so a swap changes behavior without touching kit code.
+## Supplying your own
 
-## Composing a player from the ports
+Replacements come in three shapes, and the port decides which one you get.
 
-Three functions turn a plain class into something that behaves like `NMVideoPlayer` or `NMMusicPlayer`. [Quickstart](/nomercy-player-core/quickstart) shows all three together:
+### Name the field in `setup()`
 
-- `resolvePlayerConstructor(id, instances, className)`: the three-form factory resolution (`nmplayer()` / `nmplayer('div-id')` / `nmplayer(2)`) both real players' static constructors use.
-- `initPlayerCoreState(player, opts)`: seeds every internal slot (phase, queue, volume, plugin registry, and the rest) to its canonical starting value.
-- `composeMixins(prototype, ...modules)`: stamps one or more mixin objects onto a prototype via `Object.defineProperty`, preserving getters and setters. `playerCoreMethods` is the full aggregate; later modules in the argument list override earlier ones on key collision.
+Ten config fields take an adapter: `logger`, `storage`, `platform`, `translator`, `urlResolver`, `websocketFactory`, `cueParsers`, `shuffleStrategy`, `preloadStrategy` and `transitionStrategy`.
 
-## Swapping one at setup
-
-The example below runs on the same minimal player composed in [Quickstart](/nomercy-player-core/quickstart). It replaces `storage`, so nothing touches `localStorage`. It also replaces `shuffleStrategy` with a deterministic strategy that is easy to verify.
+Passing one replaces the default outright. Every call site downstream is untouched.
 
 :::snippet{file="tour-adapters" live="false"}
 :::
 
+### Register into a registry
+
+Streams and cue parsers are many, not one, so they are added rather than swapped.
+
+`player.registerStream(factory)` and `player.registerCueParser(parser)` put yours alongside the built-ins at any point, before or after setup. The most recently registered entry is asked first, so yours is consulted ahead of `nativeFactory`, `hlsFactory` and the three built-in cue parsers.
+
+Those built-ins stay registered underneath as the fallback. `setup({ cueParsers })` is the same registration, run for you once the built-ins are in place.
+
+### Override one member of a bundle
+
+`IPlatform` is not one implementation. It bundles wake lock, network, visibility, capability probing, fullscreen and picture-in-picture.
+
+What you pass replaces the whole bundle, so spread the default and override only the member you have a native answer for:
+
+```ts
+player.setup({
+  platform: { ...browserPlatform, wakeLock: capacitorWakeLock },
+});
+```
+
+The URL resolver offers the same escape hatch through its argument rather than a spread. A resolver you supply receives `ctx.defaultResolve(url)` and calls it for any category it does not want to handle.
+
+That port is also the one you can move at runtime. `player.urlResolver(fn)` swaps it after setup, and `player.urlResolver(undefined)` hands the work back to the built-in pipeline.
+
+## What it buys you
+
+**Tests stop needing a browser.** `MemoryStorageBackend` keeps a run from touching `localStorage`, and a shuffle strategy that reverses instead of randomizing turns queue order into something you can assert on.
+
+**Native shells stop needing a fork.** A Capacitor, Tauri or Electron build injects its own wake lock and network monitor through `platform`, and the queue, crossfade and preload code above it never learns that anything changed.
+
+**A format the kit has never heard of still plays.** TTML, SRT, or a proprietary manifest arrives as a factory you register, and the resolution walk finds it before the built-ins.
+
 ## Next steps
 
-- [i18n](/nomercy-player-core/tour/i18n): the default translator this same swap mechanism replaces when you need pluralization or ICU MessageFormat.
+- [Recipe: Swap an Adapter](/nomercy-player-core/recipes/swap-an-adapter) for the storage port replaced end to end, with a plugin reading through it.
+- [Adapter: Storage](/nomercy-player-core/plugins-adapters/adapter-storage) for one port's full surface, and the shape every other port's page follows.

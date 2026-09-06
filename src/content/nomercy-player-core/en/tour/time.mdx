@@ -1,0 +1,150 @@
+---
+title: 'Playback Time'
+description: 'Where the position lives, why it is a mirror rather than a live read, and what every time value on the player is measured in.'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/time.ts, src/core/format.ts */}
+
+# Playback Time
+
+Every time value the kit reports is a number of seconds.
+
+Position, duration, buffered and remaining are all seconds.
+The one exception is `percentage`, which is 0 to 100.
+
+## Where the position lives
+
+The kit holds the position in a slot of its own. Reading it never touches the backend.
+
+```ts
+player.time(); // 82.4
+```
+
+That slot is written *from* the `time` event, not the other way round.
+A player library emits `time` on each backend tick, carrying the backend's fresh position, and the kit mirrors it into the slot.
+
+So `time()` is as current as the last tick.
+That is what makes it cheap enough to call inside a render loop.
+
+Two things follow from it being a mirror.
+
+**Before the first tick it is 0, and reading it never throws.** That holds before `setup()` and after `dispose()` as well, because only the seeking form of `time()` runs the readiness guard.
+
+**A change of item zeroes it.** When the cursor moves to a different item, the kit drops the position rather than letting the incoming item inherit the outgoing one's.
+A listener reading `time()` inside its own `item` handler gets 0, not the end of the track that just finished.
+
+Passing a number seeks instead of reading, through the same cancellable `beforeSeek` cycle `rewind()` and `forward()` run, which the transport page covers.
+A negative value is clamped to 0. Nothing clamps the upper end, so a position past the end is handed to the backend as given.
+
+## Duration is a mirror too
+
+`duration()` reads a second slot, written from the `duration` event the same way.
+
+It is 0 until a duration has been announced, and it is zeroed on a change of item.
+
+So `duration() === 0` means the length is not known yet, never that the item is zero-length. Anything that divides by it needs that guard.
+
+## One read, one consistent snapshot
+
+`timeData()` returns the whole picture in a single call.
+
+```ts
+const { position, duration, buffered, remaining, percentage } = player.timeData();
+```
+
+A sixth field, `time`, is an alias of `position` for listeners that destructure the classic name.
+
+`remaining` is `duration - position`, floored at 0. `percentage` is the position as a share of the duration, and it is 0 while the duration is 0.
+
+Both are derived inside the one call, so the five numbers agree with each other.
+Reading `time()`, `duration()` and `buffered()` separately and doing the arithmetic yourself gives values from three different moments.
+
+The `time` event carries this exact shape, so a handler never has to re-derive time math from getters.
+
+## `buffered()` is a position, not a distance
+
+`buffered()` returns the absolute timeline position that buffered data reaches.
+
+It is the same frame of reference as `time()` and `duration()`, which is what lets a scrubber draw its buffered bar as `buffered() / duration()`.
+
+It is not a duration ahead of the playhead. `remaining` is the relative number; this one is absolute.
+
+It returns 0 when no backend is registered.
+
+`bufferedRanges()` and `seekable()` hand back the full `TimeRanges` from the backend, mirroring the `HTMLMediaElement` shapes of the same names.
+Each returns an empty range set when no backend is mounted, or when the backend does not implement it, so neither ever returns null.
+
+## Two events carry the position
+
+| Read | How current it is | Reach for it |
+| --- | --- | --- |
+| `time()` | as of the last `time` event | drawing one frame, answering one click |
+| `time` event | every backend tick | following playback |
+| `progress` event | throttled | saving a watch position |
+
+`progress` is the same position re-emitted at most once every `progressIntervalMs`, which defaults to 5000 and is disabled by `0`.
+
+{/* partial */}
+```ts
+player.setup({
+  progressIntervalMs: 15_000,
+  ...
+});
+```
+
+Its payload is narrower than the `time` one: `time`, `duration` and `percentage`.
+
+The first tick after setup always emits a `progress`, so a save handler has a value to write from the start rather than after the first interval.
+
+Persisting a position belongs on `progress`. `time` fires per animation frame, and a `POST` on every frame is the reason the throttled event exists.
+
+## Seeking by fraction
+
+`seekByPercentage(pct)` takes 0 to 100, not 0 to 1.
+
+```ts
+player.seekByPercentage(50);
+```
+
+Out-of-range values are clamped into that band.
+It computes the target against the current duration and hands it to the ordinary seek cycle, so a listener that prevents `beforeSeek` prevents this too.
+
+It is a no-op while the duration is 0 or non-finite, which is the metadata-not-loaded case.
+Nothing is emitted then, so a scrubber wired up before metadata lands is quiet rather than wrong.
+
+## The end of an item
+
+`itemEndingSoon` fires when `remaining` drops to the threshold, and the default threshold is 10 seconds.
+
+{/* partial */}
+```ts
+player.setup({
+  itemEndingSoonThreshold: 30,
+  ...
+});
+```
+
+It fires at most once per item. The latch behind it is released as each new item begins loading, so the event arrives exactly once per item rather than on every tick inside the window.
+
+The payload carries the `remaining` seconds and the `item` itself.
+
+## Showing it
+
+`formatSeconds` turns a number of seconds into `M:SS`, or `H:MM:SS` once there is an hour to show.
+
+```ts
+import { formatSeconds } from '@nomercy-entertainment/nomercy-player-core';
+
+player.on('time', ({ position, duration }) => {
+  label.textContent = `${formatSeconds(position)} / ${formatSeconds(duration)}`;
+});
+```
+
+It is a pure function off the package root, so it needs no player instance.
+
+Negative and non-finite input give `"0:00"` rather than throwing, which covers the gap before a duration is known.
+
+## Next steps
+
+- [State](/nomercy-player-core/tour/state) for the phase and the coarse readers a progress bar checks alongside these numbers.
+- [Reference: Utility Functions](/nomercy-player-core/reference/utilities) for `formatDuration` and the rest of the pure helpers beside `formatSeconds`.
