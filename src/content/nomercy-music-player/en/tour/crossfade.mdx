@@ -1,87 +1,72 @@
 ---
 title: 'Crossfade'
-description: 'How one track gives way to the next, why it is already on, and the second path that exists for doing it yourself.'
+description: 'The call that fades one track into the next, what it takes, and the three ways it fails.'
 ---
 
-{/* Source: packages/nomercy-music-player/src/index.ts, packages/nomercy-player-core/src/adapters/preload/default.ts, src/core/mixins/lifecycle.ts */}
+{/* Source: packages/nomercy-music-player/src/index.ts */}
 
 # Crossfade
 
-**Crossfade is already on.** The music player sets `crossfadeEnabled: true` before it reads your config, so a queue that runs to the end of a track overlaps into the next one without you asking.
+`crossfadeTo` moves the player to another track by fading between the two rather than cutting.
 
-That is a music-only default. The kit underneath defaults it to `false`, and the video player leaves it there.
+You call it at a moment only your application knows about: a listener pressing next, or your own logic deciding what follows.
 
-## The window
+:::snippet{file="music-tour-crossfade" preview="first"}
+:::
 
-Two values decide the overlap, and the fade spans both.
+Press play, then press the crossfade button.
 
-| Field | Default | What it covers |
-| --- | --- | --- |
-| `crossfadeLeadSeconds` | `3` | How far before the end of the outgoing track the fade starts. |
-| `crossfadeTailSeconds` | `3` | How far into the incoming track it keeps going. |
+**You should hear the playing track fade down as the next one comes up**, over the four seconds this config sets.
 
-Six seconds of overlap in total, three either side of the join.
+When the fade finishes the player's current item is the new track, so nothing else has to move the cursor.
 
-```ts
-player.setup({
-  crossfadeLeadSeconds: 6,
-  crossfadeTailSeconds: 6,
-  ...
-});
-```
+## How long it lasts
 
-**Raising the lead eats the end of the outgoing track, not the gap between them.** There is no gap. The fade is an overlap, so a longer lead means the outgoing track is already quietening while more of it is still playing.
+Three places set the length, and the first one present wins.
+
+| Where | Unit |
+| --- | --- |
+| The `duration` you pass to `crossfadeTo` | Seconds |
+| `crossfadeDefaults.duration` in your config | Seconds |
+| The built-in fallback of `5` | Seconds |
+
+**Pass the whole options object or none of it.**
+`duration` is required inside it, so `crossfadeTo(next)` compiles and `crossfadeTo(next, { curve: 'linear' })` does not.
+
+Setting `crossfadeDefaults` once is what lets every call site stay bare.
 
 ## The shape of the fade
 
-`equal-power` is the default. It holds the combined loudness steady across the join, which is what stops the middle of a crossfade sounding like a dip.
+`linear` is what you get when you name no curve at all.
+Both tracks move at a constant rate, so the combined loudness dips through the middle of the join.
 
-`linear` is the other option. Both tracks move at a constant rate, so the middle is quieter, and it is the right choice when the two tracks are meant to sound like one continuous take.
+`equal-power` is the one to ask for.
+It holds the combined loudness steady, which is what removes that dip.
 
-```ts
-player.setup({
-  crossfadeDefaults: {
-    curve: 'linear',
-  },
-  ...
-});
-```
+Name it on the call or once in `crossfadeDefaults`, as the example above does.
 
-## Turning it off
+## Starting the incoming track partway in
 
-```ts
-player.setup({
-  crossfadeEnabled: false,
-  ...
-});
-```
+`startAt` skips into the track you are fading to.
 
-Tracks then cut straight from one to the next.
+**It is in milliseconds, and so is the `duration` on the `crossfadeStart` event.**
+The crossfade fields in the table above are in seconds, so this is the boundary to watch.
 
-## Crossfading on your own terms
+## What can go wrong
 
-The automatic path handles a track reaching its end. When you want the change to happen for another reason, a listener pressing next or your own radio logic choosing something, call it directly:
+Three failures throw rather than fading.
 
-```ts
-await player.crossfadeTo(nextTrack, {
-  duration: 8,
-});
-```
+An item with no `url` throws `core:media/missing-url`, because there is nothing to fade into.
 
-**You should now hear the current track fade down as the new one comes up**, over eight seconds, rather than the queue's own three.
+A backend reporting no crossfade support throws `core:player/crossfade-unsupported`.
+Both shipped backends support it, so this only happens behind a backend of your own.
 
-`duration` is in seconds. Leave it out and it falls back to `crossfadeDefaults.duration`, then to `5`.
+A source that will not load rejects too, and it does so after `crossfadeStart` has already fired.
+A listener watching that event will see a fade announced that never happens.
 
-`curve` takes the same two values as above. `startAt` begins the incoming track partway in, and it is in **milliseconds** rather than seconds, which is the one place the two units differ.
-
-Two failures throw rather than fading:
-
-- An item with no `url` throws, because there is nothing to fade into.
-- A backend that reports no crossfade support throws. Both shipped backends support it, so this only happens behind a backend of your own.
-
-**These are two separate mechanisms, and that is deliberate.** The automatic one is a property of the queue and fires on its own schedule. `crossfadeTo` is a method you call, at a moment only your application knows about. Leaving both on is normal, and they do not interfere: the automatic fade only ever runs at the end of a track.
+A call made while a fade is already running returns without doing anything, so a listener leaning on the button cannot stack them.
 
 ## Next steps
 
-- [Queue](/nomercy-music-player/tour/queue) for what decides which track the automatic fade runs into.
+- [Queue](/nomercy-music-player/tour/queue) for what decides which track comes next.
 - [Audio backends](/nomercy-music-player/plugins-adapters/adapter-audio-backend) for what each one does with the two overlapping streams.
