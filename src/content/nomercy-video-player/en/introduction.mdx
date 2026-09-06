@@ -1,13 +1,13 @@
 ---
 title: 'What is nomercy-video-player'
-description: 'A headless, event-driven video engine with adaptive HLS streaming, VTT and ASS/SSA subtitle rendering, fullscreen/PiP/theater display modes, and a plugin system, built on nomercy-player-core.'
+description: 'A browser video engine with no interface of its own, and one plugin that ships a finished one.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/index.ts, src/types.ts */}
+{/* Source: packages/nomercy-video-player/src/index.ts, src/iife-entry.ts */}
 
 # What is nomercy-video-player
 
-`nomercy-video-player` is a video engine. It ships no UI.
+```str nomercy-video-player``` is a video engine. It ships no UI.
 
 You get the transport and a typed API. You build the interface, or drop in the official prebuilt one.
 
@@ -24,68 +24,64 @@ It is built on [`nomercy-player-core`](/nomercy-player-core), which carries life
 
 This library adds the video backend. It also adds the methods that only matter when watching: display modes, subtitle and audio track selection, quality, chapters and segment windows.
 
-## Who it's for
-
-Anything where someone watches: a streaming client, a live-event page, a video tile in a dashboard.
-
-Reach for it when you want the UI to be yours rather than someone else's restyled, or when you want the official overlay without writing one.
-
-Building a player that is neither video nor music? Start with [`nomercy-player-core`](/nomercy-player-core).
-
 ## Why it exists
 
-Watching has a problem listening does not: browsers disagree.
+Browsers disagree, and handling video consistently across them is challenging.
+HLS plays natively only in Safari. Everywhere else it needs ```str hls.js```.
 
-HLS plays natively only in Safari. Everywhere else it needs `hls.js`.
+A subtitle track can be a plain VTT cue. 
+It can also be a full ASS/SSA script with embedded fonts, positioning and karaoke timing that no browser renders on its own.
 
-A subtitle track can be a plain VTT cue. It can also be a full ASS/SSA script with embedded fonts, positioning and karaoke timing that no browser renders on its own.
+This library absorbs both behind one typed surface. ```cls Html5VideoBackend``` picks native HLS or ```str hls.js``` per browser, so `player.play()` never branches on user agent. ```cls SubtitleOverlayPlugin``` renders VTT. 
+```cls OctopusPlugin``` brings in a real libass renderer the moment a track needs ASS/SSA.
 
-This library absorbs both behind one typed surface. `Html5VideoBackend` picks native HLS or `hls.js` per browser, so `player.play()` never branches on user agent. `SubtitleOverlayPlugin` renders VTT. `OctopusPlugin` brings in a real libass renderer the moment a track needs ASS/SSA.
-
-Queueing, transport, volume, auth and plugins are not specific to watching, so they come from the core.
-
-## The setup, then freedom, model
+## The setup, then freedom model
 
 Create an instance, call `setup(config)` once, wait for it, then build whatever UI you want.
 
-`nmplayer(id)` is the factory. It returns the existing instance for an id already in use, or mounts a new one into the `<div>` with that id.
+`nmplayer(id)` is the factory. It returns the existing instance for an id already in use, or mounts a new one into the ```html <div>``` with that id.
 
+## What you get without writing interface code
+
+```cls DesktopUiPlugin``` ships inside the package. Two imports and one call.
+
+{/* partial */}
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-const player = nmplayer('player-container')
+const player = nmplayer('player')
+  .addPlugin(DesktopUiPlugin)
   .setup({ /* ... */ });
-await player.ready();
 ```
 
-`setup()` is the only strict step. It walks a fixed sequence: config snapshot, plugin registration, stream, auth, playlist, media readiness. It primes a start item as soon as the playlist is not empty.
+Nothing here asks you for styling. The plugin injects its own stylesheet, and its text ships in 79 languages.
 
-Calling it twice throws, so a half-configured player is not a state you can reach.
+[Quick Start](/nomercy-video-player/quickstart) takes this from two imports to a film playing.
 
-After `ready()` resolves, nothing is required of you. Build controls with the typed methods, or add plugins for a control bar, touch input, cast or media session.
+## What the engine does
 
-Every path uses the same `play()`, `pause()` and `time()`.
-
-## What you get
-
-- **`NMVideoPlayer<T>`** created through the `nmplayer(id)` factory, generic over your playlist item type.
-- **Adaptive HLS streaming**: native HLS on Safari, `hls.js` everywhere else. The import is dynamic, so Safari pays nothing, and the call surface is the same either way.
-- **Subtitle rendering across two formats** `SubtitleOverlayPlugin` renders VTT out of the box. `OctopusPlugin` brings in a libass renderer for embedded-font ASS/SSA.
-- **Display modes** `fullscreen()`, `pip()`, and `theater()`, plus aspect ratio control (`'uniform'` / `'fill'` / `'exactfit'` / `'none'`).
-- **Quality and ABR** `qualityLevels()` and `quality()` for manual selection on top of the backend's own adaptive bitrate engine.
-- **Chapters, thumbnails and segments**: typed chapter navigation, VTT-sprite scrub previews, and `playSegment()` for intro loops or chapter-range playback.
-- **A DRM hook** `DrmPlugin` coordinates EME license acquisition for Widevine, FairPlay, and PlayReady, degrading quietly in environments without EME.
-- **Plugin system**: a prebuilt control bar (`DesktopUiPlugin`), touch input (`TouchZonesPlugin`), keyboard and remote bindings, cast and media session. All opt-in.
-- **Everything from `nomercy-player-core`** lifecycle, queue, transport, volume, translations, and auth aware fetch.
+- **HLS with no branch in your code.** A URL ending in ```str .m3u8``` plays as HLS. Where the browser demuxes HLS itself the URL goes straight to the video element. Everywhere else ```str hls.js``` loads on demand, and it arrives with the package.
+- **Two subtitle renderers.** ```cls SubtitleOverlayPlugin``` paints VTT cues into positioned DOM. ```cls OctopusPlugin``` runs libass, and claims a track only when the file is `.ass` or `.ssa`.
+- **Display modes.** ```str fullscreen()```, ```str pip()``` and ```str theater()```, plus an aspect ratio of ```str uniform```, ```str fill```, ```str exactfit```, or ```str none```.
+- **Quality on top of ABR.** ```str qualityLevels()``` lists what the manifest offers. ```str quality()``` pins one, or hands control back with ```str auto```.
+- **Chapters and segments.** ```str seekToChapter()``` jumps to a chapter. ```str playSegment()``` plays a bounded window, which is what an intro loop or a chapter preview needs.
+- **Language memory.** The chosen audio and subtitle language is stored and re-applied on the next item. It is kept as a language, never as a track number, so it survives a file whose tracks are ordered differently.
+- **Ten plugins in the box.** Cast sender, desktop UI, DRM, key handler, live transcoding, media session, Octopus, subtitle overlay, touch zones and TV key handler. Each has its own import path, and a bundler drops the ones you never register.
 
 ## Where it sits
 
 <LayerStack layers={[
-  { n: 3, name: 'Your application', pkg: 'Your app code', knows: 'Your UI, layout, and app logic, built on the player.' },
-  { n: 2, name: 'nomercy-video-player', pkg: 'You are here', knows: 'Watching-specific methods and events (IVideoPlayer<T>): backend, fullscreen/pip/theater, subtitles, quality, chapters, segments.' },
-  { n: 1, name: 'nomercy-player-core', pkg: 'Dependency', knows: 'Lifecycle, queue, transport, plugins, i18n, auth.' },
+  { n: 3, name: 'Your application', pkg: 'Your app code', knows: 'Your layout and app logic, built on the player.' },
+  { n: 2, name: 'nomercy-video-player', pkg: 'You are here', knows: 'The video backend, display modes, subtitle rendering, quality, chapters and segments.' },
+  { n: 1, name: 'nomercy-player-core', pkg: 'Dependency', knows: 'Lifecycle, queue, transport, volume, plugins, translations and auth.' },
 ]} />
+
+Watching is the part this package owns. Everything underneath it is shared with the music player.
+
+Core carries the lifecycle, the queue, transport, volume, plugins, translations and auth. It ships no media backend, so the one you bring is the one it drives.
 
 ## Next steps
 
-- [Quick Start](/nomercy-video-player/quickstart) install the player and get a real video playing.
+- [Quick Start](/nomercy-video-player/quickstart) to install it and get a real film playing.
+- [How It Works](/nomercy-video-player/tour/how-it-works) for what `setup()` fills in, and what settles before a frame appears.

@@ -88,11 +88,23 @@ function getHighlighter(): HighlighterPromise {
 }
 
 /**
- * Drop the opening and closing quote a `str` span was highlighted with. The
- * quotes exist only so Shiki tokenizes the value as a string; the reader is
- * meant to see the value in the string color and nothing around it.
+ * A pseudo-tag is not a language. It is a value the reader should see in one
+ * of the theme's colors, written in prose without the syntax that would earn
+ * that color. Each one names the smallest piece of real code that puts the
+ * value in the right token position, and the scaffolding is cut afterwards so
+ * only the value is shown.
  */
-function stripOuterQuotes(nodes: ElementContent[]): void {
+const PSEUDO_TAGS: Record<string, { before: string; after: string }> = {
+  // A string, without the quotes a reader would have to look past.
+  str: { before: '\'', after: '\'' },
+  // A class or type name, in the theme's class color. A type annotation is
+  // what earns that color: `new X()` tokenizes X as a call and comes out the
+  // function blue instead.
+  cls: { before: 'let _: ', after: '' },
+}
+
+/** Cut the scaffolding a pseudo-tag was highlighted with, keeping the value's color. */
+function stripWrapper(nodes: ElementContent[], before: number, after: number): void {
   const texts: { value: string }[] = []
   const walk = (list: ElementContent[]): void => {
     for (const n of list) {
@@ -101,10 +113,21 @@ function stripOuterQuotes(nodes: ElementContent[]): void {
     }
   }
   walk(nodes)
-  const first = texts[0]
-  const last = texts[texts.length - 1]
-  if (first && /^['"]/u.test(first.value)) first.value = first.value.slice(1)
-  if (last && /['"]$/u.test(last.value)) last.value = last.value.slice(0, -1)
+
+  let left = before
+  for (const t of texts) {
+    if (left <= 0) break
+    const cut = Math.min(left, t.value.length)
+    t.value = t.value.slice(cut)
+    left -= cut
+  }
+  let right = after
+  for (let i = texts.length - 1; i >= 0 && right > 0; i--) {
+    const t = texts[i]!
+    const cut = Math.min(right, t.value.length)
+    t.value = t.value.slice(0, t.value.length - cut)
+    right -= cut
+  }
 }
 
 function rehypeShiki() {
@@ -133,13 +156,9 @@ function rehypeShiki() {
       // author says "this one is code" for a span the heuristic below would
       // read as prose. The tag is stripped before highlighting and never shown.
       const tagged = /^([a-z]+)[ 	]+([\s\S]+)$/.exec(raw)
-      // `str` is not a Shiki language. It is the tag for a value that IS a
-      // string but is written without quotes, like an error code quoted in
-      // prose. The text is highlighted as a string literal and the quote
-      // characters are stripped afterwards, so it takes the theme's string
-      // color without punctuation the reader has to look past.
-      const isStringTag = tagged?.[1] === 'str'
-      const taggedLang = tagged && (isStringTag || LANGS.includes(tagged[1])) ? tagged[1] : null
+      // A pseudo-tag names a color rather than a language; see PSEUDO_TAGS.
+      const pseudo = tagged ? PSEUDO_TAGS[tagged[1]] : undefined
+      const taggedLang = tagged && (pseudo || LANGS.includes(tagged[1])) ? tagged[1] : null
       const text = taggedLang ? tagged![2] : raw
 
       // Only spans that are actually code. A page's backticks carry far more
@@ -153,8 +172,9 @@ function rehypeShiki() {
       node.properties = node.properties || {}
       node.properties['data-inline-highlighted'] = 'true'
 
-      const html = highlighter.codeToHtml(isStringTag ? `'${text.replace(/'/gu, "\'")}'` : text, {
-        lang: isStringTag ? 'ts' : (taggedLang ?? 'ts'),
+      const source = pseudo ? `${pseudo.before}${text}${pseudo.after}` : text
+      const html = highlighter.codeToHtml(source, {
+        lang: pseudo ? 'ts' : (taggedLang ?? 'ts'),
         themes: { light: 'one-light', dark: 'one-dark-pro' },
         defaultColor: 'light',
         structure: 'inline',
@@ -164,7 +184,7 @@ function rehypeShiki() {
         },
       })
       const parsed = fromHtml(html, { fragment: true }).children as ElementContent[]
-      if (isStringTag) stripOuterQuotes(parsed)
+      if (pseudo) stripWrapper(parsed, pseudo.before.length, pseudo.after.length)
       node.children = parsed
     })
 
