@@ -102,22 +102,31 @@ function rehypeShiki() {
       if ((parent as Element | undefined)?.tagName === 'pre') return
       if (node.properties?.['data-inline-highlighted']) return
 
-      const text = toString(node)
-      if (!text || text.length > 120) return
+      const raw = toString(node)
+      if (!raw || raw.length > 160) return
+
+      // An explicit language prefix inside the backticks, written as
+      // `ts await player.ready()`. Markdown has no inline fence, so the tag
+      // arrives as the first word of an ordinary code span; naming it is how an
+      // author says "this one is code" for a span the heuristic below would
+      // read as prose. The tag is stripped before highlighting and never shown.
+      const tagged = /^([a-z]+)[ 	]+([\s\S]+)$/.exec(raw)
+      const taggedLang = tagged && LANGS.includes(tagged[1]) ? tagged[1] : null
+      const text = taggedLang ? tagged![2] : raw
 
       // Only spans that are actually code. A page's backticks carry far more
       // than TypeScript: file extensions, error codes, config keys, language
       // tags. Highlighting those as TS tokenizes `.m3u8` into punctuation plus
       // a red identifier, which is noise wearing the colors of meaning. A call,
       // an arrow, an object literal or a generic is code; a bare word is not.
-      const isCode = /\(\)|\(.*\)|=>|[{};]|<[A-Za-z]/.test(text)
+      const isCode = taggedLang !== null || /\(\)|\(.*\)|=>|[{};]|<[A-Za-z]/.test(text)
       if (!isCode) return
 
       node.properties = node.properties || {}
       node.properties['data-inline-highlighted'] = 'true'
 
       const html = highlighter.codeToHtml(text, {
-        lang: 'ts',
+        lang: taggedLang ?? 'ts',
         themes: { light: 'one-light', dark: 'one-dark-pro' },
         defaultColor: 'light',
         structure: 'inline',
