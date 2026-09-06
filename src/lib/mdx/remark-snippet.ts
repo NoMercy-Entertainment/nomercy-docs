@@ -492,7 +492,6 @@ interface PendingSnippet {
   resolved: { path: string; lang: SnippetLang };
   live: boolean;
   runnable: boolean;
-  playerFirst: boolean;
 }
 
 export function remarkSnippet() {
@@ -527,15 +526,13 @@ export function remarkSnippet() {
         // media backend. `:::snippet{file="..." runnable="false"}` opts a
         // directive out for the rare case raw source is the point.
         const runnable = node.attributes?.runnable !== 'false';
-        const playerFirst = node.attributes?.preview === 'first';
-
-        pending.push({ parent, index, file, resolved: resolveExampleFile(file), live, runnable, playerFirst });
+        pending.push({ parent, index, file, resolved: resolveExampleFile(file), live, runnable });
       },
     );
 
     const replacements: { parent: any; index: number; nodes: any[] }[] = [];
 
-    for (const { parent, index, file, resolved, live, runnable, playerFirst } of pending) {
+    for (const { parent, index, file, resolved, live, runnable } of pending) {
       const source = readFileSync(resolved.path, 'utf8');
       const codeValue = await toDisplaySource(source, runnable, resolved.lang);
 
@@ -559,14 +556,10 @@ export function remarkSnippet() {
         children: [],
       };
 
-      // `preview="first"` renders the live player above the code, so the
-      // reader sees the running result and then the copy-paste example
-      // underneath it. Default keeps code-then-player for tutorial steps.
-      replacements.push({
-        parent,
-        index,
-        nodes: playerFirst ? [playerElement, codeNode] : [codeNode, playerElement],
-      });
+      // Code, then the player. A reader meets the program before its result,
+      // so the running picture below is the answer to something already read
+      // rather than a demo the code underneath has to be matched back to.
+      replacements.push({ parent, index, nodes: [codeNode, playerElement] });
     }
 
     // Apply in reverse order so earlier indices stay valid.

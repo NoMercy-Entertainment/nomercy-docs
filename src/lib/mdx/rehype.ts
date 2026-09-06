@@ -101,6 +101,14 @@ const PSEUDO_TAGS: Record<string, { before: string; after: string }> = {
   // what earns that color: `new X()` tokenizes X as a call and comes out the
   // function blue instead.
   cls: { before: 'let _: ', after: '' },
+  // A function or method, in the theme's function color. Call parentheses are
+  // what earn that color, so they are added and then cut: the name is what the
+  // prose is naming, and a pair of empty brackets is punctuation the sentence
+  // did not ask for.
+  fn: { before: '', after: '()' },
+  // An object key, in the theme's property color. Key position is inside an
+  // object literal, so that is the smallest wrapper that earns the color.
+  key: { before: '({', after: ':0})' },
 }
 
 /** Cut the scaffolding a pseudo-tag was highlighted with, keeping the value's color. */
