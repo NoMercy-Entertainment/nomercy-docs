@@ -7,14 +7,20 @@ description: 'The four severities, which one you must handle, and what every fai
 
 # Errors
 
-A failure reaches you as an event, not as a thrown exception you have to catch around every call.
-
-The severity decides which event. There are four, they are the complete set, and the event is named after the severity:
+Most failures reach you on one of four severity channels, each named after its severity:
 
 ```ts
 player.on('error', ({ error }) => report(error.code, error.context));
 player.on('fatal', ({ error }) => showPlaybackFailed(error.suggestion ?? error.message));
 ```
+
+Some calls throw instead of emitting.
+`ready()` rejects when a setup stage fails.
+`load()` throws `core:media/missing-url` when the item you passed has no `url`.
+
+**Four failures never reach a severity channel.**
+Each has an event of its own: `plugin:failed`, `playlistError`, `auth:failed` and `preloadError`.
+A handler on `error` hears none of the four, so these are wired separately.
 
 ## Which one you must handle
 
@@ -22,8 +28,8 @@ Two of the four change what a person sees. The other two are for your logs.
 
 | Severity | Means | What it asks of you |
 | --- | --- | --- |
-| `fatal` | Unrecoverable. The player is shutting down. | Tell the viewer. Nothing will recover on its own. |
-| `error` | Recoverable, such as a sidecar that failed to load. | Decide whether the feature it broke matters here. |
+| `fatal` | Unrecoverable. The play state flips to `ERROR`. | Tell the viewer. The player does nothing further about it. |
+| `error` | Recoverable, such as a playlist that could not be fetched. | Decide whether the feature it broke matters here. |
 | `warning` | Observability only. | Log it. |
 | `info` | Observability only. | Log it. |
 
@@ -33,9 +39,10 @@ Two of the four change what a person sees. The other two are for your logs.
 
 The same shape arrives on all four channels.
 
+{/* partial */}
 ```ts
 {
-  code: string;                          // stable, and what a bug report is searched by
+  code: string;                          // the identifier a bug report is searched by
   severity: 'fatal' | 'error' | 'warning' | 'info';
   scope: ErrorScope;                     // where it came from
   message: string;
@@ -45,27 +52,39 @@ The same shape arrives on all four channels.
 }
 ```
 
-**Log the `code`, never the `message`.** The code is stable and the message is not, so a code is what makes two reports of the same failure look like the same failure.
+**Log the `code`, never the `message`.**
+The message is free text written at the raise site.
+The code is a fixed identifier, which is what makes two reports of one failure look alike.
 
 `scope` says which part raised it. It is a discriminated union rather than a string, so branching on `scope.kind` routes a failure without matching on code prefixes.
 
-`{ kind: 'core' }` and `{ kind: 'network' }` carry nothing else. `{ kind: 'plugin', id }` names the plugin. The backend, stream and cue scopes each name the implementation involved.
+There are seven kinds.
+
+- `core`, `network` and `auth` carry nothing else.
+- `plugin`, `backend`, `stream` and `cue` each carry an `id` naming what raised it.
 
 `suggestion` is populated for some codes and absent for others, so `error.suggestion ?? error.message` is the pattern that always has something to show.
 
 ## Failures during setup arrive twice
 
-A setup stage that fails emits two events: one named after the stage, and one named after the severity.
+Setup runs as a sequence of named stages, which [Lifecycle](/nomercy-player-core/tour/lifecycle) walks through.
+Most of them announce a failure twice.
 
-That looks like duplication and it is deliberate.
+The first event is the stage's name with `Error` on the end, so `authReady` fails as `authReadyError`.
+The bare stage name is the success event, so a listener on `authReady` hears nothing about the failure.
 
-The stage event tells you *where* the run stopped, which is what a diagnostic needs.
+The second is `error`.
+**A stage failure always arrives there, and never on `fatal`.**
 
-The severity event tells you *how bad it is*. It arrives on the same channel as every other failure, so one handler covers them all.
+The stage event tells you where the run stopped.
+The `error` event is the one handler that catches a setup failure alongside every other failure of that severity.
+
+`playlistReady` is the one stage that does not do this.
+It announces a failure on `playlistError` alone, which is why that name is in the list of four above.
 
 Listening to both means seeing one failure twice. Pick the one that suits the job.
 
 ## Next steps
 
-- [Every error code](/nomercy-player-core/reference/errors) with its scope, its severity and what raises it.
+- [Reference: Errors](/nomercy-player-core/reference/errors) for the `PlayerError` classes, the numeric code schema and the default retry policy.
 - [Lifecycle](/nomercy-player-core/tour/lifecycle) for the stages those setup failures come from.
