@@ -7,7 +7,9 @@ description: 'Moving through the queue, what repeat does to next(), and the even
 
 # Queue
 
-The playlist you pass to `setup()` becomes the queue. `player.queue()` returns it, and passing an array replaces it.
+The playlist you pass to `setup()` becomes the queue.
+`player.queue()` returns it.
+Passing it an array replaces it.
 
 ```ts
 const tracks = player.queue();
@@ -20,17 +22,45 @@ await player.next();
 await player.previous();
 ```
 
-Both resolve once the new track has loaded, so awaiting them is how you know the move finished rather than started.
+Both resolve once the new track has loaded.
+Awaiting one is how you know the move finished rather than started.
 
-To jump somewhere specific, `player.item()` takes a track, an id, an index, or a predicate:
+To jump somewhere specific, `player.item()` takes a track, an id, or an index:
 
 ```ts
 player.item('track-42');
 player.item(3);
-player.item(track => track.album === 'Blue Lines');
 ```
 
-`peekNext()` and `peekPrevious()` answer what a move would land on without making it, which is what a "up next" panel reads.
+**Either of those starts playing.** `item()` autoplays unless you say otherwise, so moving the cursor silently takes an option:
+
+```ts
+player.item('track-42', {
+  autoplay: false,
+});
+```
+
+**There is no promise to await.** The load is started and not waited on, so a `play()` on the next line runs against the previous track's source.
+
+That is the difference from `next()` and `previous()` above, which do resolve.
+
+Called with no argument, `item()` reads rather than moves, and hands back the track playing now.
+
+`playItem()` accepts the same three forms and a predicate as a fourth.
+
+```ts
+player.playItem(track => track.url?.startsWith('/K/Ketsa/') ?? false);
+```
+
+**It always plays.** `playItem()` is `item()` with `autoplay: true` already set, so it starts the track once the load finishes and hands back nothing to await.
+
+The predicate sees the fields every playlist item has, which are `id`, `title`, `image` and `url`.
+Anything your own items carry beyond those is invisible to it.
+
+`peekNext()` and `peekPrevious()` answer which track sits either side of the cursor without moving it, which is what an "up next" panel reads.
+
+They read the queue and ignore the repeat state.
+At the last track `peekNext()` is empty even under a repeat mode that would wrap to the front.
 
 ## Repeat changes what next() means
 
@@ -57,7 +87,10 @@ await player.shuffleState(ShuffleState.ON);
 
 Passing no argument reads. Passing a value sets, and returns a promise.
 
-`shuffleState` also accepts a plain boolean, which is the shorter form for a toggle button.
+`shuffleState` also accepts a plain boolean, where `true` means `'on'` and `false` means `'off'`.
+That is the shorter form for a toggle button.
+
+Turning shuffle on randomizes the queue order there and then, and turning it off leaves the shuffled order in place rather than restoring the one you supplied.
 
 ## Knowing the queue ran out
 
@@ -65,9 +98,15 @@ Passing no argument reads. Passing a value sets, and returns a promise.
 player.on('queue:exhausted', () => showEndOfQueue());
 ```
 
-That fires only under `off`. Under `all` the queue never runs out, and under `one` it never advances.
+**`next()` is the only thing that emits it.** A track running to its end emits nothing, because nothing advances the queue on its own.
 
-**`previous()` has no matching event.** Going back past the first track is not an end state, so nothing is announced. A control that needs to disable itself at the start reads the queue position rather than waiting for an event.
+Under `off` that is the end of a full queue.
+
+**An empty queue emits it under every repeat mode**, because there is nothing to wrap to and nothing to replay.
+A queue with tracks in it wraps under `all` and replays under `one`, so neither reaches the end.
+
+**`previous()` has no matching event.**
+Going back past the first track is not an end state, so nothing is announced.
 
 ## Stopping a move before it happens
 
