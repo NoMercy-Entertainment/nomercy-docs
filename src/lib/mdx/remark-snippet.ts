@@ -179,7 +179,16 @@ function toRunnableSnippet(source: string): string | null {
       `await player.ready();`,
     );
   } else {
-    mountLines.push(`const player = nmplayer('player')`, `    .setup(config);`, `await player.ready();`);
+    // Two statements, not a chain. Prettier runs over the built snippet and
+    // only keeps a member chain broken across lines at three or more calls, so
+    // `nmplayer('player')` + `.setup(config)` was always pulled back onto one
+    // line however the break was written here. This is also the shape the
+    // configure branch above already emits, and the one the reference page uses.
+    mountLines.push(
+      `const player = nmplayer('player');`,
+      `player.setup(config);`,
+      `await player.ready();`,
+    );
   }
 
   if (onReadySig) {
