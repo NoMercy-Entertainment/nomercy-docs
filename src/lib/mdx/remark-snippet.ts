@@ -159,6 +159,14 @@ function functionSignature(source: string, name: string): { params: string[]; re
  * still imports the untouched module, so shown code and running player stay
  * one source.
  */
+/**
+ * Separates the example's own module from the mount lines appended to it.
+ * Prettier formats the module; the mount lines are appended after that and
+ * never reformatted, because Prettier collapses a two-call member chain onto
+ * one line and one dot per line is the shape this project writes.
+ */
+const MOUNT_SEP = '\n\n/*__NM_MOUNT__*/\n'
+
 function toRunnableSnippet(source: string): string | null {
   const pkg = source.match(/@nomercy-entertainment\/nomercy-(?:video|music)-player/)?.[0];
   if (!pkg) return null;
@@ -179,14 +187,9 @@ function toRunnableSnippet(source: string): string | null {
       `await player.ready();`,
     );
   } else {
-    // Two statements, not a chain. Prettier runs over the built snippet and
-    // only keeps a member chain broken across lines at three or more calls, so
-    // `nmplayer('player')` + `.setup(config)` was always pulled back onto one
-    // line however the break was written here. This is also the shape the
-    // configure branch above already emits, and the one the reference page uses.
     mountLines.push(
-      `const player = nmplayer('player');`,
-      `player.setup(config);`,
+      `const player = nmplayer('player')`,
+      `\t.setup(config);`,
       `await player.ready();`,
     );
   }
@@ -205,7 +208,7 @@ function toRunnableSnippet(source: string): string | null {
     mountLines.push('player.item(0);');
   }
 
-  return `${body}\n\n${mountLines.join('\n')}`;
+  return `${body}${MOUNT_SEP}${mountLines.join('\n')}`;
 }
 
 // -----------------------------------------------------------------------------
@@ -476,7 +479,10 @@ async function toDisplaySource(source: string, runnable: boolean, lang: SnippetL
   if (isNative(lang)) return stripped;
   const deMedia = inlineMediaImports(stripped);
   const out = (runnable ? toRunnableSnippet(deMedia) : null) ?? deMedia;
-  return formatDisplaySource(out, lang);
+  const cut = out.indexOf(MOUNT_SEP);
+  if (cut === -1) return formatDisplaySource(out, lang);
+  const body = await formatDisplaySource(out.slice(0, cut), lang);
+  return `${body}\n\n${out.slice(cut + MOUNT_SEP.length)}`;
 }
 
 interface PendingSnippet {
