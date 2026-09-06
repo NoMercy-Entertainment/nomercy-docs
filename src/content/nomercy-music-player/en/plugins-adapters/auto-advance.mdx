@@ -7,9 +7,7 @@ description: 'Play the next track when one ends, with a strategy of your own dec
 
 Reach for `AutoAdvancePlugin` when you want a queue that keeps playing. It listens for a track ending and moves to the next one. Without it the player stops at the end of every track and waits for your own code to call `player.next()`.
 
-It also does the two things that have to happen slightly before a track ends: loading the next track early, and crossfading.
-
-Crossfading overlaps the end of one track with the start of the next instead of cutting between them. Both are off by default, because both cost bandwidth a listener may not want spent.
+It also does the two things that have to happen slightly before a track ends: loading the next track early, and handing the change to `player.crossfadeTo`. Both are off by default, because both cost bandwidth a listener may not want spent.
 
 ```ts
 import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/auto-advance';
@@ -31,11 +29,15 @@ Every option is optional, and the defaults give you plain sequential playback.
 | --- | --- | --- | --- |
 | `enabled` | `boolean` | `true` | Master switch. `false` leaves the plugin registered and inert. |
 | `preloadNextOnEnding` | `boolean` | `false` | Fetches the next track early, so it is already buffered when the current one ends. |
-| `crossfade` | `boolean` | `false` | Overlaps the two tracks instead of cutting between them. |
+| `crossfade` | `boolean` | `false` | Routes the advance through `player.crossfadeTo` instead of a plain change. |
 | `crossfadeDuration` | `number` | `0` | Seconds of overlap. At `0` the change is a hard cut rather than a fade. |
 | `generator` | `IPlaylistGenerator` | the queue's own order | An object that decides which track is next. Covered below. |
 
-**Turning `crossfade` on without also setting a duration cuts every track short.** The handoff runs when the player emits `itemEndingSoon`, and at a duration of `0` there is no fade to fill the gap, so the tail of every track is dropped.
+**The player already crossfades without this option.** Music sets `crossfadeEnabled: true` on its own, so a track reaching its end overlaps the next one whether or not this plugin is registered. See [Crossfade](/nomercy-music-player/tour/crossfade) for that window and its defaults.
+
+This option is a different route to the same effect: it hands the change to `player.crossfadeTo` at the moment the plugin advances, rather than letting the queue's own transition run.
+
+**Turning it on without also setting a duration cuts every track short.** The handoff runs when the player emits `itemEndingSoon`, and at a duration of `0` there is no fade to fill the gap, so the tail of every track is dropped.
 
 Set the two together, with the duration matching how early that event fires:
 
