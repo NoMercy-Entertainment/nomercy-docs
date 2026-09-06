@@ -1,87 +1,44 @@
 ---
 title: 'Streams'
-description: 'Which URLs play without a stream factory, what each shipped factory claims, and how to register one of your own.'
+description: 'The one decision the player makes about a URL, how HLS is played, and what the browser decides for everything else.'
 ---
 
 # Streams
 
-A stream factory turns a URL into something the player can play. Two ship with the player, and between them they cover HLS and progressive files, so most catalogues need nothing added.
+The player asks one question about a URL: is it HLS.
 
-## What plays without a factory of your own
+Everything else is handed to the video element, so what plays is what the browser can decode.
 
-The player matches on the URL first and the content type second. Either one is enough.
+## The rule the player applies
 
-The HLS factory claims a URL whose path ends in `.m3u8`, before any `?` or `#`. It also claims these content types:
+A URL is treated as HLS when it contains `.m3u8` followed by a `?`, a `#`, or the end of the string.
 
-- `application/vnd.apple.mpegurl`
-- `application/x-mpegurl`
-- `application/mpegurl`
-- `audio/vnd.apple.mpegurl`
-- `audio/x-mpegurl`
-- `audio/mpegurl`
+The test is case insensitive.
+It is not anchored to the end of the path, so `movie.mp4?fallback=alt.m3u8` plays as HLS because the `.m3u8` is the last thing in the URL.
 
-The native factory claims a URL ending in one of these extensions, again before any `?` or `#`:
+Nothing else about the URL is read, and no content type is consulted.
 
-| Kind | Extensions |
-| --- | --- |
-| Audio | `mp3`, `flac`, `aac`, `m4a`, `wav`, `ogg`, `opus`, `weba` |
-| Video | `mp4`, `webm`, `mov`, `m4v`, `ogv` |
+## How HLS plays
 
-It also claims any content type beginning `audio/` or `video/`, with the HLS types above excluded so the HLS factory keeps them.
+**The player prefers the browser's own HLS support and falls back to `hls.js`.**
 
-Nothing else is matched. A URL with no extension and no content type reaches no factory, and the player throws `core:stream/no-factory-match` naming the URL it could not place.
+The choice is a capability probe rather than a browser name.
+A browser answering `probably` to an HLS content type plays it natively, and so does one answering `maybe` without Media Source Extensions.
+Everything else gets `hls.js`, imported at the moment it is needed rather than at page load.
 
-## How HLS actually plays
+`hls.js` is a dependency of the core package underneath, so it installs with the player.
+Installing from npm needs no peer dependency and no import of your own.
 
-**The player prefers the browser's own HLS support and falls back to `hls.js`.** Safari plays HLS natively, so nothing is downloaded there; every other browser gets `hls.js`, imported at the moment it is needed rather than at page load.
+## Everything else
 
-`hls.js` is a dependency of the core package underneath, so it installs with the player. There is no peer dependency to add and no import to write.
+Any other URL becomes the `src` of the video element.
+That is how `.mp4` and `.webm` play.
 
-## Registering a factory of your own
+A URL with no extension at all is handed over the same way.
 
-A factory answers two questions: whether it can play a URL, and what to create for it.
-
-```ts
-import type { IStreamFactory } from '@nomercy-entertainment/nomercy-player-core';
-
-const dashFactory: IStreamFactory = {
-  id: 'dash',
-
-  canPlay(url, contentType) {
-    return /\.mpd(?:[?#]|$)/i.test(url) || contentType === 'application/dash+xml';
-  },
-
-  create(opts) {
-    return new DashStreamSource(opts);
-  },
-};
-
-player.registerStream(dashFactory);
-```
-
-`id` is what makes a factory replaceable: registering a second factory with the same `id` replaces the first in place rather than adding to the list.
-
-**The most recently registered factory that claims a URL wins.** The registry walks its list newest first, so your factory takes precedence over the built-ins without any priority number.
-
-That makes the second argument read backwards, and it is worth knowing before you reach for it:
-
-```ts
-player.registerStream(myFactory, true);
-```
-
-Passing `true` prepends, which puts your factory at the **front** of the list and therefore last in the walk. A factory registered that way is consulted only when nothing else claims the URL, which is what you want for a catch-all and never what you want for an override.
-
-## When a URL reaches no factory
-
-The player throws `core:stream/no-factory-match`. The message names the URL and the content type it was given, and the error's `context` carries both as fields.
-
-Two causes account for most of it.
-
-The extension is one the shipped factories do not claim. A factory of your own is the fix.
-
-Or the URL carries no extension, because it is a signed or rewritten link. Passing the content type alongside it is enough for the built-ins to claim it.
+The decision is the browser's rather than the player's.
+The list of playable formats is therefore the browser's list, and it differs between browsers.
 
 ## Next steps
 
-- [The stream source adapter](/nomercy-player-core/plugins-adapters/adapter-stream-source) for the full `IStreamFactory` and `IStreamSource` contracts.
 - [Configuration](/nomercy-video-player/reference/config) for the fields that reach the backend.

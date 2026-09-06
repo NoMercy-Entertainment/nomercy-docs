@@ -7,7 +7,10 @@ description: 'The nine stages between your setup call and a usable player, what 
 
 `setup()` returns straight away. The player is not usable yet.
 
-What happens between that return and a usable player is a fixed sequence of stages, each of which announces itself. Knowing the sequence is what tells you where your own code belongs, and why a call that works in one place returns nothing in another.
+What happens between that return and a usable player is a fixed sequence of stages, each of which announces itself.
+
+The sequence is what tells you where your own code belongs.
+It is also why a call that works in one place returns nothing in another.
 
 ## The sequence
 
@@ -29,7 +32,8 @@ player.on('playlistReady', ({ length }) => {
 });
 ```
 
-One extra event appears only when the playlist has to be fetched. A config that hands the player a URL instead of an array emits `playlistResolving` with that URL, between `authReady` and `playlistReady`.
+One extra event appears only when the playlist has to be fetched.
+A config that hands the player a URL instead of an array emits `playlistResolving` with that URL, between `authReady` and `playlistReady`.
 
 ## What each stage settles
 
@@ -45,11 +49,16 @@ The names describe what has finished, not what is starting.
 
 Two of the nine are the wrong hook to reach for, and both look right by their name.
 
-**`setupStart` is too late to change anything.** By the time it fires the config is normalized, state is seeded and the adapters are wired, so a listener that tries to amend config there has already missed. Pass config to `setup()` instead.
+**By the time `setupStart` fires, the config is normalized, state is seeded and the adapters are wired.**
+Some fields have been read by then and some have not, so an edit there lands for `playlist` and is ignored for whatever was already consumed.
+Pass config to `setup()` and you never have to know which is which.
 
-**`mediaReady` fires twice, and the first one means nothing.** The stage of that name has an empty body and fires whether or not media loaded. The load path emits it again once the backend really holds an item. Listen for it after `ready()` resolves and you get the one that means something.
+**`mediaReady` fires twice.**
+The stage of that name has an empty body and fires whether or not media loaded.
 
-`ready` is last and it is the one worth waiting on.
+The load path emits it again once the backend really holds an item.
+
+Listen for it after `ready()` resolves and you get that second one.
 
 ## Waiting for it
 
@@ -82,7 +91,10 @@ A player left in that state has not been disposed. Call `dispose()` yourself bef
 
 Plugins queued before `setup()` are constructed during `pluginsRegistering`, the third stage.
 
-**Registering later still works, and the difference is when.** A plugin added after the player is ready is registered on the spot rather than as part of the sequence, so it comes up against a live player instead of a half-built one. Register before `setup()` when the plugin needs to see the setup stages happen, which is what a plugin drawing an interface wants.
+**Registering later still works, and the difference is when.**
+A plugin added after the player is ready is registered on the spot rather than as part of the sequence, so it comes up against a live player instead of a half-built one.
+
+Register before `setup()` when the plugin needs to watch the setup stages happen, which is what a plugin drawing an interface wants.
 
 Each plugin goes through the same four steps, in order:
 
@@ -95,6 +107,7 @@ Each plugin goes through the same four steps, in order:
 
 Raise or lower it on the player config, in milliseconds:
 
+{/* partial */}
 ```ts
 player.setup({
   pluginInitTimeoutMs: 5_000,
@@ -118,7 +131,10 @@ player.on('plugin:failed', ({ id, error }) => {
 await player.dispose();
 ```
 
-**Your container should be empty again**, with no video element inside it and nothing still listening. The instance is dead afterwards, so a later player means constructing a new one.
+**Nothing is still listening**, and the video element is gone if the player created it.
+
+A `<video>` you put in the container yourself is left in place, and the `nomercyplayer` class stays on the container either way.
+The instance is dead afterwards, so a later player means constructing a new one.
 
 What happens in between is worth knowing, because you can stop it.
 

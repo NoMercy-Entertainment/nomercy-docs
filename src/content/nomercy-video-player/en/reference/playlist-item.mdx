@@ -5,19 +5,19 @@ description: 'Every field a video playlist item carries, which of them the playe
 
 # Playlist Items
 
-An item is one thing in the queue. Only `id` is required, but an item without `url` has nothing to play.
+An item is one thing in the queue.
 
-The fields divide into two groups, and the division is worth knowing before you build one.
-
-Most fields change what the player does. A handful exist only so your own objects pass through without a cast.
+The fields divide into two groups.
+Most change what the player does.
+A handful exist only so your own objects pass through without a cast.
 
 ## Identity and source
 
-These four are the item.
+The quickstart set `id`, `title` and `url` on its one item. `duration` is the fourth, and it is what lets the interface show a length before any media has loaded.
 
 | Field | Type | What it does |
 | --- | --- | --- |
-| `id` | `string \| number` | Required. Identifies the item in the queue and in every event that names one. |
+| `id` | `string \| number` | Identifies the item in the queue and in every event that names one. |
 | `url` | `string` | The media source. Resolved against `baseUrl` when relative, and through your auth rules before it reaches the backend. |
 | `title` | `string` | The display name. Used by the interface, the operating system's now-playing panel, and Cast metadata. |
 | `duration` | `number` | Seconds. Lets the interface show a length before the media loads. |
@@ -26,7 +26,8 @@ These four are the item.
 
 **Three field names are accepted for the same picture, and they are read in one order:** `image`, then `poster`, then `thumbnail`. The first one present as a string wins.
 
-That exists so an item from a backend that calls it `poster` needs no rewriting on the way in. Set one of them, not several.
+That exists so an item from a backend that calls it `poster` needs no rewriting on the way in.
+Only the first name present is read, so a second one is carried and never shown.
 
 The value is resolved against `baseImageUrl` when relative and passed through untouched when it is already a full URL. It becomes the `<video>` element's poster, and it is the artwork the now-playing panel and a Cast receiver fetch.
 
@@ -37,12 +38,32 @@ Set these and the shipped interface has more to show. Leave them out and it show
 | Field | Type | What it adds |
 | --- | --- | --- |
 | `description` | `string` | Synopsis text on the playlist card. |
-| `show` | `string` | Series title in the top bar, shown when `season` and `episode` are present. |
-| `season` | `number` | 1-based. Combines with `episode` into an `S01E03` label. |
-| `episode` | `number` | 1-based. |
-| `progress` | `WatchProgress` | Continue-watching state, drawn as the progress bar on the playlist card. |
+| `show` | `string` | Series title. Set it and the top bar shows it in place of `title`. |
+| `season` | `number` | Season number. Zero means extras. |
+| `episode` | `number` | Episode number. |
+| `progress` | `WatchProgress` | Continue-watching state. Picks the starting item, the starting position, and the bar on the playlist card. |
 
-**The player never writes `progress`.** It reads it to draw the bar; persisting it is yours to do. [Resume playback](/nomercy-video-player/recipes/resume-playback) shows the round trip.
+### What `show`, `season` and `episode` draw
+
+The top bar puts `show` on the first line and an episode label on the second.
+That second line appears only when `show` and `episode` are both set, and `season` is optional within it.
+
+The playlist card labels itself separately, so the same item is labeled two ways in two places.
+
+| Where | With season 1, episode 3 | With episode 3 and no season | With neither |
+| --- | --- | --- | --- |
+| Top bar, second line | `S1E3` | `E3` | nothing |
+| Playlist card badge | `S1: E3` | `E3` | the item's 1-based position |
+
+Season numbers are not padded, so season 1 is `S1` rather than `S01`.
+A season of `0` reads as `Extras E3`.
+
+The top bar appends the episode title whenever `title` is set and differs from `show`, so that line reads `S1E3 • The Breaking Point`.
+
+**The player never writes `progress`.** It reads it to pick where playback starts and to draw the bar; persisting it is yours to do. [Resume playback](/nomercy-video-player/recipes/resume-playback) shows the round trip.
+
+Playback opens on the item whose `progress.timestamp` is newest, at `progress.time`.
+An item already past 90 percent is treated as finished, and the item after it opens instead.
 
 ## Sidecars
 
@@ -52,16 +73,54 @@ Each of these points at a file the player fetches alongside the media.
 | --- | --- | --- |
 | `subtitles` | `SubtitleTrackRef[]` | Subtitle tracks, one entry per language and format. |
 | `chapters` | `ChapterRef[]` | Chapter marks, drawn on the scrubber and reachable from the skip controls. |
-| `previewSpriteUrl` | `string` | The sprite sheet behind the thumbnail a viewer sees while scrubbing. |
+| `previewSpriteUrl` | `string` | A WebVTT file listing the scrubbing thumbnails. Each cue names its sheet and the rectangle to cut from it, so the sheet URLs come from the file rather than from this field. |
 | `fonts` | `FontTrackRef[]` | Font manifests or font files, used when rendering ASS and SSA subtitles. |
 
 Their shapes are in [Types](/nomercy-video-player/reference/types).
 
-## Two fields the playlist menu branches on
+**Two of these are written back, so what you read is not always what you passed in.**
 
-`playlist_type` and `video_type` change what the playlist menu renders. A value of `'movie'` in either one keeps an item out of the episode list, and `playlist_type: 'tv'` puts it in.
+Adding or removing a subtitle track at runtime replaces the queue item with one carrying the rewritten `subtitles` array.
 
-They sit in the source under a comment saying the consumer-supplied fields are not used by the player. That is true of the others below it and not of these two, which the desktop interface reads when it decides between an episode card and a movie card.
+`chapters` is normalized on load: a gap between two of your marks is filled with a synthetic chapter, and the filled list replaces the one you supplied.
+
+## What `progress` holds
+
+Three members, and only one of them is optional:
+
+```ts
+interface WatchProgress {
+	// Unix epoch milliseconds of the last watch session.
+	timestamp: number;
+
+	// 0 to 100. Zero is unwatched, one hundred is fully watched.
+	percentage: number;
+
+	// Playback position in seconds, for resuming where the last session stopped.
+	time?: number;
+}
+```
+
+`percentage` is what the progress bar draws, and `time` is what a resume reads. An item with `percentage` and no `time` shows a bar and starts from the beginning.
+
+## Two fields the playlist menu reads
+
+`playlist_type` and `video_type` change how the playlist menu is laid out.
+
+**They never change what an item looks like.** One card builder draws every item, whatever these two say.
+
+They do change which items are on screen at once: the seasons layout shows only the season you picked, and the flat layout shows the whole queue.
+
+Two separate decisions read them, and both look at the whole queue rather than at one item.
+
+The seasons sidebar appears when the queue holds two or more distinct seasons numbered 1 or higher.
+An item carrying `'movie'` in either field is left out of that count, which is why a movie collection renders as a flat list.
+
+The pane heading reads `Episodes` when any item has `playlist_type: 'tv'`, or has an `episode` number without `'movie'` in either field.
+Otherwise it reads `Playlist`.
+
+Both are plain strings rather than a closed set.
+`'movie'` and `'tv'` are the only two values anything compares, and any other value you carry is stored and never read.
 
 ## Fields carried, not read
 
@@ -69,9 +128,11 @@ These exist so an item straight from your own API type-checks without a cast. Th
 
 `uuid`, `logo`, `rating`, `audio`, `tmdb_id`, `video_id`, `year`
 
-Setting one changes nothing on screen. They are listed here so you can tell them apart from the fields above, which is the question the type alone does not answer.
+Setting one changes nothing on screen.
+They are listed here so you can tell them apart from the fields above, which is the question the type alone does not answer.
 
-`seasonName` belongs with them for a player built today. The only code that reads it is the v1 compatibility plugin, when it rebuilds a v1-shaped season list.
+`seasonName` belongs with them for a player built today.
+The only code that reads it is the v1 compatibility plugin, when it rebuilds a v1-shaped season list.
 
 ## Next steps
 
