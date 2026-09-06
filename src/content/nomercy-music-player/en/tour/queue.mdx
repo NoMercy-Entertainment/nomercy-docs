@@ -1,80 +1,88 @@
 ---
-title: 'The Queue'
-description: 'queue(), item(), queueAppend()/queueRemove()/queueMove()/queueShuffle(), and the baseUrl + relative-path shape every track carries.'
+title: 'Queue'
+description: 'Moving through the queue, what repeat does to next(), and the event that tells you the queue ran out.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/adapters/media-list/default.ts, src/core/mixins/queue.ts, packages/nomercy-music-player/src/types.ts */}
+{/* Source: packages/nomercy-player-core/src/core/mixins/transport.ts, src/core/mixins/queue.ts, src/types/state.ts */}
 
-# The Queue
+# Queue
 
-Behind `queue()` is one cursor-aware `MediaList<T>` instance, the same structure [Core: The Queue](/nomercy-player-core/tour/queue) documents. `nomercy-music-player` adds the item shape (`MusicPlaylistItem`). Everything else, the queue mechanics included, is unchanged kit code.
-
-## The track shape
-
-`MusicPlaylistItem` carries these fields:
-
-- `name`
-- `artist`
-- `album`
-- `cover`
-- `url`
-- `lyricsUrl`
-- `duration`
-
-`name` is the canonical display field. `title` also works, since it is inherited from the base shape. But `name` is what the rest of this library reads:
+The playlist you pass to `setup()` becomes the queue. `player.queue()` returns it, and passing an array replaces it.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+const tracks = player.queue();
+```
 
-const player = nmplayer('player');
-player.setup({
-  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
-  playlist: [
-    {
-      id: 'ketsa-01-where-dreams-drift',
-      name: 'Where Dreams Drift',
-      artist: 'Ketsa',
-      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
-    },
-    {
-      id: 'ketsa-02-saviour-above',
-      name: 'Saviour Above',
-      artist: 'Ketsa',
-      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/02.Saviour.Above.mp3',
-    },
-  ],
+## Moving through it
+
+```ts
+await player.next();
+await player.previous();
+```
+
+Both resolve once the new track has loaded, so awaiting them is how you know the move finished rather than started.
+
+To jump somewhere specific, `player.item()` takes a track, an id, an index, or a predicate:
+
+```ts
+player.item('track-42');
+player.item(3);
+player.item(track => track.album === 'Blue Lines');
+```
+
+`peekNext()` and `peekPrevious()` answer what a move would land on without making it, which is what a "up next" panel reads.
+
+## Repeat changes what next() means
+
+`next()` behaves three different ways, and the repeat state is what decides which.
+
+| Repeat | `next()` at the end of the queue |
+| --- | --- |
+| `off` | Emits `queue:exhausted` and stops. This is the default. |
+| `all` | Wraps to the first track. |
+| `one` | Replays the current track, at any position. |
+
+**`one` replays rather than advances, everywhere in the queue.** It is not an end-of-queue rule, so `next()` under `one` never moves you along even from the middle.
+
+Read and set both through the same pair of methods:
+
+```ts
+import { RepeatState, ShuffleState } from '@nomercy-entertainment/nomercy-music-player';
+
+const current = player.repeatState();
+await player.repeatState(RepeatState.ALL);
+
+await player.shuffleState(ShuffleState.ON);
+```
+
+Passing no argument reads. Passing a value sets, and returns a promise.
+
+`shuffleState` also accepts a plain boolean, which is the shorter form for a toggle button.
+
+## Knowing the queue ran out
+
+```ts
+player.on('queue:exhausted', () => showEndOfQueue());
+```
+
+That fires only under `off`. Under `all` the queue never runs out, and under `one` it never advances.
+
+**`previous()` has no matching event.** Going back past the first track is not an end state, so nothing is announced. A control that needs to disable itself at the start reads the queue position rather than waiting for an event.
+
+## Stopping a move before it happens
+
+`beforeNext` fires ahead of the change and a listener can stop it:
+
+```ts
+player.on('beforeNext', (event) => {
+  if (isPreviewAccount())
+    event.preventDefault();
 });
 ```
 
-`url` stays relative and `baseUrl` supplies the origin. That is the pattern [Quick Start](/nomercy-music-player/quickstart#the-baseurl-pattern) introduces. There is no `file` → `url` normalization step here. A track is already in its canonical shape the moment it enters the queue.
-
-`cover` resolves differently. See [Now Playing & Lyrics](/nomercy-music-player/build/now-playing) for why cover art usually needs a fully-qualified URL instead.
-
-## Reading, moving, and mutating the queue
-
-Reading the cursor, moving it, and mutating the queue (append, prepend, insert, remove, move, clear, shuffle, sort) are all unchanged kit methods. `playItem(target)` and `playNow(items, start?)` are the race-free way to jump to a track and play it in one call, closing a gap where `queue(items); item(start); play()` can reach the backend before the source is even set.
-
-Every mutation fires a typed event (`queue:append`, `queue:move`, ...) that a reactive track-list UI subscribes to instead of re-reading `queue()` after every call. The full method list, signatures, and event names are on [Reference: Domain Types](/nomercy-player-core/reference/types#queue-methods).
-
-```ts
-const items = player.queue(); // ReadonlyArray<MusicPlaylistItem>
-const current = player.item();
-player.item('track-2'); // by id
-player.item(1); // by index
-
-player.playNow(album, 'track-2'); // replace the queue and start playing this track
-player.playItem('track-1'); // jump to a track already in the queue and play it
-```
-
-`peekNext()` / `peekPrevious()` read what `next()` / `previous()` (see [Transport](/nomercy-music-player/tour/transport)) would load. They do not move the cursor or trigger a load. Use them for a "coming up next" label, or to pick the target of a manual [crossfade](/nomercy-music-player/tour/crossfade).
-
-## See it running
-
-Three real tracks. Shuffle reorders the queue in place and the cursor follows the playing track to its new position.
-
-:::snippet{file="music-tour-queue" preview="first"}
-:::
+Prevented moves are announced on `nextPrevented`, carrying a `reason`, so the control that triggered it can put itself back rather than showing a change that did not happen.
 
 ## Next steps
 
-- [Crossfade](/nomercy-music-player/tour/crossfade): crossfadeTo(), the manual dual-buffer fade between two queue items.
+- [Auto advance](/nomercy-music-player/plugins-adapters/auto-advance) for making the queue move on its own when a track ends.
+- [Crossfade](/nomercy-music-player/tour/crossfade) for what happens in the seconds either side of the change.
