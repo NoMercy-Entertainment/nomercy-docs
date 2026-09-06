@@ -81,7 +81,10 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Build a Player", pages: ['build/shell', 'build/play-pause', 'build/progress-bar', 'build/time-skip', 'build/volume', 'build/title-bar', 'build/fullscreen-speed', 'build/selectors', 'build/seek-preview', 'build/full-plugin'] },
     { group: "Recipes", pages: ['recipes/vue-integration', 'recipes/react-integration', 'recipes/svelte-integration', 'recipes/vanilla-integration', 'recipes/resume-playback', 'recipes/keyboard-shortcuts', 'recipes/quality-selection', 'recipes/playlist-queue', 'recipes/auth-tokens', 'recipes/migrate-from-v1'] },
     { group: "Plugins & Adapters", pages: ['plugins-adapters/plugin-development', 'plugins-adapters/desktop-ui', 'plugins-adapters/tv-key-handler', 'plugins-adapters/key-handler', 'plugins-adapters/cast-sender', 'plugins-adapters/subtitle-overlay', 'plugins-adapters/octopus', 'plugins-adapters/media-session', 'plugins-adapters/drm', 'plugins-adapters/touch-zones', 'plugins-adapters/adapter-video-backend', 'plugins-adapters/adapter-chapter-source', 'plugins-adapters/adapter-thumbnail-source', 'plugins-adapters/adapter-subtitle-style-store'] },
-    { group: "Reference", pages: ['reference/config', 'reference/player-methods', 'reference/events', 'reference/types'] },
+    // playlist-item and streams sit next to config because all three answer
+    // "what do I pass in": config is the player, playlist-item is one entry in
+    // it, and streams is what decides whether a given url plays at all.
+    { group: "Reference", pages: ['reference/config', 'reference/playlist-item', 'reference/streams', 'reference/player-methods', 'reference/events', 'reference/types'] },
     { group: "Native (KMP)", pages: ['native/quickstart', 'native/migration', 'native/methods', 'native/events'] },
   ],
   // v2 rebuild (see .rebuild/progress.md) — full 7-stage arc: introduction,

@@ -1,83 +1,143 @@
 ---
-title: 'Lifecycle & Setup'
-description: 'The setup pipeline and phase machine every player built on the kit shares: one strict way in, a fixed sequence of stages, and a cancellable teardown.'
+title: 'Lifecycle'
+description: 'The nine stages between your setup call and a usable player, what each one announces, and where your own code belongs.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/mixins/lifecycle.ts, src/core/mixins/player-state.ts */}
+# Lifecycle
 
-# Core: Lifecycle & Setup
+`setup()` returns straight away. The player is not usable yet.
 
-`setup()` is the one strict step every player library composed from the kit shares: call it once, and a fixed pipeline runs before anything else can happen.
+What happens between that return and a usable player is a fixed sequence of stages, each of which announces itself. Knowing the sequence is what tells you where your own code belongs, and why a call that works in one place returns nothing in another.
 
-## The pipeline
+## The sequence
 
-`setup(config)` snapshots your config and wires the cross-cutting policies: visibility, network, wake lock, metrics, preload and transition orchestration.
+Nine stages, always in this order:
 
-Then it runs an ordered async sequence.
-
-```text
-setupStart -> configResolved
-  -> pluginsRegistering -> pluginsRegistered
-  -> streamsReady -> authReady
-  -> playlistResolving   (only when the playlist is a URL)
-  -> playlistReady -> mediaReady -> ready
+```
+setupStart → configResolved → pluginsRegistering → pluginsRegistered
+  → streamsReady → authReady → playlistReady → mediaReady → ready
 ```
 
-Each stage emits its own name on success, or a matching `<stage>Error` on failure. A failure short-circuits the rest and rejects `ready()`.
+Each stage emits an event named after itself. Subscribing to one is how you hang your own work off a point in the sequence rather than guessing at a delay:
 
-Playlist resolution is the exception. It never throws. A fetch or parse failure emits `playlistError`, and the pipeline still reaches `mediaReady` and `ready` with an empty queue.
-
-`ready()` returns a promise that resolves once the pipeline reaches `ready`, or rejects if a stage failed or `dispose()` ran first. It's memoised, so calling it from multiple places in your player library returns the same promise rather than re-running anything.
-
-Call `setup()` a second time on the same instance and it throws `core:lifecycle/already-setup`.
-
-That guard is checked first and stays tripped across a `dispose()` in between. Reuse after teardown needs a fresh instance, not a second `setup()`.
-
-The narrower `core:player/disposed` guard fires only when `setup()` runs for the first time on an instance that was disposed before `setup()` ever ran.
-
-There is exactly one way in.
-
-## The phase machine
-
-Underneath the pipeline sits a closed set of phases.
-
-```text
-idle -> setup -> ready
-     -> loading / starting / playing / paused
-      / buffering / seeking / ended / stopped
-     -> disposing -> disposed
+```ts
+// The queue is populated here, which is the earliest point a
+// "restore where they left off" call has anything to act on.
+player.on('playlistReady', ({ length }) => {
+  if (length > 0)
+    restoreLastPosition(player);
+});
 ```
 
-`phase()` reads the current one. The `phase` event fires `{ from, to }` on every transition.
+One extra event appears only when the playlist has to be fetched. A config that hands the player a URL instead of an array emits `playlistResolving` with that URL, between `authReady` and `playlistReady`.
 
-So a UI layer or a plugin drives an overlay off phase changes alone, instead of piecing state together from a dozen flags.
+## What each stage settles
 
-Two guard methods sit on top of the phase machine, and every transport method (`play`, `pause`, `stop`, `next`, `previous`, and the rest) calls the first one before doing anything else:
+The names describe what has finished, not what is starting.
 
-- `_assertReady()`: throws `core:player/not-ready` before `setup()` has run, or `core:player/disposed` after `dispose()`.
-- `setupState()`: a coarser read for UI gating, one of `SetupState.NOT_SETUP`, `SETTING_UP`, `READY`, `DISPOSED`.
+| Stage | True once it has fired |
+| --- | --- |
+| `configResolved` | `player.options` is final. Your config object has been taken as given. |
+| `pluginsRegistered` | Every plugin has constructed and its `use()` has returned. |
+| `streamsReady` | The stream factories are registered, so a URL can be matched. |
+| `authReady` | Credentials are in place, so a media request can be signed. |
+| `playlistReady` | The queue is populated. The payload carries `length`. |
 
-## Composing a player-library author sees
+Two of the nine are the wrong hook to reach for, and both look right by their name.
 
-Building a player library on the kit means two things. Your constructor calls `initPlayerCoreState()`, and `composeMixins` stamps `lifecycleMethods` onto your prototype along with the rest of `playerCoreMethods`.
+**`setupStart` is too late to change anything.** By the time it fires the config is normalized, state is seeded and the adapters are wired, so a listener that tries to amend config there has already missed. Pass config to `setup()` instead.
 
-From there, `setup()`, `ready()`, `dispose()` and the phase machine work as described above, with or without a media backend attached.
+**`mediaReady` fires twice, and the first one means nothing.** The stage of that name has an empty body and fires whether or not media loaded. The load path emits it again once the backend really holds an item. Listen for it after `ready()` resolves and you get the one that means something.
 
-The example below composes the minimal player from [Quickstart](/nomercy-player-core/quickstart) with no backend at all, and drives the whole lifecycle. The lifecycle is kit behaviour, not something a backend supplies.
+`ready` is last and it is the one worth waiting on.
 
-:::snippet{file="tour-lifecycle" live="false"}
-:::
+## Waiting for it
 
-## Disposal
+```ts
+await player.ready();
+```
 
-`dispose()` is idempotent. A second call does nothing.
+**Past that line every method is safe to call.** Restoring a saved position, selecting a track, reading the queue: all of it belongs after `ready()` resolves and none of it before.
 
-It dispatches `beforeDispose` first, and a listener can call `preventDefault()` to keep the player alive. `disposePrevented` fires instead.
+Calling `ready()` on a player that has already reached the ready phase resolves immediately, so it is safe in a code path that may run twice.
 
-Otherwise it drains every cleanup callback the `setup()` wiring registered, in order, then emits `dispose` and moves to `disposed`.
+**A stage that throws stops the sequence.** It emits two events, a `<stage>Error` naming the stage and a general `error`, and then rethrows. No later stage runs, `ready` never fires, and the promise `ready()` handed you rejects.
 
-A handler watching that transition sees a consistent final state, not a half-torn-down one.
+So `ready()` is where a setup failure surfaces, and it needs handling like any other rejection:
+
+```ts
+try {
+  await player.ready();
+}
+catch (error) {
+  showPlaybackUnavailable(error);
+}
+```
+
+A player left in that state has not been disposed. Call `dispose()` yourself before building another one.
+
+**One failure deliberately does not stop the run, and it is the one you will actually meet.** A playlist that cannot be fetched emits `playlistReady` with `length: 0` and the sequence carries on to `ready`. A queue that is unexpectedly empty after `ready()` resolves is that failure, not a bug in your own code.
+
+## Where a plugin fits
+
+Plugins queued before `setup()` are constructed during `pluginsRegistering`, the third stage.
+
+**Registering later still works, and the difference is when.** A plugin added after the player is ready is registered on the spot rather than as part of the sequence, so it comes up against a live player instead of a half-built one. Register before `setup()` when the plugin needs to see the setup stages happen, which is what a plugin drawing an interface wants.
+
+Each plugin goes through the same four steps, in order:
+
+1. **Construct.** The class is instantiated with no arguments.
+2. **Initialize.** The runtime hands it the player, its options, and the registry that will dispose whatever it opens.
+3. **Merge translations.** Any translations declared on the class join the player's bundle.
+4. **Call `use()`.** `use()` is the one method a plugin author writes to do setup work, and the runtime awaits it here.
+
+**`use()` is bounded by a timeout, and the default is 30 seconds.** A plugin whose `use()` never resolves would otherwise hold the whole sequence open, so the timeout is what guarantees `ready` still arrives.
+
+Raise or lower it on the player config, in milliseconds:
+
+```ts
+player.setup({
+  pluginInitTimeoutMs: 5_000,
+  ...
+});
+```
+
+A plugin that throws, or times out, is torn back down rather than left half-installed. Anything that declared a dependency on it is disabled, and the player itself keeps going.
+
+That failure is announced, so your own code can react to a missing capability rather than discovering it later:
+
+```ts
+player.on('plugin:failed', ({ id, error }) => {
+  console.warn(`${id} did not install`, error);
+});
+```
+
+## Disposal runs the other way
+
+```ts
+await player.dispose();
+```
+
+**Your container should be empty again**, with no video element inside it and nothing still listening. The instance is dead afterwards, so a later player means constructing a new one.
+
+What happens in between is worth knowing, because you can stop it.
+
+`beforeDispose` fires first, and a listener can stop it by calling `preventDefault()` on the event it receives:
+
+```ts
+player.on('beforeDispose', (event) => {
+  if (hasUnsavedProgress())
+    event.preventDefault();
+});
+```
+
+Nothing is torn down when one does, so holding a player open until you have flushed state is a legitimate use of it.
+
+A listener that needs to finish asynchronous work first calls `event.delay(promise)` instead. Disposal waits for it, and a promise that rejects prevents the disposal rather than letting it proceed half-done.
+
+Otherwise every plugin is disposed in reverse registration order, and then the kit drops every listener it holds. The backend and the element are torn down after that, by the player library wrapped around the kit.
 
 ## Next steps
 
-- [The Event Bus](/nomercy-player-core/tour/event-bus): the typed pub/sub primitive `phase` and every other event rides on.
+- [Errors](/nomercy-player-core/tour/errors) for the severities those stage failures arrive at.
+- [Plugins](/nomercy-player-core/tour/plugin-base) for what a plugin is and what it may do in `use()`.

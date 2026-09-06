@@ -1,46 +1,93 @@
 ---
 title: 'Quick Start'
-description: 'Install nomercy-video-player and play a real HLS video with the baseUrl pattern. One copy-paste example that works first try.'
+description: 'From an empty page to a film playing, with each failure named next to the step that causes it.'
 ---
 
-# Video Player: Quick Start
+# Quick Start
 
-This page gets a real video loaded and ready in the preview below. It streams Sintel over HLS, using the baseUrl pattern every NoMercy player and app is built around.
+Five steps to a film playing in your own page. Each one says what you should see, so you can tell it worked before moving on.
 
-## Install
+## 1. Install it
 
 ```bash
 npm install @nomercy-entertainment/nomercy-video-player
 ```
 
-That's the only package you need. `hls.js` is a regular dependency pulled in through `nomercy-player-core`, so npm installs it automatically. The player dynamically imports `hls.js` for every browser except Safari, which plays HLS natively. There is no peer dependency to add by hand.
+That is the whole install. `hls.js` arrives with it, as a dependency of the core package underneath, and the player imports it only when the browser cannot play HLS on its own.
 
-## Play your first video
+Two kinds of source play with nothing further: HLS, and progressive files such as `.mp4` and `.webm`. The player picks between them from the URL, so an `.m3u8` needs no flag.
 
-Here it is loaded for real: Sintel, streamed over HLS, ready on the first frame. Press play in the preview to start it. Below the player is the exact code that produced it, ready to copy:
+Anything else needs a stream factory of your own. [Streams](/nomercy-video-player/reference/streams) lists every extension and content type that is matched, and the call that registers one.
 
-:::snippet{file="quickstart" runnable preview="first"}
+## 2. Give it a container
+
+The player fills an element you provide.
+
+```html
+<div id="player"></div>
+```
+
+That div becomes the player root. The player marks it `nomercyplayer` and keeps state classes on it as playback changes, so `paused`, `playing` and `active` are available to your own CSS without a line of JavaScript.
+
+The video element is created inside it, on the first frame rather than at setup.
+
+**It must be a `<div>`.** Any other tag throws `core:player/element-not-div`, and an id matching no element throws `core:player/element-missing`.
+
+Give it a width. A bare player needs nothing else, because the video element sizes itself and takes the container along with it.
+
+```css
+#player {
+  width: 100%;
+  background: #000;
+}
+```
+
+**Pinning the box to a ratio at this stage overflows it.** The video keeps its own dimensions until something styles it, so `aspect-ratio: 16 / 9` on the container leaves the picture hanging out of the side. Add the ratio once you add the interface, which is what makes the video fill its container.
+
+There is no stylesheet to import at any point. The interface plugin injects its own.
+
+## 3. Create the player and give it something to play
+
+The argument is your container's id.
+
+:::snippet{file="quickstart" preview="first"}
 :::
 
-Add a `<div id="player"></div>` to your page for that code to mount into.
+**You should now see Sintel sitting on its first frame, with the browser's own controls under it.** Press play and it runs.
 
-The player loads the first item as it mounts, so the preview above sits ready on Sintel's first frame with nothing set to autoplay. The `controls` flag gives it the native play button you press to start.
+If the picture is there and stays black, the source could not load. If nothing appears at all, the id in your CSS and the id you passed do not match, and the player threw `core:player/element-missing` rather than mounting.
 
-`autoPlay` only decides whether that already-loaded item also begins playing. `muted` pairs with it, because browsers block autoplay with sound.
+Calling `nmplayer('player')` again with the same id gives back the same player rather than a second one.
 
-Leave both off, as this example does, and drive playback from your own UI with `player.play()` on a user gesture.
+The registry is checked before the element is, so a repeat call holds up even after the div has gone. That is what makes it safe inside a component that re-renders.
 
-`nmplayer('player')` mounts into `document.getElementById('player')`, or returns the instance already registered under that id. Calling it twice is always safe.
+A real second player therefore needs a second container with a different id.
 
-## The baseUrl pattern
+## 4. Wait for it before calling anything
 
-`baseUrl` is the one config field every playlist should set. Item paths (`url` above) stay relative, exactly the shape a real media server sends. The player prepends `baseUrl` as a plain string prefix, keeping the whole base path:
+`setup` returns straight away, and the player is not usable yet. That is what the last line of the block above is for.
 
-- The server sends the base with no trailing slash (`.../master/Films`) and each item path with a leading slash (`/Sintel.(2010)/...`).
-- Move to a different server, a different environment, or a signed-URL CDN, and you change one config value. Nothing in your catalogue is hardcoded to today's origin.
-- Never pre-join an absolute URL into an item yourself. That is the player's job, and doing it twice breaks the moment the base changes.
+`await player.ready()` resolves once setup has finished and every plugin has come up.
 
-## Next steps
+**Past that line every method is safe to call.** Restoring a saved position or selecting a track belongs after it, and a method called before it may quietly do nothing.
 
-- [Guided Tour: Transport](/nomercy-video-player/tour/transport): play(), pause(), and seeking, the first stop on the full method surface.
-- [Build a Player](/nomercy-video-player/build/shell): put a real overlay UI on top of the player, one control at a time.
+Calling `ready()` again on a player that is already ready resolves immediately, so it is safe in a path that may run twice.
+
+## 5. Keep item paths relative
+
+`baseUrl` is the one config field every playlist should set. It prefixes media and sidecar paths, and `baseImageUrl` does the same for artwork.
+
+Both are string prefixes joined by plain concatenation, so give the base no trailing slash and the path a leading one.
+
+**Artwork gets its own base because it has to end up absolute.** The operating system's now-playing panel and a Cast receiver both fetch it with no page to resolve against.
+
+Setting the base once is what lets one config value move a whole catalogue between environments. An item that carries a full URL of its own is passed through untouched, so the two mix freely and each item is judged on its own.
+
+## What you have, and what is next
+
+That is a working player with the browser's controls. Controls of the player's own are a plugin, and everything past this point adds one.
+
+- [The desktop interface](/nomercy-video-player/plugins-adapters/desktop-ui) puts real controls over the picture: a title bar, a scrubber with chapter markers and preview thumbnails, volume, and menus.
+- [Configuration](/nomercy-video-player/reference/config) for every `setup` option and its default.
+- [Playlist items](/nomercy-video-player/reference/playlist-item) for every field an item carries.
+- [State and events](/nomercy-video-player/tour/state-events) for reacting to what the player does, including the failures worth handling before you ship.

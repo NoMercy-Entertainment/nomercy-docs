@@ -1,97 +1,129 @@
 ---
-title: 'Plugin: Auto-Advance'
-description: 'AutoAdvancePlugin: advances the queue on natural end, optionally preloads and crossfades on itemEndingSoon, and swaps in a custom IPlaylistGenerator for shuffle or radio-style ordering.'
+title: 'Auto Advance'
+description: 'Play the next track when one ends, with a strategy of your own deciding which track that is.'
 ---
 
-{/* Source: packages/nomercy-music-player/src/plugins/auto-advance/index.ts, src/plugins/auto-advance/IPlaylistGenerator.ts */}
+# Auto Advance
 
-# Plugin: Auto-Advance
+Reach for `AutoAdvancePlugin` when you want a queue that keeps playing. It listens for a track ending and moves to the next one. Without it the player stops at the end of every track and waits for your own code to call `player.next()`.
 
-`AutoAdvancePlugin` (id `'auto-advance'`) listens to two player events. On `ended`, it moves to the next item. On `itemEndingSoon`, it can preload the next item ahead of time, or crossfade into it.
+It also does the two things that have to happen slightly before a track ends: loading the next track early, and crossfading.
 
-Don't register this plugin when an external orchestrator already drives `next()` itself: a Cast sync layer, or a WebSocket-driven listening session. The two would double-advance.
+Crossfading overlaps the end of one track with the start of the next instead of cutting between them. Both are off by default, because both cost bandwidth a listener may not want spent.
+
+```ts
+import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/auto-advance';
+
+player.addPlugin(AutoAdvancePlugin);
+```
+
+Register it before `setup()`, like any plugin.
+
+**You should now hear the queue run on its own:** let a track reach its end and the next one starts, with no call from you.
+
+If a track skips two forward instead of one, something else is advancing the queue as well. An app driving playback from a websocket or a Cast sync layer already has an authority deciding what plays next, and this plugin is a second one. Pick whichever suits, and register this plugin only when it is the one in charge.
 
 ## Options
 
-| Option | Type | Default | Purpose |
-|---|---|---|---|
-| `enabled` | `boolean` | `true` | Master toggle, both `ended` and `itemEndingSoon` handling. |
-| `preloadNextOnEnding` | `boolean` | `false` | On `itemEndingSoon`, peek the queue and `load()` the next item into the next slot. |
-| `crossfade` | `boolean` | `false` | On `itemEndingSoon`, hand off to `player.crossfadeTo()`. |
-| `crossfadeDuration` | `number` | `0` | Duration passed to `crossfadeTo()` when `crossfade` is enabled. `0` is a hard cut. |
-| `generator` | `IPlaylistGenerator<MusicPlaylistItem>` | none | Custom "what's next?" ordering. When omitted, the plugin falls back to the player's own linear `next()` / `peekNext()`. Adding the plugin without a generator doesn't change observable ordering. |
+Every option is optional, and the defaults give you plain sequential playback.
 
-## The IPlaylistGenerator port
+| Option | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `enabled` | `boolean` | `true` | Master switch. `false` leaves the plugin registered and inert. |
+| `preloadNextOnEnding` | `boolean` | `false` | Fetches the next track early, so it is already buffered when the current one ends. |
+| `crossfade` | `boolean` | `false` | Overlaps the two tracks instead of cutting between them. |
+| `crossfadeDuration` | `number` | `0` | Seconds of overlap. At `0` the change is a hard cut rather than a fade. |
+| `generator` | `IPlaylistGenerator` | the queue's own order | An object that decides which track is next. Covered below. |
+
+**Turning `crossfade` on without also setting a duration cuts every track short.** The handoff runs when the player emits `itemEndingSoon`, and at a duration of `0` there is no fade to fill the gap, so the tail of every track is dropped.
+
+Set the two together, with the duration matching how early that event fires:
 
 ```ts
-interface IPlaylistGenerator<T extends BasePlaylistItem = BasePlaylistItem> {
-  readonly id: string;
-  next(items: ReadonlyArray<T>, currentIndex: number): number | undefined;
-  previous(items: ReadonlyArray<T>, currentIndex: number): number | undefined;
-}
+player.addPlugin(AutoAdvancePlugin, {
+  crossfade: true,
+  crossfadeDuration: 10,
+});
 ```
 
-Two built-in implementations ship:
+Ten seconds is the default lead. It is `itemEndingSoonThreshold` on the player config, in seconds, and moving it there means moving the duration here to match.
 
-| Generator | Behavior |
-|---|---|
-| `LinearPlaylistGenerator` | Sequential order, `currentIndex + 1` / `currentIndex - 1`. This is the implicit default. `AutoAdvancePlugin` without `opts.generator` behaves identically via the player's own `next()`. |
-| `SmartShuffleGenerator` | Tag-aware shuffle. Scores candidates by penalizing items that share the current item's `genre` or `decade` field. Picks randomly from the top-scored pool. Falls back to uniform random when items carry no tag fields. `previous()` pops from its own played-index history when available. |
+## Choosing what plays next
 
-The shuffle variant reads a minimal item shape (`genre?: string | string[]`, `decade?: number | string`). Your own `MusicPlaylistItem` extension satisfies it automatically if it already carries those fields. The linear variant reads no item fields, only the queue length and current index.
+Without a generator, the plugin walks the queue in the order you supplied it. That is the default, and it is what most applications want.
 
-## Methods
+A generator replaces that decision. Two ship with the plugin, and both come from the same import subpath.
 
-| Method | Signature | Behavior |
-|---|---|---|
-| `advance()` | `() => Promise<void>` | Force-advance immediately, regardless of `ended` state. Uses `opts.generator` when configured, otherwise `player.next()`. |
-| `preloadNext()` | `() => Promise<void>` | Peek the queue head (or the generator's pick) and `load()` it into the next slot. No-op with nothing next. |
-| `addEndedHandler(fn)` | `(fn: () => void \| Promise<void>) => void` | Register an additional handler that runs after the built-in advance on `ended`. |
-| `addPreloadHandler(fn)` | `(fn: (next) => void \| Promise<void>) => void` | Register an additional handler for the preload path on `itemEndingSoon`. |
-| `addCrossfadeHandler(fn)` | `(fn: (next, duration) => void \| Promise<void>) => void` | Register an additional handler for the crossfade path on `itemEndingSoon`. |
+### SmartShuffleGenerator
 
-## Rules & restrictions
-
-- With a custom `generator`, advancing calls `player.item(next, { source: 'auto-advance' })` directly rather than `player.next()`. The generator's ordering may not match the queue's own linear order. Without one, it's a plain `player.next({ source: 'auto-advance' })`.
-- `crossfade: true` with no `next` item resolved (end of a non-repeating queue) does nothing: no error, no empty crossfade attempt.
-- Errors from `advance()`, `preloadNext()`, or a registered handler are caught and logged through the plugin's logger. One bad handler doesn't stop the others from running or break the natural `ended` → advance flow.
-
-## How to extend it
-
-Provide a generator for radio-style or recommendation-driven ordering instead of writing queue-management code against `ended` yourself:
+Shuffles, but avoids putting two similar tracks back to back.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-music-player';
-import { AutoAdvancePlugin, SmartShuffleGenerator } from '@nomercy-entertainment/nomercy-music-player/plugins/auto-advance';
+import { SmartShuffleGenerator } from '@nomercy-entertainment/nomercy-music-player/plugins/auto-advance';
 
-const player = nmplayer('player');
 player.addPlugin(AutoAdvancePlugin, {
   generator: new SmartShuffleGenerator(),
-  preloadNextOnEnding: true,
-  crossfade: true,
-  crossfadeDuration: 4,
-});
-player.setup({
-  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
-  playlist: [
-    {
-      id: 'ketsa-01-where-dreams-drift',
-      name: 'Where Dreams Drift',
-      artist: 'Ketsa',
-      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
-    },
-    {
-      id: 'ketsa-02-saviour-above',
-      name: 'Saviour Above',
-      artist: 'Ketsa',
-      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/02.Saviour.Above.mp3',
-    },
-  ],
 });
 ```
 
-A server-driven "radio" feature implements `IPlaylistGenerator` against a recommendation endpoint instead of scoring local tag fields. The interface doesn't require the candidates to already be in the queue. `next()` can return an index the generator itself decided to reorder toward.
+**You should now hear the queue play out of order**, with the same artist's tracks spread apart rather than clustered.
+
+It reads two optional fields on each item, `genre` and `decade`.
+
+A candidate earns one penalty point for sharing a genre with the track just played, and another for sharing a decade. The score is the negated penalty plus a random value up to `0.5`.
+
+The next track is then drawn at random from everything within `0.1` of the best score.
+
+That random component is what stops it being deterministic. With no tags anywhere in the queue every candidate scores the same way, and the result is an ordinary uniform shuffle.
+
+**Items carrying no `genre` and no `decade` cannot be told apart.** Neither field is part of the music playlist item type, so both arrive as extra fields of your own, and a queue without them shuffles plainly rather than smartly.
+
+### LinearPlaylistGenerator
+
+Plays the queue in order, for code that picks a strategy at runtime and wants the slot filled explicitly.
+
+**It is not the same as passing no generator.** With no generator the plugin calls the player's own `next()`, which honours the repeat setting and announces the move as a `next` event, or as `queue:exhausted` when there was nothing left to play.
+
+Any generator, this one included, is routed through `player.item()` instead. That emits `current` and neither of the other two, and it does not consult the repeat setting.
+
+The symptom is repeat-one quietly advancing to the following track once a generator is set, and a queue that ends without your `queue:exhausted` handler ever firing.
+
+### Writing your own
+
+A generator is an object with an id and two methods. Each receives the queue and the current position, and returns an index.
+
+```ts
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+import type { IPlaylistGenerator } from '@nomercy-entertainment/nomercy-music-player/plugins/auto-advance';
+
+// A radio mode: never play the same artist twice in a row.
+const neverRepeatArtist: IPlaylistGenerator<MusicPlaylistItem> = {
+  id: 'never-repeat-artist',
+
+  next(items, currentIndex) {
+    const current = items[currentIndex];
+    const index = items.findIndex((item, i) => i > currentIndex && item.artist !== current?.artist);
+
+    return index === -1 ? undefined : index;
+  },
+
+  previous(items, currentIndex) {
+    return currentIndex > 0 ? currentIndex - 1 : undefined;
+  },
+};
+
+player.addPlugin(AutoAdvancePlugin, {
+  generator: neverRepeatArtist,
+});
+```
+
+**You should now hear the queue skip any track whose artist just played**, and stop when it runs out of anything else to play.
+
+`currentIndex` is `-1` only while the queue is empty. A queue that is loaded but not yet started reports `0`, so treat `-1` as "nothing to choose from" rather than "not started".
+
+**Returning `undefined` means the end of the queue, and the player stops there.** A generator that runs out of candidates and returns `-1` instead would send playback to the last track, so return `undefined` rather than an out-of-range index.
 
 ## Next steps
 
-- [Plugin: Lyrics](/nomercy-music-player/plugins-adapters/lyrics): synced lyrics, the other plugin driven by the `item` cursor changing.
+- [Queue](/nomercy-music-player/tour/queue) for how the player moves between tracks without this plugin.
+- [Crossfade](/nomercy-music-player/tour/crossfade) for what the overlap actually does to the audio.
