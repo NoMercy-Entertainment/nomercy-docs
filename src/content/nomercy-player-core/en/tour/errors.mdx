@@ -1,44 +1,71 @@
 ---
-title: 'Typed Errors'
-description: 'The PlayerError hierarchy (AuthError, DrmError, MediaFormatError, NetworkError, StateError, StreamError), severity tiers, and the default retry policy.'
+title: 'Errors'
+description: 'The four severities, which one you must handle, and what every failure carries when it reaches you.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/errors/player.ts, src/errors/severity.ts, src/errors/code.ts, src/adapters/retry-policy/default.ts */}
+{/* Source: packages/nomercy-player-core/src/errors/player.ts, src/errors/severity.ts, src/errors/code.ts */}
 
-# Core: Typed Errors
+# Errors
 
-Every failure the kit or a plugin raises is a `PlayerError`, never a bare thrown string, so a `catch` block can branch on a type instead of parsing a message.
+A failure reaches you as an event, not as a thrown exception you have to catch around every call.
 
-## The hierarchy
+The severity decides which event. There are four, they are the complete set, and the event is named after the severity:
 
-`PlayerError` is the base. Every error carries the same shape: a stable `code`, a `severity`, a discriminated `scope` naming where it came from, an optional `cause` and `context`, and a user-facing `suggestion`.
+```ts
+player.on('error', ({ error }) => report(error.code, error.context));
+player.on('fatal', ({ error }) => showPlaybackFailed(error.suggestion ?? error.message));
+```
 
-Subclasses narrow the category. There is one for auth, DRM, media format, network, a resource that failed to load, the wrong lifecycle phase, a stream fault, a plugin fault, and a browser policy restriction such as a blocked autoplay.
+## Which one you must handle
 
-The full class hierarchy, every field, and the factory functions that construct one with the right `scope` and a sensible default `severity` are on [Reference: Errors](/nomercy-player-core/reference/errors).
+Two of the four change what a person sees. The other two are for your logs.
 
-## Severity tiers and the error event
+| Severity | Means | What it asks of you |
+| --- | --- | --- |
+| `fatal` | Unrecoverable. The player is shutting down. | Tell the viewer. Nothing will recover on its own. |
+| `error` | Recoverable, such as a sidecar that failed to load. | Decide whether the feature it broke matters here. |
+| `warning` | Observability only. | Log it. |
+| `info` | Observability only. | Log it. |
 
-Each severity maps to an event channel of the same name:
+**Subscribing to `error` does not give you `fatal` as well.** They are separate channels, so a handler on one hears nothing from the other. Wire both, and treat `fatal` as the one that has to reach the screen.
 
-| Severity | Meaning |
-| --- | --- |
-| `fatal` | Unrecoverable. The player is shutting down. |
-| `error` | Recoverable, for example a sidecar failed to load. |
-| `warning` | Observability only. |
-| `info` | Observability only. |
+## What every failure carries
 
-Every one delivers a `PlayerErrorEvent`: the underlying `error`, its `severity` and `scope`, and DOM-style propagation control. That control is three methods: `markHandled()`, `stopImmediatePropagation()`, and `preventDefault()` to suppress a kit-side default action like auto-retry.
+The same shape arrives on all four channels.
 
-## Retry policy
+```ts
+{
+  code: string;                          // stable, and what a bug report is searched by
+  severity: 'fatal' | 'error' | 'warning' | 'info';
+  scope: ErrorScope;                     // where it came from
+  message: string;
+  cause?: unknown;                       // the original failure, when there was one
+  context?: Record<string, unknown>;     // the values involved
+  suggestion?: string;                   // present on some codes, not all
+}
+```
 
-`DEFAULT_RETRY_POLICY` maps error codes to attempts, backoff, and whether to refresh auth first, looked up from most to least specific. Nothing consults it automatically: `Plugin.fetch()` defaults to no retry unless you pass a `RetryConfig`, an entry from the map or your own.
+**Log the `code`, never the `message`.** The code is stable and the message is not, so a code is what makes two reports of the same failure look like the same failure.
 
-The full table, every code, and the lookup precedence are on [Reference: Errors](/nomercy-player-core/reference/errors#default-retry-policy).
+`scope` says which part raised it. It is a discriminated union rather than a string, so branching on `scope.kind` routes a failure without matching on code prefixes.
 
-:::snippet{file="tour-errors" live="false"}
-:::
+`{ kind: 'core' }` and `{ kind: 'network' }` carry nothing else. `{ kind: 'plugin', id }` names the plugin. The backend, stream and cue scopes each name the implementation involved.
+
+`suggestion` is populated for some codes and absent for others, so `error.suggestion ?? error.message` is the pattern that always has something to show.
+
+## Failures during setup arrive twice
+
+A setup stage that fails emits two events: one named after the stage, and one named after the severity.
+
+That looks like duplication and it is deliberate.
+
+The stage event tells you *where* the run stopped, which is what a diagnostic needs.
+
+The severity event tells you *how bad it is*. It arrives on the same channel as every other failure, so one handler covers them all.
+
+Listening to both means seeing one failure twice. Pick the one that suits the job.
 
 ## Next steps
 
-- [What is nomercy-player-core](/nomercy-player-core): back to the start, the full "what you get" list this tour walked through one concept at a time.
+- [Every error code](/nomercy-player-core/reference/errors) with its scope, its severity and what raises it.
+- [Lifecycle](/nomercy-player-core/tour/lifecycle) for the stages those setup failures come from.
