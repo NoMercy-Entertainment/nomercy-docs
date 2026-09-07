@@ -10,7 +10,7 @@ description: 'How a playlist becomes a queue, where the cursor lives, and every 
 A queue is two things: an ordered list of items, and a cursor pointing at one of them.
 
 Every method on this page moves one or the other.
-The kit keeps both in a single `MediaList` per player, so there is no second copy of the list to fall out of step.
+The kit keeps both in a single `cls MediaList` per player, so there is no second copy of the list to fall out of step.
 
 ## The playlist becomes the queue
 
@@ -19,9 +19,9 @@ The kit keeps both in a single `MediaList` per player, so there is no second cop
 Pass an array and the items go straight in.
 Pass a string and the player fetches it, expects a JSON array, and puts that in instead.
 
-A fetch that fails, or a body that is not an array, emits `playlistError` and then `playlistReady` with `length: 0`.
-Setup still reaches `ready`, with an empty queue.
-`playlistReady` fires even when you configured no playlist at all, so a listener can rely on it.
+A fetch that fails, or a body that is not an array, emits `str playlistError` and then `str playlistReady` with `length: 0`.
+Setup still reaches `str ready`, with an empty queue.
+`str playlistReady` fires even when you configured no playlist at all, so a listener can rely on it.
 
 The array form only seeds when the queue is still empty.
 
@@ -36,7 +36,7 @@ Your `queue()` call wins there.
 The config array is skipped rather than clobbering what you put in.
 
 After ready, `loadQueue(url, parser?)` fetches a queue the same way.
-It throws on failure, unlike the setup path, and emits `playlistResolveError` and `error` first.
+It throws on failure, unlike the setup path, and emits `str playlistResolveError` and `str error` first.
 
 ## Reading and replacing the list
 
@@ -49,19 +49,19 @@ player.queue(newItems);
 `queue()` hands back the player's own array, not a copy.
 Its type says read-only, and that is the contract to honor: change the list through the methods below, never by writing into what you were handed.
 
-Replacing the list keeps the cursor on the same item when an item with that `id` is still in the new array.
+Replacing the list keeps the cursor on the same item when an item with that `key id` is still in the new array.
 Otherwise the cursor goes to the first item, or to nothing when the new array is empty.
 
 ## Every item is ingested on the way in
 
 `queue()`, `queueAppend()`, `queuePrepend()` and `queueInsert()` all run each item through three steps before it lands.
 
-1. `normalizePlaylistItem`, your player class's optional hook, where a library adapts a wire format of its own.
-2. `transformPlaylistItem`, your config callback, on the normalized result.
-3. Title token resolution, on the item's `title`.
+1. `fn normalizePlaylistItem`, your player class's optional hook, where a library adapts a wire format of its own.
+2. `key transformPlaylistItem`, your config callback, on the normalized result.
+3. Title token resolution, on the item's `key title`.
 
-A title token is `%` plus a letter plus digits, such as `%S2`.
-`registerTitleTokens({ S: 'some.translation.key' })` maps the letter to a translation key, and the digits arrive as `number` for the translation to place.
+A title token is `%` plus a letter plus digits, such as `str %S2`.
+`registerTitleTokens({ S: 'some.translation.key' })` maps the letter to a translation key, and the digits arrive as `cls number` for the translation to place.
 An unregistered letter is left exactly as written, so a player that registers nothing changes no titles.
 
 Token resolution leaves nothing behind for a second pass to find, and the kit expects your two callbacks to behave the same way.
@@ -82,11 +82,11 @@ Both are `undefined` at their respective end of the list.
 
 ## Changing the list under the cursor
 
-Nine methods change the list: `queueAppend`, `queuePrepend`, `queueInsert`, `queueRemove`, `queueRemoveAt`, `queueMove`, `queueClear`, `queueShuffle` and `queueSort`.
+Nine methods change the list: `fn queueAppend`, `fn queuePrepend`, `fn queueInsert`, `fn queueRemove`, `fn queueRemoveAt`, `fn queueMove`, `fn queueClear`, `fn queueShuffle` and `fn queueSort`.
 
-`queueInsert`, `queueRemoveAt` and `queueMove` take zero-based indices.
-`queueRemove` takes an item's `id`.
-`queueSort` takes the same comparator `Array.prototype.sort` takes.
+`fn queueInsert`, `fn queueRemoveAt` and `fn queueMove` take zero-based indices.
+`fn queueRemove` takes an item's `key id`.
+`fn queueSort` takes the same comparator `ts Array.prototype.sort` takes.
 
 The cursor is adjusted on every one of them so it keeps pointing at the item it was on.
 
@@ -98,11 +98,11 @@ The cursor is adjusted on every one of them so it keeps pointing at the item it 
 | Move, shuffle or sort | Follows its item to the item's new position. |
 | Clear the queue | Goes to `-1`, and `item()` is empty. |
 
-`queueRemoveAt` and `queueMove` ignore an index outside the list.
+`fn queueRemoveAt` and `fn queueMove` ignore an index outside the list.
 Nothing moves, and nothing is emitted.
 `queueMove(2, 2)` and `queueShuffle()` on a one-item queue are silent for the same reason.
 
-**`queueInsert` is the exception.** It clamps the index into `[0, length]` and inserts anyway.
+**`fn queueInsert` is the exception.** It clamps the index into `ts [0, length]` and inserts anyway.
 So `queueInsert(item, 99)` on a three-item queue appends the item, and a negative index puts it at the front.
 
 ## Moving the cursor
@@ -115,10 +115,10 @@ player.item('episode-3');
 player.item(2);
 ```
 
-A target is an item, its `id`, a zero-based integer index, or a predicate.
+A target is an item, its `key id`, a zero-based integer index, or a predicate.
 A target that resolves to nothing leaves the cursor where it was.
 
-**Only a whole number is read as an index.** A fractional number is matched against `id` instead.
+**Only a whole number is read as an index.** A fractional number is matched against `key id` instead.
 
 **Playing is the default.** Pass `autoplay: false` to move the cursor without starting playback.
 
@@ -149,27 +149,27 @@ player.seekToIndex(1);
 **It moves the cursor and loads nothing.** That is the difference from `item()`, and it is what makes it the call for repositioning a list without interrupting what is playing.
 
 A position past the end is ignored silently.
-A position that is zero, negative or fractional throws a `RangeError`.
+A position that is zero, negative or fractional throws a `cls RangeError`.
 
 ## Stopping a cursor move
 
-Both `item(target)` and `seekToIndex(position)` fire `beforeMutation` first, with `method` set to `'current'`.
+Both `item(target)` and `seekToIndex(position)` fire `str beforeMutation` first, with `key method` set to `str current`.
 
 {/* partial */}
 ```ts
 player.on('beforeMutation', (event) => {
-	if (event.data.method === 'current' && isLocked())
-		event.preventDefault();
+  if (event.data.method === 'current' && isLocked())
+    event.preventDefault();
 });
 ```
 
-A prevented move emits `mutationPrevented` carrying the same `method`, and the cursor does not move.
+A prevented move emits `str mutationPrevented` carrying the same `key method`, and the cursor does not move.
 
 ## What the queue announces
 
-Each list method has an event of its own: `queue:append`, `queue:prepend`, `queue:insert`, `queue:remove`, `queue:move`, `queue:clear`, `queue:shuffle` and `queue:sort`.
-Each one is followed by `queue`, which carries the whole list as its payload.
-A cursor move emits `item`, carrying the item and its index.
+Each list method has an event of its own: `str queue:append`, `str queue:prepend`, `str queue:insert`, `str queue:remove`, `str queue:move`, `str queue:clear`, `str queue:shuffle` and `str queue:sort`.
+Each one is followed by `str queue`, which carries the whole list as its payload.
+A cursor move emits `str item`, carrying the item and its index.
 
 {/* partial */}
 ```ts
@@ -177,7 +177,7 @@ player.on('queue', items => renderList(items));
 player.on('item', ({ item, index }) => highlightRow(index));
 ```
 
-**Replacing the list emits `queue` and not `item`**, even though the cursor lands on the first item.
+**Replacing the list emits `str queue` and not `str item`**, even though the cursor lands on the first item.
 Read the cursor yourself after a replacement rather than waiting for an event.
 
 A method that changes nothing emits nothing, so an out-of-range remove is silent.
@@ -185,7 +185,7 @@ A method that changes nothing emits nothing, so an out-of-range remove is silent
 ## The backlog
 
 A second list runs alongside the queue, reached through `backlog()`, `backlogAppend()`, `backlogRemove()` and `backlogClear()`.
-It emits `backlog`, `backlog:append`, `backlog:remove` and `backlog:clear` in the same shapes.
+It emits `str backlog`, `str backlog:append`, `str backlog:remove` and `str backlog:clear` in the same shapes.
 
 **Nothing fills it for you.** Playing past an item does not put it there, and `previous()` never reads it.
 
@@ -213,5 +213,5 @@ Replace it with `setup({ shuffleStrategy })` to decide the order yourself.
 
 ## Next steps
 
-- [Reference: Types](/nomercy-player-core/reference/types) for `BasePlaylistItem`, `LoadOptions` and the rest of the shapes named here.
+- [Reference: Types](/nomercy-player-core/reference/types) for `cls BasePlaylistItem`, `cls LoadOptions` and the rest of the shapes named here.
 - [Shuffle strategy](/nomercy-player-core/plugins-adapters/adapter-shuffle-strategy) for deciding the order a shuffle produces.

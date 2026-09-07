@@ -20,9 +20,7 @@ That pairing is an adapter: one interface, one default.
 ## What an adapter answers
 
 An adapter answers a single question the kit refuses to answer for itself.
-`IStorage` answers where a saved value lives.
-
-The ports table below carries the question every other family answers.
+`cls IStorage` answers where a saved value lives.
 
 Every port has a default, so a player set up with nothing but a playlist is already fully wired.
 
@@ -33,11 +31,11 @@ You name the replacement in `setup()`, and the code above it goes on calling the
 
 Both are things you hand the player, and they do opposite jobs.
 
-**A plugin adds a capability the player does not have.** It carries an id, you register it with `addPlugin`, and leaving it out means the capability is missing.
+**A plugin adds a capability the player does not have.** It carries an id, you register it with `fn addPlugin`, and leaving it out means the capability is missing.
 
 **An adapter replaces a capability the player already has.** It carries no id, there is nothing to register, and leaving it out means the kit's own version runs.
 
-The two meet inside a plugin. `this.storage`, `this.logger` and `this.websocket()` all resolve through the adapter ports, so a plugin that persists a setting writes into whichever backend the consumer chose.
+The two meet inside a plugin. `ts this.storage`, `ts this.logger` and `ts this.websocket()` all resolve through the adapter ports, so a plugin that persists a setting writes into whichever backend the consumer chose.
 
 Each plugin gets its own namespaced slice of that backend, keyed by the plugin id, so plugin keys never collide. [Adapter: Storage](/nomercy-player-core/plugins-adapters/adapter-storage) is the port those calls land on.
 
@@ -47,13 +45,13 @@ The ports group into five families.
 
 | Family | What it decides | Kit default |
 | --- | --- | --- |
-| Storage | Where a saved value lives | `LocalStorageBackend` |
+| Storage | Where a saved value lives | `cls LocalStorageBackend` |
 | Platform | What the device can do | `browserPlatform` |
 | Formats | Which code claims a URL | `nativeFactory`, `hlsFactory`, three cue parsers |
-| Strategies | What plays next, and when | `FisherYatesShuffle`, `DefaultPreloadStrategy` |
-| Services | Translation, logging, URLs, sockets | `DefaultTranslator`, `Logger`, `nativeWebSocketAdapter` |
+| Strategies | What plays next, and when | `cls FisherYatesShuffle`, `cls DefaultPreloadStrategy` |
+| Services | Translation, logging, URLs, sockets | `cls DefaultTranslator`, `cls Logger`, `fn nativeWebSocketAdapter` |
 
-One default is not the kit's to give. The transition strategy comes from the player library wrapped around the kit: `GaplessTransitionStrategy` for video, `CrossfadeTransitionStrategy` for music.
+One default is not the kit's to give. The transition strategy comes from the player library wrapped around the kit: `cls GaplessTransitionStrategy` for video, `cls CrossfadeTransitionStrategy` for music.
 
 The element builder, the event emitter and the lifecycle registry live under `adapters/` as well.
 They are the kit's own machinery, published as contracts so a plugin can build on the same pieces rather than replace them.
@@ -64,7 +62,7 @@ Replacements come in three shapes, and the port decides which one you get.
 
 ### Name the field in `setup()`
 
-Ten config fields take an adapter: `logger`, `storage`, `platform`, `translator`, `urlResolver`, `websocketFactory`, `cueParsers`, `shuffleStrategy`, `preloadStrategy` and `transitionStrategy`.
+Ten config fields take an adapter: `key logger`, `key storage`, `key platform`, `key translator`, `key urlResolver`, `key websocketFactory`, `key cueParsers`, `key shuffleStrategy`, `key preloadStrategy` and `key transitionStrategy`.
 
 Passing one replaces the default outright. Every call site downstream is untouched.
 
@@ -89,7 +87,7 @@ Those built-ins stay registered underneath as the fallback.
 
 ### Override one member of a bundle
 
-`IPlatform` is not one implementation. It bundles wake lock, network, visibility, capability probing, fullscreen and picture-in-picture.
+`cls IPlatform` is not one implementation. It bundles wake lock, network, visibility, capability probing, fullscreen and picture-in-picture.
 
 What you pass replaces the whole bundle, so spread the default and override only the member you have a native answer for:
 
@@ -99,18 +97,15 @@ player.setup({
 });
 ```
 
-The URL resolver offers the same escape hatch through its argument rather than a spread.
-A resolver you supply is called as `(url, ctx)`, and that second argument carries the auth config, the base URL, the category hint and a `defaultResolve(url)`.
-
-Call `ctx.defaultResolve(url)` for any category you do not want to handle.
+The URL resolver offers the same escape hatch through its argument rather than a spread. A resolver you supply receives `ctx.defaultResolve(url)` and calls it for any category it does not want to handle.
 
 That port is also the one you can move at runtime. `player.urlResolver(fn)` swaps it after setup, and `player.urlResolver(undefined)` hands the work back to the built-in pipeline.
 
 ## What it buys you
 
-**Tests stop needing a browser.** `MemoryStorageBackend` keeps a run from touching `localStorage`, and a shuffle strategy that reverses instead of randomizing turns queue order into something you can assert on.
+**Tests stop needing a browser.** `cls MemoryStorageBackend` keeps a run from touching `localStorage`, and a shuffle strategy that reverses instead of randomizing turns queue order into something you can assert on.
 
-**Native shells stop needing a fork.** A Capacitor, Tauri or Electron build injects its own wake lock and network monitor through `platform`, and the queue, crossfade and preload code above it never learns that anything changed.
+**Native shells stop needing a fork.** A Capacitor, Tauri or Electron build injects its own wake lock and network monitor through `key platform`, and the queue, crossfade and preload code above it never learns that anything changed.
 
 **A format the kit has never heard of still plays.** TTML, SRT, or a proprietary manifest arrives as a factory you register once the player is ready, and the resolution walk finds it before the built-ins.
 

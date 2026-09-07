@@ -22,19 +22,28 @@ const tracks = player.audioTracks();
 ```
 
 An HLS manifest hands over its audio renditions.
-A source the browser plays on its own hands over whatever the media element exposes, which today means Safari. Chrome does not implement `HTMLMediaElement.audioTracks` at all, so the property is absent rather than empty.
+Anything the browser plays on its own hands over what `HTMLMediaElement.audioTracks` holds.
+Chrome does not implement that property at all, so on Chrome the native path has nothing to read.
 
 A source with no HLS manifest and no native track list returns an empty list.
-That is the ordinary answer rather than a failure. Where the native list does exist, a single-audio file yields one entry, not none.
+That is the ordinary answer rather than a failure.
+Where the native list does exist, a single-audio file yields one entry, not none.
 
-Each entry is an `AudioTrack`.
+Each entry is an `cls AudioTrack`.
 
 | Field | What it holds |
 | --- | --- |
-| `id` | An identifier within this source. For HLS it is `audio-0`, `audio-1`, and so on. |
-| `language` | The tag the source declares, when it declares one. |
-| `label` | Text to show: the rendition's own name, or `Track 1` when it has none. |
-| `default` | `true` on the rendition the source marks as its default. |
+| `key id` | An identifier within this source. For HLS it is `str audio-0`, `str audio-1`, and so on. |
+| `key language` | The tag the source declares, when it declares one. |
+| `key label` | Text to show: the rendition's own name, or `str Track 1` when it has none. |
+| `key default` | `true` on the rendition the source marks as its default. |
+
+## When the list is populated
+
+`audioTracks()` reads the mounted backend, so it holds nothing until that backend has the item's media.
+
+The load path emits `mediaReady` at that point, and that is where the player applies `key defaultAudioLanguage`.
+A menu drawn from an `audioTracks()` call there, or at the moment a viewer opens it, reads the list the player itself read.
 
 ## Switching
 
@@ -43,7 +52,7 @@ await player.audioTrack(1);
 ```
 
 The argument is a position in the list `audioTracks()` just returned.
-It is not the `id`, and the two are not interchangeable.
+It is not the `key id`, and the two are not interchangeable.
 
 The call returns a promise because a listener sees the request first.
 `beforeAudioTrack` carries the requested position and can cancel it, which raises `audioTrackPrevented` and leaves the current track playing.
@@ -53,13 +62,11 @@ Called with nothing, `audioTrack()` reads back `{ index, track }`, or `null` whe
 
 ## The choice is a language, never a position
 
-Position two is a different language on the next file.
-So a position is worth nothing the moment the item changes, and storing one is how a viewer ends up in Japanese on episode four.
+The player takes the language off the track and keeps that, for the reason [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles) sets out for captions.
+Both selections share one memory.
 
-The player takes the language off the track and keeps that instead.
-
-**The event payload's field is called `id`, and it carries a position.**
-That is the published name, and it is the same position `audioTrack()` takes, so index the list with it rather than searching for a track whose `id` matches.
+**The event payload's field is called `key id`, and it carries a position.**
+That is the published name, and it is the same position `audioTrack()` takes, so index the list with it rather than searching for a track whose `key id` matches.
 
 ```ts
 player.on('audioTrack', ({ id }) => {
@@ -68,12 +75,11 @@ player.on('audioTrack', ({ id }) => {
 });
 ```
 
-That is the same rule the caption choice follows, and [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles) covers the memory both selections share.
-Your own code wants the same key: read `language` off the track, and let the next item find its own position.
+Your own code wants the same key: read `key language` off the track, and let the next item find its own position.
 
 ## Choosing before the viewer does
 
-`defaultAudioLanguage` names the language you want the item to open in.
+`key defaultAudioLanguage` names the language you want the item to open in.
 
 ```ts
 player.setup({
@@ -86,19 +92,19 @@ player.setup({
 The player applies it once the media for that item is ready.
 
 Matching is exact first, then a prefix split on a hyphen.
-So `en` answers a track tagged `en-US`, and `en-US` answers one tagged `en`.
+So `str en` answers a track tagged `str en-US`, and `str en-US` answers one tagged `str en`.
 
 It is not a prefix on letters.
-`en` does not answer a track tagged `eng`, so pass the tag the source itself declares.
-The Sintel manifest below declares `eng`.
+`str en` does not answer a track tagged `str eng`, so pass the tag the source itself declares.
+The Sintel manifest below declares `str eng`.
 
 A remembered choice outranks this option.
 Once a viewer picks a track, that language is what the next item opens in.
-With nothing to honour, the rendition the source marks default is the one that plays.
+With nothing to honor, the rendition the source marks default is the one that plays.
 
 ## Which one is driving
 
-`audioTrackMode()` reports `AudioTrackState.DEFAULT` until a track is explicitly picked, and `AudioTrackState.MANUAL` after.
+`audioTrackMode()` reports `cls AudioTrackState.DEFAULT` until a track is explicitly picked, and `cls AudioTrackState.MANUAL` after.
 The move is announced on the `audioTrackState` event.
 
 A control offering to undo the choice reads this first, so it can stay hidden while there is nothing to undo.
@@ -112,17 +118,9 @@ That is the one place it parts company with the subtitle cycle, which walks thro
 
 It does nothing at all when the list is empty.
 
-## When the list is ready
-
-The `audioTracks` event carries the list, but only when hls.js has already populated its track list at the moment the manifest is parsed.
-A manifest whose audio is muxed into the video renditions has not, so the event does not arrive even though `audioTracks()` returns an entry a moment later.
-A natively played source never raises it either.
-
-So build your menu from an `audioTracks()` call at the moment you draw it, rather than waiting for an event that half of the sources do not send.
-
 ## See it running
 
-The Sintel manifest declares one audio rendition, in `eng`, marked as its default.
+The Sintel manifest declares one audio rendition, in `str eng`, marked as its default.
 `audioTracks()` therefore returns a single entry here, and every call above behaves the same way against it as against a manifest carrying six.
 
 :::snippet{file="video-tour-audio-tracks"}

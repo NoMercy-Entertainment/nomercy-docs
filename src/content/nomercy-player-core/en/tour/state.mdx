@@ -11,7 +11,7 @@ The player keeps its state in fields you never touch.
 Each one has a method you read it with.
 
 Most of those methods hand back a typed enum, and every one of those enums is exported from the package root.
-`streamState()` is the exception: it is typed `string` and hands back whatever the backend reports.
+`streamState()` is the exception: it is typed `cls string` and hands back whatever the backend reports.
 
 No reader is reactive.
 A reader is a snapshot taken at the moment you call it.
@@ -36,7 +36,7 @@ player.on('play', () => {
 
 **`play()` writes `PLAYING` optimistically.**
 When the backend refuses, which is what a blocked autoplay looks like, the state rolls back to `PAUSED`.
-`playPrevented` is emitted with reason `backend-refused`.
+`str playPrevented` is emitted with reason `str backend-refused`.
 
 Without that rollback a UI rendered from state shows a pause button over a silent element, and the viewer's first click pauses what never played.
 
@@ -45,9 +45,9 @@ Once the media is mounted and nothing has started playback, the state settles to
 
 A `play()` that landed during the load keeps `PLAYING` instead, and a load that fails puts back the state it displaced.
 
-**`fatal` sets `ERROR` before any listener runs**, so a `fatal` handler reads the settled state rather than the one it is replacing.
+**`str fatal` sets `ERROR` before any listener runs**, so a `str fatal` handler reads the settled state rather than the one it is replacing.
 
-An `error`, `warning` or `info` never touches the play state, and the next `load()` moves off `ERROR` on its own.
+An `str error`, `str warning` or `str info` never touches the play state, and the next `load()` moves off `ERROR` on its own.
 
 ## Volume state
 
@@ -58,7 +58,7 @@ A fresh player is `UNMUTED`.
 Setting a positive level while muted counts as an unmute, and three things happen together:
 
 - The state flips to `UNMUTED`.
-- `mute` is emitted with `{ muted: false }`.
+- `str mute` is emitted with `{ muted: false }`.
 - The backend is unmuted.
 
 ## Repeat and shuffle
@@ -67,9 +67,9 @@ These two are the state you write as well as read.
 Called with no argument, each returns the current value.
 Called with one, each returns a promise, because a write runs the full cancellable cycle.
 
-`beforeRepeat` or `beforeShuffle` dispatches first.
-A listener that cancels gets `repeatPrevented` or `shufflePrevented`, and nothing changes.
-Otherwise the value is written and `repeat` or `shuffle` is emitted.
+`str beforeRepeat` or `str beforeShuffle` dispatches first.
+A listener that cancels gets `str repeatPrevented` or `str shufflePrevented`, and nothing changes.
+Otherwise the value is written and `str repeat` or `str shuffle` is emitted.
 
 ```ts
 import { RepeatState } from '@nomercy-entertainment/nomercy-player-core';
@@ -83,9 +83,9 @@ Both start at `OFF`.
 
 - `ONE` reloads the current item.
 - `ALL` returns to the first item when the queue runs out.
-- `OFF` emits `queue:exhausted` there instead.
+- `OFF` emits `str queue:exhausted` there instead.
 
-`shuffleState('on')` randomizes the queue order at once, and takes `true` as shorthand.
+`shuffleState('on')` randomizes the queue order at once, and takes `ts true` as shorthand.
 
 `shuffleState('off')` changes the value but leaves the order as it stands.
 Getting the original order back means supplying the queue again.
@@ -98,7 +98,7 @@ These turn backend and platform detail into something you can render, and each h
 | --- | --- | --- |
 | `bufferState()` | `IDLE`, `LOADING`, `SEEKING` or `STALLED`, mapped from the backend's own state string | `IDLE` |
 | `networkState()` | `ONLINE`, `OFFLINE`, or `SLOW` below a 1.5 Mbps downlink | `ONLINE` |
-| `streamState()` | the backend's raw state string, typed `string` | `'idle'` |
+| `streamState()` | the backend's raw state string, typed `cls string` | `str idle` |
 | `visibilityState()` | `VISIBLE` or `HIDDEN` | `VISIBLE` |
 
 That last column is what a player composed from the kit reports before you attach a backend or a platform monitor.
@@ -112,24 +112,24 @@ Reach for `bufferState()` over `streamState()` whenever you want the typed value
 `qualityMode()` is `AUTO` until a level is locked, then `MANUAL`.
 `audioTrackMode()` is `DEFAULT` until a track is picked, then `MANUAL`.
 
-Each change announces itself, on `qualityState` and `audioTrackState`.
+Each change announces itself, on `str qualityState` and `str audioTrackState`.
 
 ## The container carries the same state
 
 Every emit passes through one wrapper that keeps CSS classes on your container in step, so this state is readable from a stylesheet with no JavaScript of your own.
 
-- `playing` from the `play` and `playing` events, `paused` from `pause`, `stopped` from `stop`, `ended` from `ended`. These are one at a time, and adding one removes the others.
-- `buffering` from `waiting` and `stalled`, removed again on `canplay`.
-- `muted` from the `mute` event's `muted` flag.
-- `fullscreen`, `pip` and `theater` from the event of the same name, each following its `active` flag.
-- `active` or `inactive` from the `activity` event's `active` flag.
+- `playing` from the `str play` and `str playing` events, `paused` from `str pause`, `stopped` from `str stop`, `ended` from `str ended`. These are one at a time, and adding one removes the others.
+- `buffering` from `str waiting` and `str stalled`, removed again on `str canplay`.
+- `muted` from the `str mute` event's `key muted` flag.
+- `fullscreen`, `pip` and `theater` from the event of the same name, each following its `key active` flag.
+- `active` or `inactive` from the `str activity` event's `key active` flag.
 
 **An advancing clock removes `buffering` as well.**
-Every `time` event drops the class, and that is the backstop for an engine that recovers without emitting `canplay`.
+Every `str time` event drops the class, and that is the backstop for an engine that recovers without emitting `str canplay`.
 
-The `phase` event moves the same group. Reaching `ready` leaves the container `playing` when playback is running and `paused` otherwise.
+The `str phase` event moves the same group. Reaching `str ready` leaves the container `playing` when playback is running and `paused` otherwise.
 
-A `loading` phase on a player that has already been ready leaves the resting class alone, because a background load is not a stall.
+A `str loading` phase on a player that has already been ready leaves the resting class alone, because a background load is not a stall.
 
 Classes are applied before the listener chain runs, so a handler that reads the container finds the class already set:
 
@@ -152,10 +152,10 @@ player.on('beforeMutation', (event) => {
 
 The listener runs synchronously, so `delay()` on that event does nothing.
 
-Cancelling emits `mutationPrevented` carrying the same `method`, and the cursor stays where it was.
+Cancelling emits `str mutationPrevented` carrying the same `key method`, and the cursor stays where it was.
 Passing `mutationGuards: false` to `setup()` turns the dispatch off.
 
-The same pass fires any advisory a registered plugin declares against that method, as an `info`, `warning` or `error` event.
+The same pass fires any advisory a registered plugin declares against that method, as an `str info`, `str warning` or `str error` event.
 A caution about a state write can therefore reach you from a plugin rather than from the kit.
 
 ## Next steps

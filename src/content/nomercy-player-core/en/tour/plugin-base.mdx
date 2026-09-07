@@ -7,7 +7,7 @@ description: 'What a plugin is, what the runtime does with one, and why the base
 
 # Plugins
 
-A plugin is a class that extends `Plugin`. That is the whole of the definition.
+A plugin is a class that extends `cls Plugin`. That is the whole of the definition.
 
 You never construct one yourself.
 You hand the class to the player, and the runtime instantiates it, wires it, and tears it down again.
@@ -22,22 +22,22 @@ The class is the handle for everything afterwards, which is why the class and no
 `static requires` names other plugin classes rather than their ids.
 `on(PluginClass, 'event', fn)` types the payload from the class you name.
 
-`addPlugin` returns the player, so registrations chain.
-The `plugins` array in `setup()` is the same call under another spelling, with identical validation and timing.
+`fn addPlugin` returns the player, so registrations chain.
+The `key plugins` array in `setup()` is the same call under another spelling, with identical validation and timing.
 
 ## The id is a namespace, not a label
 
 `static id` is the one field every plugin must set, and nearly every other behavior on this page derives from it.
 
-A plugin with `id = 'play-counter'` gets these names without asking for them:
+A plugin with `ts id = 'play-counter'` gets these names without asking for them:
 
 | What | Shape |
 | --- | --- |
-| Logger prefix | `[nmplayer][play-counter]` |
-| Storage keys | `nmplayer-play-counter-<key>` |
-| Mount node class | `nmplayer-play-counter-<name>` |
-| Events | `plugin:play-counter:<event>` |
-| Translation keys | `plugin.play-counter.<key>` |
+| Logger prefix | `str [nmplayer][play-counter]` |
+| Storage keys | `str nmplayer-play-counter-<key>` |
+| Mount node class | `str nmplayer-play-counter-<name>` |
+| Events | `str plugin:play-counter:<event>` |
+| Translation keys | `str plugin.play-counter.<key>` |
 
 Every error the plugin raises carries the same id in its scope, so a report names the plugin that produced it.
 
@@ -55,10 +55,10 @@ The default body is empty, so a plugin that only declares statics needs no `use(
 Subscribing, building DOM, fetching, opening a socket: all of it starts here.
 
 **A plugin that throws from `use()` is torn back down rather than left half-installed.**
-The player keeps going without it, and announces the loss on `plugin:failed`.
+The player keeps going without it, and announces the loss on `str plugin:failed`.
 
-`this.player` is the player itself, so its methods are yours to call normally.
-`this.opts` is exactly the object you passed to `addPlugin`, and `undefined` when you passed none.
+`ts this.player` is the player itself, so its methods are yours to call normally.
+`ts this.opts` is exactly the object you passed to `fn addPlugin`, and `undefined` when you passed none.
 
 ## Helpers, so nothing outlives the plugin
 
@@ -67,30 +67,30 @@ The base class carries a helper for every global a plugin would otherwise reach 
 Every helper that opens something registers the matching cleanup as you call it.
 Teardown then releases the lot, and the plugin holds no handles of its own.
 
-- **Listening.** `on`, `once`, `off` and `hasListeners`.
-- **Timers and observers.** `listen`, `timeout`, `interval`, `frame` and `abortable`.
-- **Speaking.** `emit` and `dispatchBefore`.
-- **Failing.** `throw` and `report`.
-- **Network.** `fetch`, `websocket` and `resolveUrl`.
-- **Building.** `mount`, `createElement`, `createButton`, `createSVG`, `appendStyles` and `appendInlineStyles`.
-- **Translating.** `t`.
+- **Listening.** `fn on`, `fn once`, `fn off` and `fn hasListeners`.
+- **Timers and observers.** `fn listen`, `fn timeout`, `fn interval`, `fn frame` and `fn abortable`.
+- **Speaking.** `fn emit` and `fn dispatchBefore`.
+- **Failing.** `fn throw` and `fn report`.
+- **Network.** `fn fetch`, `fn websocket` and `fn resolveUrl`.
+- **Building.** `fn mount`, `fn createElement`, `fn createButton`, `fn createSVG`, `fn appendStyles` and `fn appendInlineStyles`.
+- **Translating.** `fn t`.
 
 Each listening helper takes two forms: a string for one of the player's own events, a plugin class for another plugin's.
-`this.lifecycle.observe(observer)` puts a `ResizeObserver`, or any object with a `disconnect()`, under the same cleanup.
+`this.lifecycle.observe(observer)` puts a `cls ResizeObserver`, or any object with a `disconnect()`, under the same cleanup.
 
 `emit(event, data)` is fire-and-forget.
 `dispatchBefore(name, data)` lets a listener mutate, cancel or delay the action first.
 
 `throw(payload)` surfaces the error and aborts the flow.
-`report(payload)` surfaces it and returns, at `warning` severity unless the payload says otherwise.
+`report(payload)` surfaces it and returns, at `str warning` severity unless the payload says otherwise.
 
 `fetch(url, options?)` runs the player's own auth pipeline.
 `resolveUrl(url, category?)` covers the URLs you cannot attach a header to.
 `mount(name)` claims a `<div>` on the player container.
 
 The raw equivalent of any of these leaks something past teardown, or drops a contract the helper carries.
-`this.player.on` skips both the scoping and the auto-removal.
-A bare `setTimeout` outlives the plugin, a bare `fetch` sends no credentials, and a bare `throw` reaches nobody's error handler.
+`ts this.player.on` skips both the scoping and the auto-removal.
+A bare `fn setTimeout` outlives the plugin, a bare `fn fetch` sends no credentials, and a bare `ts throw` reaches nobody's error handler.
 
 The `@nomercy-entertainment/eslint-plugin-player` rules flag each of those as you write them.
 
@@ -104,7 +104,7 @@ Inside `dispose()` the listeners are still subscribed, the timers are still arme
 
 Statics are how a plugin describes itself to the registration pipeline, before any of its code has run.
 
-Three describe identity: `id`, `description`, and a `version` that defaults to `'0.0.0'`.
+Three describe identity: `id`, `description`, and a `version` that defaults to `str 0.0.0`.
 
 Three form the registration contract and are settled before the plugin is constructed: `requires`, `replaces` and `minCoreVersion`.
 A missing dependency, an unmet version floor or a duplicate id throws at that point rather than failing quietly later.
@@ -124,7 +124,7 @@ Listeners stay subscribed, timers keep their handles, and mounted DOM stays on t
 This is also what the runtime does to a plugin whose declared dependency failed to install.
 
 `enable()` starts the behavior again, and there is nothing to re-wire.
-Both calls are idempotent, and both announce themselves on `plugin:enabled` and `plugin:disabled`.
+Both calls are idempotent, and both announce themselves on `str plugin:enabled` and `str plugin:disabled`.
 
 Because nothing is unsubscribed, a disabled plugin's handlers still run.
 Guarding them is the plugin author's job:
@@ -141,24 +141,24 @@ override use(): void {
 ```
 
 **Removal is the one that actually releases.**
-`removePlugin(PluginClass)` runs the plugin's `dispose()`, drops everything its helpers registered, unmerges the translations it declared, and emits `plugin:disposed`.
+`removePlugin(PluginClass)` runs the plugin's `dispose()`, drops everything its helpers registered, unmerges the translations it declared, and emits `str plugin:disposed`.
 
 Plugins that declared a dependency on it are removed first.
-Pass `{ cascade: false }` to refuse instead, which throws `core:plugin/has-dependents` and names them.
+Pass `{ cascade: false }` to refuse instead, which throws `str core:plugin/has-dependents` and names them.
 
-A removed plugin is gone. Getting it back means calling `addPlugin` again.
+A removed plugin is gone. Getting it back means calling `fn addPlugin` again.
 
 `plugins()` lists every registered plugin in registration order.
 `enabledPlugins()` lists only the enabled ones, ordered by `priority`, highest first.
 
 ## Reading and changing a plugin from outside
 
-`state()` returns a snapshot: the id, the version, whether it is enabled, its options, and a `runtime` object.
+`state()` returns a snapshot: the id, the version, whether it is enabled, its options, and a `key runtime` object.
 
 That last one is empty until the plugin fills it, by overriding `getRuntimeState()`.
 
 `options()` returns a frozen copy of the current options.
-`options(partial)` merges into them and announces the change on `plugin:opts:changed`, which is where a plugin reacts to being reconfigured while it runs.
+`options(partial)` merges into them and announces the change on `str plugin:opts:changed`, which is where a plugin reacts to being reconfigured while it runs.
 
 ## The whole thing
 
