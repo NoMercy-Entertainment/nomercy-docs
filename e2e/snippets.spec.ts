@@ -14,7 +14,9 @@ import { globSync } from 'glob';
 import { expect, test } from '@playwright/test';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
-const distDir = path.resolve(currentDir, '..', 'dist');
+// Matches OUT_DIR in scripts/preview-foreground.mjs: the gate reads the build
+// it made, not whatever else in this worktree last wrote `dist/`.
+const distDir = path.resolve(currentDir, '..', 'dist-e2e');
 
 const PLAYER_EXAMPLE_TIMEOUT_MS = 20_000;
 const CONCURRENCY = 5;

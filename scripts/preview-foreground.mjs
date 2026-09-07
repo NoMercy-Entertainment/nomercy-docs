@@ -13,7 +13,14 @@ const port = Number(
 		? process.argv[process.argv.indexOf('--port') + 1]
 		: 4323,
 );
-const root = new URL('../dist/', import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
+// The gate builds into its own directory rather than into `dist/`. Anything
+// else in this worktree running `astro build` at the same time writes the same
+// prerender chunks, and the loser fails on a write error that names a file
+// rather than a page. `workers: 1` in playwright.config already closes that
+// race between this gate's own spec files; this closes it against the rest of
+// the tree.
+const OUT_DIR = 'dist-e2e';
+const root = new URL(`../${OUT_DIR}/`, import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
 
 const TYPES = {
 	'.html': 'text/html; charset=utf-8',
@@ -41,7 +48,7 @@ function run(command, args) {
 }
 
 run('npm', ['run', 'build:search']);
-run('npx', ['astro', 'build']);
+run('npx', ['astro', 'build', '--outDir', OUT_DIR]);
 
 // Astro writes `/page/index.html`, so a request for `/page` or `/page/` has to
 // find it the same way the deployed host does.
