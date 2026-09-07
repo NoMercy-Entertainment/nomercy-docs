@@ -1,59 +1,91 @@
 ---
-title: 'Plugin: Mixer'
-description: 'MixerPlugin: master gain (dB) and stereo pan, inserted as the last effect in the AudioGraphPlugin chain, with optional storage-backed persistence.'
+title: 'Mixer'
+description: 'MixerPlugin adds a master gain in decibels and a stereo pan to the end of the audio graph chain, with optional storage-backed persistence.'
 ---
 
 {/* Source: packages/nomercy-player-core/src/plugins/mixer/index.ts */}
 
-# Plugin: Mixer
+# Mixer
 
-`MixerPlugin` (id `'mixer'`) is a master gain and stereo-pan stage, inserted as the *last* effect in [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph)'s chain, gain then panner then destination, so it always acts on the fully-processed signal from every other effect.
+`cls MixerPlugin` is a master volume and stereo balance stage. It appends a `cls GainNode` and a `cls StereoPannerNode` to [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph)'s chain, in that order, so both sit downstream of every effect registered before them.
+
+Reach for it when you want a level that is separate from the player's own volume, a balance control, or a mute that fades instead of cutting.
+
+The plugin id is `str mixer`. `cls MixerPlugin` and `fn mixerPlugin` are the same class, both exported from the package root.
+
+## Methods
+
+| Method | Returns |
+|---|---|
+| `gain()` and `gain(dB)` | The master gain in decibels, and the setter for it. |
+| `pan()` and `pan(value)` | The balance, -1 hard left to 1 hard right, and the setter. |
+| `muted()` and `muted(value)` | Whether the gain is held at silence, and the setter. |
+| `fn save` | Nothing. Writes gain, pan and mute to storage under `key persistKey`. |
+
+Gain is decibels going in and a linear multiplier on the node, through ten to the power of the decibels over twenty. `gain(-3)` therefore lands on the node as 0.7079, measured on a live chain.
 
 ## Options
 
 | Option | Type | Default | Purpose |
 |---|---|---|---|
-| `gain` | `number` (dB) | `0` | Initial master gain. |
-| `pan` | `number` (-1..1) | `0` | Initial stereo pan. |
-| `persistKey` | `string` | — | Storage key. Omit to disable persistence. |
-| `maxGainDb` | `number` | `24` | Clamp ceiling (and floor, negated) for `gain()`. |
-| `smoothingTimeConstantSeconds` | `number` | `0.02` | Ramp time for gain/pan changes. |
+| `key gain` | `number`, decibels | `0` | The level to start at. |
+| `key pan` | `number`, -1 to 1 | `0` | The balance to start at. |
+| `key maxGainDb` | `number` | `24` | Ceiling for `fn gain`, and its negative is the floor. |
+| `key persistKey` | `string` | none | Storage key. Leave it out and nothing is stored. |
+| `key smoothingTimeConstantSeconds` | `number` | `0.02` | Ramp time for a gain or pan change. |
+
+A stored state beats both `key gain` and `key pan`, so a returning listener hears the mix they left rather than your defaults.
 
 ## Events
 
-The plugin fires four events as the mix changes:
+A plugin event reaches the player under the plugin's own id, so the name to listen for is `str plugin:mixer:gain:changed`.
 
 | Event | Payload |
 |---|---|
-| `gain:changed` | `{ gain }` |
-| `pan:changed` | `{ pan }` |
-| `mute:changed` | `{ muted }` |
-| `saved` | none |
+| `str gain:changed` | `{ gain }` |
+| `str pan:changed` | `{ pan }` |
+| `str mute:changed` | `{ muted }` |
+| `str saved` | none |
+
+The payload carries the clamped value rather than the one you passed, so a slider reading these events settles where the plugin actually put it.
 
 ## Rules & restrictions
 
-- `static requires = [AudioGraphPlugin]`, same missing-dep guard as every other effect in the chain.
-- `gain()` clamps to `±maxGainDb`; `pan()` clamps to `[-1, 1]`. Out-of-range calls don't throw, they saturate.
-- Ordering is fixed: this plugin is meant to be the last effect. Inserting your own effect after it defeats the "acts on the final mix" guarantee the plugin is built around.
+- Register [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph) first. Registering this plugin ahead of it throws a `cls PluginError` with code `str core:plugin/missing-dep`.
+- Both nodes append to the same list every other effect appends to, so register this plugin last for its nodes to sit at the end of the chain. Measured with the equalizer registered first, `fn outputNode` on the graph answers with this plugin's `cls StereoPannerNode`.
+- `fn gain` saturates at plus and minus `key maxGainDb`, and `fn pan` at plus and minus 1. An out-of-range call is clamped rather than refused.
+- `muted(value)` with the state it is already in does nothing and emits nothing. Only a real change ramps the gain and fires `str mute:changed`.
+- Muting holds the node at silence and remembers the decibel value. A `fn gain` call while muted stores the new level and leaves the sound off until you unmute.
+- Every gain, pan and mute change writes itself once `key persistKey` is set. Without that key `fn save` returns having stored nothing, so the key is what turns persistence on rather than the call.
+- Persistence goes through the plugin's own namespaced storage. With `persistKey: 'my-app-mix'` the record lands under `str nmplayer-mixer-my-app-mix` as `str {"gain":-6,"pan":0,"muted":false}`, measured.
+- Removing the plugin takes both nodes back out of the chain and relinks what is left.
 
-## How to extend it
+## Building on it
+
+Register it after every effect it should sit behind, and read it back once `fn ready` has resolved.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
-import { AudioGraphPlugin, MixerPlugin } from '@nomercy-entertainment/nomercy-player-core';
-
-const player = nmplayer('player');
+import {
+  AudioGraphPlugin,
+  EqualizerPlugin,
+  MixerPlugin,
+} from '@nomercy-entertainment/nomercy-player-core';
 
 player.addPlugin(AudioGraphPlugin);
+player.addPlugin(EqualizerPlugin);
 player.addPlugin(MixerPlugin, { persistKey: 'my-app-mix' });
+
 await player.ready();
 
 const mixer = player.getPlugin(MixerPlugin);
-mixer!.gain(-3); // -3 dB
-mixer!.pan(-0.2); // slightly left
-mixer!.muted(true);
+
+mixer?.gain(-3);
+mixer?.pan(-0.2);
 ```
+
+Registering the mixer after the equalizer puts its two nodes at the end of the chain. `fn outputNode` on the graph then answers with this plugin's `cls StereoPannerNode`, which is the node anything you route from should tap.
 
 ## Next steps
 
-- [Plugin: Spectrum](/nomercy-player-core/plugins-adapters/spectrum): FFT analysis, feeding [Visualization](/nomercy-player-core/plugins-adapters/visualization) instead of the audio path.
+- [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph): the chain this stage is appended to, and how ordering works.
+- [Spectrum](/nomercy-player-core/plugins-adapters/spectrum): reads the same graph, off to one side of the audio path.

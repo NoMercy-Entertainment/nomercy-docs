@@ -1,67 +1,115 @@
 ---
-title: 'Plugin: Equalizer'
-description: 'EqualizerPlugin: a 10-band parametric Web Audio equalizer with pre-gain, presets, and storage-backed persistence, inserted into the AudioGraphPlugin chain.'
+title: 'Equalizer'
+description: 'EqualizerPlugin builds ten peaking filters and a pre-gain into the audio graph, with presets, slider ranges, and storage-backed persistence.'
 ---
 
 {/* Source: packages/nomercy-player-core/src/plugins/equalizer/index.ts, src/plugins/equalizer/presets.ts */}
 
-# Plugin: Equalizer
+# Equalizer
 
-`EqualizerPlugin` (id `'equalizer'`) is a 10-band parametric equalizer plus a pre-gain stage, built from `BiquadFilterNode`s inserted into [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph)'s chain.
+`cls EqualizerPlugin` gives a listener tone control. It builds ten `cls BiquadFilterNode` filters and one pre-gain `cls GainNode`, then inserts all eleven into [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph)'s chain.
 
-Register it when you want to give listeners tone control: a preset picker, a band-by-band panel, or a single stored curve that follows them between sessions.
+Reach for it when you want a preset picker, a band-by-band panel, or a single curve that follows a listener between sessions.
+
+The plugin id is `str equalizer`. `cls EqualizerPlugin` and `fn equalizerPlugin` are the same class, both exported from the package root.
+
+## The bands
+
+The default set is eleven entries. The first is the `str Pre` pseudo-band, and the ten after it are frequencies in hertz: 70, 180, 320, 600, 1000, 3000, 6000, 12000, 14000 and 16000.
+
+Each frequency becomes a `cls BiquadFilterNode` of type `str peaking` at Q 1, and its `key gain` is in decibels. Give a band its own `key type` or `key q` to change that.
+
+`str Pre` is a `cls GainNode` rather than a filter, and its value is not decibels. The node's gain is the band's value plus one, so 0 is unity and the slider runs from -1 to 3.
+
+A peaking filter at Q 1 is wide, so one band always moves its neighbors. Measured against the published build, the 600 Hz band at +12 dB also lifts 440 Hz by 8.29 dB and 1 kHz by 5.65 dB, and at -12 dB it cuts the same two frequencies by the same amounts.
+
+## Methods
+
+| Method | Returns |
+|---|---|
+| `fn bands` | A copy of every band, `str Pre` first. |
+| `band(frequency)` | The gain in decibels stored for that band, and 0 for a frequency that is not one of them. |
+| `band(frequency, gain)` | Nothing. Writes the band and ramps its filter. A single `cls EqBand` works in place of the pair. |
+| `preGain()` and `preGain(value)` | The pre-gain, and the setter for it. |
+| `q(frequency)` and `q(frequency, value)` | That band's Q, and the setter. A value under 0.0001 is raised to it. |
+| `preset()` and `preset(target)` | The selected preset name, and the setter. |
+| `fn presets` | Every preset: the nineteen built-ins, then your custom ones, then anything from `key presets`. |
+| `fn sliderValues` | A `key pre` and a `key band` range, each carrying `key min`, `key max`, `key step`, `key default` and `key totalSteps`. |
+| `bandSliderMin(frequency)`, `fn bandSliderMax`, `fn bandSliderStep` | That band's slider bounds. |
+| `bandSliderValue(frequency)` | That band's current position as a percentage. |
+| `fn reset` | Nothing. Returns every band to the configured set and clears the preset. |
+| `addCustomPreset(preset)` and `removePreset(name)` | Nothing. Adds or drops a preset of your own. |
+| `fn save` and `fn restore` | Nothing. Writes the curve to storage, and reads it back. |
+
+## Presets
+
+Nineteen curves ship with the plugin: `str Custom`, `str Classical`, `str Club`, `str Dance`, `str Flat`, `str Laptop speakers/headphones`, `str Large hall`, `str Party`, `str Pop`, `str Reggae`, `str Rock`, `str Soft`, `str Ska`, `str Full Bass`, `str Soft Rock`, `str Full Treble`, `str Full Bass & Treble`, `str Live` and `str Techno`.
+
+Each one carries a value for all ten frequencies and none for `str Pre`, so applying a preset leaves the pre-gain where the listener put it.
 
 ## Options
 
 | Option | Type | Default | Purpose |
 |---|---|---|---|
-| `bands` | `EqBand[]` | `DEFAULT_BANDS` | 10 frequency bands. Element 0 must be the `{ frequency: 'Pre', gain }` pseudo-band. |
-| `preset` | `string` | — | Preset name to apply on `use()`. |
-| `presets` | `EqPreset[]` | — | Additional presets beyond the built-ins. |
-| `sliderValues` | `EqSliderValues` | `DEFAULT_SLIDER_VALUES` | Min/max/step/default per slider, for a UI to read directly. |
-| `persistKey` | `string` | — | Storage key. Omit to disable persistence. |
-| `autoLoad` / `autoSave` | `boolean` | `true` / `true` when `persistKey` set | Load/save automatically through `this.storage`. |
-| `smoothingTimeConstantSeconds` | `number` | `0.05` | Ramp time for gain changes, avoids audible clicks. |
+| `key bands` | `ReadonlyArray<EqBand>` | the eleven above | Your own band set. Element 0 has to be the `str Pre` entry. |
+| `key preset` | `string` | none | A preset applied while the plugin wires itself up. |
+| `key presets` | `ReadonlyArray<EqPreset>` | none | Extra presets alongside the built-ins. |
+| `key sliderValues` | `EqSliderValues` | pre -1 to 3, band -12 to 12, step 0.01 | The ranges `fn sliderValues` hands a UI. |
+| `key persistKey` | `string` | none | Storage key. Leave it out and nothing is stored. |
+| `key autoLoad` | `boolean` | `true` | Read the stored curve back while wiring up. |
+| `key autoSave` | `boolean` | true once `key persistKey` is set | Write after every change. |
+| `key smoothingTimeConstantSeconds` | `number` | `0.05` | Ramp time for a gain change, so a slider drag makes no click. |
 
-`EqBand` is `{ frequency: number | 'Pre'; gain: number; q?: number; type?: BiquadFilterType }`.
+An `cls EqBand` carries a required `key frequency` and `key gain`, plus an optional `key q` and `key type`. An `cls EqPreset` is a `key name` and a `key values` array of bands, and a preset only touches the frequencies it lists.
+
+`cls EqBand` and `cls EqPreset` come from the package root. `cls EqSliderValues` and `cls SliderRange` come from the `str @nomercy-entertainment/nomercy-player-core/plugins/equalizer` subpath.
 
 ## Events
 
-The plugin fires five events across setup and use:
+A plugin event reaches the player under the plugin's own id, so the name to listen for is `str plugin:equalizer:change`.
 
 | Event | Payload |
 |---|---|
-| `ready` | none |
-| `band:changed` | `{ band }` |
-| `preset:changed` | `{ name }` |
-| `change` | `{ bands, selectedPreset }` |
-| `saved` | none |
+| `str ready` | none |
+| `str band:changed` | `{ band }` |
+| `str preset:changed` | `{ name }` |
+| `str change` | `{ bands, selectedPreset }` |
+| `str saved` | none |
+
+`str change` follows every `str band:changed` and every `str preset:changed`, so a panel that redraws itself whole can listen to that one alone.
 
 ## Rules & restrictions
 
-- `static requires = [AudioGraphPlugin]`, register Audio Graph first, the equalizer throws `core:plugin/missing-dep` otherwise.
-- `bands[0]` is a fixed contract: it must be the `'Pre'` pseudo-band, not a real frequency.
-- Persistence goes through `this.storage`, the plugin's own scoped, namespaced storage, never raw `localStorage`. Swapping the [storage adapter](/nomercy-player-core/plugins-adapters/adapter-storage) moves equalizer persistence with it, same as everything else that uses `this.storage`.
-- Pre-gain has a sticky-zero snap: values within ±0.05 of zero round to exactly zero, so a UI slider settles cleanly at the middle instead of hovering at 0.0003.
+- Register [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph) first. Registering this plugin ahead of it throws a `cls PluginError` with code `str core:plugin/missing-dep`.
+- `bands[0]` has to be the `str Pre` entry. A filter is matched to a band by its position after that first slot, so a band set opening on a real frequency puts every filter one place out.
+- `band(frequency, gain)` addresses a band by its exact frequency. One that is not in `key bands` writes nothing and moves no filter, though the events still fire. Measured with `band(500, 9)` against the default set.
+- Setting any band clears the selected preset, so `fn preset` reads back undefined until another one is picked.
+- A preset name matching nothing is ignored. `fn preset` also takes an `cls EqPreset` object, or a JSON string holding one.
+- Pre-gain snaps to zero within 0.05 either way, so a slider settles at the middle rather than resting at 0.04.
+- A read-back is exact and immediate, while the filter itself ramps. `band(600, -12)` reads back -12 with the node still on its way there.
+- Persistence goes through the plugin's own namespaced storage, never raw `localStorage`. With `persistKey: 'my-app-eq'` the record lands under the key `str nmplayer-equalizer-my-app-eq` and holds the bands, the selected preset and your custom presets. Swapping the [storage adapter](/nomercy-player-core/plugins-adapters/adapter-storage) moves it with everything else.
 
-## How to extend it
+## Building on it
+
+Register both plugins before `fn setup`, in this order, and read the equalizer back once `fn ready` has resolved.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
 import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
-
-const player = nmplayer('player');
 
 player.addPlugin(AudioGraphPlugin);
 player.addPlugin(EqualizerPlugin, { persistKey: 'my-app-eq' });
+
 await player.ready();
 
-const eq = player.getPlugin(EqualizerPlugin);
-eq!.band(1000, 4); // +4 dB at 1 kHz
-eq!.preset('Rock');
-eq!.save();
+const equalizer = player.getPlugin(EqualizerPlugin);
+
+equalizer?.preset('Rock');
+equalizer?.band(1000, 4);
 ```
+
+`fn preset` applies a whole curve at once. The `fn band` call after it moves one filter and drops the preset name, which is what a listener touching a single slider expects. With `key persistKey` set both calls are stored on their own, so `fn save` is only needed when you turn `key autoSave` off.
 
 ## Next steps
 
-- [Plugin: Mixer](/nomercy-player-core/plugins-adapters/mixer): the master gain and pan stage at the tail of the same chain.
+- [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph): the chain these eleven nodes are inserted into.
+- [Mixer](/nomercy-player-core/plugins-adapters/mixer): the volume and pan stage that belongs after them.

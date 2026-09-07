@@ -1,57 +1,80 @@
 ---
-title: 'Plugin: Visualization'
-description: 'VisualizationPlugin: the abstract base for canvas-based visualizers, layering Canvas (RAF + mount) and Spectrum (frame data), subclass and implement render().'
+title: 'Visualization'
+description: 'VisualizationPlugin is the abstract base for canvas visualizers, wiring Canvas and Spectrum together so a subclass writes only render().'
 ---
 
 {/* Source: packages/nomercy-player-core/src/plugins/visualization/index.ts */}
 
-# Plugin: Visualization
+# Visualization
 
-`VisualizationPlugin` (default id `'visualization'`, subclasses must set their own) is an **abstract base class**, not something you register directly. It exists to give every canvas-based visualizer the same two dependencies wired up: [Canvas](/nomercy-player-core/plugins-adapters/canvas) for the mount and RAF loop, [Spectrum](/nomercy-player-core/plugins-adapters/spectrum) for frequency/waveform data, so a visualizer author writes only the drawing code.
+`cls VisualizationPlugin` is an abstract base class for anything that draws sound. Extend it, implement one method, and the plugin has a canvas in the player, a frame of spectrum data on every animation frame, and its own teardown.
 
-## Options
+It is not registered directly. `fn addPlugin` takes your subclass, which supplies its own id and its own drawing.
 
-| Option | Type | Default | Purpose |
-|---|---|---|---|
-| `clearBeforeRender` | `boolean` | `false` | Clear the canvas before each `render()` call. |
-| `tick` | `'frame' \| 'time'` | `'frame'` | Reserved, only `'frame'` is currently active. |
+The class comes from the package root. `cls WaveformVisualization`, the oscilloscope that ships with the kit, comes from the `str @nomercy-entertainment/nomercy-player-core/plugins/visualization` subpath and carries the id `str fillz:waveform`.
+
+## The three layers under it
+
+| Layer | Plugin | What it owns |
+|---|---|---|
+| 1 | [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph) | The `cls AudioContext` and the signal chain. |
+| 2 | [Spectrum](/nomercy-player-core/plugins-adapters/spectrum) | The `cls VisualizationFrame` handed to each render. |
+| 2 | [Canvas](/nomercy-player-core/plugins-adapters/canvas) | The mounted canvas, its size, the frame loop, and clearing between frames. |
+| 3 | Your subclass | The drawing, and nothing else. |
+
+## What a subclass overrides
+
+| Member | Signature |
+|---|---|
+| `fn render` | `(ctx: CanvasRenderingContext2D, frame: VisualizationFrame) => void`. Required, called once per canvas frame. |
+| `fn setup` | `(ctx: CanvasRenderingContext2D) => void`. Optional, called once before the first render. |
+| `key id` | A `static override readonly id` of your own. Two plugins cannot share one. |
+
+`fn currentFrame` on the instance answers with the frame most recently drawn, or undefined before the first one.
 
 ## Events
 
-The plugin fires two events:
+A plugin event reaches the player under the plugin's own id, so a subclass with the id `str my-app:bars` emits `str plugin:my-app:bars:rendered`.
 
 | Event | Payload |
 |---|---|
-| `unsupported` | `{ reason }` |
-| `rendered` | `{ frame: VisualizationFrame }` |
+| `str rendered` | `{ frame }`, after each successful render |
+| `str unsupported` | `{ reason }`, when the plugin finds nothing to draw with |
 
 ## Rules & restrictions
 
-- `static requires = [CanvasPlugin, SpectrumPlugin]`, the player refuses to register a visualizer without both already present.
-- Cannot be registered directly, it's `abstract`. `addPlugin()` needs a concrete subclass.
-- Degrades gracefully rather than throwing: if the dependencies are missing or spectrum analysis is unavailable, it emits `unsupported` and returns early, the rest of the player keeps running.
-- Kit rule for extension authors: bridges to p5.js, three.js, or shader-based rendering belong in a separate optional package built **on top of** this class. They should never reach into kit internals; override only `render(ctx, frame)`. `CanvasPlugin` owns clearing/compositing and `SpectrumPlugin` owns frame data, a visualizer subclass owns neither.
+- Register [Canvas](/nomercy-player-core/plugins-adapters/canvas) and [Spectrum](/nomercy-player-core/plugins-adapters/spectrum) before your subclass. `fn addPlugin` throws a `cls PluginError` with code `str core:plugin/missing-dep` otherwise, and spectrum brings [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph) as a requirement of its own.
+- The canvas frame loop drives the drawing, so the frame you receive carries the canvas clock in `key time` and `key deltaMs` rather than the one spectrum stamped on it.
+- A `fn render` that throws is reported once and the instance is disabled, which stops that visualizer and leaves the player and every other plugin running. Measured: the throw raises `str plugin:error`, the instance emits `str disabled`, and `fn enabled` reads false from then on.
+- Where spectrum is present but switched off, `str unsupported` carries the reason `str spectrum-unavailable`. The plugin still installs and stays enabled; it simply draws nothing.
+- Clearing between frames belongs to [Canvas](/nomercy-player-core/plugins-adapters/canvas) and its `key compositeMode` option, which clears by default. A subclass that wants trails turns it off there, not here.
+- Frame buffers are reused between ticks, so copy anything you want to hold on to past the render that received it.
 
-## How to extend it
-
-Subclass it and implement the one abstract method. The kit ships a reference implementation, `WaveformVisualization` (id `'fillz:waveform'`, importable from the `plugins/visualization` subpath), worth reading as a real example of the pattern below.
+## Building on it
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
-import { AudioGraphPlugin, CanvasPlugin, SpectrumPlugin, VisualizationPlugin, type VisualizationFrame } from '@nomercy-entertainment/nomercy-player-core';
-
-const player = nmplayer('player');
+import {
+  AudioGraphPlugin,
+  CanvasPlugin,
+  SpectrumPlugin,
+  VisualizationPlugin,
+  type VisualizationFrame,
+} from '@nomercy-entertainment/nomercy-player-core';
 
 class BarsVisualization extends VisualizationPlugin {
-	static override readonly id = 'my-app:bars';
+  static override readonly id = 'my-app:bars';
 
-	protected override render(ctx: CanvasRenderingContext2D, frame: VisualizationFrame): void {
-		const { width, height } = ctx.canvas;
-		const barWidth = width / frame.frequency.length;
-		frame.frequency.forEach((value, i) => {
-			ctx.fillRect(i * barWidth, height - value, barWidth - 1, value);
-		});
-	}
+  protected override render(ctx: CanvasRenderingContext2D, frame: VisualizationFrame): void {
+    const { width, height } = ctx.canvas;
+    const barWidth = width / frame.frequency.length;
+
+    ctx.fillStyle = '#ffffff';
+    frame.frequency.forEach((value, index) => {
+      const barHeight = (value / 255) * height;
+
+      ctx.fillRect(index * barWidth, height - barHeight, barWidth - 1, barHeight);
+    });
+  }
 }
 
 player.addPlugin(AudioGraphPlugin);
@@ -60,6 +83,11 @@ player.addPlugin(SpectrumPlugin);
 player.addPlugin(BarsVisualization);
 ```
 
+The four registrations are in dependency order: spectrum names the audio graph, and the visualizer names canvas and spectrum. Out of that order `fn addPlugin` throws rather than queueing. A byte in `key frequency` runs 0 to 255, which is why the bar height is scaled against the canvas rather than used as a pixel count.
+
+A bridge to a rendering library of your own belongs in a package built on top of this class. The layering above is what keeps it possible: canvas owns the surface, spectrum owns the data, and a subclass owns only what it paints.
+
 ## Next steps
 
-- [Plugin: Cast Sender](/nomercy-player-core/plugins-adapters/cast-sender): outside the audio-graph chain, the kit's Chromecast bridge.
+- [Canvas](/nomercy-player-core/plugins-adapters/canvas): the surface, the frame loop, and where clearing is decided.
+- [Spectrum](/nomercy-player-core/plugins-adapters/spectrum): every field in the frame your `fn render` receives.

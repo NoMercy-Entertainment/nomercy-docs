@@ -1,49 +1,103 @@
 ---
-title: 'Plugin: Spectrum'
-description: 'SpectrumPlugin: FFT analysis on top of AudioGraphPlugin, producing a per-frame VisualizationFrame consumed by Visualization and any custom renderer.'
+title: 'Spectrum'
+description: 'SpectrumPlugin reads the audio graph analyser every animation frame and emits a VisualizationFrame of spectrum, waveform and band energy.'
 ---
 
 {/* Source: packages/nomercy-player-core/src/plugins/spectrum/index.ts */}
 
-# Plugin: Spectrum
+# Spectrum
 
-`SpectrumPlugin` (id `'spectrum'`) reads [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph)'s analyser node once per animation frame and produces a `VisualizationFrame`: frequency and waveform buffers (both byte and float), per-band energy (`bass` / `mid` / `treble`), and beat/BPM fields when a beat provider is registered. [Visualization](/nomercy-player-core/plugins-adapters/visualization) is the primary consumer, but any plugin can read frames directly.
+`cls SpectrumPlugin` turns sound into numbers. It reads [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph)'s shared `cls AnalyserNode` on its own animation-frame loop and emits one `cls VisualizationFrame` per tick.
+
+That frame carries the spectrum and the waveform in both byte and float form, the energy in three named bands, and beat and tempo fields when a beat provider is registered. [Visualization](/nomercy-player-core/plugins-adapters/visualization) is the usual consumer, and anything that can hold a listener can read the frames itself.
+
+The plugin id is `str spectrum`. `cls SpectrumPlugin` and `fn spectrumPlugin` are the same class, both exported from the package root.
+
+## The frame
+
+| Field | What it holds |
+|---|---|
+| `key frequency` and `key waveform` | `cls Uint8Array` spectrum and time-domain data, 0 to 255. |
+| `key frequencyFloat` | The spectrum again as a `cls Float32Array`, in decibels. |
+| `key waveformFloat` | The waveform again as a `cls Float32Array`, -1 to 1. |
+| `key bandEnergies` | `key bass`, `key mid` and `key treble`, each 0 to 1. |
+| `key peakBandEnergies` | The same three held at their peak, decaying 0.003 per frame. |
+| `key energy` | One smoothed number for the whole signal, 0 to 1. |
+| `key beat` and `key bpm` | Whatever a registered beat provider returned this tick. |
+| `key sampleRate`, `key binHz` and `key peakHz` | The context rate, the width of one bin, and the loudest bin's frequency. |
+| `key time` and `key deltaMs` | The loop clock that produced this frame. |
+| `key frequencyLeft`, `key frequencyRight`, `key waveformLeft`, `key waveformRight` | Per-channel data, present only under `key stereo`. |
+
+The three bands are fixed spans: bass is 20 to 250 Hz, mid is 250 to 4000 Hz, and treble is 4000 to 16000 Hz. Each is the mean byte value across the bins in that span, divided by 255.
+
+## Methods
+
+| Method | Returns |
+|---|---|
+| `fn currentFrame` | The most recent `cls VisualizationFrame`, taking a reading first if the loop has not produced one. |
+| `bandEnergy(loHz, hiHz)` | The mean energy across any span you name, 0 to 1. |
+| `fn analyser` | The shared `cls AnalyserNode` this plugin reads. |
+| `fftSize()` and `fftSize(size)` | The analyser's FFT size, and the setter. |
+| `smoothingTimeConstant()` and `smoothingTimeConstant(value)` | The analyser's smoothing, and the setter. |
+| `registerBeatProvider(fn)` | Nothing. Adds a function called once per tick for `key beat` and `key bpm`. |
+| `syntheticMode()` and `syntheticMode(enabled)` | Whether frames come from you rather than the analyser, and the setter. |
+| `pushFrame(frame)` | Nothing. Hands the plugin the next frame while synthetic mode is on. |
 
 ## Options
 
 | Option | Type | Default | Purpose |
 |---|---|---|---|
-| `fftSize` | `512 \| 1024 \| 2048 \| 4096` | inherits Audio Graph's analyser | Analysis resolution. |
-| `smoothingTimeConstant` | `number` | inherits Audio Graph's analyser | Analyser smoothing. |
-| `stereo` | `boolean` | `false` | Allocate separate left/right analysers instead of one summed channel. |
-| `frameRate` | `number` | — | Reserved, currently unused. |
+| `key fftSize` | `512 \| 1024 \| 2048 \| 4096` | the analyser's own size | Analysis resolution. |
+| `key smoothingTimeConstant` | `number`, 0 to 1 | the analyser's own value | How much a reading lags a transient. |
+| `key stereo` | `boolean` | `false` | Split the signal and read left and right separately. |
+
+The first two write onto the graph's shared analyser, which every other reader of that analyser then sees. Left out, they leave whatever [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph) was configured with, which defaults to 2048 and 0.8.
+
+Both stay live after registration. `spectrum.options({ fftSize: 4096 })` re-applies them and reallocates the buffers, measured on a running player.
 
 ## Events
 
-`frame` (`{ frame: VisualizationFrame; energy: { bass, mid, treble } }`), `opts:changed`.
+A plugin event reaches the player under the plugin's own id, so the name to listen for is `str plugin:spectrum:frame`.
+
+| Event | Payload |
+|---|---|
+| `str frame` | `{ frame, energy }`, where `key energy` is the same three band numbers already inside the frame |
+| `str opts:changed` | The full options object after an `fn options` call |
 
 ## Rules & restrictions
 
-- `static requires = [AudioGraphPlugin]`, throws `core:plugin/missing-dep` without it.
-- `stereo: true` allocates two extra `AnalyserNode`s and four extra typed-array buffers per frame, only turn it on when a consumer actually needs per-channel data.
-- Synthetic mode (`syntheticMode(true)` + `pushFrame(frame)`) exists for passive NoMercy Connect receivers that have no local audio stream to analyse: it bypasses the `AnalyserNode` entirely and re-emits the last pushed frame verbatim. `time`/`deltaMs` on a synthetic frame are **not** overridden by the canvas RAF clock the way a real-analysis frame's are.
+- Register [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph) first. Registering this plugin ahead of it throws a `cls PluginError` with code `str core:plugin/missing-dep`.
+- The loop is this plugin's own, not the canvas one, so frames arrive with no canvas registered at all.
+- The buffers in a frame are reused between ticks. Copy anything you intend to keep past the listener that received it.
+- `key stereo` allocates a `cls ChannelSplitterNode`, two more analysers and four more byte buffers once, and costs four extra analyser reads per frame. Turn it on only where a consumer needs per-channel data.
+- `fn analyser` throws a `cls PluginError` with code `str core:plugin/state-uninitialized` until the plugin has been registered on a player.
+- Synthetic mode is for a receiver with no local audio to analyze, such as a screen mirroring a NoMercy Connect session. `fn syntheticMode` on makes `fn pushFrame` the only source of frames, and `fn pushFrame` is ignored while it is off. Turning it back off drops the frame you pushed.
+- A pushed frame is re-emitted as it stands, so `key time` and `key deltaMs` keep the values you gave them. A visualizer sees a different pair, because the canvas loop stamps its own clock onto whatever frame it is handed.
 
-## How to extend it
+## Building on it
+
+Register both plugins before `fn setup`, in this order, and read the spectrum back once `fn ready` has resolved.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
 import { AudioGraphPlugin, SpectrumPlugin } from '@nomercy-entertainment/nomercy-player-core';
 
-const player = nmplayer('player');
-
 player.addPlugin(AudioGraphPlugin);
-player.addPlugin(SpectrumPlugin, { stereo: false });
+player.addPlugin(SpectrumPlugin);
+
 await player.ready();
 
 const spectrum = player.getPlugin(SpectrumPlugin);
-console.log(spectrum!.bandEnergy(20, 250)); // energy in the bass range, right now
+
+player.on('plugin:spectrum:frame', ({ energy }) => {
+  meter.style.height = `${energy.bass * 100}%`;
+});
+
+console.log(spectrum?.bandEnergy(20, 250));
 ```
+
+The event is the one to build on for anything that redraws, because it arrives with a fresh reading already taken. `fn bandEnergy` is for a one-off question about a span the frame does not name.
 
 ## Next steps
 
-- [Plugin: Visualization](/nomercy-player-core/plugins-adapters/visualization): the base class that turns these frames into pixels.
+- [Audio Graph](/nomercy-player-core/plugins-adapters/audio-graph): the analyser these readings come from, and how it is configured.
+- [Visualization](/nomercy-player-core/plugins-adapters/visualization): the base class that turns these frames into pixels.

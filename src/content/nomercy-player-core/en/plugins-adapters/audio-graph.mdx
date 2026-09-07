@@ -1,64 +1,111 @@
 ---
-title: 'Plugin: Audio Graph'
-description: 'AudioGraphPlugin owns the Web Audio signal chain, AudioContext, the media element source node, and insertEffect(), every other audio plugin builds on it.'
+title: 'Audio Graph'
+description: 'AudioGraphPlugin owns the AudioContext and the one signal chain every other audio plugin hangs its nodes on.'
 ---
 
 {/* Source: packages/nomercy-player-core/src/plugins/audio-graph/index.ts */}
 
-# Plugin: Audio Graph
+# Audio Graph
 
-`AudioGraphPlugin` (id `'audio-graph'`) owns the Web Audio signal chain. It creates or reuses the player's `AudioContext`, mounts a `MediaElementAudioSourceNode` from the backend, and wires `source → destination`.
+`cls AudioGraphPlugin` owns Web Audio for a player. It creates the `cls AudioContext`, takes the backend's output as the head of a signal chain, and connects the tail of that chain to the speakers.
 
-Every other audio plugin builds on that chain rather than making its own, though not all the same way:
+Every other audio plugin hangs its nodes on that one chain. This is what lets an equalizer and a mixer run together without either of them knowing the other is there.
 
-| Plugin | How it relates to the chain |
-| --- | --- |
-| Equalizer and mixer | Insert into the serial chain, through `insertEffect()`, `pre()`, and `post()`. |
-| Spectrum plugin | Taps the shared `AnalyserNode` in parallel, without joining the serial path. |
-| Visualization plugin | Depends on canvas and spectrum only. Never touches `AudioGraphPlugin`. |
+The plugin id is `str audio-graph`. `cls AudioGraphPlugin` and `fn audioGraphPlugin` are the same class under two names, and both come from the package root.
+
+## What builds on it
+
+| Plugin | How it reaches the chain |
+|---|---|
+| [Equalizer](/nomercy-player-core/plugins-adapters/equalizer) | Appends a pre-gain and ten filters through `fn insertEffect`. |
+| [Mixer](/nomercy-player-core/plugins-adapters/mixer) | Appends a gain and a panner the same way. |
+| [Spectrum](/nomercy-player-core/plugins-adapters/spectrum) | Taps the shared `cls AnalyserNode` beside the chain, without joining it. |
+| [Visualization](/nomercy-player-core/plugins-adapters/visualization) | Draws the frames spectrum produces, and holds no node of its own. |
+
+## Methods
+
+| Method | Returns |
+|---|---|
+| `fn context` | The `cls AudioContext` this player shares. |
+| `fn outputNode` | The last node in the chain, the one feeding the destination. |
+| `fn analyserSource` | The shared `cls AnalyserNode`, built on the first call. |
+| `insertEffect(node, position)` | The node, now in the chain. `key position` is `str pre` or `str post`, and `str post` is the default. |
+| `pre(node)` and `post(node)` | The same call with the position already filled in. |
+| `fn removeEffect` | Nothing. Takes the node out, disconnects it, and relinks what is left. |
+| `route(from, to)` and `unroute(from, to)` | Nothing. A side connection, which every relink puts back. |
+
+## Where a node lands
+
+The chain runs source, then every `str pre` node in the order they arrived, then every `str post` node, then the destination. Both lists append, so a new `str post` node lands at the end of the chain and becomes what `fn outputNode` answers with.
+
+Registration order is what decides the signal path. Registering the equalizer and then the mixer builds this, measured on a live player:
+
+```
+source
+  |- analyser tap, in parallel
+  '- GainNode                    equalizer pre-gain
+     '- 10 x BiquadFilterNode    70 Hz to 16 kHz, peaking, Q 1
+        '- GainNode              mixer volume
+           '- StereoPannerNode   mixer pan
+              '- destination
+```
 
 ## Options
 
 | Option | Type | Default | Purpose |
 |---|---|---|---|
-| `latencyHint` | `AudioContextLatencyCategory` | `'playback'` | Forwarded to the `AudioContext` constructor. |
-| `fftSize` | `256 \| 512 \| ... \| 16384` | `2048` | Analyser node size for plugins that read frequency/waveform data. |
-| `smoothing` | `number` (0-1) | `0.8` | Analyser smoothing time constant. |
+| `key latencyHint` | `AudioContextLatencyCategory` | `str playback` | Passed straight to the `cls AudioContext` constructor. |
+| `key fftSize` | `256 \| 512 \| 1024 \| 2048 \| 4096 \| 8192 \| 16384` | `2048` | Size of the shared analyser. 2048 gives 1024 frequency bins. |
+| `key smoothing` | `number`, 0 to 1 | `0.8` | Smoothing time constant of the shared analyser. |
+
+The analyser is built on the first `fn analyserSource` call and not before, so the last two are read at that moment rather than at registration.
 
 ## Events
 
+A plugin event reaches the player under the plugin's own id. The name to listen for is `str plugin:audio-graph:context:ready`, not `str context:ready`.
+
 | Event | Payload |
-| --- | --- |
-| `context:ready` | `{ sampleRate }` |
-| `context:closed` | none |
-| `chain:rebuilt` | none |
-| `unsupported` | `{ reason }` |
+|---|---|
+| `str context:ready` | `{ sampleRate }` |
+| `str context:closed` | none |
+| `str chain:rebuilt` | none |
+| `str unsupported` | `{ reason }` |
+
+`str chain:rebuilt` fires once while the plugin wires itself up, and again on every `fn insertEffect` and `fn removeEffect` after that.
 
 ## Rules & restrictions
 
-- Register this plugin first. Every other audio plugin declares `static requires = [AudioGraphPlugin]` and throws `core:plugin/missing-dep` at registration if it isn't present.
-- Browser autoplay policy. The `AudioContext` starts `'suspended'` and resumes on the first `play` event, so that event has to happen during or right after a user gesture. There is no workaround; the browser enforces it whatever the kit does.
-- Throws a `BrowserPolicyError` and emits `unsupported` when `AudioContext` is unavailable in the runtime (rare, but true for some embedded WebViews).
-- `outputNode()` throws a `PluginError` if called before `use()` has run.
+- Register this plugin before anything that needs it. `fn addPlugin` throws a `cls PluginError` with code `str core:plugin/missing-dep` when a plugin's `key requires` list names something neither registered nor queued, so your call order decides it.
+- The browser starts an `cls AudioContext` suspended. This plugin resumes it on the player's first `str play` event, and the browser only lets that resume take effect once the listener has interacted with the page.
+- Where `cls AudioContext` is missing, `str unsupported` carries the reason and a `cls BrowserPolicyError` with code `str core:policy/audioContextUnsupported` is thrown.
+- `fn outputNode` throws a `cls PluginError` with code `str core:plugin/state-uninitialized` while the chain has no source, which is the case until the plugin is registered on a player.
+- One context per player. `fn audioContext` on the player and `fn context` here answer with the same object, and disposing the player closes it and emits `str context:closed`.
+- The head of the chain is the backend's own output node wherever the backend offers one, and a `cls MediaElementAudioSourceNode` built from the media element otherwise.
 
-## How to extend it
+## Building on it
 
-Effects insert themselves via `insertEffect(node, position?)` (or the `pre(node)` / `post(node)` shorthands): the plugin owns node ordering so two independent effect plugins don't have to coordinate insertion points with each other.
+Register the plugin before `fn setup`, and read it back once `fn ready` has resolved, so the chain is already standing when you reach for it.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
 import { AudioGraphPlugin } from '@nomercy-entertainment/nomercy-player-core';
 
-const player = nmplayer('player');
-
 player.addPlugin(AudioGraphPlugin, { fftSize: 4096 });
+
 await player.ready();
 
 const graph = player.getPlugin(AudioGraphPlugin);
-const gain = graph!.context().createGain();
-graph!.insertEffect(gain, 'post'); // spliced in after the source, before destination
+
+if (graph) {
+  const gain = graph.context().createGain();
+
+  gain.gain.value = 0.5;
+  graph.post(gain);
+}
 ```
+
+`fn post` puts a node at the end of the chain, which is where an effect that should act on everything before it belongs. `fn pre` puts it in the list that runs first, ahead of every filter the equalizer added.
 
 ## Next steps
 
-- [Plugin: Equalizer](/nomercy-player-core/plugins-adapters/equalizer): the first of the chain's built-in effects.
+- [Equalizer](/nomercy-player-core/plugins-adapters/equalizer): ten filters and a pre-gain, the chain's first built-in effect.
+- [Mixer](/nomercy-player-core/plugins-adapters/mixer): the volume and pan stage that belongs at the tail.
