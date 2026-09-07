@@ -26,10 +26,10 @@ The player mounts into an element you provide.
 ```
 
 That div becomes the player root.
-`setup()` marks it `nomercyplayer` and keeps state classes on it as playback changes, so `playing` and `paused` are available to your own CSS without a line of JavaScript.
+`setup()` marks it `str nomercyplayer` and keeps state classes on it as playback changes, so `str playing` and `str paused` are available to your own CSS without a line of JavaScript.
 
 **It must be a `<div>`.**
-Any other tag throws `core:player/element-not-div`, and an id matching no element throws `core:player/element-missing`.
+Any other tag throws `str core:player/element-not-div`, and an id matching no element throws `str core:player/element-missing`.
 
 The player creates its own `<audio>` element inside that div. Put an `<audio>` in there yourself and it uses that one instead.
 
@@ -45,11 +45,11 @@ The argument is your container's id.
 **You should now see the album cover with a control bar across it.**
 Press play and the track starts.
 
-`controls: true` is what puts that bar there. It sets `controls` on the audio element, which is the browser's own transport rather than anything the package draws.
+`controls: true` is what puts that bar there. It sets `key controls` on the audio element, which is the browser's own transport rather than anything the package draws.
 
 The cover is not the player's doing. Nothing in the package puts artwork on screen, so the last function in the block paints it onto the container itself.
 
-`name` is the field a music item is displayed by, not `title`. It is what the cast and media-session plugins read for the track's title, and it is the one item field the type makes required.
+`key name` is the field a music item is displayed by, not `key title`. It is what the cast and media-session plugins read for the track's title, and with `key id` it is one of the two fields the type requires.
 
 Calling `nmplayer('player')` again with the same id gives back the same player rather than a second one. That is what makes it safe inside a component that re-renders.
 
@@ -63,11 +63,11 @@ A real second player therefore needs a second container with a different id.
 
 **Past that line every method is safe to call.** Restoring a saved position or selecting a track belongs after it.
 
-Calling `setup` a second time throws `core:lifecycle/already-setup`, so a half-configured instance is not a state you can reach.
+Calling `setup` a second time throws `str core:lifecycle/already-setup`, so a half-configured instance is not a state you can reach.
 
 ## 5. Nothing plays until something asks it to
 
-This is the one place a video habit misleads you. `MusicPlayerConfig` has no `autoPlay` field, and no config value starts playback.
+This is the one place a video habit misleads you. `cls MusicPlayerConfig` has no `key autoPlay` field, and no config value starts playback.
 
 What `setup` does instead is arm the queue. Once `ready()` resolves it selects the first item with autoplay off, so the player never sits there blank.
 
@@ -77,7 +77,7 @@ That default is why the example passes `{ autoplay: false }`. It wants the track
 
 ## Keep item paths relative
 
-`baseUrl` is the one config field every playlist should set. It prefixes media and sidecar paths, and `baseImageUrl` does the same for artwork.
+`key baseUrl` is the one config field every playlist should set. It prefixes media and sidecar paths, and `key baseImageUrl` does the same for artwork.
 
 Both are string prefixes joined by plain concatenation, so give the base no trailing slash and the path a leading one.
 

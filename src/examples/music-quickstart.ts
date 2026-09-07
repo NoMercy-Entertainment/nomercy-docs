@@ -24,14 +24,9 @@ const config: MusicPlayerConfig = {
   ],
 };
 
-// The music player is headless with no video frame, so the preview paints the
-// track cover as a full-bleed backdrop (the audio equivalent of a video
-// poster) behind the native control bar. `controls: true` renders the bar
-// itself, but native <audio controls> never shows album art — `image` only
-// reaches the OS MediaSession — so without this the on-page cover is blank.
-// Docs-preview only (stripped from the rendered snippet): reads `image` first,
-// falling back to the deprecated `cover`, mirroring the package's own artwork
-// resolution (MusicPreloadStrategy.assetsToPreload / CastSenderPlugin).
+// Native <audio controls> never shows album art, so this paints the cover onto
+// the container behind the bar. It reads `image` and falls back to the older
+// `cover`, the order the preload strategy and the cast plugin both use.
 function onReady(player: IMusicPlayer, container: HTMLElement): void {
   const first = Array.isArray(config.playlist) ? (config.playlist[0] as MusicPlaylistItem) : undefined;
   const cover = first?.image ?? first?.cover;

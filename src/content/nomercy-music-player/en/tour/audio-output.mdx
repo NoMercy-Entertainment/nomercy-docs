@@ -21,19 +21,19 @@ They come from the kit rather than from music, so a video player answers to the 
 
 ## List what the browser reports
 
-`audioOutputs()` calls `navigator.mediaDevices.enumerateDevices()` and keeps the entries whose `kind` is `audiooutput`.
+`audioOutputs()` calls `navigator.mediaDevices.enumerateDevices()` and keeps the entries whose `key kind` is `str audiooutput`.
 
 Nothing on that path asks for permission, so the list is safe to build while the page loads.
 
-Each entry is a `MediaDeviceInfo`, and the two fields you want are `deviceId` and `label`.
-The example below names each device by its `label`, and falls back to a numbered name when that label is empty.
+Each entry is a `cls MediaDeviceInfo`, and the two fields you want are `key deviceId` and `key label`.
+The example below names each device by its `key label`, and falls back to a numbered name when that label is empty.
 
 ## Let the listener choose
 
 `selectAudioOutput()` opens the browser's own output picker and resolves with the device chosen in it.
 
 Dismissing the picker is not a failure.
-The call inspects the rejection's `name`, and returns `null` for both `AbortError` and `NotAllowedError`.
+The call inspects the rejection's `key name`, and returns `null` for both `str AbortError` and `str NotAllowedError`.
 Any other rejection is rethrown as it arrived.
 
 ## Route playback there
@@ -43,7 +43,7 @@ Any other rejection is rethrown as it arrived.
 An empty string is passed straight through to `setSinkId`, and the stored id is cleared to `null` rather than kept as `''`.
 
 Called with no argument, `audioOutput()` reads instead of writes.
-It returns the element's live `sinkId`, or the id last stored when the element has none, and `null` when either is the empty string.
+It returns the element's live `key sinkId`, or the id last stored when the element has none, and `null` when either is the empty string.
 
 ```ts
 const device = await player.selectAudioOutput();
@@ -58,13 +58,17 @@ Not every browser exposes both halves of this, and the player says so in three d
 `audioOutputs()` resolves with an empty array where there is no `navigator.mediaDevices.enumerateDevices` to call.
 It throws nothing, so an empty list is the whole signal.
 
-`selectAudioOutput()` throws a `BrowserPolicyError` with code `core:policy/audioOutputPickerUnsupported` when the browser exposes no picker.
+`selectAudioOutput()` throws a `cls BrowserPolicyError` with code `str core:policy/audioOutputPickerUnsupported` when the browser exposes no picker.
 The list above is still the working path there, which is why the example offers both.
 
-`audioOutput(deviceId)` throws a `BrowserPolicyError` with code `core:policy/setSinkIdUnsupported` when the media element has no `setSinkId`.
-The same error covers the case where no element is bound yet, so make the call once `ready()` has resolved.
+`audioOutput(deviceId)` throws a `cls BrowserPolicyError` with code `str core:policy/setSinkIdUnsupported` when the media element has no `fn setSinkId`.
+Make the call once `ready()` has resolved, so it reaches the backend your config asked for.
 
-Both are thrown out of the call rather than emitted on the bus, so they land in your `catch` and not in an `error` listener.
+A device id the browser does not recognize is the other way this call fails, and that one is the browser's own.
+`fn setSinkId` rejects, and the rejection reaches you exactly as it was raised.
+
+None of these reaches the event bus.
+Each one is thrown or rejected out of the call, so it lands in your `catch` and not in an `str error` listener.
 
 ## See it running
 

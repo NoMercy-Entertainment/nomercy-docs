@@ -21,16 +21,16 @@ Four values are filled in when you leave them out. Your own value wins on every 
 
 | Filled in when absent | Value |
 | --- | --- |
-| `crossfadeEnabled` | `true` |
-| `preloadLeadSeconds` | `10` |
-| `crossfadeLeadSeconds` | `3` |
-| `crossfadeTailSeconds` | `3` |
+| `key crossfadeEnabled` | `true` |
+| `key preloadLeadSeconds` | `10` |
+| `key crossfadeLeadSeconds` | `3` |
+| `key crossfadeTailSeconds` | `3` |
 
 Two objects are built from those numbers: a preload strategy, and a transition strategy for the boundary between queue items.
 
-The transition strategy takes `crossfadeDefaults.curve` when your config sets one, and `'equal-power'` when it does not.
+The transition strategy takes `crossfadeDefaults.curve` when your config sets one, and `str equal-power` when it does not.
 
-Supply your own `preloadStrategy` or `transitionStrategy` and the matching object is not built at all.
+Supply your own `key preloadStrategy` or `key transitionStrategy` and the matching object is not built at all.
 
 ## Then the shared sequence runs
 
@@ -42,21 +42,20 @@ From there it is the core's own sequence, and music adds no stage of its own to 
 
 `setup()` constructs no audio backend at all.
 
-The kind is settled by the `backend` field on your config, which is `'audio-element'` when you leave it out. A `backendFactory` on the config replaces that choice entirely: it is called with the resolved kind, and whatever it returns is used.
+The kind is settled by the `key backend` field on your config, which is `str audio-element` when you leave it out. A `key backendFactory` on the config replaces that choice entirely: it is called with the resolved kind, and whatever it returns is used.
 
 The backend itself is built by the first call that needs one. In a plain setup that is the first-track prime below, which runs after `ready()` has already resolved.
 
-That timing decides where a `'webaudio'` failure lands.
+That timing decides where a `str webaudio` failure lands.
 
-`WebAudioBackend` throws `core:policy/audioContextUnsupported` at construction when the browser has no Web Audio API. A `try` around `setup()` never sees it, because nothing was constructed there.
+`cls WebAudioBackend` throws `str core:policy/audioContextUnsupported` at construction when the browser has no Web Audio API. A `try` around `setup()` never sees it, because nothing was constructed there.
 
-Wrap your own first `backend()` call instead:
+Wrap your own first `backend()` call instead, once `ready()` has resolved:
 
 ```ts
 try {
   console.log(player.backend().kind);
-}
-catch (error) {
+} catch (error) {
   reportAudioUnsupported(error);
 }
 ```
@@ -67,7 +66,7 @@ catch (error) {
 
 Once `ready()` resolves, the player loads a track so it does not sit empty. It loads the first one, with autoplay off.
 
-The music player has no `autoPlay` option, so nothing in the sequence starts a sound. The first sound comes from your own `play()` call, or from a listener pressing a control.
+The music player has no `key autoPlay` option, so nothing in the sequence starts a sound. The first sound comes from your own `play()` call, or from a listener pressing a control.
 
 A track you pick yourself between `setup()` and `ready()` is kept, and the prime lands on that one rather than the first:
 
@@ -88,13 +87,11 @@ A queue that came up empty leaves it `undefined` and primes nothing.
 
 ## How a track URL is loaded
 
-The backend makes one decision about a track URL: whether it ends in `.m3u8`.
+The backend makes one decision about a track URL: whether it ends in `.m3u8`, ahead of any query string or fragment.
 
 An `.m3u8` plays through hls.js, unless the audio element plays HLS natively, in which case the element is handed the URL directly. Every other URL goes straight to the element as a plain source.
 
 hls.js ships inside `nomercy-player-core`, so there is nothing extra to install. It is imported only once an `.m3u8` actually arrives.
-
-Both stream factories are re-exported from this package, at `@nomercy-entertainment/nomercy-music-player/streams/native` and `@nomercy-entertainment/nomercy-music-player/streams/hls`.
 
 ## Next steps
 

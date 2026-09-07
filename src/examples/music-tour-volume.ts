@@ -72,8 +72,6 @@ class VolumeTourPlugin extends Plugin<IMusicPlayer> {
 	}
 
 	private syncMute(): void {
-		// Starts muted so the browser allows autoplay without a click; this
-		// renders the mute icon in that real starting state.
 		const muted = this.player.volumeState() === VolumeState.MUTED;
 		this.muteButton.textContent = muted ? '🔇' : '🔊';
 		this.muteButton.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');

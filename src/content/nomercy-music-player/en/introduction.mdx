@@ -19,7 +19,7 @@ This package adds the audio backend and the calls that only make sense when some
 
 ## How it differs from the video player
 
-Both libraries compose the same core methods onto their own class, so `play()`, `pause()`, `next()` and the queue read the same either way.
+Both libraries compose the same core methods onto their own class, so `fn play`, `fn pause`, `fn next` and the queue read the same either way.
 
 What differs is what the medium forces.
 
@@ -28,28 +28,28 @@ What differs is what the medium forces.
 | Media element | Creates a `<video>` in your container | Creates an `<audio>` in your container |
 | At the end of an item | Moves to the next queue item | Stays where it is |
 | Interface | An interface plugin ships in the package | No interface plugin ships |
-| Display name on an item | `title`, optional | `name`, required |
+| Display name on an item | `key title`, optional | `key name`, required |
 | Fade between two items | Not on the surface | `crossfadeTo(item, opts)` |
 
 ### The asymmetry worth knowing first
 
 Video advances on its own. Music does not.
 
-The video player subscribes to its own `ended` event and calls `next()`, unless the config sets `autoAdvance: false`.
+The video player subscribes to its own `str ended` event and calls `fn next`, unless the config sets `autoAdvance: false`.
 The music player has no such config field and no such subscription.
-Its `ended` handler moves the phase and re-emits the event, and the queue cursor stays put.
+Its `str ended` handler moves the phase and re-emits the event, and the queue cursor stays put.
 
-`AutoAdvancePlugin`, from the `plugins/auto-advance` subpath, is what moves it.
-The plugin listens for `ended` and calls `next()` for you, and registering it is all that is needed.
+`cls AutoAdvancePlugin`, from the `plugins/auto-advance` subpath, is what moves it.
+The plugin listens for `str ended` and calls `fn next` for you, and registering it is all that is needed.
 
 Leave it off when a websocket or a Cast session already decides what plays next.
 Two things driving the cursor advance it twice.
 
 ## What the package gives you
 
-- **`NMMusicPlayer<T>`**, created by the `nmplayer(id)` factory and generic over your own item type. Calling the factory again with a container id already in use hands back the instance that is there.
-- **Two audio backends behind one `IAudioBackend` interface.** `AudioElementBackend` drives a plain `HTMLAudioElement` and is what you get by default. `WebAudioBackend` routes through an `AudioContext` graph instead, which is what an equalizer or a visualizer taps. `backend('webaudio')` swaps them at runtime.
-- **`crossfadeTo(item, opts)`**, a fade from the playing item to the one you name, with a duration and a curve. It falls back to five seconds when neither the call nor `crossfadeDefaults` names one, and it throws when the target item has no `url`.
+- **`cls NMMusicPlayer`**, created by the `nmplayer(id)` factory and generic over your own item type. Calling the factory again with a container id already in use hands back the instance that is there.
+- **Two audio backends behind one `cls IAudioBackend` interface.** `cls AudioElementBackend` drives a plain `cls HTMLAudioElement` and is what you get by default. `cls WebAudioBackend` routes through an `cls AudioContext` graph instead, which is what an equalizer or a visualizer taps. `backend('webaudio')` swaps them at runtime.
+- **`crossfadeTo(item, opts)`**, a fade from the playing item to the one you name, with a duration and a curve. It falls back to five seconds when neither the call nor `key crossfadeDefaults` names one, and it throws when the target item has no `key url`.
 - **Six plugins, each on its own import subpath**: auto-advance, lyrics, media-session, cast-sender, key-handler and scrobble. None of them is registered for you.
 - **Everything the core already does**, so it is never rebuilt per medium: the queue, transport, volume, time, plugins, i18n and auth-aware fetch.
 

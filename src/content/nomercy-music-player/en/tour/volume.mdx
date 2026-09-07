@@ -23,12 +23,6 @@ Everything below is safe to call once `ready()` has resolved.
 `volume(level)` sets it, clamps it to 0 to 100, and hands back a promise you can await.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-music-player';
-
-const player = nmplayer('player');
-
-await player.ready();
-
 const level = player.volume(); // 0 to 100
 await player.volume(50);
 ```
@@ -68,7 +62,7 @@ The squaring happens where the level meets the audio, not in `volume()`.
 
 Two audio backends ship, and the same `volume(50)` call reaches the sound differently in each.
 
-The default is `audio-element`.
+The default is `str audio-element`.
 It writes the gain straight onto the `<audio>` element, in one step: `element.volume` becomes `0.25`.
 
 Ask for the other one at setup:
@@ -80,14 +74,14 @@ player.setup({
 });
 ```
 
-Now the gain goes onto a `GainNode` in front of the analyser instead.
+Now the gain goes onto the `cls GainNode` at the head of the Web Audio chain instead, ahead of the `cls AnalyserNode` a spectrum plugin taps.
 It is eased in with a 10 ms time constant rather than set outright, which is the difference between a fade and a click under a fast drag.
 
-The audio element's own `volume` is not what carries the level on this path.
+The audio element's own `volume` stays at 1 on this path and the player never writes to it.
 Reading it tells you nothing about where the slider is.
 
 So read `player.volume()` and nothing else.
-Neither backend holds a position: one holds the squared gain, the other holds a value the player never touches.
+It is the only reader that answers with a position; each backend holds the squared gain instead.
 
 ## Mute
 
@@ -103,7 +97,7 @@ player.toggleMute();
 Calling for a state the player is already in does nothing at all.
 No event, no change.
 
-Mute is the audio element's own `muted` flag, on both backends.
+Mute is the audio element's own `key muted` flag, on both backends.
 The gain is left where it was, so unmuting brings the level back without you storing it.
 
 While muted, `volume()` reports `0` rather than the stored level.
@@ -114,10 +108,10 @@ That is what someone dragging a muted slider means, and it saves you from a slid
 
 ## Keeping a control in step
 
-`volumeState()` returns `VolumeState.MUTED` or `VolumeState.UNMUTED`.
+`volumeState()` returns `cls VolumeState.MUTED` or `cls VolumeState.UNMUTED`.
 Render a mute button from that, never from a boolean of your own.
 
-The `volume` and `mute` events fire whatever caused the change: your slider, a key binding, or another part of your app.
+The `str volume` and `str mute` events fire whatever caused the change: your slider, a key binding, or another part of your app.
 A control that draws itself from those two cannot fall out of step.
 
 ```ts

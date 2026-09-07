@@ -9,8 +9,8 @@ description: 'Position and duration are seconds, and the three values on the mus
 
 Every position the music player reports is a number of seconds.
 
-`time()`, `duration()` and the `time` event payload all carry seconds.
-The one value in that set that does not is `percentage`, which runs 0 to 100.
+`time()`, `duration()` and the `str time` event payload all carry seconds.
+The one value in that set that does not is `key percentage`, which runs 0 to 100.
 
 The position itself lives in the kit rather than in the music player.
 [Playback Time](/nomercy-player-core/tour/time) has the slot it sits in, the seek cycle that writes it, and the helper that formats it.
@@ -18,27 +18,30 @@ This page has what the music surface puts on top of that.
 
 ## What moves the clock
 
-The music player publishes position on the audio element's own `timeupdate`.
+The music player publishes position on the audio element's own `str timeupdate`.
 
-On each of those it builds the kit's `TimeState` snapshot from the backend's fresh position, then emits it as `time`.
+On each of those it builds the kit's `cls TimeState` snapshot from the backend's fresh position, then emits it as `str time`.
 So a listener gets the element's own number, read at the moment the element reported it.
 
 Two music behaviors ride that tick.
 
 **A track handoff publishes nothing.**
 Between the move to the next track and the incoming track's mount, the outgoing element is still attached and still reporting.
-The player suppresses `time` for that window, so nobody sees the outgoing position under the incoming track's identity.
+The player suppresses `str time` for that window, so nobody sees the outgoing position under the incoming track's identity.
 
-**A stream announces its length twice.**
-A streamed track has no finite length when its metadata loads, so `duration` starts at 0.
-The player checks each tick and emits `duration` again as soon as a finite length appears.
+**The tick re-announces the length.**
+`str loadedmetadata` publishes the first `str duration`, taking it from the backend when the backend already has a finite number and from the item's own `key duration` field when it does not.
 
-That second announcement is what a seekbar is waiting for.
-Every length-gated policy waits for it too, because a duration of 0 keeps ending-soon, preload and crossfade switched off.
+The tick publishes `str duration` again whenever the length it reads differs from the last one it published.
+A plain file therefore gets a second event carrying the same number.
+
+That second channel is what a streamed track needs.
+A stream has no finite length while its metadata loads, and nothing re-reads it afterwards, so without the tick a seekbar would sit on 0 for the whole track.
+Every length-gated policy would sit there with it, because a duration of 0 keeps ending-soon, preload and crossfade switched off.
 
 ## The length a track claims
 
-`MusicPlaylistItem.duration` is the fallback for a backend that has not resolved a length.
+`cls MusicPlaylistItem`'s `key duration` is the fallback for a backend that has not resolved a length.
 
 It is typed `number | string`, so an item type declaring `duration: string` satisfies it.
 Only a number is read, and it is read as seconds.
@@ -46,8 +49,8 @@ A string such as `'3:42'` passes the type and is ignored.
 
 ## Where the unit changes
 
-A field whose name ends in `Seconds` or `Ms` states its own unit.
-The values called `duration` do not, and they are not all the same one.
+A field whose name ends in `str Seconds` or `str Ms` states its own unit.
+The values called `key duration` do not, and they are not all the same one.
 
 | Value | Unit |
 | --- | --- |
@@ -55,7 +58,7 @@ The values called `duration` do not, and they are not all the same one.
 | `preloadLeadSeconds`, `crossfadeLeadSeconds`, `crossfadeTailSeconds`, `itemEndingSoonThreshold` | seconds |
 | `duration` on `crossfadeTo()` and on `crossfadeDefaults` | seconds |
 | `startAt` on `crossfadeTo()` | milliseconds |
-| `duration` on `beforeCrossfade` and `crossfadeStart` | milliseconds |
+| `event.data.duration` on `beforeCrossfade`, `duration` on `crossfadeStart` | milliseconds |
 
 `crossfadeTo()` reads its duration in seconds and multiplies by a thousand before anything downstream sees it.
 One call therefore carries the same word in both units.
@@ -76,11 +79,11 @@ The crossfade lead and tail default to 3 seconds each, the preload lead to 10, a
 
 ## Saving a position
 
-`time` fires on every tick, which is more often than a save wants to run.
-`progress` carries the same position at most once every `progressIntervalMs`.
+`str time` fires on every tick, which is more often than a save wants to run.
+`str progress` carries the same position at most once every `key progressIntervalMs`.
 
 That field is milliseconds, it defaults to 5000, and `0` switches the event off.
-Its payload is the narrower one: `time`, `duration` and `percentage`, in the units above.
+Its payload is the narrower one: `key time`, `key duration` and `key percentage`, in the units above.
 
 ## See it running
 

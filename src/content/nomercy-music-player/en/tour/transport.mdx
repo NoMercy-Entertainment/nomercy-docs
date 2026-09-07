@@ -32,8 +32,8 @@ await player.stop();
 
 `togglePlayback()` pauses while the player is playing and plays otherwise.
 
-`stop()` moves the player to its stopped phase and releases the source.
-Reach for it when the now-playing view goes away, and for `pause()` when it stays.
+`stop()` moves the player to its stopped phase, pauses the element and winds it back to 0.
+Reach for it when the now-playing view goes away, and for `pause()` when the position has to survive.
 
 **Only `play()` waits for the audio backend.**
 It awaits the backend's own `play()` and rejects when that rejects.
@@ -44,7 +44,7 @@ It awaits the backend's own `play()` and rejects when that rejects.
 A browser blocks audio nobody asked for, and the refusal arrives inside `play()`.
 
 The player sets the state to playing before the backend has answered, because that is what keeps a control bar responsive.
-When the answer is a refusal it undoes all of it: the play state goes back to paused, the phase change is reversed, `playPrevented` is emitted with reason `backend-refused`, and the error is rethrown.
+When the answer is a refusal it undoes all of it: the play state goes back to paused, the phase change is reversed, `str playPrevented` is emitted with reason `str backend-refused`, and the error is rethrown.
 
 **The rethrow is the part that bites.**
 A `play()` nobody awaits becomes an unhandled rejection in the console.
@@ -61,13 +61,13 @@ try {
 }
 ```
 
-The event also carries `cause`, which is the error the backend threw.
+The event also carries `key cause`, which is the error the backend threw.
 
 **A listener can refuse too.**
-`beforePlay` is cancellable, and a listener calling `preventDefault()` emits that same `playPrevented` with reason `listener-prevented`.
-Nothing changes state on that path and `play()` returns normally, so `reason` is what tells the two apart.
+`str beforePlay` is cancellable, and a listener calling `preventDefault()` emits that same `str playPrevented` with reason `str listener-prevented`.
+Nothing changes state on that path and `play()` returns normally, so `key reason` is what tells the two apart.
 
-`pause()` and `stop()` have the matching `pausePrevented` and `stopPrevented`.
+`pause()` and `stop()` have the matching `str pausePrevented` and `str stopPrevented`.
 Neither can be refused by the backend, because neither waits for it.
 
 ## Seeking
@@ -89,17 +89,18 @@ It returns a promise, so awaiting it is how you know the seek finished rather th
 
 `rewind()` stops at 0.
 `forward()` has no limit of its own, so a backend that will not seek past the end snaps there instead.
+`time()` carries the number you asked for until the next tick reads the element back.
 
 `seekByPercentage()` is the one that hands back nothing to await.
 It is built for a scrubber, where the next drag is more interesting than the last one landing.
 
-Every seek runs the cancellable `beforeSeek` cycle, and a listener that stops one gets `seekPrevented` instead.
+Every seek runs the cancellable `str beforeSeek` cycle, and a listener that stops one gets `str seekPrevented` instead.
 A prevented `restart()` skips its `play()` as well, because restart is one intent rather than a seek followed by a play.
 
 ## Before setup and after dispose
 
 Each call here checks the player first.
-Before `setup()` it throws `core:player/not-ready`, and after `dispose()` it throws `core:player/disposed`.
+Before `setup()` it throws `str core:player/not-ready`, and after `dispose()` it throws `str core:player/disposed`.
 
 Reading `time()` with no argument skips that check.
 A progress bar still polling after teardown gets the last position back rather than a throw.

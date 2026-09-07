@@ -421,15 +421,21 @@ function inlineMediaImports(source: string): string {
   const decls = mediaDecls();
   const keep = new Set(names);
 
-  const block = names
+  for (const name of names) {
+    if (!decls.has(name)) {
+      throw new Error(
+        `remark-snippet: media.ts has no export named "${name}" (imported by an example file's './media' import).`,
+      );
+    }
+  }
+
+  // `media.ts` declares its own consts in a working order, so following it here
+  // keeps `const firstSong = { url: `${MUSIC_BASE}/...` }` behind its base URL.
+  // The import statement's order is alphabetical and would put it in front.
+  const block = [...decls.keys()]
+    .filter((name) => keep.has(name))
     .map((name) => {
-      const rhs = decls.get(name);
-      if (rhs === undefined) {
-        throw new Error(
-          `remark-snippet: media.ts has no export named "${name}" (imported by an example file's './media' import).`,
-        );
-      }
-      const inlined = inlineRefs(rhs, decls, keep, new Set([name]));
+      const inlined = inlineRefs(decls.get(name)!, decls, keep, new Set([name]));
       return `const ${name} = ${inlined};`;
     })
     .join('\n\n');

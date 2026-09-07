@@ -8,14 +8,14 @@ description: 'Ten filters and a pre-gain stage over the audio, what registering 
 # Equalizer
 
 Tone control is two plugins, and neither of them is music-specific.
-`AudioGraphPlugin` owns the Web Audio chain, and `EqualizerPlugin` inserts a pre-gain stage and ten filters into it.
+`cls AudioGraphPlugin` owns the Web Audio chain, and `cls EqualizerPlugin` inserts a pre-gain stage and ten filters into it.
 Both ship in `nomercy-player-core`, so a video player wires them the same way.
 
 Reach for them when a listener should be able to shape the sound: a preset picker, a band panel, or one stored curve that follows them between sessions.
 
 ## Register the graph first
 
-`EqualizerPlugin` declares `AudioGraphPlugin` as a required dependency, and that is checked the moment you register it.
+`cls EqualizerPlugin` declares `cls AudioGraphPlugin` as a required dependency, and that is checked the moment you register it.
 
 ```ts
 import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
@@ -24,10 +24,10 @@ player.addPlugin(AudioGraphPlugin);
 player.addPlugin(EqualizerPlugin);
 ```
 
-Swap those two lines and the second `addPlugin` throws, synchronously, with `core:plugin/missing-dep`:
+Swap those two lines and the second `fn addPlugin` throws `str core:plugin/missing-dep`, synchronously, as a `cls PluginError`:
 
 ```
-Plugin "equalizer" requires "audio-graph" but it is not registered.
+core:plugin/missing-dep: Plugin "equalizer" requires "audio-graph" but it is not registered.
 ```
 
 Nothing is registered when it throws, so `getPlugin(EqualizerPlugin)` gives back `undefined` afterwards.
@@ -38,16 +38,18 @@ Moving both calls before `setup()` does not change this. The order is what matte
 A filter only exists inside a Web Audio graph, so registering the equalizer routes the audio through one.
 
 Both music backends can give it one.
-`webaudio` is built around a graph already.
-`audio-element`, the default when `backend` is absent from your config, builds one the first time a plugin asks for it.
+`str webaudio` is built around a graph already.
+`str audio-element`, the default when `key backend` is absent from your config, builds one the first time a plugin asks for it.
 
 So the equalizer runs on the default backend, and it really filters there.
-Playing a 440 Hz tone through it, a +12 dB setting on the 600 Hz band lifted that tone by about 8 dB and a -12 dB setting dropped it by about 9 dB.
 Nothing here needs `backend: 'webaudio'`.
+
+Playing a 440 Hz tone through it, a +12 dB setting on the 600 Hz band lifted that tone by 8.3 dB and a -12 dB setting dropped it by the same 8.3 dB.
+The filter is centered on 600 Hz, so a tone to one side of it moves by less than the full setting.
 
 ### The graph costs you CORS
 
-Feeding a media element into an `AudioContext` needs the element in CORS mode, so the backend sets `crossOrigin = 'anonymous'` when the graph is built.
+Feeding a media element into an `cls AudioContext` needs the element in CORS mode, so the backend sets `crossOrigin = 'anonymous'` when the graph is built.
 
 From that point your media host has to send `Access-Control-Allow-Origin`.
 A host that sends nothing serves a track that will not start, and the same file plays fine on a player carrying no graph plugins.
@@ -65,7 +67,8 @@ Register them before `setup()` and the graph is built against an element with no
 ## Shaping the sound
 
 The default layout is ten peaking filters, at 70, 180, 320, 600, 1000, 3000, 6000, 12000, 14000 and 16000 Hz.
-Ahead of them sits the pre-gain stage, which `bands()` returns as an eleventh entry at index 0 with `frequency: 'Pre'`.
+Ahead of them sits the pre-gain stage.
+`bands()` hands back eleven entries, and that stage is the first of them, carrying `key frequency` of `str Pre` where the other ten carry a number.
 
 ```ts
 const eq = player.getPlugin(EqualizerPlugin)!;
@@ -78,10 +81,11 @@ eq.preGain(0.5);
 Setting a band or the pre-gain clears the selected preset, because the curve is no longer that preset's.
 `preset()` with no argument reads the active name back, or `undefined` once a band has moved.
 
-A pre-gain of `0` is unity gain. The plugin adds one to the value before it reaches the `GainNode`, which is why its range runs from `-1` to `3` rather than around zero.
+A pre-gain of `0` is unity gain. The plugin adds one to the value before it reaches the `cls GainNode`, which is why its range runs from `-1` to `3` rather than around zero.
 Values within 0.05 of zero snap to exactly zero, so a slider settles in the middle instead of resting at 0.0003.
 
-For a UI, `bandSliderMin`, `bandSliderMax` and `bandSliderStep` hand you the range to put on an `<input type="range">`.
+For a UI, `fn bandSliderMin`, `fn bandSliderMax` and `fn bandSliderStep` hand you the range to put on an `<input type="range">`.
+Each takes the band's frequency, or `str Pre` for the pre-gain stage.
 That is -12 to +12 dB for a band and -1 to 3 for the pre-gain, both in steps of 0.01.
 
 Every option, all five events, and the persistence rules are on [Plugin: Equalizer](/nomercy-player-core/plugins-adapters/equalizer).
