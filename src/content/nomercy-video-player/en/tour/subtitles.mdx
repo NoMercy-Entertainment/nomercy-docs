@@ -12,10 +12,9 @@ The player from [Quick Start](/nomercy-video-player/quickstart) plays a film wit
 Captions add three separate things.
 The player picks a track out of a list.
 A renderer paints the cue text on screen.
-
 The player writes the choice down, so the next episode opens the way the viewer left it.
 
-Each one is wired on its own, and each one fails on its own, which is why they are three sections rather than one.
+Each one is wired on its own, and each one fails on its own.
 
 ## The list you pick from
 
@@ -51,8 +50,10 @@ Bind a caption key to that rather than working out the next index yourself.
 ## Nothing is painted until you register a renderer
 
 The player never lets the browser draw the cues.
-The selected text track is held at `hidden`, so its cues still fire while the browser paints nothing.
-Every renderer reads the same `subtitleCue` stream instead.
+A track the stream carries is held at `str hidden`, so its cues still fire while the browser paints nothing.
+A sidecar file is fetched and parsed by the player itself, and never reaches the browser as a track at all.
+
+Both paths emit the same `subtitleCue` event, and every renderer reads that.
 
 Two renderers ship with the player, and they split on the file's extension.
 
@@ -60,11 +61,11 @@ Two renderers ship with the player, and they split on the file's extension.
 That covers WebVTT sidecar files and the text tracks a stream carries.
 
 [Octopus](/nomercy-video-player/plugins-adapters/octopus) hands the file to libass, which reproduces the typesetting, positioning and fonts the file describes.
-It claims a track only when the resolved extension is `ass` or `ssa`, and tears itself down for anything else.
+It claims a track only when the resolved extension is `str ass` or `str ssa`, and tears itself down for anything else.
 
 The split has a sharp edge.
-Register only the overlay, and an `.ass` track selects correctly and shows nothing: the file has no `WEBVTT` header, so it parses to zero cues.
-Register only Octopus, and a `.vtt` track does the same.
+Register only the overlay, and an `str .ass` track selects correctly and shows nothing: the file has no `str WEBVTT` header, so it parses to zero cues.
+Register only Octopus, and a `str .vtt` track does the same.
 
 Register both when your library holds both formats.
 They never double up, because each one stands down for what the other claims.
@@ -84,11 +85,11 @@ An index means a different language on the next file, and a stream's own default
 Three things travel with the choice instead:
 
 - the language tag
-- the variant, which is the `type` field a track carries for `sdh` or `forced`
+- the variant, which is the `key type` field a track carries for `str sdh` or `str forced`
 - the format, read off the end of the file's URL
 
 The variant and the format are there because a viewer who picked English SDH and got plain English back was handed a different track under one name.
-Two renditions of the same language can also differ only by container, and an `.ass` carries the show's own styling where a `.vtt` does not.
+Two renditions of the same language can also differ only by container, and an `str .ass` carries the show's own styling where a `str .vtt` does not.
 
 On the next item the player takes the closest track it can find:
 
@@ -104,7 +105,7 @@ A viewer who turned captions off gets the next episode with captions off.
 
 ### It survives a reload only when the player has storage
 
-The memory writes through the `storage` adapter on your setup config.
+The memory writes through the `key storage` adapter on your setup config.
 Leave that field out and there is nothing to write to.
 The choice still carries from item to item inside that player, and a reload starts blank.
 
@@ -118,23 +119,23 @@ player.setup({
 });
 ```
 
-Two keys are written: `nmplayer-language-audio` and `nmplayer-language-subtitle`.
+Two keys are written: `str nmplayer-language-audio` and `str nmplayer-language-subtitle`.
 A backend that throws is swallowed, so a viewer with site data blocked keeps the in-session carry-over and loses the rest.
 
 ## Choosing the language to open with
 
-`defaultSubtitleLanguage` on the setup config names the language a fresh viewer starts in.
+`key defaultSubtitleLanguage` on the setup config names the language a fresh viewer starts in.
 
 It is a fallback, not an override.
-A remembered choice is read first, and `defaultSubtitleLanguage` is consulted only when there is none.
+A remembered choice is read first, and `key defaultSubtitleLanguage` is consulted only when there is none.
 Once a viewer has picked once, their pick wins on every item after.
 
 The tag has to match the track's own tag, either exactly or across a hyphen.
-`nl` matches a track tagged `nl-NL`.
-`en` does not match a track tagged `eng`, because there is no hyphen to split on.
+`str nl` matches a track tagged `str nl-NL`.
+`str en` does not match a track tagged `str eng`, because there is no hyphen to split on.
 
 A language asked for on its own lands on the plain track first.
-Asking for `eng` against a list holding English SDH and English selects English.
+Asking for `str eng` against a list holding English SDH and English selects English.
 
 ## Styling the text
 

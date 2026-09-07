@@ -44,12 +44,13 @@ player.language(); // 'en'
 ```
 
 A lookup walks that tag down its parents, then to English.
-`pt-BR` is tried, then `pt`, then `en`.
+`str pt-BR` is tried, then `str pt`, then `str en`.
 
 So a regional bundle only has to carry what it changes, and the parent covers the rest.
 
 **`language(tag)` is the same method with an argument, and it hands back a promise.**
-Await it. It resolves once the bundles for the new tag and its parents are loaded, and every registered plugin's bundles are part of that wait.
+Await it.
+It resolves once the bundles for the new tag and its parents are loaded, and every registered plugin's bundles are part of that wait.
 
 ```ts
 await player.language('pt-BR');
@@ -58,11 +59,12 @@ await player.language('pt-BR');
 A switch announces itself before it happens.
 `beforeLanguage` carries the requested tag, and a listener may call `preventDefault()` to keep the current language, which then emits `languagePrevented`.
 
-A listener that writes to `data.lang` instead redirects the switch to the tag it wrote. `language` fires afterward with the tag that won.
+A listener that writes to `data.lang` instead redirects the switch to the tag it wrote.
+`language` fires afterward with the tag that won.
 
 ### The language it starts in
 
-Three sources, first one that answers: the `language` config field, then `navigator.language`, then `'en'`.
+Three sources, first one that answers: the `key language` config field, then `navigator.language`, then `str en`.
 
 The player makes that opening call itself, after its plugins have registered.
 
@@ -74,31 +76,36 @@ The startup call is skipped rather than run late, which is what stops it overwri
 The kit carries 30 `core.*` keys, covering network, auth, browser policy, media, DRM, player state, accessibility announcements and chapter titles.
 
 Two more keys sit outside that namespace.
-`plugin.tab-leader.lost` and `plugin.media-session.unsupported` are what two kit plugins put on screen, so `enTranslations` holds 32 entries in total.
+`str plugin.tab-leader.lost` and `str plugin.media-session.unsupported` are what two kit plugins put on screen, so `enTranslations` holds 32 entries in total.
 
 English is compiled in and merged synchronously, so `t('core.*')` answers before any load has run.
 
-The other 78 tags are one file each, fetched the first time `language()` switches to one. A reader who wants Dutch never downloads Chinese.
+The other 78 tags are one file each, fetched the first time `language()` switches to one.
+A reader who wants Dutch never downloads Chinese.
 
 Your own bundles win a collision.
-`translations` is merged over the kit English key by key, and your `loadTranslations` result is merged over whatever the kit loader returned for the same tag.
+`key translations` is merged over the kit English key by key, and your `key loadTranslations` result is merged over whatever the kit loader returned for the same tag.
 
 Four `setup` fields seed all of it:
 
 | Field | Does |
 | --- | --- |
-| `language` | The tag to start in. |
-| `translations` | Bundles by tag, merged during setup. |
-| `loadTranslations` | Async loader for a tag not yet fetched. |
-| `onMissingTranslation` | Runs before a miss falls back to the key. |
+| `key language` | The tag to start in. |
+| `key translations` | Bundles by tag, merged during setup. |
+| `key loadTranslations` | Async loader for a tag not yet fetched. |
+| `key onMissingTranslation` | Runs before a miss falls back to the key. |
 
-A fifth field, `translator`, replaces the lookup engine outright rather than feeding it. [Adapter: Translator](/nomercy-player-core/plugins-adapters/adapter-translator) is where that swap belongs.
+A fifth field, `key translator`, replaces the lookup engine outright rather than feeding it.
+[Adapter: Translator](/nomercy-player-core/plugins-adapters/adapter-translator) is where that swap belongs.
 
 The English bundle is also an ordinary import, for spreading into your own:
 
 ```ts
 import { defaultTranslations, enTranslations } from '@nomercy-entertainment/nomercy-player-core';
 ```
+
+`enTranslations` is the flat key-to-string map.
+`defaultTranslations` wraps it as `{ en: enTranslations }`, which is the shape `key translations` takes.
 
 ## A plugin brings its own strings
 
@@ -110,15 +117,17 @@ The class-typed form of `t()` builds the prefix from the class you pass:
 player.t(CastSenderPlugin, 'action.connect'); // 'Cast'
 ```
 
-`CastSenderPlugin.id` is `'cast-sender'`, so the key actually looked up is `plugin.cast-sender.action.connect`.
+`cls CastSenderPlugin` declares its `key id` as `str cast-sender`, so the key actually looked up is `str plugin.cast-sender.action.connect`.
 A plugin calling its own scoped `t()` gets the same prefix without naming itself.
 
 There are two ways a plugin ships bundles.
 A `static translations` field is merged when the plugin registers, and an instance `loadTranslations(lang)` hook is called on each switch to a tag it has not answered for yet.
 
-Keys the hook returns are namespaced under `plugin.<id>.` for you. Each plugin and tag pair is asked at most once per player.
+Keys the hook returns are namespaced under `plugin.<id>.` for you.
+Each plugin and tag pair is asked at most once per player.
 
-**Disposal only clears the namespace when the class declares `static translations`.** A plugin that ships bundles through the hook alone leaves its keys in the table after it goes.
+**Disposal only clears the namespace when the class declares `static translations`.**
+A plugin that ships bundles through the hook alone leaves its keys in the table after it goes.
 
 [Build a Player: Add i18n](/nomercy-player-core/build/add-i18n) is the walkthrough for shipping a bundle with a plugin and loading one at runtime.
 
@@ -131,7 +140,8 @@ player.t('core.drm.licenseFailed'); // 'Could not get a license for this content
 player.t('core.drm.licenceFailed'); // 'core.drm.licenceFailed'
 ```
 
-A British spelling is not a variant of a key. It is a different key, and it resolves to itself.
+A British spelling is not a variant of a key.
+It is a different key, and it resolves to itself.
 
 Match the American form when you add your own, or one spelling ends up overriding nothing.
 

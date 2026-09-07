@@ -11,7 +11,7 @@ Every transport call runs the same three steps.
 
 It announces the intent, gives your listeners a chance to stop it, and only then changes state and calls the backend.
 
-That shape is what makes the events predictable, and it is what lets a plugin veto an action instead of undoing it afterwards.
+That shape is what makes the events predictable, and it is what lets a plugin veto an action instead of undoing it afterward.
 
 ## What each call announces
 
@@ -40,9 +40,10 @@ player.on('beforePlay', (event) => {
 });
 ```
 
-**A cancelled action changes nothing.** No state moves, the plain event never fires, and the backend is never called.
+**A canceled action changes nothing.**
+No state moves, the plain event never fires, and the backend is never called.
 
-What fires instead is `<action>Prevented`, carrying a `reason` and, when there was one, a `cause`:
+What fires instead is `<action>Prevented`, carrying a `key reason` and, when there was one, a `key cause`:
 
 ```ts
 player.on('playPrevented', ({ reason }) => {
@@ -50,7 +51,7 @@ player.on('playPrevented', ({ reason }) => {
 });
 ```
 
-`reason` is `listener-prevented` when a listener cancelled it.
+`key reason` is `str listener-prevented` when a listener canceled it.
 
 ## `play` is not proof that playback started
 
@@ -59,7 +60,7 @@ player.on('playPrevented', ({ reason }) => {
 **When the backend refuses, the `play` event has already fired.**
 The refusal you will actually meet is a browser declining autoplay without a gesture.
 
-The player then rolls the state back to paused, emits `playPrevented` with reason `backend-refused`, and rethrows.
+The player then rolls the state back to paused, emits `playPrevented` with reason `str backend-refused`, and rethrows.
 
 So an unawaited `play()` becomes an unhandled rejection, and it needs catching even though the event already told you:
 
@@ -95,15 +96,15 @@ A `forward(10)` listener sees `time: 10`, a `rewind(10)` listener sees `-10`, an
 The `seek` and `seeked` events that follow carry the absolute target instead.
 
 **Rewriting `event.data.time` in a `beforeSeek` listener does not move any of the three.**
-They work out their target before the dispatch and keep it, and only `source` is read back off the event.
+They work out their target before the dispatch and keep it, and only `key source` is read back off the event.
 
 Seeking to a position you name belongs to [Time](/nomercy-player-core/tour/time).
 
 ## The seeking phase
 
-A seek moves the player into the `seeking` phase and back to the phase it was in.
+A seek moves the player into the `str seeking` phase and back to the phase it was in.
 
-**That round trip only happens from `playing`, `paused` or `starting`.**
+**That round trip only happens from `str playing`, `str paused` or `str starting`.**
 A seek before playback has started emits no phase change at all, which is what keeps a restored position from flashing a seeking state through your interface.
 
 A prevented seek changes no phase either.
@@ -112,9 +113,9 @@ A prevented seek changes no phase either.
 
 `next()` reads the repeat mode, set with `repeatState()`, and does one of three things.
 
-- `'one'` reloads the current item. The queue cursor does not move.
-- `'all'` wraps to the first item once there is no next one.
-- `'off'` emits `queue:exhausted` once there is no next one.
+- `str one` reloads the current item. The queue cursor does not move.
+- `str all` wraps to the first item once there is no next one.
+- `str off` emits `queue:exhausted` once there is no next one.
 
 An empty queue emits `queue:exhausted` under all three.
 
@@ -130,7 +131,7 @@ A load that fails is the other way round: `next()` does await the load, so that 
 
 ## Attributing an action
 
-Every call on this page takes an options object with a `source` on it.
+Every call on this page takes an options object with a `key source` on it.
 
 Whatever you put there is stamped onto the event that follows, and nothing fills one in when you leave it out.
 
@@ -146,13 +147,14 @@ await player.play({ source: 'remote' });
 That is what lets a plugin syncing playback across devices tell its own echo apart from a real press.
 
 A `before*` listener can rewrite `event.data` too, and the plain event carries what the listener left behind.
-`seek` carries a source as well. `seeked` does not.
+`seek` carries a source as well.
+`seeked` does not.
 
 ## Before setup and after disposal
 
 Every method on this page checks the player is usable before anything else.
 
-Called before `setup()` it throws `core:player/not-ready`, and after `dispose()` it throws `core:player/disposed`.
+Called before `setup()` it throws `str core:player/not-ready`, and after `dispose()` it throws `str core:player/disposed`.
 
 Neither is preventable and neither emits, because the check runs ahead of the dispatch.
 

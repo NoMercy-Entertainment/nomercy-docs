@@ -3,15 +3,17 @@ title: 'Volume'
 description: 'Setting the level, muting, and the curve between the number you set and the gain the browser applies.'
 ---
 
+{/* Source: packages/nomercy-player-core/src/core/mixins/volume.ts, src/core/volume-curve.ts, src/adapters/media-element/MediaElementBackend.ts, src/types/state.ts */}
+
 # Volume
 
 The player's volume is one number between 0 and 100.
 That number is a position on a slider, not a gain.
-What reaches the video element is a curve applied to it, and most of this page is about that curve.
+What reaches the video element is a curve applied to it.
 
 ## Setting the level
 
-Call `volume` with a number once [`ready()`](/nomercy-video-player/quickstart) has resolved.
+Call `fn volume` with a number once [`ready()`](/nomercy-video-player/quickstart) has resolved.
 
 ```ts
 await player.volume(50);
@@ -30,13 +32,13 @@ const level = player.volume(); // 50
 Pass a number for a different step, as in `volumeUp(10)`.
 Both clamp the same way, and neither hands you a promise to await.
 
-Until the first `volume` call the video element runs at full output.
+Until the first `fn volume` call the video element runs at full output.
 Set the level yourself after `ready()` if you want playback to start anywhere but the top.
 
 ## The curve between the two numbers
 
 The number you set is a position.
-The number the browser applies is that position squared.
+The number the browser applies is that position on a 0-to-1 scale, squared.
 
 ```
 gain = (level / 100) ** 2
@@ -54,11 +56,11 @@ So halfway up the slider is a quarter of the amplitude.
 
 The reason is that loudness is not heard on a linear scale.
 Map the slider straight onto the gain and almost the whole audible range piles into the bottom third of the travel.
-The squared taper spreads the change out, so a step of five sounds about the same size wherever the reader takes it.
+The squared taper spreads the change out, so a step of five sounds about the same size anywhere on the travel.
 
 The curve is applied at the last moment, where the gain is written to the media element.
 Everything above that point works in positions.
-`volume()` therefore always answers with the position you set, and the element's own `volume` property holds the gain, so the two numbers agree only at 0 and at 100.
+`volume()` therefore answers with the position, never the gain, so an interface reading `element.volume` and one reading `volume()` show different numbers for the same output.
 
 ## Muting
 
@@ -74,7 +76,7 @@ player.toggleMute();
 
 `volume()` reports 0 for as long as the player is muted, and the stored level is not lost.
 `volumeState()` is what tells those two apart.
-It returns `VolumeState.MUTED` or `VolumeState.UNMUTED`, whose values are the strings `'muted'` and `'unmuted'`.
+It returns `cls VolumeState.MUTED` or `cls VolumeState.UNMUTED`, whose values are the strings `str muted` and `str unmuted`.
 
 ```ts
 import { VolumeState } from '@nomercy-entertainment/nomercy-video-player';
@@ -86,14 +88,21 @@ if (player.volumeState() === VolumeState.MUTED) {
 
 Setting a level while muted lifts the mute.
 `volume(40)` on a muted player unmutes it, then applies the level.
-That is what makes a slider drag work while the mute button is on, and it is why a mute icon should read `volumeState()` rather than keep a boolean of its own.
+That is what makes a slider drag work while the mute button is on.
+A mute icon should therefore read `volumeState()` rather than keep a boolean of its own.
 
 **A level of 0 is not a mute.**
-`volume(0)` writes a gain of zero and leaves `volumeState()` at `'unmuted'`, so there is nothing for `unmute()` to undo.
+`volume(0)` writes a gain of zero and leaves `volumeState()` at `str unmuted`, so there is nothing for `unmute()` to undo.
 Reach for `mute()` whenever you want the level held for later.
 
-`mute()` can be called before `setup()`, and the state carries through it.
-That is the way to start a player silent and hand the sound back after the viewer's first gesture.
+**Mute right after `setup()` to start a player silent.**
+
+```ts
+player.setup(config);
+await player.mute();
+```
+
+The element comes up silent, `volumeState()` reads `str muted`, and `unmute()` hands the sound back on the viewer's first gesture.
 
 ## What a listener sees
 
@@ -115,4 +124,4 @@ A canceled change leaves the level and the mute state untouched.
 
 ## Next steps
 
-- [Volume Memory](/nomercy-player-core/plugins-adapters/volume-memory) saves the level and the mute state, and restores them the next time the reader arrives.
+- [Volume Memory](/nomercy-player-core/plugins-adapters/volume-memory) saves the level and the mute state, and restores them the next time the viewer arrives.

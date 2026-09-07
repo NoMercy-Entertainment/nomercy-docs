@@ -9,7 +9,7 @@ description: 'How the player announces what it is doing, how you subscribe, and 
 
 A player announces everything it does as an event.
 
-All of it runs through one class, `EventEmitter`, and the player instance is one.
+All of it runs through one class, `cls EventEmitter`, and the player instance is one.
 So `player.on(...)` is the whole subscription surface, with nothing to wire up first.
 
 ## Subscribing
@@ -18,16 +18,16 @@ So `player.on(...)` is the whole subscription surface, with nothing to wire up f
 player.on('play', () => showPauseButton());
 ```
 
-`on` runs your handler on every emit of that name.
-`once` runs it on the next emit and then removes it.
-Remove one yourself with `off`:
+`fn on` runs your handler on every emit of that name.
+`fn once` runs it on the next emit and then removes it.
+Remove one yourself with `fn off`:
 
 ```ts
 player.off('play', showPauseButton);
 ```
 
 Pass the same function reference you subscribed with.
-That is also how a `once` handler is cancelled before it has fired.
+That is also how a `fn once` handler is canceled before it has fired.
 
 Registering one function twice for one event registers it once.
 The second call is not a second subscription.
@@ -60,8 +60,9 @@ Subscribing to a name the bus knows will never fire logs a console warning namin
 player.on('all', (event, data) => console.log(event, data));
 ```
 
-`'all'` calls your handler for every emit, with the name first and the payload second.
-That is the debugging hook. Remove one with `off('all', fn)`.
+`str all` calls your handler for every emit, with the name first and the payload second.
+That is the debugging hook.
+Remove one with `off('all', fn)`.
 
 Firehose listeners are held apart from named ones.
 `hasListeners('all')` is false while one is registered, because it answers about named subscriptions only.
@@ -83,15 +84,15 @@ Three things hold on every dispatch.
 
 That last one is why one broken listener cannot stop the player telling everybody else what happened.
 
-Whenever a name gains its first listener or loses its last, the bus emits `listeners-changed` with `{ name, count }`.
+Whenever a name gains its first listener or loses its last, the bus emits `str listeners-changed` with `{ name, count }`.
 It arrives on a microtask, not inside your `on()` call.
 
-`EventEmitter` is exported on its own, so every mechanic above can be driven with no player around it.
+`cls EventEmitter` is exported on its own, so every mechanic above can be driven with no player around it.
 
 :::snippet{file="tour-event-bus" live="false"}
 :::
 
-## Cancelling an action
+## Canceling an action
 
 An action the player is about to take announces itself first, on an event named `before` plus the action.
 Eighteen events in the core map work this way, `beforePlay`, `beforeSeek` and `beforeLoad` among them.
@@ -137,20 +138,21 @@ player.on('beforePlay', (event) => {
 Several handlers may delay one action, and their promises are awaited together.
 
 The wait is capped, and the cap is 10000 ms.
-Set your own with `beforeEventTimeoutMs` in the setup config.
+Set your own with `key beforeEventTimeoutMs` in the setup config.
 
-A delayed promise that rejects cancels the action. So does running out of time.
+A delayed promise that rejects cancels the action.
+So does running out of time.
 
-`reason` on the `<action>Prevented` payload says which of four cases you are in.
+`key reason` on the `<action>Prevented` payload says which of four cases you are in.
 
-| `reason` | The action stopped because |
+| `key reason` | The action stopped because |
 | --- | --- |
-| `listener-prevented` | A handler called `preventDefault()`. |
-| `delay-rejected` | A delayed promise rejected. The rejection arrives beside it as `cause`. |
-| `delay-timeout` | The delays outlasted the cap. |
-| `backend-refused` | The browser or the backend declined the call itself. |
+| `str listener-prevented` | A handler called `preventDefault()`. |
+| `str delay-rejected` | A delayed promise rejected. The rejection arrives beside it as `key cause`. |
+| `str delay-timeout` | The delays outlasted the cap. |
+| `str backend-refused` | The browser or the backend declined the call itself. |
 
-`backend-refused` is the one no handler causes.
+`str backend-refused` is the one no handler causes.
 A browser blocking autoplay is the case you will actually meet.
 
 **Order decides whether a delay is honored.**
@@ -165,4 +167,4 @@ Reach for it when a handler needs to know which chain it is inside.
 ## Next steps
 
 - [Reference: Events](/nomercy-player-core/reference/events) for every event name and the payload it carries.
-- [Adapter: Event Bus](/nomercy-player-core/plugins-adapters/adapter-event-bus) for `IEventBus`, the type to write your own code against.
+- [Adapter: Event Bus](/nomercy-player-core/plugins-adapters/adapter-event-bus) for `cls IEventBus`, the type to write your own code against.
