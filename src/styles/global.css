@@ -384,6 +384,23 @@
   background-color: var(--tw-prose-code-bg);
 }
 
+/* Astro gives every <astro-island> `display: contents`, so the island has no
+   box of its own: the column's cap and auto margins land on it and reach
+   nothing, and the player example inside spans the full column while every
+   sibling stops at the cap. Cap the island's child instead, with the same two
+   widths the column uses. Unlayered for the same reason as the block below --
+   Astro's own rule is unlayered too. */
+.prose > astro-island > * {
+  max-width: var(--container-3xl);
+  margin-inline: auto;
+}
+
+@media (min-width: 1024px) {
+  .prose > astro-island > * {
+    max-width: var(--container-5xl);
+  }
+}
+
 /* Unlayered on purpose: the widths here override Tailwind utilities, and a
    rule inside `@layer base` loses to the utilities layer however specific it
    is.
