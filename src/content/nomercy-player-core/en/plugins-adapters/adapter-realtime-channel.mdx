@@ -1,17 +1,15 @@
 ---
 title: 'Adapter: Realtime Channel'
-description: 'IRealtimeChannel / RealtimeFactory: protocol-agnostic realtime transport behind Plugin.websocket(). Default nativeWebSocketAdapter; swap for SignalR, Socket.IO, or a custom transport.'
+description: 'IRealtimeChannel is the transport handle behind Plugin.websocket(), and RealtimeFactory is what builds one. nativeWebSocketAdapter wraps a browser WebSocket; a factory of yours can speak SignalR, Socket.IO or anything else.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/adapters/realtime/IRealtimeChannel.ts */}
+{/* Source: packages/nomercy-player-core/src/adapters/realtime/IRealtimeChannel.ts, src/adapters/realtime/websocket.ts, src/core/plugin/base.ts */}
 
 # Adapter: Realtime Channel
 
-`IRealtimeChannel` is a protocol-agnostic realtime connection handle. `RealtimeFactory` is the function shape that creates one, swappable globally or per call.
+`cls IRealtimeChannel` is a live connection reduced to five members, so plugin code writes against one shape whatever transport is underneath. `cls RealtimeFactory` is the function that builds one from a URL.
 
-Supply your own factory when the player has to share a live connection with the rest of your app, or speak something other than a bare WebSocket: a SignalR hub, Socket.IO, or a transport that reconnects on its own. Watch-party sync and remote-control sessions are the usual reasons.
-
-The built-in adapter wraps one native `WebSocket` and never reconnects, so reconnection is a property of the factory you supply, not of the kit.
+Supply your own factory when the player has to share a connection with the rest of your application, or speak something other than a bare WebSocket: a SignalR hub, Socket.IO, or a transport that reconnects on its own. Watch-party sync and remote-control sessions are the usual reasons.
 
 ## The interfaces
 
@@ -27,41 +25,67 @@ interface IRealtimeChannel {
 type RealtimeFactory = (url: string, opts?: RealtimeFactoryOptions) => IRealtimeChannel;
 ```
 
-`RealtimeFactoryOptions` carries these fields:
+`cls RealtimeFactoryOptions` reaches the factory whole:
 
-| Field | Purpose |
-| --- | --- |
-| `protocols` | WebSocket sub-protocol strings. |
-| `reconnect`, `baseDelayMs`, `maxDelayMs` | Reconnection knobs forwarded to the factory. Only a factory that implements reconnection reads them; the built-in native adapter does not. |
-| `factory` | A per-call override, for one connection that uses a different transport without changing the global default. |
+| Field | What it carries |
+|---|---|
+| `key protocols` | Sub-protocol strings for the handshake. The built-in adapter passes them to the `cls WebSocket` constructor. |
+| `key reconnect`, `key baseDelayMs`, `key maxDelayMs` | Reconnection settings. They are handed to the factory and acted on by a factory that implements reconnection. |
+| `key factory` | A per-call override, for one connection on a different transport. |
 
-## Rules & restrictions
+## How a plugin opens one
 
-- Call `send()` only when `readyState === 'open'`. The underlying transport throws otherwise. The port does not buffer or queue messages for you.
+`this.websocket(url, opts)` inside a plugin picks the factory in this order:
 
-The factory that actually runs is resolved in this order:
+1. `key factory` on the call.
+2. The player's configured `key websocketFactory`.
+3. `fn nativeWebSocketAdapter`.
 
-1. A per-call `opts.factory`.
-2. The player's configured `websocketFactory`.
-3. The built-in `nativeWebSocketAdapter`, as the final fallback.
+It then registers a cleanup on the plugin's lifecycle, so disposing the plugin closes the channel unless it is already closing or closed. Holding the reference to close it yourself is optional.
 
 ## Default implementation
 
-`nativeWebSocketAdapter` wraps the browser's native `WebSocket`. It never reconnects: a factory you supply is what reads the reconnect knobs and acts on them.
+`fn nativeWebSocketAdapter` wraps one browser `cls WebSocket`.
+
+- `key readyState` maps the four numeric constants onto `str connecting`, `str open`, `str closing` and `str closed`, and anything else onto `str closed`.
+- A `str message` listener receives the raw payload the socket delivered, not the event around it.
+- A `str close` listener receives a `key code` and a `key reason`. An `str error` listener receives the browser's own event object.
+- A listener that throws is caught, and the listeners registered after it on the same event still run.
+
+It holds exactly one socket for its life. A connection that has to survive a drop is a property of the factory you supply.
+
+## Where to import it from
+
+```ts
+import { nativeWebSocketAdapter } from '@nomercy-entertainment/nomercy-player-core';
+import type { IRealtimeChannel, RealtimeFactory, RealtimeFactoryOptions } from '@nomercy-entertainment/nomercy-player-core';
+```
+
+All four are on the `./adapters/realtime` subpath as well.
+
+## Rules & restrictions
+
+- Send only while `key readyState` reads `str open`. A native socket throws on a send before the handshake finishes, and the port buffers nothing on your behalf.
+- `fn on` takes every listener you give it and `fn off` needs the same function reference back. An inline arrow cannot be removed.
+- `fn close` follows the WebSocket close handshake, so `key code` and `key reason` are the RFC 6455 values. Omit both for a clean close.
+- A factory is called once per connection and gets the URL exactly as the caller wrote it. Signing or rewriting it is the factory's job.
 
 ## How to extend it
 
-Global swap, for every realtime connection the player opens:
+A global swap covers every realtime connection the player opens:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
+import type { RealtimeFactory } from '@nomercy-entertainment/nomercy-player-core';
+
+const signalRFactory: RealtimeFactory = (url, opts) => myHubChannel(url, opts);
 
 const player = nmplayer('player');
 
 player.setup({ websocketFactory: signalRFactory });
 ```
 
-Per-call override, inside a plugin, for one connection using a different transport:
+A single connection takes a different transport without touching that default:
 
 ```ts
 this.websocket(url, { factory: socketIoFactory });
@@ -69,4 +93,4 @@ this.websocket(url, { factory: socketIoFactory });
 
 ## Next steps
 
-- [Reference](/nomercy-player-core/reference/composition): full signatures and types for the composition primitives, config, events, and errors this tour and these reference pages have been building on.
+- [Reference: Composition](/nomercy-player-core/reference/composition): full signatures and types for the composition primitives, config, events, and errors these pages build on.

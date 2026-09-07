@@ -1,85 +1,123 @@
 ---
 title: 'Plugin: Key Handler (video)'
-description: 'KeyHandlerPlugin registration for video: the full desktop default binding set, built as small overridable group methods. Full surface lives in core.'
+description: 'KeyHandlerPlugin is the video keyboard set: 53 bindings across sixteen group methods, each group overridable on its own, with scope, cooldown and input-field awareness inherited from the kit base.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/plugins/key-handler/index.ts */}
+{/* Source: packages/nomercy-video-player/src/plugins/key-handler/index.ts, src/types.ts; packages/nomercy-player-core/src/plugins/key-handler/index.ts, src/core/mixins/transport.ts, src/core/mixins/volume.ts */}
 
 # Plugin: Key Handler
 
-## Purpose
+`cls KeyHandlerPlugin` (id `str key-handler`) is this library's desktop keyboard set. Transport, volume, track cycling, modifier seeks, chapters, speed, fullscreen and aspect ratio arrive as one registration. Every group behind them is a `protected` method a subclass can replace on its own.
 
-`KeyHandlerPlugin` (id `'key-handler'`) is this library's desktop keyboard-binding set: transport, volume, tracks, seek modifiers, and more. It subclasses the kit's [`KeyHandlerPlugin`](/nomercy-player-core/plugins-adapters/key-handler), which brings scope resolution, cooldown, input-field awareness, and `bind`/`unbind`/`replace`. On top, it adds every video binding as its own small group method, each overridable on its own.
+It subclasses the kit's [Plugin: Key Handler](/nomercy-player-core/plugins-adapters/key-handler), which brings scope resolution, the cooldown, input-field awareness and `fn bind` / `fn unbind` / `fn replace`.
 
-[`TvKeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/tv-key-handler) subclasses this one for remote-control input. [Recipe: Customizing Keyboard Shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts) covers extending or replacing bindings on either.
+[Plugin: TV Key Handler](/nomercy-video-player/plugins-adapters/tv-key-handler) subclasses this one for remote-control input.
 
 ## Using it
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player';
+import nmplayer, { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player';
 
 const player = nmplayer('player');
 
 player.addPlugin(KeyHandlerPlugin);
+
+player.setup({
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  playlist: [
+    {
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      duration: 888,
+    },
+  ],
+});
+
 await player.ready();
 ```
 
-Override one group method to change just that group; the rest of `addDefaults()` stays intact:
+This subclass adds no option fields of its own. `key scope`, `key bindings`, `key extend`, `key when`, `key cooldownMs` and `key disableMediaControls` are the base plugin's, and the core page documents them.
+
+## The bindings
+
+Fifty-three combos install by default. The table below was read back from `player.getPlugin(KeyHandlerPlugin).bindings()` on a player running the published build, so it is the live map rather than a transcription of the source.
+
+The left column is the combo string exactly as the map stores it, which is what you pass to `fn unbind` and `fn replace`.
+
+| Combo | Action |
+|---|---|
+| The spacebar | Toggle playback. Its combo string is one space, so `fn unbind` takes `ts ' '`. |
+| `str MediaPlay` `str MediaPause` `str MediaPlayPause` `str MediaStop` `str MediaRewind` `str MediaFastForward` | Hardware media keys. Gated by `key disableMediaControls` on the player config. |
+| `str ArrowLeft` `str ArrowRight` | Rewind or forward five seconds, the kit's own default step. Desktop only: `fn isTv` gates them off. |
+| `str ArrowUp` `str ArrowDown` | Volume up or down five percentage points. Desktop only: gated off when `fn isTv` or `fn isMobile` answers true. |
+| `str m` | Toggle mute. |
+| `str Subtitle` `str 5` `str v` | Cycle subtitle tracks. `str Subtitle` is a remote key. |
+| `str Audio` `str 2` `str b` | Cycle audio tracks. `str Audio` is a remote key. |
+| `str shift+ArrowLeft` `str shift+ArrowRight` | Seek 3 seconds back or forward. |
+| `str alt+ArrowLeft` `str alt+ArrowRight` | Seek 10 seconds back or forward. |
+| `str ctrl+ArrowLeft` `str ctrl+ArrowRight` | Seek 60 seconds back or forward. |
+| `str 1` `str 3` `str 6` `str 9` | Skip forward 120, 30, 60 and 90 seconds. |
+| `str ColorF0Red` `str ColorF1Green` `str ColorF2Yellow` `str ColorF3Blue` | Remote color buttons. Skip forward 30, 60, 90 and 120 seconds. |
+| `str MediaTrackNext` `str MediaTrackPrevious` | Next or previous item. Gated by `key disableMediaControls`. |
+| `str n` `str p` | Next or previous item. Not gated. |
+| `str shift+n` `str shift+p` | Next or previous chapter. |
+| `str f` `str F11` | Toggle fullscreen. |
+| `str Escape` | Leave fullscreen, when `player.fullscreen()` reads `str on`. |
+| `str ]` `str [` | Step up or down one entry in `playbackRates()`, and show the new rate as an OSD message. |
+| `str =` | Reset the rate to 1, with the same message. |
+| `str e` | Advance one frame at 30 fps. Runs while paused, idle or stopped, and is skipped while playing or loading. |
+| `str t` | Show elapsed and remaining time as an OSD message. |
+| `str +` `str shift++` `str -` | Emit `str subtitle-size-up` or `str subtitle-size-down`. |
+| `str a` `str BrowserFavorites` | Cycle aspect ratio. |
+| `str s` | Stop. |
+| `str shift+?` | Open the shortcuts overlay on a mounted `cls DesktopUiPlugin`. |
+
+Two rows repay a closer look.
+
+`str +` is the numeric keypad's plus, which arrives with no shift held, and `str shift++` is the main row's. Both raise the same event, so a reader gets the key their keyboard has.
+
+`str subtitle-size-up` and `str subtitle-size-down` are announcements with no listener in the trio. Attach your own and step `subtitleStyle().fontSize` from it.
+
+## The groups
+
+`fn addDefaults` calls sixteen group methods in this order:
+
+`fn addPlaybackKeys`, `fn addNavigationKeys`, `fn addVolumeKeys`, `fn addMediaKeys`, `fn addModifierSeekKeys`, `fn addQuickSkipKeys`, `fn addNextPrevKeys`, `fn addChapterKeys`, `fn addFullscreenKeys`, `fn addSpeedKeys`, `fn addFrameAdvanceKey`, `fn addShowTimeKey`, `fn addSubtitleSizeKeys`, `fn addAspectRatioKeys`, `fn addStopKey`, `fn addHelpKey`.
+
+Each one is `protected`, so overriding a single group leaves the other fifteen installed.
+
+## Rules & restrictions
+
+- One cooldown covers the whole map, not one binding each. At the default 300 ms, two presses inside that window fire once. Measured: a second `str ArrowLeft` sent immediately reached `fn rewind` zero times, and a third sent 350 ms later reached it.
+- `key disableControls` on `cls VideoPlayerConfig` returns from `fn addDefaults` before the first group runs, so none of the 53 install. The `key bindings` option is applied afterwards and still does, which is how a config-driven player keeps a chosen few.
+- `key disableMediaControls`, also on the config, gates the six `str MediaX` keys and the `str MediaTrackNext` and `str MediaTrackPrevious` pair. It leaves the spacebar, the arrows and every letter key alone.
+- `player.fullscreen()` reports the last request rather than the browser, so `str Escape` acts on the player's own flag. `player.platform().fullscreen.isActive()` is the reader that answers for the browser.
+- A binding with no modifier fires only when no modifier is held. `str ArrowLeft` and `str shift+ArrowLeft` are independent entries, which is what lets the modifier seeks sit beside the plain ones.
+
+## How to extend it
+
+Override the one group you want to change:
 
 ```ts
+import nmplayer, { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player');
+
 class MyKeyHandler extends KeyHandlerPlugin {
-	protected override addFullscreenKeys(): void {
-		this.bind('f', () => { void this.player.toggleFullscreen(); });
-		// F11 and Escape from the default binding intentionally dropped.
-	}
+  protected override addFullscreenKeys(): void {
+    this.bind('f', () => {
+      void this.player.toggleFullscreen();
+    });
+  }
 }
 
 player.addPlugin(MyKeyHandler);
 ```
 
-See [Recipe: Customizing Keyboard Shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts) for the full range, from one runtime `bind()` call up to overriding `addDefaults()` entirely.
-
-## Reference
-
-This subclass adds no new option fields to `KeyHandlerOptions`, only more default groups. See [Plugin: Key Handler (core)](/nomercy-player-core/plugins-adapters/key-handler) for `scope`, `bindings`, `extend`, `when`, `cooldownMs`, `disableMediaControls`, and the modifier-canonicalization rule.
-
-### Default bindings
-
-| Keys | Action |
-|---|---|
-| `Space` | Toggle playback. |
-| `MediaPlay` / `MediaPause` / `MediaPlayPause` / `MediaStop` / `MediaRewind` / `MediaFastForward` | Hardware media keys. Gated by `disableMediaControls` (config field, not the plugin option) via `mediaControlsAllowed()`. |
-| `ArrowLeft` / `ArrowRight` | Rewind / forward one default step. Desktop only, `isTv()` gates this off, see [Plugin: TV Key Handler](/nomercy-video-player/plugins-adapters/tv-key-handler) for the TV equivalent. |
-| `ArrowUp` / `ArrowDown` | Volume up / down. Desktop only (`!isTv() && !isMobile()`). |
-| `m` | Toggle mute. |
-| `Subtitle`, `5`, `v` | Cycle subtitle tracks. |
-| `Audio`, `2`, `b` | Cycle audio tracks. |
-| `shift+ArrowLeft` / `shift+ArrowRight` | Seek ±3s (VLC-style modifier seek). |
-| `alt+ArrowLeft` / `alt+ArrowRight` | Seek ±10s. |
-| `ctrl+ArrowLeft` / `ctrl+ArrowRight` | Seek ±60s. |
-| `1` / `3` / `6` / `9` | Quick-skip forward 120s / 30s / 60s / 90s. |
-| `ColorF0Red` / `ColorF1Green` / `ColorF2Yellow` / `ColorF3Blue` | TV remote color buttons, forward 30s / 60s / 90s / 120s. |
-| `MediaTrackNext` / `MediaTrackPrevious` | Next / previous item. Gated by `disableMediaControls`. |
-| `n` / `p` | Next / previous item. Not gated. |
-| `shift+n` / `shift+p` | Next / previous chapter. |
-| `f` / `F11` | Toggle fullscreen. |
-| `Escape` | Exit fullscreen, only when currently active. |
-| `]` / `[` | Speed up / down one step through `playbackRates()`. |
-| `=` | Reset speed to 1x. |
-| `e` | Frame-advance (~1 frame at 30fps). Skipped while playing or loading, so it fires while paused, idle, or stopped. |
-| `t` | Show current / remaining time as an OSD message. |
-| `+` / `shift++` / `-` | Emit `subtitle-size-up` / `subtitle-size-down`. No shipped plugin listens, wire your own listener (or a custom overlay) to step `subtitleStyle().fontSize`. |
-| `a` / `BrowserFavorites` | Cycle aspect ratio. |
-| `s` | Stop. |
-| `shift+?` | Calls `DesktopUiPlugin.toggleShortcuts()` directly via `getPlugin()` (opens the shortcuts overlay when that plugin is mounted, no-ops otherwise). |
-
-### Rules & restrictions
-
-- Every group above is its own `protected` method (`addPlaybackKeys`, `addVolumeKeys`, `addFullscreenKeys`, and so on), called from `addDefaults()`. Overriding one group in a subclass leaves the rest untouched.
-- `disableControls` on `VideoPlayerConfig` short-circuits `addDefaults()` entirely. No group runs. Only bindings your own `use()` override adds still exist.
-- `disableMediaControls` (also on `VideoPlayerConfig`) only gates the hardware `MediaX` bindings and the `MediaTrackNext`/`Previous` pair. It does not touch `Space`, arrows, or any letter-key binding.
+That leaves `str F11` and `str Escape` unbound and every other group intact. [Recipe: Customizing Keyboard Shortcuts](/nomercy-video-player/recipes/keyboard-shortcuts) covers the range from one runtime `fn bind` call up to replacing `fn addDefaults` outright.
 
 ## Next steps
 
 - [Plugin: TV Key Handler](/nomercy-video-player/plugins-adapters/tv-key-handler): the remote-control subclass built on this one.
+- [Plugin: Key Handler (core)](/nomercy-player-core/plugins-adapters/key-handler): the options, the scope target and the combo grammar this page inherits.

@@ -1,15 +1,15 @@
 ---
 title: 'Adapter: Preload Strategy'
-description: 'IPreloadStrategy: shouldPreload() and assetsToPreload() decide when and what to prefetch before the outgoing item ends. Stateless, snapshot-driven, swappable per instance.'
+description: 'IPreloadStrategy decides when the next queue item is close enough to act on and which of its assets belong in the list. The player announces that list through the four preload events, once per cursor cycle.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/adapters/preload/default.ts */}
+{/* Source: packages/nomercy-player-core/src/adapters/preload/default.ts, src/core/mixins/lifecycle.ts, src/core/mixins/preload-strategy-mixin.ts, packages/nomercy-video-player/src/player/preload.ts, packages/nomercy-music-player/src/player/preload.ts */}
 
 # Adapter: Preload Strategy
 
-`IPreloadStrategy` controls when the player starts fetching assets for the next queue item, and which assets those are.
+`cls IPreloadStrategy` answers two questions about the item after the one playing: whether the boundary is close enough to act on, and which of that item's assets belong in the list.
 
-Swap it when the default prefetch is wrong for your users: hold off on a metered connection, pull more ahead on a fast one, or fetch artwork without fetching media.
+Swap it to move the moment, to shorten the list on a metered connection, or to build the list from fields of your own that the shipped strategies know nothing about. [Adapters](/nomercy-player-core/tour/adapters) puts the port beside the others.
 
 ## The interface
 
@@ -21,51 +21,73 @@ interface IPreloadStrategy {
 }
 ```
 
-`PreloadContext` is a stateless snapshot of `currentTime`, `duration` and `nextItem`, so a strategy never reaches into private player state.
+`cls PreloadContext` is a read-only snapshot of three fields, so a strategy never reaches into player state: `key currentTime` and `key duration` in seconds, and `key nextItem`, which is `ts null` at the end of the queue.
 
-`PreloadAsset` is `{ url, category, mode? }`.
+A `cls PreloadAsset` is a `key url` and a `key category`. The category names the kind of file, and the shipped strategies use `str media`, `str poster`, `str subtitle`, `str sprite`, `str lyrics`, `str chapter` and `str font`. Any string is accepted, so a category of your own passes through.
 
-`category` mirrors `UrlCategory`, one of:
+## What the player does with it
 
-- `'media'`
-- `'poster'`
-- `'subtitle'`
-- `'sprite'`
-- `'lyrics'`
-- a custom string
+`fn shouldPreload` is asked on every `str time` event while a next item exists. The first `ts true` fires the pass and the player stops asking until the cursor moves, so a strategy needs no throttle of its own.
 
-The auth pipeline uses `category` to attach the right headers per asset.
+The pass then calls `fn assetsToPreload` once and works through the answer:
 
-`mode` picks the fetch depth:
+| Event | When | Payload |
+|---|---|---|
+| `str preloadStart` | Immediately, before any request | The `key item`, and every asset as a `key url` and `key category` |
+| `str preloadProgress` | Once per asset | The `key item`, plus `key loaded` and `key total` |
+| `str preloadComplete` | After the last asset, or at once for an empty list | The `key item` |
+| `str preloadError` | When an asset's URL cannot be turned into a request | The `key item` and the `key error` |
 
-| `mode` | What it does |
-| --- | --- |
-| `'metadata'` (default) | Headers only. Suits manifests and sidecars. |
-| `'auto'` | A full fetch. Suits small images and short intros. |
+Each asset is asked for with a single `HEAD` request at `key mode` `str no-cors`, carrying no headers. Hanging your own warming on `str preloadStart` is what gives you the shape of the request, so an asset behind a bearer token is fetched the way the rest of your application fetches one.
 
-## Rules & restrictions
-
-- `shouldPreload` is called on every `time` event while a next item is queued. Once it returns `true`, the player suppresses further calls until the cursor moves, so an implementation needs no debounce of its own.
-- `cancel()` is called when the cursor jumps unexpectedly: a shuffle, a manual `item()`, an explicit `next()` before the end. It has to abort any in-flight prefetch this strategy started, rather than leave it running against an item nobody wants.
+A cursor change ends the pass. The player calls `fn cancel`, rearms `fn shouldPreload` for the new item, and drops any progress still in flight from the old one without emitting for it.
 
 ## Default implementation
 
-`DefaultPreloadStrategy` fires at `duration - preloadLeadSeconds` (10s lead by default) and returns an empty asset list of its own. Music and video players layer domain-specific asset lists on top by providing their own `assetsToPreload`.
+`cls DefaultPreloadStrategy` answers `ts true` once `key currentTime` reaches `key duration` minus its lead, which is ten seconds unless `key preloadLeadSeconds` says otherwise. It answers `ts false` with no next item and `ts false` while `key duration` is still zero. Its own asset list is empty.
+
+Both shipped players extend it and supply the list:
+
+| Player | Assets, in order |
+|---|---|
+| Video | the item's `key url` as `str media`, its poster image, `key previewSpriteUrl` as `str sprite`, every subtitle sidecar, every chapter track file, and every font file |
+| Music | the item's `key url` as `str media`, its cover image as `str poster`, and `key lyricsUrl` as `str lyrics` |
+
+Each of them is constructed with the same `key preloadLeadSeconds` the config carries, and a `key preloadStrategy` you pass replaces it outright.
+
+## Where to import it from
+
+```ts
+import { DefaultPreloadStrategy } from '@nomercy-entertainment/nomercy-player-core';
+import type { IPreloadStrategy, PreloadAsset, PreloadContext } from '@nomercy-entertainment/nomercy-player-core';
+```
+
+All four are on the `./adapters/preload` subpath as well.
+
+## Rules & restrictions
+
+- `fn cancel` has to abort whatever this strategy started. The player calls it on every cursor change and again inside `player.setPreloadStrategy(next)`, and it is the only signal a strategy gets that its work is unwanted.
+- `player.preloadStrategy()` reads back the instance in force, and `player.setPreloadStrategy(next)` replaces it. The swap takes effect on the following `str time` tick.
+- Extending `cls DefaultPreloadStrategy` and overriding `fn assetsToPreload` keeps the lead-second timing and the abort handling. Implementing the interface from scratch means owning both.
+- `fn assetsToPreload` runs once per cursor cycle, so building the list is a cheap synchronous job rather than a place to fetch anything.
 
 ## How to extend it
 
+This one holds off until five seconds remain and asks for artwork alone:
+
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
+import type { IPreloadStrategy } from '@nomercy-entertainment/nomercy-player-core';
+
+const artworkOnly: IPreloadStrategy = {
+	shouldPreload: ctx => ctx.duration > 0 && ctx.duration - ctx.currentTime <= 5,
+	assetsToPreload: item => (item.image ? [{ url: item.image, category: 'poster' }] : []),
+	cancel: () => {},
+};
 
 const player = nmplayer('player');
 
-player.setup({
-	preloadStrategy: {
-		shouldPreload: ctx => ctx.duration - ctx.currentTime <= 5,
-		assetsToPreload: item => [{ url: item.image ?? '', category: 'poster', mode: 'auto' }],
-		cancel: () => {},
-	},
-});
+player.setup({ preloadStrategy: artworkOnly });
 ```
 
 ## Next steps

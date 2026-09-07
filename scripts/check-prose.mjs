@@ -101,7 +101,32 @@ const INTERNAL_ONLY = [
   'development mode', 'development flag', 'dev flag',
 ];
 
+// American English, in prose and in identifiers. The rule is house style and it
+// had no gate, so `catalogue` reached 24 committed pages before anyone counted
+// it. Only unambiguous pairs are listed: `dialogue` is correct American English
+// for a conversation, and `licence` is a real noun in other varieties, so both
+// stay off. A word inside a URL or a code span is skipped by the same
+// stripping every other check here uses.
+const BRITISH = [
+  'catalogue', 'catalogues', 'catalogued',
+  'colour', 'colours', 'coloured', 'colouring',
+  'behaviour', 'behaviours', 'behavioural',
+  'favourite', 'favourites', 'favour', 'favours',
+  'centre', 'centres', 'centred', 'centring',
+  'grey', 'greys', 'greyed',
+  'organise', 'organises', 'organised', 'organising', 'organisation', 'organisations',
+  'recognise', 'recognises', 'recognised', 'recognising',
+  'normalise', 'normalises', 'normalised', 'normalising',
+  'serialise', 'serialises', 'serialised', 'serialising',
+  'initialise', 'initialises', 'initialised', 'initialising',
+  'analyse', 'analyses', 'analysed', 'analysing',
+  'cancelled', 'cancelling', 'travelled', 'travelling',
+  'modelling', 'labelled', 'labelling', 'signalled', 'signalling',
+  'defence', 'artefact', 'artefacts', 'whilst', 'learnt', 'towards',
+];
+
 const CHECKS = [
+  ['british spelling', BRITISH, 'House style is American English, in identifiers as well as prose.'],
   ['internal-only option', INTERNAL_ONLY, 'This exists for the maintainer, not the product. Remove it from the page.'],
   ['change history', CHANGE_HISTORY, 'A page states what is true now. Drop the narrative: "X is superseded by Y" becomes "Use Y".'],
   ['marketing adjective', MARKETING, 'Say what it does. A reader cannot act on an adjective.'],

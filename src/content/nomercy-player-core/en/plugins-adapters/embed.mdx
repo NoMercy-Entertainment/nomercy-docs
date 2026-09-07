@@ -1,54 +1,112 @@
 ---
 title: 'Plugin: Embed'
-description: 'EmbedPlugin: a cross-origin postMessage bridge between a host page and a player running inside an <iframe>, with an explicit inbound-origin allowlist.'
+description: 'EmbedPlugin is the postMessage bridge between a host page and a player inside an iframe. Seven player events go out by default, nine transport commands come in, and inbound commands are gated on an origin allowlist that starts empty.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/plugins/embed/index.ts */}
+{/* Source: packages/nomercy-player-core/src/plugins/embed/index.ts, src/core/plugin/base.ts */}
 
 # Plugin: Embed
 
-`EmbedPlugin` (id `'embed'`) bridges a player running inside an `<iframe>` to the host page via `postMessage`. It forwards player events out (`ready`, `play`, `pause`, and more). It accepts a small transport command set in (`play`, `pause`, `seek`, `volume`, and more).
+`cls EmbedPlugin` (id `str embed`) is the `postMessage` bridge between a player running inside an `<iframe>` and the page hosting that frame.
+
+Seven player events travel out to the host as structured messages, and nine transport commands travel back in. Every inbound message is checked against an origin allowlist that you fill in yourself. The player's own behavior is untouched; the plugin only adds the boundary crossing.
 
 ## Options
 
-| Option | Type | Default | Purpose |
+| Option | Type | Default | What it does |
 |---|---|---|---|
-| `allowedOrigins` | `string \| string[]` | none | Inbound origins accepted. Empty means no inbound commands are accepted at all, outbound events still forward. |
-| `forwardEvents` | `ReadonlyArray<EmbedEventMessage['name']>` | `['ready','play','pause','ended','time','volume','mute']` | Which player events forward to the host. |
-| `applyIframeTweaks` | `boolean` | result of an in-iframe check | Apply embed-specific layout/behavior tweaks automatically. |
+| `key allowedOrigins` | `ts string \| string[]` | empty | Origins permitted to send commands in. |
+| `key forwardEvents` | `ts ReadonlyArray<EmbedEventMessage['name']>` | the seven default names | Which player events go out to the host. |
+| `key applyIframeTweaks` | `ts boolean` | whether the page detects itself as framed | Adds the class `str nm-embed` to the player container. |
+
+`key applyIframeTweaks` adds that one class and stops. No rule in the trio reads it, so the class is a hook for your own stylesheet to hang embed-specific layout on.
+
+## What travels out
+
+Each forwarded event is posted as `ts { type: 'nm:event', name, data }`. The seven default names are `str ready`, `str play`, `str pause`, `str ended`, `str time`, `str volume` and `str mute`. `key data` is the player's own payload for that event.
+
+`str error` is the eighth name `key forwardEvents` accepts, and it is off by default. A live error carries a class instance and bound methods, which structured clone refuses. The plugin flattens it first, into `key code`, `key message`, `key severity`, `key scope`, `key suggestion` and `key context`.
+
+Messages go to `ts window.parent`. The origin they are pinned to depends on how many origins you listed:
+
+| `key allowedOrigins` | Outbound target |
+|---|---|
+| Empty, which is the default | `str *` |
+| Exactly one origin | that origin |
+| Two or more, or a list containing `str *` | `str *` |
+
+Pin to one origin in production. That is the only setting where the browser refuses to deliver a message to an unexpected host.
+
+## What travels in
+
+The host posts `ts { type: 'nm:command', action }` to the frame's `ts contentWindow`. The origin is checked first, and a message from an origin outside the list is dropped before its shape is even read.
+
+| `key action` | Extra field | Player call |
+|---|---|---|
+| `str play` | none | `fn play` |
+| `str pause` | none | `fn pause` |
+| `str stop` | none | `fn stop` |
+| `str seek` | `key time`, in seconds | `fn time` |
+| `str volume` | `key level`, on the kit's 0-100 scale | `fn volume` |
+| `str mute` | none | `fn mute` |
+| `str unmute` | none | `fn unmute` |
+| `str next` | none | `fn next` |
+| `str previous` | none | `fn previous` |
+
+`str play`, `str pause`, `str stop`, `str next` and `str previous` are dispatched with `key source` set to `str embed`. A `str beforePlay` listener can therefore tell a host command from a click. The seek, volume and mute calls carry no source tag.
+
+Any other `key action` is written to the plugin's logger and dropped, which is how you audit what a host is sending.
 
 ## Rules & restrictions
 
-- Security default is closed, not open: with no `allowedOrigins` configured, zero inbound origins are trusted. You opt in explicitly.
-- For full functionality the host `<iframe>` needs `allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope; web-share; clipboard-write"`, `allowfullscreen`, and `loading="lazy"`. The `autoplay` permission specifically is load-bearing. Without it the browser's MediaSession integration never activates inside the frame.
-- [Media Session](/nomercy-player-core/plugins-adapters/media-session) already works correctly inside an iframe on its own. This plugin does not need to bridge it.
-
-Outbound `postMessage` targeting depends on how many origins you configure:
-
-| `allowedOrigins` | Outbound target |
-|---|---|
-| Exactly one origin | Messages are pinned to that origin. |
-| Multiple origins, or `'*'` | Outbound falls back to `'*'`. |
-
-In production, pin to one origin rather than relying on the multi-origin fallback.
+- The allowlist starts closed. With nothing configured no inbound command is accepted, while outbound events keep flowing, so a read-only embed needs no options at all.
+- `str *` in the list accepts every origin. Everything else is an exact string match, with no wildcard subdomains. Override `fn isOriginAllowed` when you need looser matching.
+- The list is editable while the player runs. `player.getPlugin(EmbedPlugin)?.allowedOrigins()` reads a snapshot, `fn allowedOrigins` with an argument replaces it, and `fn options` with a new `key allowedOrigins` updates the live filter too.
+- The package documents one `<iframe>` attribute set for a fully working embed: `allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope; web-share; clipboard-write"`, plus `allowfullscreen`. `str autoplay` is the entry that decides most. The Permissions Policy feature of that name is what lets a framed document start playback without a gesture of its own.
+- [Media Session](/nomercy-player-core/plugins-adapters/media-session) needs no bridging. Each browsing context owns its own `ts navigator.mediaSession`, and this plugin neither forwards it nor tries to.
 
 ## How to extend it
 
+Register it in the framed page, then listen on the host. This subclass widens the origin check to a whole domain:
+
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { EmbedPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+class SubdomainEmbedPlugin extends EmbedPlugin {
+  protected override isOriginAllowed(origin: string): boolean {
+    return origin.endsWith('.host.example.com');
+  }
+}
 
 const player = nmplayer('player');
 
-player.addPlugin(EmbedPlugin, {
-	allowedOrigins: 'https://host.example.com',
-	forwardEvents: ['ready', 'play', 'pause', 'time'],
+player.addPlugin(SubdomainEmbedPlugin, {
+  allowedOrigins: 'https://www.host.example.com',
+  forwardEvents: ['ready', 'play', 'pause', 'time', 'error'],
 });
+player.setup({ playlist: [] });
 await player.ready();
 ```
 
-On the host page, listen for `message` events with `event.data.type === 'nm:event'`. Post commands shaped like `EmbedCommand` to the iframe's `contentWindow`: `{ type: 'nm:command', action: 'play' }`, or `{ type: 'nm:command', action: 'seek', time: 30 }`.
+The allowlist still decides the outbound target, so keep one origin in it even when your own check is broader. On the host page:
+
+```ts
+const frame = document.querySelector('iframe');
+
+window.addEventListener('message', (event) => {
+  if (event.origin !== 'https://player.example.com') return;
+  if (event.data?.type !== 'nm:event') return;
+  console.log(event.data.name, event.data.data);
+});
+
+frame?.contentWindow?.postMessage(
+  { type: 'nm:command', action: 'seek', time: 30 },
+  'https://player.example.com',
+);
+```
 
 ## Next steps
 
-- [Plugin: Key Handler](/nomercy-player-core/plugins-adapters/key-handler): keyboard shortcuts, the other common "host page integration" surface.
+- [Plugin: Key Handler](/nomercy-player-core/plugins-adapters/key-handler): keyboard shortcuts, the other surface a host page has to share with the player.
+- [Core: Errors](/nomercy-player-core/tour/errors): the shape behind the flattened `str error` message.

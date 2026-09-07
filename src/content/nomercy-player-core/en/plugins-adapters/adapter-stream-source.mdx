@@ -1,13 +1,17 @@
 ---
 title: 'Adapter: Stream Source'
-description: 'IStreamSource / IStreamFactory: the protocol-agnostic handle for a playing media source. Native and HLS ship built in; register a DASH or custom-protocol factory the same way.'
+description: 'IStreamFactory claims a URL and IStreamSource is the handle it builds. StreamRegistry keeps them newest-first, seeded with native and hls, and content interceptors sit in front of every fetch a source makes.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/adapters/stream/IStreamSource.ts */}
+{/* Source: packages/nomercy-player-core/src/adapters/stream/IStreamSource.ts, src/adapters/stream/registry.ts, src/adapters/stream/native.ts, src/adapters/stream/hls.ts, src/core/mixins/stream-registration.ts, src/core/mixins/lifecycle.ts */}
 
 # Adapter: Stream Source
 
-`IStreamSource` is one active instance per playback item: native, HLS, or DASH. Backend code never branches on protocol. `IStreamFactory` decides which kind gets created for a given URL. A consumer registers a factory to add a new protocol.
+`cls IStreamSource` is one handle per playable URL, and `cls IStreamFactory` is the thing that claims a URL and builds that handle. Together they let code hold a source without knowing whether a browser, hls.js or a library of yours is behind it.
+
+Every player carries one `cls StreamRegistry`, which keeps the factories in priority order and hands back the source the winning one builds. [Adapters](/nomercy-player-core/tour/adapters) introduces the idea across the whole kit.
+
+In the shipped video and music players the media element itself is fed by the backend, which picks its pipeline from the URL: `fn isHls` decides whether the URL is an HLS playlist, and `fn supportsNativeHls` decides whether the element can read one without hls.js. Both are exported, so your own code can ask the same question.
 
 ## The factory contract
 
@@ -19,42 +23,70 @@ interface IStreamFactory {
 }
 ```
 
-The player calls `canPlay` for every URL it resolves. Only return `true` when your factory can actually handle the URL. `capabilities` lets a factory decline a URL it could parse but this device cannot decode smoothly. The player calls `create` at most once per resolution.
+`fn canPlay` is asked in priority order and the first `ts true` wins, so answer `ts true` only for a URL you can really play.
+
+`cls StreamCapabilities` carries `key width`, `key height`, `key bitrate`, `key framerate` and a `key preferred` of `str smooth` or `str powerEfficient`. That is how a factory declines a URL it could parse and this device cannot decode well.
+
+`fn create` receives the `key url`, the optional `key contentType`, `key accessToken`, per-stream `key headers`, the `key capabilities`, and a `key registry` field the registry sets for you. Keep that registry: it is what `fn runInterceptors` is reached through.
 
 ## The source contract
 
-`IStreamSource` exposes `attach(element)`, `detach()`, and `destroy()` for lifecycle, plus `state()` for the current `StreamSourceState`.
+`fn attach`, `fn detach` and `fn destroy` are the lifecycle, and `fn state` answers `str idle`, `str loading`, `str ready`, `str playing` or `str error`. `key kind` is `str native`, `str hls` or `str dash`.
 
-Adaptive formats also get an optional ABR surface:
+Four optional methods carry adaptive bitrate, and a fixed-bitrate source leaves all four off: `fn getLevels`, `fn setLevel`, `fn getCurrentLevel` and `fn setLevelStrategy`. A `cls StreamLevel` is a `key bitrate` and a `key label`, plus `key width`, `key height` and `key index` where the manifest gives them. Pass `-1` to `fn setLevel` to hand control back to the automatic selector.
 
-- `getLevels()`
-- `setLevel(idx)`
-- `getCurrentLevel()`
-- `setLevelStrategy(fn)`
+`fn on` and `fn off` carry six events, each with its own payload type:
 
-Fixed-bitrate sources simply omit those methods.
+| Event | Payload |
+|---|---|
+| `str manifest-loaded` | `ts undefined`. Levels can be read from here on. |
+| `str level-switched` | hls.js `cls LevelSwitchedData`. |
+| `str level-considered` | A `key level` index and a `key reason` string, for a candidate that was not taken. |
+| `str fragment-loaded` | hls.js `cls FragLoadedData`. |
+| `str encrypted` | A `key keyUri` and an optional `key keyFormat`. |
+| `str error` | A `cls MediaError` from the native path, or an hls.js `cls ErrorData`. |
 
-These events flow through `on()` and `off()`:
+## The registry
 
-- `manifest-loaded`
-- `level-switched`
-- `level-considered`
-- `fragment-loaded`
-- `encrypted`
-- `error`
+`fn setup` seeds the registry at the `str streamsReady` stage: `str native` first, then `str hls`. Resolution walks newest-first, so `player.streams()` reads back `ts ['hls', 'native']` and HLS outranks the native handler on a URL both claim.
+
+| Call | What it does |
+|---|---|
+| `player.registerStream(factory)` | Adds the factory at the top of the walk. `player.streams()` then reads `ts ['mine', 'hls', 'native']`. |
+| `player.registerStream(factory, true)` | Adds it at the bottom instead, below both built-ins. |
+| `player.unregisterStream(id)` | Removes it. Nothing happens when the id was never registered. |
+| `player.streams()` | The ids in resolution order, highest first. |
+| `player.getStreamFactory(id)` | The factory itself, or `ts undefined`. |
+
+`fn resolve` on a registry walks that order, calls `fn create` on the first factory whose `fn canPlay` answers `ts true`, and throws a `cls StreamError` carrying `str core:stream/no-factory-match` when none does.
+
+`fn intercept` puts a function in front of every response a source pulls through `fn runInterceptors`, and hands back an unsubscribe function. Several of them compose in registration order, each one receiving what the last returned. Rewriting a manifest URL or signing a segment request is the usual reason to reach for one.
+
+## Where to import it from
+
+```ts
+import { isHls, StreamRegistry, supportsNativeHls } from '@nomercy-entertainment/nomercy-player-core';
+import type { IStreamFactory, IStreamSource, StreamCapabilities, StreamEvent, StreamFactoryOptions, StreamInterceptor, StreamLevel, StreamSourceState } from '@nomercy-entertainment/nomercy-player-core';
+```
+
+`cls StreamRegistry` and the types are on the `./adapters/stream` subpath too, which also carries the two built-in factories themselves as `nativeFactory` and `hlsFactory`.
+
+`str native` claims `.mp3`, `.flac`, `.aac`, `.m4a`, `.wav`, `.ogg`, `.opus`, `.weba`, `.mp4`, `.webm`, `.mov`, `.m4v` and `.ogv`, or a content type starting `str audio/` or `str video/`. `str hls` claims `.m3u8`, and the content types `str application/vnd.apple.mpegurl`, `str application/x-mpegurl`, `str application/mpegurl` and their `str audio/` spellings.
 
 ## Rules & restrictions
 
-- `StreamRegistry.resolve()` injects a `registry` field into `create()` automatically. The created source uses it to pipe fetches through `runInterceptors()`. Consumers never set the field themselves.
-- `StreamInterceptor` functions installed via `StreamRegistry.intercept()` compose in registration order. Each receives the previous one's output. Use them to rewrite manifest URLs or inject auth into segment requests without forking the factory.
+- Re-registering an id replaces that entry and moves it to the front of the walk, so a factory of yours named `str hls` takes the built-in's place outright.
+- `fn create` runs at most once per resolution, and the source it returns owns its own teardown. Call `fn destroy` rather than dropping the reference, because `fn detach` alone leaves internal state allocated.
+- The events a source emits are its own. They do not reach `player.on(...)`, so subscribe on the source you hold.
+- An interceptor is `ts (url: string, response: Response) => Response | Promise<Response>`. Return the response you were given when you only want to read it.
 
 ## How to extend it
 
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
-import type { IStreamFactory } from '@nomercy-entertainment/nomercy-player-core';
+A factory is three members, and a registry you hold is enough to exercise it:
 
-const player = nmplayer('player');
+```ts
+import { StreamRegistry } from '@nomercy-entertainment/nomercy-player-core';
+import type { IStreamFactory } from '@nomercy-entertainment/nomercy-player-core';
 
 const dashFactory: IStreamFactory = {
 	id: 'dash',
@@ -62,9 +94,15 @@ const dashFactory: IStreamFactory = {
 	create: opts => myDashSourceFrom(opts),
 };
 
-player.registerStream(dashFactory);
+const registry = new StreamRegistry();
+registry.register(dashFactory);
+registry.intercept((url, response) => response);
+
+const source = registry.resolve({ url: 'https://cdn.example.com/film.mpd' });
+source.on('manifest-loaded', () => console.log(source.getLevels?.()));
+await source.attach(videoElement);
 ```
 
 ## Next steps
 
-- [Adapter: URL Resolver](/nomercy-player-core/plugins-adapters/adapter-url-resolver): for URLs handed to something that isn't `fetch` at all.
+- [Adapter: URL Resolver](/nomercy-player-core/plugins-adapters/adapter-url-resolver): for URLs handed to something that is not `fn fetch` at all.

@@ -1,73 +1,121 @@
 ---
 title: 'Plugin: Cast Sender'
-description: 'CastSenderPlugin: the Chromecast Web Sender SDK bridge, meant to be subclassed per medium, override defaultContentType() and buildMetadata().'
+description: 'CastSenderPlugin carries transport onto a Chromecast session through the Web Sender SDK and mirrors the receiver back. It is the base class the video and music packages subclass, overriding defaultContentType and buildMetadata.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/plugins/cast-sender/index.ts */}
+{/* Source: packages/nomercy-player-core/src/plugins/cast-sender/index.ts, src/core/mixins/cast.ts, src/core/plugin/base.ts */}
 
 # Plugin: Cast Sender
 
-`CastSenderPlugin` (id `'cast-sender'`) bridges player transport state to and from an active Chromecast session via the Cast Web Sender SDK. It's written as a shared base class: `nomercy-video-player` and `nomercy-music-player` each subclass it, overriding the two methods that differ per medium.
+`cls CastSenderPlugin` (id `str cast-sender`) carries player transport onto an open Chromecast session, and mirrors the receiver's state back onto the player.
+
+It is a shared base class rather than a finished plugin. `nomercy-video-player` and `nomercy-music-player` each ship a subclass supplying the two things that differ per medium. Register the subclass from the package you are already using, and reach for the base when you are writing a third.
+
+Everything below is the sender side. It was read from the published build and driven under a DOM stub. No Chromecast device was in the loop, so the page says what the plugin sends and never what a receiver puts on screen.
 
 ## Options
 
-| Option | Type | Default | Purpose |
+| Option | Type | Default | What it does |
 |---|---|---|---|
-| `chromecastAppId` | `string` | — | Your registered Cast receiver app id. |
-| `enableAirPlay` | `boolean` | — | Also surface an AirPlay control path. |
-| `customReceiverNamespace` | `string` | — | Custom message namespace for a non-default receiver. |
-| `resumeLocalOnDisconnect` | `boolean` | `true` | Resume local playback when the Cast session ends. |
-| `defaultContentType` | `string` | subclass's `defaultContentType()` | MIME type hint sent to the receiver. |
-| `live` | `boolean` | `false` | Marks the content as a live stream for the receiver UI. |
+| `key resumeLocalOnDisconnect` | `ts boolean` | `ts true` | After the receiver drops, seek the local player to the receiver's last position and restore its play state. |
+| `key defaultContentType` | `ts string` | the subclass's `fn defaultContentType` | Content type sent when the item carries neither `key mime` nor `key contentType`. |
+| `key live` | `ts boolean` | `ts false` | Writes `str LIVE` rather than `str BUFFERED` into the load request's `key streamType`. |
+
+## The two per-medium hooks
+
+`fn defaultContentType` answers a MIME type. `fn buildMetadata` turns the current item into a `ts chrome.cast.media` metadata object, using the constructors handed to it as its second argument.
+
+| Class | `fn defaultContentType` | Fields `fn buildMetadata` reads |
+|---|---|---|
+| `cls CastSenderPlugin` in core | `str application/octet-stream` | `key title`, falling back to `key name` |
+| The `nomercy-video-player` subclass | `str video/mp4` | `key title`, `key show`, `key season`, `key episode`, `key poster` |
+| The `nomercy-music-player` subclass | `str audio/mpeg` | `key name`, `key artist`, `key album`, `key image`, `key cover` |
+
+Each reads that fixed list and nothing else. An item carrying your own fields needs your own override. Both subclasses resolve their image through `fn resolveUrl` under the `str poster` category, so a signing or auth resolver applies to the artwork as well.
 
 ## Events
 
-The plugin fires six events across the session's lifecycle:
+The plugin's own events reach the player bus under a `str plugin:cast-sender:` prefix, which is the name a listener has to spell out:
+
+```ts
+player.on('plugin:cast-sender:cast:connected', (data: { deviceName: string }) => {
+  console.log(`casting to ${data.deviceName}`);
+});
+```
 
 | Event | Payload |
 |---|---|
-| `cast:connected` | `{ deviceName }` |
-| `cast:disconnected` | none |
-| `cast:error` | `{ error }` |
-| `cast:remote-state` | `{ time, state }` |
-| `cast:media-changed` | `{ contentId }` |
-| `unsupported` | `{ reason }` |
+| `str plugin:cast-sender:cast:connected` | `key deviceName`, or `str Cast device` when the SDK reports no friendly name |
+| `str plugin:cast-sender:cast:disconnected` | none |
+| `str plugin:cast-sender:cast:error` | `key error`, always an `cls Error` |
+| `str plugin:cast-sender:cast:remote-state` | `key time`, and `key state` as `str playing`, `str paused` or `str buffering` |
+| `str plugin:cast-sender:cast:media-changed` | `key contentId`, and only when the receiver switched to something the plugin did not send |
+| `str plugin:cast-sender:unsupported` | `key reason` |
+
+Receiver state also arrives as ordinary player events, so a transport UI keeps following along while casting:
+
+- a remote pause or resume emits `str pause` or `str play`, tagged with `key source` `str cast`
+- a remote position change emits `str time`
+- newly loaded media info emits `str mediaReady`
+- connect and disconnect both emit `str castState`
+
+## What the bridge forwards
+
+| Player event | Call made on the session |
+|---|---|
+| `str item` | `fn loadMedia`, with the resolved URL, the content type and the built metadata |
+| `str play` and `str pause` | `fn playOrPause`, only when the receiver's state differs from the one wanted |
+| `str stop` | `fn stop` |
+| `str seek` | `key currentTime`, clamped at zero, then `fn seek` |
+| `str volume` | `key volumeLevel`, the kit's 0-100 level divided by 100 and clamped into 0-1 |
+| `str mute` | `fn muteOrUnmute`, only when the receiver's mute state differs |
+
+An event already tagged `key source` `str cast` is skipped, which is what keeps the mirror from looping.
 
 ## Rules & restrictions
 
-- Chrome/Chromium Web Sender SDK only. In Firefox, Safari, or a non-Chromium browser, `connect()` emits `unsupported` and throws a `BrowserPolicyError` (`core:policy/castUnavailable`). Everything else stays a harmless no-op rather than crashing.
-- The plugin requires the global `cast.framework` / `chrome.cast.media` SDK to already be loaded on the page. It does not load the script for you.
-- Volume arrives on the kit's own 0-100 `volume()` scale. The plugin divides it to the 0-1 float range the receiver's SDK expects.
-- `buildMetadata()` reads only fields defined on the canonical playlist item type. It never casts to a richer intersection to reach a consumer's own fields. Carrying application-specific fields beyond the canonical item? Subclass and override `buildMetadata()` yourself.
-- `transferTo('cast')` and this plugin are separate, unlinked mechanisms. `transferTo('cast')` is the kit's own coarse handoff; it drives the Cast SDK directly and knows nothing about `CastSenderPlugin`. Adding this plugin does not wire it into `transferTo()`, and calling `transferTo('cast')` does not go through this plugin's `connect()` / metadata pipeline. Pick one Cast strategy per app.
-
-## Translations
-
-Cast Sender's UI strings (connect/disconnect prompts, error copy) are auto-discovered from the plugin's own `./i18n/*.ts` folder via `translationsFromGlob`. A subclass in `nomercy-video-player` or `nomercy-music-player` ships its own `i18n/` folder too, with only its own keys. The kit's plugin registration walks the prototype chain, so every bundle in the chain ends up in the translation table. See [Core: i18n](/nomercy-player-core/tour/i18n).
+- `fn connect` needs `ts cast.framework` already on the page. The plugin never injects the SDK. With the global absent it emits `str plugin:cast-sender:unsupported` with a reason of `str cast-sdk-missing`, then throws a `cls BrowserPolicyError` carrying `str core:policy/castUnavailable`.
+- The receiver app id is not a plugin option. `fn connect` asks `ts cast.framework.CastContext.getInstance()` for a session and configures nothing, so a custom receiver is set on the SDK's own context before you call it.
+- `player.transferTo('cast')` is a separate route to the same SDK. It requests a session itself and reads the `key cast` block of the setup config, including `key receiverApplicationId`, `key autoLoad` and `key scriptUrl`. It goes nowhere near this plugin. Pick one of the two per application.
+- Every forwarder is a no-op while no session is open, so registering the plugin early costs nothing until `fn connect` resolves.
+- `fn disconnect` is safe to call when already disconnected. It ends the session, drops the receiver listeners and emits `str plugin:cast-sender:cast:disconnected`.
+- The base class ships its own strings in English and Dutch. A subclass's own bundle is discovered by `fn translationsFromGlob` and merged over it, base first, so a subclass wins any key it shares.
 
 ## How to extend it
 
-Subclass it and override the two per-medium methods. This is exactly what `nomercy-video-player` and `nomercy-music-player` do, neither reimplements the session/connection handling.
+Subclass the base and override the two hooks. This is what both media packages do, and neither of them reimplements the session handling:
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { BasePlaylistItem, ChromeCastMediaCtors, IPlayer } from '@nomercy-entertainment/nomercy-player-core';
+
+interface NewsItem extends BasePlaylistItem {
+  headline?: string;
+}
+
+class NewsCastSender extends CastSenderPlugin<IPlayer, NewsItem> {
+  protected override defaultContentType(): string {
+    return 'application/x-mpegURL';
+  }
+
+  protected override async buildMetadata(item: NewsItem, ctors: ChromeCastMediaCtors) {
+    const meta = new ctors.GenericMediaMetadata();
+    meta.title = item.headline ?? '';
+    return meta;
+  }
+}
 
 const player = nmplayer('player');
 
-class MyCastSenderPlugin extends CastSenderPlugin {
-	protected override defaultContentType(): string {
-		return 'application/x-mpegURL';
-	}
-	// override buildMetadata(item, ctors) for your own item shape
-}
-
-player.addPlugin(MyCastSenderPlugin, { chromecastAppId: 'ABCD1234' });
+player.addPlugin(NewsCastSender, { live: true });
+player.setup({ playlist: [] });
 await player.ready();
 
-await player.getPlugin(MyCastSenderPlugin)?.connect();
+await player.getPlugin(NewsCastSender)?.connect();
 ```
 
 ## Next steps
 
-- [Plugin: Embed](/nomercy-player-core/plugins-adapters/embed): the cross-origin `postMessage` bridge for a player running in an iframe.
+- [Plugin: Embed](/nomercy-player-core/plugins-adapters/embed): the cross-origin `postMessage` bridge for a player running inside an iframe.
+- [Adapter: URL Resolver](/nomercy-player-core/plugins-adapters/adapter-url-resolver): the resolver `fn buildMetadata` and the load request both go through.

@@ -1,50 +1,74 @@
 ---
 title: 'Plugin: Touch Zones'
-description: 'TouchZonesPlugin: a 3x6 tap-zone grid for seek/playback/volume, single-tap vs double-tap dispatch, and cumulative seek-feedback indicators.'
+description: 'TouchZonesPlugin lays a transparent grid over the picture: one tap dismisses the controls or toggles playback, two taps seek, and on a phone two more zones take volume.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/plugins/touch-zones/index.ts */}
+{/* Source: packages/nomercy-video-player/src/plugins/touch-zones/index.ts; packages/nomercy-video-player/src/plugins/desktop-ui/index.ts */}
 
 # Plugin: Touch Zones
 
-`TouchZonesPlugin` (id `'touch-zones'`) renders a transparent tap-zone overlay for touch input.
+`cls TouchZonesPlugin` (id `str touch-zones`) lays a transparent grid over the picture and turns taps on it into playback. One tap toggles playback in the middle or puts the controls away at the sides. Two taps seek, or move the level on a phone.
 
-Single-tap shows or hides the controls, or toggles playback. Double-tap seeks or adjusts volume. That is the model most streaming apps have trained people to expect.
+The grid sits at z-index 10, above the video element and under `cls DesktopUiPlugin`'s overlay at 20. So it catches a tap on the picture without swallowing one on a control bar.
 
-It sits at a z-index between the video element and the controls overlay, so it catches taps meant for the video area without blocking buttons on a control bar above it.
+Every zone listens for `str click`, which a mouse raises as readily as a finger. The two plugins coordinate through the player's `str activity` event rather than through each other.
 
 ## Options
 
 | Option | Type | Default | Purpose |
 |---|---|---|---|
-| `doubleTapThreshold` | `number` | `300` | Milliseconds between taps that still counts as a double-tap. |
-| `seekSeconds` | `number` | `10` | Seconds to seek on a double-tap in the left/right zones. |
-| `disableClickToPause` | `boolean` | `false` | Stop the center zone's single-tap from toggling playback. Mirrors `DesktopUiPlugin`'s own `disableClickToPause`. Both plugins ship independent click handlers on different DOM layers, so a consumer needs the same override on both to get custom center-tap behavior. |
+| `key doubleTapThreshold` | `cls number` | `300` | Milliseconds between two taps that still count as one double tap. |
+| `key seekSeconds` | `cls number` | `10` | Seconds a double tap seeks in the left and right zones. |
+| `key disableClickToPause` | `cls boolean` | `false` | Stop the center zone's single tap from toggling playback. |
 
-## Zone layout
+`key disableClickToPause` reaches the center zone's single tap and nothing else. The double tap there still enters fullscreen, and the seek and volume zones are untouched.
 
-A 3-column x 6-row grid. Desktop/tablet touch gets three columns spanning the full height (seek-back, playback+fullscreen, seek-forward); mobile additionally splits two rows off the top and bottom of the center column for volume up/down, detected via `ontouchstart` presence or `navigator.maxTouchPoints`.
+`cls DesktopUiPlugin` carries a field of the same name for its own click handler on the video element. The two are separate handlers on separate layers, so a build that wants neither sets both.
 
-| Zone | Single-tap | Double-tap |
+## The grid
+
+Three columns by six rows. What fills them depends on one capability check taken at startup: `str ontouchstart` on `cls window`, or `navigator.maxTouchPoints` above zero.
+
+Without touch, three columns span the full height:
+
+| Column | One tap | Two taps |
 |---|---|---|
-| Left (seek back) | Dismiss controls if visible, no-op otherwise, `touchstart` already woke them. | Seek back `seekSeconds`. |
-| Center (playback) | Toggle playback (unless `disableClickToPause`). | Toggle fullscreen. |
-| Right (seek forward) | Dismiss controls if visible, no-op otherwise, `touchstart` already woke them. | Seek forward `seekSeconds`. |
-| Top / bottom of center, mobile only | Dismiss controls if visible, no-op otherwise, `touchstart` already woke them. | Volume up / down. |
+| Left | Dismiss the controls when they were up at the moment of the tap. | Seek back `key seekSeconds`. |
+| Center | Toggle playback. | Toggle fullscreen. |
+| Right | Dismiss the controls when they were up at the moment of the tap. | Seek forward `key seekSeconds`. |
 
-Each seek zone shows a floating circular indicator (chevron icon plus accumulated seconds, e.g. "-30s" after three rapid taps) that lazily mounts on first use and collapses back to zero after roughly a second of no further taps in that direction.
+With touch, the middle column is split three ways and the outer columns give up their top row:
+
+| Zone | Rows it declares | Two taps |
+|---|---|---|
+| Left and right | 2 to 6 | Seek back or forward. |
+| Center, upper | 1 and 2 | Volume up. |
+| Center, middle | 3 to 5 | Toggle fullscreen. |
+| Center, lower | 5 and 6 | Volume down. |
+
+Row 5 is declared twice. The lower volume zone is appended after the middle one, so it takes the tap there and the middle zone is two rows deep in practice.
+
+Row 1 of the outer columns carries no zone at all, which leaves the top bar's own buttons a clear strip.
+
+A single tap in either volume zone behaves like the seek zones: it dismisses the controls if they were showing, and does nothing if they were not.
+
+## Seek feedback
+
+Each seek zone grows a round indicator on its first use: a chevron pair and a running total. Three quick taps forward therefore read as 30 seconds rather than three separate tens.
+
+The total goes back to zero one second after the last tap in that direction, and the indicator fades 200 ms later. It is placed against the video's own vertical center rather than the container's, so letterboxing does not push it off the frame.
 
 ## Rules & restrictions
 
-- Single-tap "toggle controls" reads a visibility snapshot captured at `pointerdown`, in the capture phase, before `DesktopUiPlugin`'s bubble-phase wake handler can touch the DOM.
-
-- Without that, a tap from a hidden state would show the controls on `touchstart`, then hide them again when the deferred handler read the just-added `.active` class. The flicker makes the tap look like it did nothing.
-- Mobile detection is a one-shot capability check at startup: `ontouchstart` or `maxTouchPoints > 0`. It is not a live pointer-type check, so a touch-capable laptop driven with a mouse still gets the mobile volume zones.
-- Emits `player.emit('activity', { active })` to coordinate with `DesktopUiPlugin`'s auto-hide timer. This plugin has no chrome of its own to hide.
+- The single-tap decision reads a snapshot of control visibility taken at `str pointerdown` in the capture phase, ahead of `cls DesktopUiPlugin`'s own bubble-phase wake handlers.
+- Without that snapshot a tap from hidden would show the controls and then hide them again a moment later, and the tap would look like it did nothing.
+- The capability check runs once, at registration. A touch-capable laptop driven with a mouse gets the phone grid, volume zones included.
+- The plugin emits `player.emit('activity', { active: false })` and never the true half. Waking the chrome is `cls DesktopUiPlugin`'s own job, and this plugin has no chrome to show.
+- Zone geometry is internal. A different layout, a five-zone grid or a corner gesture, is a plugin of its own built on the same player methods: `fn rewind`, `fn forward`, `fn togglePlayback`, `fn toggleFullscreen`, `fn volumeUp` and `fn volumeDown`.
 
 ## How to extend it
 
-There's no subclass hook for zone geometry, the grid positions are internal. A different zone layout (a 5-zone grid, a corner-only seek gesture) is a new plugin built against the same player methods (`rewind`, `forward`, `togglePlayback`, `toggleFullscreen`, `volumeUp`, `volumeDown`) rather than a subclass:
+Register it with the two numbers your app wants:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -56,8 +80,25 @@ player.addPlugin(TouchZonesPlugin, {
   seekSeconds: 15,
   doubleTapThreshold: 250,
 });
+
+player.setup({
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  playlist: [
+    {
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      duration: 888,
+    },
+  ],
+});
+
+await player.ready();
 ```
+
+A longer `key doubleTapThreshold` buys a slower hand more time and costs every single tap the same delay, because the single-tap action waits out the window before it runs.
 
 ## Next steps
 
-- [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui): the control bar this plugin's `activity` events show and hide.
+- [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui): the control bar these taps show and hide.
+- [Plugin: Key Handler](/nomercy-video-player/plugins-adapters/key-handler): the same actions from a keyboard.

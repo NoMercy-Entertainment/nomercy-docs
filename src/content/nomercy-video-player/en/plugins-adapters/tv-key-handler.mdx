@@ -1,46 +1,99 @@
 ---
 title: 'Plugin: TV Key Handler'
-description: 'TvKeyHandlerPlugin: subclasses KeyHandlerPlugin for remote-control input, direct Arrow seeking, an Info OSD, MediaRecord bookmarking, and its own shortcuts-toggle event.'
+description: 'TvKeyHandlerPlugin adapts the video key set for a remote: arrows seek instead of moving focus, volume arrows come back on, an Info OSD reports what is playing, and MediaRecord hands a bookmark to your shell.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/plugins/tv-key-handler/index.ts */}
+{/* Source: packages/nomercy-video-player/src/plugins/tv-key-handler/index.ts, src/plugins/key-handler/index.ts, src/plugins/desktop-ui/helpers/progressBar.ts; packages/nomercy-player-core/src/plugins/message/index.ts */}
 
 # Plugin: TV Key Handler
 
-`TvKeyHandlerPlugin` (id `'tv-key-handler'`) adapts [`KeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/key-handler) for TV remote input. It inherits the full desktop default set: color buttons, universal media keys, modifier seeks, chapters, speed, frame-advance, subtitle size, stop. It overrides only the groups that behave differently when the input device is a remote, not a keyboard with focusable page elements.
+`cls TvKeyHandlerPlugin` (id `str tv-key-handler`) is the same keyboard set aimed at a remote control. A remote has no pointer and no focus ring inside the video. The keys a desktop browser reserves for moving around the page are free to drive playback instead.
+
+It extends [Plugin: Key Handler](/nomercy-video-player/plugins-adapters/key-handler) and keeps everything that set installs. Fifty-five combos are registered in total, read back from `bindings()` on a player running the published build: the desktop fifty-three, with four groups rewritten and two keys added.
 
 ## Options
 
 | Option | Type | Default | Purpose |
 |---|---|---|---|
-| `arrowSeekSeconds` | `number` | `5` | Seconds `ArrowLeft`/`ArrowRight` seek on TV. Color-button seeks (30/60/90/120s) are fixed and unaffected. |
-| `infoDisplayMs` | `number` | `5000` | How long the Info OSD stays visible before auto-dismissing. |
+| `key arrowSeekSeconds` | `cls number` | `5` | Seconds the left and right arrows seek. |
+| `key infoDisplayMs` | `cls number` | `5000` | How long the Info OSD stays up. |
 
-Every option from the base [`KeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/key-handler) (`scope`, `bindings`, `extend`, `when`, `cooldownMs`, `disableMediaControls`) still applies.
+Both are declared by `cls TvKeyHandlerOptions`, and they reach `fn addPlugin` alongside a base option, so spread them in beside one:
 
-## What changes from the desktop set
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { TvKeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+import type { TvKeyHandlerOptions } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-| Group | Desktop behavior | TV behavior |
+const player = nmplayer('player');
+
+const tvKeys: TvKeyHandlerOptions = {
+  arrowSeekSeconds: 10,
+  infoDisplayMs: 8000,
+};
+
+player.addPlugin(TvKeyHandlerPlugin, { ...tvKeys, extend: true });
+```
+
+Every option the base plugin takes still applies, and the [core page](/nomercy-player-core/plugins-adapters/key-handler) documents them. `key extend` above is one of those, at its own default.
+
+The color buttons keep their fixed 30, 60, 90 and 120 second jumps. `key arrowSeekSeconds` does not reach them.
+
+## What a remote changes
+
+| Group | On desktop | On a remote |
 |---|---|---|
-| `ArrowLeft` / `ArrowRight` | Gated off when `isTv()` (assumed to control page focus instead). | Seek directly, `arrowSeekSeconds` each. The host page is expected to remove focus from interactive elements before mounting this plugin. |
-| `ArrowUp` / `ArrowDown` | Gated off on TV in the desktop plugin. | Enabled, `volumeUp()` / `volumeDown()` fire directly so a web-based TV shell can forward them to the system mixer or handle them in-player. |
-| `a` / `BrowserFavorites` | Cycles aspect ratio silently. | Cycles aspect ratio and shows an OSD confirmation, there is no visible control bar on a TV to reflect the change otherwise. |
-| `?` (help) | Bound as `shift+?`, calls `DesktopUiPlugin.toggleShortcuts()` directly via `getPlugin()`. | Bound as plain `?` (not `shift+?`) and emits `plugin:tv-key-handler:shortcuts-toggle` instead, a TV shortcuts overlay registers independently from the desktop UI one. |
+| Left and right arrows | Held back, because the page owns focus. | Seek `key arrowSeekSeconds` in that direction. Measured with the option at 10, the two keys reached `fn rewind` and `fn forward` with 10. |
+| Up and down arrows | Held back on a TV and on a phone. | Raise and lower the level. A web TV shell that owns system volume forwards them on from there. |
+| `str a` and `str BrowserFavorites` | Cycle the aspect ratio, and the control bar shows the result. | Cycle it and put the new ratio on the OSD, since a remote has no control bar to read it from. |
 
-New groups this plugin adds on top of the inherited set:
+The host page is expected to take focus off its own interactive elements before this plugin mounts. That is the trade the first row makes: the arrows belong to playback for as long as the player is up.
 
-- **`Info`**: shows an OSD with title, current chapter, time and remaining time. Also emits `plugin:tv-key-handler:info` with the same data so a TV shell can render its own overlay instead of (or alongside) the built-in OSD message.
-- **`MediaRecord`**: emits `plugin:tv-key-handler:bookmark` with the current playback time. The plugin does not persist bookmarks itself, that is the consumer's job; a missing listener is a silent no-op.
+Two keys are new.
+
+`str Info` shows what is playing: the item title, the covering chapter, the elapsed time and the time remaining, joined into one OSD line. It also emits `str plugin:tv-key-handler:info` carrying those five fields separately, so a shell can paint the same facts its own way.
+
+`str MediaRecord` emits `str plugin:tv-key-handler:bookmark` with the current time. Storing it is yours to do, and the key is quiet when nothing is listening.
+
+## The shortcuts overlay
+
+A TV shell brings its own shortcuts overlay rather than sharing the desktop one, so the plugin publishes `str plugin:tv-key-handler:shortcuts-toggle` as the channel between them.
+
+Listen for it, and open the overlay from a binding for whichever key your remote sends:
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { TvKeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+
+const player = nmplayer('player');
+
+player.addPlugin(TvKeyHandlerPlugin);
+
+const sheet = document.createElement('aside');
+sheet.hidden = true;
+document.body.append(sheet);
+
+const toggleSheet = () => {
+  sheet.hidden = !sheet.hidden;
+};
+
+await player.ready();
+
+player.on('plugin:tv-key-handler:shortcuts-toggle', toggleSheet);
+
+player.getPlugin(TvKeyHandlerPlugin)?.bind('Help', toggleSheet);
+```
 
 ## Rules & restrictions
 
-- OSD messages route through `MessagePlugin` when it is mounted on the player, and always also emit `'display-message'` for consumers that prefer the event surface over adding `MessagePlugin`.
-- All bindings call local player methods directly. A NoMercy Connect integration that wants remote commands routed through a socket instead calls `keyHandler.replace(combo, fn)` (inherited from the kit base) to swap individual bindings. This plugin has no built-in awareness of Connect.
-- Translations (the Info OSD strings, aspect-ratio label, chapter labels) are auto-discovered from the plugin's own `./i18n/*.ts` bundle. The static `translations` field overrides the base `KeyHandlerPlugin`'s rather than extending it. Registering this plugin merges only its own keys into the player's shared translation table, namespaced under `plugin.tv-key-handler.*` and removed again on dispose.
+- OSD text goes through `cls MessagePlugin` when that plugin is mounted, and the plugin emits `str display-message` either way. A consumer that prefers the event surface needs no second plugin.
+- An OSD line raised without its own duration sits for 3000 ms. The Info OSD passes `key infoDisplayMs` instead, so that one line answers to its own option.
+- Every binding calls a player method on this machine. Routing a remote command over a socket is `keyHandler.replace(combo, fn)` on one combo at a time, and the plugin knows nothing about NoMercy Connect on its own.
+- The `key translations` field replaces the base plugin's rather than adding to it. Registering merges this plugin's keys into the player's table under `str plugin.tv-key-handler.`, and dispose takes them out again.
 
 ## How to extend it
 
-Override one group the same way as the desktop plugin, or add a TV-only group entirely:
+Add a group of your own and call it after the inherited set:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -50,7 +103,9 @@ const player = nmplayer('player');
 
 class MyTvKeyHandler extends TvKeyHandlerPlugin {
   protected addBackKey(): void {
-    this.bind('GoBack', () => { this.player.emit('back', undefined); });
+    this.bind('GoBack', () => {
+      this.player.emit('back', undefined);
+    });
   }
 
   protected override addDefaults(): void {
@@ -59,9 +114,12 @@ class MyTvKeyHandler extends TvKeyHandlerPlugin {
   }
 }
 
-player.addPlugin(MyTvKeyHandler, { arrowSeekSeconds: 10 });
+player.addPlugin(MyTvKeyHandler);
 ```
+
+`fn addDefaults` is the one hook that must call `super`. Every other group replaces itself outright.
 
 ## Next steps
 
-- [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui): the overlay the desktop key handler's `shift+?` opens via `toggleShortcuts()`.
+- [Plugin: Key Handler](/nomercy-video-player/plugins-adapters/key-handler): the set this one inherits, with all fifty-three combos.
+- [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui): the pointer-and-keyboard overlay, and the alternative control surface to this one.

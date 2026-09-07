@@ -1,49 +1,107 @@
 ---
 title: 'Plugin: Media Session'
-description: 'MediaSessionPlugin: bridges transport state to navigator.mediaSession for lock-screen controls, hardware keys, and Bluetooth remotes. Subpath-only import.'
+description: 'MediaSessionPlugin pushes transport state, artwork and position into navigator.mediaSession, and registers eight OS action handlers that call back into the player. Imported from the plugins/media-session subpath.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/plugins/media-session/index.ts */}
+{/* Source: packages/nomercy-player-core/src/plugins/media-session/index.ts, src/core/plugin/base.ts */}
 
 # Plugin: Media Session
 
-`MediaSessionPlugin` (id `'media-session'`) bridges player transport state to the browser's `navigator.mediaSession` API. That API powers lock-screen media controls, hardware media keys, Bluetooth remotes, and OS "Now Playing" widgets. The main entry does not re-export the plugin. Import it from the `plugins/media-session` subpath.
+`cls MediaSessionPlugin` (id `str media-session`) writes the player's transport state into `ts navigator.mediaSession`, the browser API that operating systems read for their own media controls. It pushes title, artist, album and one artwork image, and keeps a playback state and a scrubber position up to date. It also registers action handlers, so those OS controls call back into the player.
 
-## Options
+The package root does not re-export the class, so it comes from the `plugins/media-session` subpath.
 
-Currently empty (`MediaSessionOptions = {}`), reserved for future options.
+The plugin takes no options. Everything it does is decided by the player events it hears and the item they carry.
 
-## Artwork resolution
+Every claim below was measured against the published build with a stand-in for `ts navigator.mediaSession`, which is where the plugin's writes land. What an operating system then draws is outside that boundary and is not described here.
 
-The base class picks the first non-empty image URL off the item, in this priority: `image` → `poster` → `thumbnail` → `cover`.
+## What it writes
 
-`image` and `cover` exist on every item shape. `poster` and `thumbnail` are video-only fields, so a music item falls straight to `image` then `cover`. The winning URL resolves through `resolveUrl(url, 'poster')`, the same pipeline every other image on the item uses.
+| Player event | Write |
+|---|---|
+| `str item` with an item | `key metadata`, built from the item |
+| `str item` with none | `key metadata` cleared |
+| `str play` | `key playbackState` set to `str playing` |
+| `str pause` | `key playbackState` set to `str paused` |
+| `str ended` | `key playbackState` set to `str none`, metadata left alone |
+| `str stop` | `key playbackState` set to `str none`, and metadata cleared |
+| `str time` and `str seek` | `fn setPositionState` with the duration, the clamped position and the playback rate |
+
+`str ended` and `str stop` differ on purpose. An ended item is normally followed by an auto-advance that supplies fresh metadata, so the old artwork stays put across the gap. A stop is the end of the session, and the metadata goes with it.
+
+The plugin also seeds itself. On registration it reads `player.item()` once, so attaching after the queue has already moved does not leave the OS controls blank until the next track.
+
+## Artwork
+
+`fn getMetadata` reads `key title`, `key artist` and `key album` off the item. The image is picked separately, from the first of `key image`, `key poster`, `key thumbnail` and `key cover` that is present.
+
+Present means present, not non-empty. An item carrying `key image` as an empty string stops the search there and publishes no artwork at all, even with a `key cover` beside it. Leave a field out rather than blanking it.
+
+The winning URL goes through `fn resolveUrl` under the `str poster` category, so a signing or auth resolver applies. What reaches the browser is one entry with `key sizes` of `str 512x512`. Its `key type` is guessed from the file extension: `str image/png` for a `.png`, and `str image/jpeg` for anything unrecognized.
+
+## The OS actions it registers
+
+`str play`, `str pause`, `str stop`, `str previoustrack`, `str nexttrack`, `str seekbackward`, `str seekforward` and `str seekto`.
+
+Each maps to the player call of the same name. `str seekbackward` and `str seekforward` use the offset the browser supplies, falling back to five seconds. `str seekto` passes the requested time straight to `fn time`.
+
+A browser that refuses one of these is skipped and the rest still register. `str stop` is the one most often refused; measured with a handler that throws on it, the other seven were installed and the plugin registered normally.
 
 ## Rules & restrictions
 
-- When `navigator.mediaSession` is absent (Node, JSDOM, some older WebViews), the plugin silently no-ops. Every method is guarded at the top. Nothing throws.
-- When duration is zero, `NaN`, or `Infinity`, the plugin skips position reporting. Some browsers throw on an invalid `setPositionState` call.
-- Not every browser supports `setActionHandler('stop')`. The plugin catches the resulting `TypeError` rather than propagating it.
-- When embedded, Safari requires the `autoplay` attribute on the host `<iframe>` for MediaSession to activate at all. See the note on the [Embed](/nomercy-player-core/plugins-adapters/embed) plugin.
-- `getMetadata()` reads only fields defined on the canonical playlist item type. It never casts to a richer intersection to reach a consumer's own fields. Carrying application-specific fields beyond the canonical item? Subclass and override `getMetadata()` yourself.
+- With `ts navigator.mediaSession` absent, every method returns immediately and nothing throws. Node, a test DOM and older WebViews all land there, so the plugin is safe to register unconditionally.
+- Position reporting is skipped unless the player's duration is a finite number above zero. A live stream and a player with nothing loaded both fall into that gap, and the browser gets no position rather than an invalid one.
+- `fn metadata` with no argument answers the last object pushed, including the artwork entry the plugin resolved. With an argument it replaces what the browser holds right now, which is the hook for a title you compose yourself.
+- `fn getMetadata` reads that fixed three-field list. Fields of your own need an override rather than a richer item.
 
 ## How to extend it
 
-To target a native shell (Capacitor, Electron) instead of the browser API, subclass with the same `static id` and override the platform touchpoints:
+Register it and let it run, or take the metadata over:
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session';
 
 const player = nmplayer('player');
 
 player.addPlugin(MediaSessionPlugin);
+player.setup({ playlist: [] });
 await player.ready();
 
-const session = player.getPlugin(MediaSessionPlugin);
-session!.metadata({ title: 'Sintel', artist: 'Blender Foundation' });
+player.getPlugin(MediaSessionPlugin)?.metadata({
+  title: 'Sintel',
+  artist: 'Blender Foundation',
+});
+```
+
+To reach a native shell instead of the browser API, subclass with the same `key id` and override the write points: `fn metadata`, `fn clearMetadata`, `fn setPlaybackState` and `fn updatePositionState`. The event wiring stays; only the destination changes.
+
+```ts
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session';
+import type { MediaSessionMetadata } from '@nomercy-entertainment/nomercy-player-core/plugins/media-session';
+
+declare const shell: {
+  nowPlaying: (meta: MediaSessionMetadata) => void;
+  state: (value: string) => void;
+};
+
+class ShellMediaSessionPlugin extends MediaSessionPlugin {
+  static override readonly id = 'media-session';
+
+  override metadata(): MediaSessionMetadata | undefined;
+  override metadata(meta: MediaSessionMetadata): void;
+  override metadata(meta?: MediaSessionMetadata) {
+    if (meta === undefined) return super.metadata();
+    shell.nowPlaying(meta);
+  }
+
+  protected override setPlaybackState(state: MediaSessionPlaybackState): void {
+    shell.state(state);
+  }
+}
 ```
 
 ## Next steps
 
-- [Plugin: Message](/nomercy-player-core/plugins-adapters/message): the in-player toast surface, for feedback the OS chrome doesn't cover.
+- [Plugin: Message](/nomercy-player-core/plugins-adapters/message): the in-player toast surface, for feedback the OS controls have no room for.
+- [Adapter: URL Resolver](/nomercy-player-core/plugins-adapters/adapter-url-resolver): the resolver the artwork URL passes through.

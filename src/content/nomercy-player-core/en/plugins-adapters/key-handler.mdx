@@ -1,61 +1,106 @@
 ---
 title: 'Plugin: Key Handler'
-description: 'KeyHandlerPlugin: a single keydown listener routing combo strings to player callbacks, with sane defaults and input-field awareness. Subpath-only import.'
+description: 'KeyHandlerPlugin is one keydown listener routing canonical combo strings to callbacks. Fourteen bindings ship, a shared cooldown throttles them, and the package root does not re-export it.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/plugins/key-handler/index.ts */}
+{/* Source: packages/nomercy-player-core/src/plugins/key-handler/index.ts, src/core/mixins/volume.ts, src/core/plugin/base.ts */}
 
 # Plugin: Key Handler
 
-`KeyHandlerPlugin` (id `'key-handler'`) is a keyboard-binding router: one `keydown` listener that dispatches combo strings (`'Space'`, `'ArrowLeft'`, `'m'`) to callbacks. The package's main entry does not re-export it. Import it from the `plugins/key-handler` subpath.
+`cls KeyHandlerPlugin` (id `str key-handler`) is a keyboard router: one `str keydown` listener that turns each event into a canonical combo string and looks it up in a binding map. Fourteen bindings ship with it, your own merge on top, and each callback receives the player.
+
+The package root does not re-export the class, so it comes from the `plugins/key-handler` subpath.
 
 ## Options
 
-| Option | Type | Default | Purpose |
+| Option | Type | Default | What it does |
 |---|---|---|---|
-| `scope` | `'document' \| 'container' \| HTMLElement` | `'document'` | Where the listener attaches. |
-| `bindings` | `Record<string, (player) => void>` | — | Your own combo-to-callback map. |
-| `extend` | `boolean` | `true` | Merge `bindings` with the defaults instead of replacing them. |
-| `when` | `(event: KeyboardEvent) => boolean` | — | Extra gate, return `false` to suppress handling entirely. |
-| `cooldownMs` | `number` | `300` | Throttle window. `0` disables throttling. |
-| `disableMediaControls` | `boolean` | `false` | Turn off the hardware `MediaX` key bindings specifically. |
+| `key scope` | `ts 'document' \| 'container' \| HTMLElement` | `str document` | Where the listener attaches. |
+| `key bindings` | `ts Record<string, (player) => void>` | none | Your own combo-to-callback map. |
+| `key extend` | `ts boolean` | `ts true` | Merge `key bindings` on top of the defaults. `ts false` clears the defaults first. |
+| `key when` | `ts (event: KeyboardEvent) => boolean` | none | Extra gate. Returning `ts false` suppresses that event entirely. |
+| `key cooldownMs` | `ts number` | `ts 300` | Minimum gap between fires. `ts 0` disables throttling. |
+| `key disableMediaControls` | `ts boolean` | `ts false` | Makes every hardware media binding a no-op. |
+
+## The default bindings
+
+| Combo | Action |
+|---|---|
+| `ts ' '` | `fn togglePlayback` |
+| `str ArrowLeft` and `str ArrowRight` | `fn rewind` and `fn forward`, five seconds each |
+| `str ArrowUp` and `str ArrowDown` | `fn volumeUp` and `fn volumeDown`, five points each |
+| `str m` | `fn toggleMute` |
+| `str MediaPlay`, `str MediaPause`, `str MediaPlayPause`, `str MediaStop` | the matching transport call, with `fn pause` standing in when the player has no `fn stop` |
+| `str MediaRewind` and `str MediaFastForward` | `fn rewind` and `fn forward`, five seconds each |
+| `str MediaTrackNext` and `str MediaTrackPrevious` | `fn next` and `fn previous` |
+
+The space bar binds under `ts ' '`, the single character the browser puts in `key key`, and that is the string to unbind or replace. `str Space` is a different combo that no keyboard produces.
+
+`key disableMediaControls` gates the eight hardware bindings and leaves the other six alone.
+
+## How a combo is built
+
+Every event is reduced to one string before the lookup, and every binding is reduced the same way when you register it.
+
+- A single character is lowercased, so `str P` and `str p` are one entry. Longer names keep their case, so `str ArrowLeft` stays as written.
+- Held modifiers are folded onto the front in a fixed order: alt, then ctrl, then shift. `str shift+ArrowLeft` and `str ArrowLeft` are two independent bindings, and the bare one fires only when none of the three is held.
+- The modifier prefixes are case-insensitive when you write them, so `str Shift+arrowleft` registers the same entry as `str shift+ArrowLeft`.
+- A trailing `str +` is read as the key, so `str +` and `str shift++` both parse.
+
+A character that needs shift on the physical keyboard, such as `str ?`, always arrives with the shift flag set. Bind the `str shift+` form for those; the bare form never matches.
+
+The meta key is not folded in. On macOS a combination pressed with command reaches the bare binding, so `str Cmd+ArrowLeft` rewinds. Gate those through `key when` if that is not what you want.
 
 ## Rules & restrictions
 
-The plugin ships with these default bindings:
-
-| Key | Action |
-|---|---|
-| `Space` | Toggles playback. |
-| `ArrowLeft` / `ArrowRight` | Seeks ±5s. |
-| `ArrowUp` / `ArrowDown` | Adjusts volume. |
-| `m` | Toggles mute. |
-| The eight W3C hardware media keys (`MediaPlay`, `MediaPause`, and the rest) | Map to their transport actions. |
-
-When the event target is an `<input>`, `<textarea>`, `<select>`, or any `contenteditable` element, the plugin silently ignores the key. The player never steals keystrokes from a form on the same page.
-
-- `disableMediaControls` gates every `MediaX` binding individually. It does not touch the non-hardware defaults (`Space`, arrows, `m`).
-- Combo strings fold modifier state into the key itself. A key event with `shiftKey`, `altKey`, or `ctrlKey` set canonicalizes to `'shift+…'`, `'alt+…'`, `'ctrl+…'`, never the bare key.
-- A key that requires shift on the physical keyboard (`?`, `!`) always arrives with `shiftKey` true, so bind the `shift+` form. The bare form never matches.
+- The cooldown is one window shared by every binding, not one per key. At the default of 300 ms, two different keys pressed in quick succession fire once between them. Set `key cooldownMs` to `ts 0` when you want each press to land.
+- Nothing fires while the event target is an `<input>`, a `<textarea>`, a `<select>` or any element with `ts contenteditable` set. The player never takes a keystroke from a form beside it.
+- The window is consumed only when a binding actually fires. A key typed into a form, one `key when` turned away and one nothing is bound to all leave it untouched.
+- `str container` attaches the listener to the player container, which receives a `str keydown` only while it or a descendant holds focus. Nothing in the kit makes the container focusable, so give it a `key tabindex` when you pick that scope.
+- `fn bindings` answers a snapshot `cls Map`. Its keys are the canonical combos currently registered, which is the reliable way to see what a subclass or a merge left in place.
+- Registering the same combo again replaces the previous callback. `fn replace` is a second name for `fn bind` and behaves identically.
 
 ## How to extend it
 
+Add bindings through the option, then keep editing at runtime:
+
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/key-handler';
 
 const player = nmplayer('player');
 
 player.addPlugin(KeyHandlerPlugin, {
-	bindings: { 'l': player => player.forward(10) }, // your own combo, merged with defaults
+  cooldownMs: 0,
+  bindings: {
+    'l': p => p.forward(10),
+    'shift+ArrowLeft': p => p.rewind(30),
+  },
 });
+player.setup({ playlist: [] });
 await player.ready();
 
 const keys = player.getPlugin(KeyHandlerPlugin);
-keys!.bind('k', p => p.pause());
-keys!.unbind('m'); // remove just the mute default
+
+keys?.bind('k', p => p.pause());
+keys?.unbind('m');
+console.log([...(keys?.bindings().keys() ?? [])]);
+```
+
+To replace a whole group rather than one key, subclass and override its group method. The four are `fn addPlaybackKeys`, `fn addNavigationKeys`, `fn addVolumeKeys` and `fn addMediaKeys`, and each installs only its own bindings:
+
+```ts
+import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-player-core/plugins/key-handler';
+
+class WideSeekKeyHandler extends KeyHandlerPlugin {
+  protected override addNavigationKeys(): void {
+    this.bind('ArrowLeft', p => p.rewind(30));
+    this.bind('ArrowRight', p => p.forward(30));
+  }
+}
 ```
 
 ## Next steps
 
-- [Plugin: Media Session](/nomercy-player-core/plugins-adapters/media-session): the OS-level equivalent, hardware media keys and lock-screen controls.
+- [Plugin: Media Session](/nomercy-player-core/plugins-adapters/media-session): the same transport calls, reached from the OS instead of the page.
+- [Core: Transport](/nomercy-player-core/tour/transport): what `fn togglePlayback`, `fn rewind` and `fn forward` do underneath.

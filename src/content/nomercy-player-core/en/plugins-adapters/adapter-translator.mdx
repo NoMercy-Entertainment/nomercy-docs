@@ -1,17 +1,15 @@
 ---
 title: 'Adapter: Translator'
-description: 'ITranslator: t()/language()/addTranslations() and more. Default DefaultTranslator ships built-in core.* strings, English eager and other locales lazy; swap for i18next, FormatJS, or ICU MessageFormat.'
+description: 'ITranslator is the eight-method engine behind t(). DefaultTranslator walks the BCP-47 chain over the kit core.* bundles, and a swap hands your own engine every string the player and its plugins ask for.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/adapters/translator/ITranslator.ts, src/adapters/translator/translator.ts, src/kit-translations.ts, src/core/mixins/lifecycle.ts */}
+{/* Source: packages/nomercy-player-core/src/adapters/translator/ITranslator.ts, src/adapters/translator/translator.ts, src/kit-translations.ts, src/core/mixins/i18n.ts, src/core/mixins/lifecycle.ts, src/core/mixins/plugin-registration.ts */}
 
 # Adapter: Translator
 
-`ITranslator` is the whole translation engine behind `t()`. The kit ships `DefaultTranslator`, which carries the built-in `core.*` strings.
+`cls ITranslator` is the engine every `fn t` call lands in. The kit ships `cls DefaultTranslator`, a key lookup with `str {var}` interpolation over a table of bundles, seeded with its own `str core.` strings.
 
-Swap it when your app already runs an i18n engine and you want one source of truth: i18next, FormatJS, or ICU MessageFormat. The player then reads its strings from the same place the rest of your interface does.
-
-[i18n](/nomercy-player-core/tour/i18n) covers how translation resolution works day to day. This page is the reference for the port a whole engine swap replaces.
+Swap the whole engine when your application already runs one and you want the player reading from the same place your interface does. [i18n](/nomercy-player-core/tour/i18n) covers translation day to day, and this page is the reference for the port itself.
 
 ## The interface
 
@@ -28,42 +26,70 @@ interface ITranslator {
 }
 ```
 
+A `cls Translations` bundle is a language tag mapped to a flat table of key and value. `fn translation` answers `ts undefined` for a key it does not hold, which is how a caller tells an absent key from an empty one.
+
 ## Default implementation
 
-`DefaultTranslator` is a key plus `{var}` interpolation lookup over a merged bundle table.
+`fn t` resolves a key by walking the BCP-47 chain of the active language, most specific first, then the fallback language. So `str pt-BR` reads a `str pt` bundle for anything the regional file leaves out, and English after that. A key nothing holds reaches `fn onMissingTranslation` when one is configured, and otherwise comes back as the key itself.
 
-It is seeded with the kit's own `core.*` strings. English loads eagerly; every other kit locale loads the first time `language(lang)` switches to it.
+Interpolation runs last. `fn t` with no `key vars` returns the template untouched, and a placeholder your map has no entry for stays in the string as `str {name}`.
 
-`DefaultTranslatorOptions`:
+`fn setup` builds this translator from four of its own fields:
 
-- `language`: the initial tag, `'en'` by default
-- `translations`: initial bundles
-- `loadTranslations`: async loader for a tag not yet fetched
-- `onMissingTranslation`: custom fallback for an unresolved key
-- `fallbackLanguage`: final fallback, `'en'` by default. Pass `null` to rely on the BCP-47 parent chain alone.
+| Field | Effect |
+|---|---|
+| `key language` | The starting tag. `str en` when omitted. |
+| `key translations` | Bundles merged over the kit's own. A key you set wins the collision. |
+| `key loadTranslations` | An async loader for a tag not yet fetched. It runs alongside the kit's loader, and yours wins the same key. |
+| `key onMissingTranslation` | The last stop before a key is returned as itself. |
+
+English is seeded at construction so `t('core.network.offline')` answers before any fetch. Every other language the kit ships loads the first time `fn language` switches to it, and a switch to `str pt-BR` loads `str pt-BR` and `str pt` together.
+
+`cls DefaultTranslatorOptions` carries one more field the setup config has no route to: `key fallbackLanguage`, `str en` by default. Pass `ts null` to rely on the BCP-47 parent chain alone, by building the translator yourself and handing it over as `key translator`.
+
+## What the player asks of a custom engine
+
+Passing `key translator` gives your engine the whole job. The kit seeds it with nothing: no `str core.` strings, no `key translations`, no `key loadTranslations`, no starting `key language`. Wire those into the adapter before you pass it.
+
+It still receives everything the player and its plugins produce at runtime:
+
+- `player.language(tag)` dispatches `str beforeLanguage`, calls `fn language` on your engine, loads each registered plugin's bundle for the tag and its parents, and emits `str language`. A listener that prevents the dispatch leaves the language alone and gets `str languagePrevented`.
+- Plugin bundles arrive through `fn addTranslations`, already namespaced under `str plugin.` and the plugin's id.
+- Disposing a plugin calls `fn removeTranslations` with that prefix and no language, so implement it or plugin strings pile up for the life of the page.
+- `player.t(PluginClass, 'label')` builds the same namespaced key before it reaches you.
+
+## Where to import it from
+
+```ts
+import { DefaultTranslator } from '@nomercy-entertainment/nomercy-player-core';
+import type { DefaultTranslatorOptions, ITranslator } from '@nomercy-entertainment/nomercy-player-core';
+```
+
+All three are on the `./adapters/translator` subpath as well, beside the loader helpers `fn translationsFromGlob` and `fn createNetworkTranslationLoader`.
 
 ## Rules & restrictions
 
-- `removeTranslations(prefix, lang?)` is what the kit calls on plugin dispose, for `plugin.<id>.` prefixed keys. A custom engine has to implement it correctly, or plugin translations never get cleaned up.
-- `language(lang)` returns a `Promise<void>`, because a real engine may await a loader before the new bundle is ready. Callers `await` it rather than assuming the switch is synchronous.
+- `fn language` with a tag answers a `ts Promise`, because an engine may wait on a loader. Await it rather than reading the new strings on the next line.
+- `fn addTranslations` merges keys without marking the language fetched, so a later `fn language` for that tag still calls your loader. That is what lets a plugin add strings early without canceling the real load.
+- A loader that throws is swallowed and the switch completes, leaving whatever bundle was already in memory.
+- `fn dispose` is yours to implement. The default drops every bundle and forgets which languages were loaded.
 
 ## How to extend it
 
-Swap the whole engine when you need pluralization, gender, or ICU MessageFormat.
-
-Pass your own `translator` and the kit uses it as-is, handing it none of the translation config. Your engine owns its translation state end to end.
-
-So wire `translations`, `loadTranslations` and `language` into your adapter before you pass it. Those options seed the built-in `DefaultTranslator` only:
+Implement the eight members over your own engine and name the instance at setup:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
+import type { ITranslator } from '@nomercy-entertainment/nomercy-player-core';
+
+const adapter: ITranslator = myI18nextAdapter;
 
 const player = nmplayer('player');
 
-player.setup({ translator: myI18nextAdapter });
+player.setup({ translator: adapter });
 ```
 
-Adapters for i18next and FormatJS are meant to live as separate packages outside the kit (`@nomercy/translator-i18next`, `@nomercy/translator-formatjs`), consumers pull only the engine they want.
+The player never checks which implementation is behind the port, so an engine with pluralization, gender or ICU MessageFormat serves `fn t` exactly as the built-in one does.
 
 ## Next steps
 

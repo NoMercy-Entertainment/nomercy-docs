@@ -16,7 +16,7 @@ Anything time-based a plugin starts must stop when the plugin does. Five helpers
 protected timeout(fn: () => void, ms: number): number
 ```
 
-Schedules a one-shot callback. Wraps `setTimeout` with two additions: the timer is cancelled automatically on dispose, and an error thrown inside `fn` is caught and logged instead of escaping into the player.
+Schedules a one-shot callback. Wraps `setTimeout` with two additions: the timer is canceled automatically on dispose, and an error thrown inside `fn` is caught and logged instead of escaping into the player.
 
 Returns the numeric timer id, the same shape `setTimeout` returns. Keep it only when you may need `clearTimeout` early; most callers discard it. After dispose, the call returns `-1` and schedules nothing.
 
@@ -38,7 +38,7 @@ A raw `setTimeout` fires after the plugin is gone. The callback then touches dis
 protected interval(fn: () => void, ms: number): number
 ```
 
-Schedules a repeating callback. Wraps `setInterval`, cancelled automatically on dispose. Errors are caught per tick, so a single failing run logs and the interval keeps going.
+Schedules a repeating callback. Wraps `setInterval`, canceled automatically on dispose. Errors are caught per tick, so a single failing run logs and the interval keeps going.
 
 Returns the numeric interval id for early cancellation; `-1` after dispose.
 
@@ -60,7 +60,7 @@ A raw `setInterval` is the worst version of the timer leak: it never stops, tick
 protected frame(fn: (deltaMs: number, time: number) => void): () => void
 ```
 
-Starts an auto-cancelled `requestAnimationFrame` loop. You write the render callback; the kit owns the loop, the delta accounting, and the cancellation. Visualization plugins use this exclusively.
+Starts an auto-canceled `requestAnimationFrame` loop. You write the render callback; the kit owns the loop, the delta accounting, and the cancellation. Visualization plugins use this exclusively.
 
 The callback receives two arguments each frame. `deltaMs` is the elapsed milliseconds since the previous frame, so animation speed stays correct across display refresh rates. `time` is the frame timestamp, the same value `requestAnimationFrame` hands its callback.
 
