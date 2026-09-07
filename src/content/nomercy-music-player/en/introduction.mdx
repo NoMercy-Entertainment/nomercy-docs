@@ -1,101 +1,77 @@
 ---
 title: 'What is nomercy-music-player'
-description: 'A headless, plugin-driven audio engine with crossfade, a swappable audio backend, synced lyrics, and a Web Audio equalizer, built on nomercy-player-core.'
+description: 'A headless audio engine for the browser: a queue, two swappable audio backends, a crossfade call, and six opt-in plugins, built on nomercy-player-core.'
 ---
 
-{/* Source: packages/nomercy-music-player/src/index.ts, src/types.ts */}
+{/* Source: packages/nomercy-music-player/src/index.ts, src/iife-entry.ts */}
 
 # What is nomercy-music-player
 
-`nomercy-music-player` is a headless audio engine. It ships no chrome.
+`nomercy-music-player` is a headless audio engine for the browser.
 
-You get the audio transport and a typed surface to drive it. Everything on screen is code you write, or a plugin you add.
+It plays a queue of tracks, hands you a typed surface to drive them, and announces what it is doing on an event bus.
+It ships no interface.
+Everything on screen is code you write, or a plugin you add.
 
-What it handles for you:
+The package declares [`nomercy-player-core`](/nomercy-player-core) as a dependency at an exact version, so npm installs the core alongside it.
+The core carries lifecycle, queue, transport, volume, the plugin runtime, i18n and auth-aware fetch.
+This package adds the audio backend and the calls that only make sense when someone is listening.
 
-- Gapless queue playback
-- Crossfade between tracks
-- A swappable audio backend: a plain `<audio>` element, or a full Web Audio graph
-- Synced lyrics
-- A plugin system
+## How it differs from the video player
 
-It is built on [`nomercy-player-core`](/nomercy-player-core), which carries lifecycle, queue, plugin runtime, i18n and auth.
+Both libraries compose the same core methods onto their own class, so `play()`, `pause()`, `next()` and the queue read the same either way.
 
-This library adds the one piece the kit cannot: an audio backend. It also adds the methods that only make sense when listening, such as crossfade between queue items and lyrics.
+What differs is what the medium forces.
 
-## Who it's for
+| | `nomercy-video-player` | `nomercy-music-player` |
+| --- | --- | --- |
+| Media element | Creates a `<video>` in your container | Creates an `<audio>` in your container |
+| At the end of an item | Moves to the next queue item | Stays where it is |
+| Interface | An interface plugin ships in the package | No interface plugin ships |
+| Display name on an item | `title`, optional | `name`, required |
+| Fade between two items | Not on the surface | `crossfadeTo(item, opts)` |
 
-Anything where someone listens: a streaming app, a podcast or radio client, a music dashboard inside a bigger product.
+### The asymmetry worth knowing first
 
-Reach for it when you want the UI to be yours, rather than someone else's chrome under CSS overrides.
+Video advances on its own. Music does not.
 
-Composing a third kind of player, neither video nor music? Start one level down at [`nomercy-player-core`](/nomercy-player-core).
+The video player subscribes to its own `ended` event and calls `next()`, unless the config sets `autoAdvance: false`.
+The music player has no such config field and no such subscription.
+Its `ended` handler moves the phase and re-emits the event, and the queue cursor stays put.
 
-## Why it exists
+`AutoAdvancePlugin`, from the `plugins/auto-advance` subpath, is what moves it.
+The plugin listens for `ended` and calls `next()` for you, and registering it is all that is needed.
 
-Listening has one genuinely hard job: getting from one track to the next without a gap or a click. When the app wants a crossfade rather than a cut, that transition also needs a real overlap.
+Leave it off when a websocket or a Cast session already decides what plays next.
+Two things driving the cursor advance it twice.
 
-A swappable audio backend owns that job.
+## What the package gives you
 
-`AudioElementBackend`, the default, drives a plain `HTMLAudioElement`. `WebAudioBackend` routes through an `AudioContext` graph instead. That graph buys sample-accurate crossfades and a tap point for an equalizer or a visualizer.
+- **`NMMusicPlayer<T>`**, created by the `nmplayer(id)` factory and generic over your own item type. Calling the factory again with a container id already in use hands back the instance that is there.
+- **Two audio backends behind one `IAudioBackend` interface.** `AudioElementBackend` drives a plain `HTMLAudioElement` and is what you get by default. `WebAudioBackend` routes through an `AudioContext` graph instead, which is what an equalizer or a visualizer taps. `backend('webaudio')` swaps them at runtime.
+- **`crossfadeTo(item, opts)`**, a fade from the playing item to the one you name, with a duration and a curve. It falls back to five seconds when neither the call nor `crossfadeDefaults` names one, and it throws when the target item has no `url`.
+- **Six plugins, each on its own import subpath**: auto-advance, lyrics, media-session, cast-sender, key-handler and scrobble. None of them is registered for you.
+- **Everything the core already does**, so it is never rebuilt per medium: the queue, transport, volume, time, plugins, i18n and auth-aware fetch.
 
-Both sit behind the same typed surface, so `crossfadeTo(nextItem)` reads the same either way.
+`controls: true` puts the browser's own audio control bar on the element, which is enough to hear something before you have written any UI.
 
-Queueing, transport, volume, auth and plugins are not listening-specific, so they come from the core. A fix there reaches every player built on it.
+## Without a bundler
 
-## The setup, then freedom, model
+The published package carries `dist/nomercy-music-player.iife.js`.
 
-Create an instance bound to a container, call `setup(config)` once, wait for it, then do whatever you want.
-
-`nmplayer(id)` is the factory. For an id already in use, it returns the existing instance. Otherwise it mounts a fresh one into the `<div>` at that id and creates its own audio element inside it.
-
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-music-player';
-
-const player = nmplayer('player-container')
-  .setup({ /* ... */ });
-await player.ready();
-```
-
-`setup()` is the only strict part. Before `ready()` resolves, it walks the pipeline every kit-composed player runs:
-
-- config snapshot
-- plugin registration
-- stream
-- auth
-- playlist
-- media readiness
-
-Call it twice and it throws, so a half-configured instance is not a state you can reach.
-
-Once `ready()` resolves, no UI is prescribed. Build controls against the typed methods, or add plugins for lyrics, cast or media session.
-
-Every path calls the same `play()`, `pause()` and `crossfadeTo()` underneath.
-
-## What you get
-
-- **`NMMusicPlayer<T>`**, created through the `nmplayer(id)` factory, generic over your own playlist item type.
-- **A swappable audio backend**: `AudioElementBackend` by default, `WebAudioBackend` for sample-accurate crossfades and a Web Audio graph tap. Pick one at setup, or switch at runtime through `backend(kind)`.
-- **Crossfade between queue items** (`crossfadeTo(item, opts)`) with a configurable duration and curve. Music defaults to `crossfadeEnabled: true` instead of a hard cut.
-- **Audio output device selection** (`audioOutputs()`, `selectAudioOutput()`, `audioOutput()`) for routing playback to a specific speaker or Bluetooth device.
-- **A Web Audio equalizer and audio graph**, from the kit's `AudioGraphPlugin` chain, available on either backend. `AudioElementBackend` lazily creates the Web Audio source node the first time a plugin requests it.
-- **Synced lyrics** through the opt-in `LyricsPlugin`. It fetches `item.lyricsUrl`, parses the file through the kit's cue parser registry, and fires line-enter and line-exit events for a karaoke-style UI.
-- **A plugin system**: opt-in plugins instead of bundle weight everyone pays for.
-  - media-session
-  - cast
-  - key-handler
-  - scrobbling
-  - auto-advance
-- **Everything from `nomercy-player-core`** underneath: lifecycle, queue, transport, volume, i18n, and auth-aware fetch, so it never gets reimplemented per medium.
+It defines one global, `nmMPlayer`, and that global is the `nmplayer` factory itself.
+Reach for it when the page loads scripts by tag rather than importing them.
 
 ## Where it sits
 
 <LayerStack layers={[
-  { n: 3, name: 'Your application', pkg: 'Your app code', knows: 'Your UI, layout, and app logic, built on the player.' },
-  { n: 2, name: 'nomercy-music-player', pkg: 'You are here', knows: 'Listening-specific methods and events (IMusicPlayer<T>): backend, crossfade, lyrics.' },
-  { n: 1, name: 'nomercy-player-core', pkg: 'Dependency', knows: 'Lifecycle, queue, transport, plugins, i18n, auth.' },
+  { n: 3, name: 'Your application', pkg: 'Your app code', knows: 'Your UI, your layout, and your idea of what plays next.' },
+  { n: 2, name: 'nomercy-music-player', pkg: 'You are here', knows: 'The audio backend, crossfade, and the rest of IMusicPlayer<T>.' },
+  { n: 1, name: 'nomercy-player-core', pkg: 'Dependency', knows: 'Lifecycle, queue, transport, volume, plugins, i18n, auth.' },
 ]} />
 
 ## Next steps
 
-- [Quick Start](/nomercy-music-player/quickstart): install the player and get a real song playing, copy-paste.
+- [Quick Start](/nomercy-music-player/quickstart): install the package and get a real song playing.
+- [How It Works](/nomercy-music-player/tour/how-it-works): the order `setup()` does things in, the two backends up close, and the places the player stays quiet.
+- [`nomercy-player-core`](/nomercy-player-core): the layer underneath, and where to start a player that is neither video nor music.

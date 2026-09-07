@@ -7,7 +7,7 @@ description: 'A browser video engine with no interface of its own, and one plugi
 
 # What is nomercy-video-player
 
-```str nomercy-video-player``` is a video engine. It ships no UI.
+`str nomercy-video-player` is a video engine. It ships no UI.
 
 You get the transport and a typed API. You build the interface, or drop in the official prebuilt one.
 
@@ -27,23 +27,23 @@ This library adds the video backend. It also adds the methods that only matter w
 ## Why it exists
 
 Browsers disagree, and handling video consistently across them is challenging.
-HLS plays natively only in Safari. Everywhere else it needs ```str hls.js```.
+HLS plays natively only in Safari. Everywhere else it needs `str hls.js`.
 
 A subtitle track can be a plain VTT cue. 
 It can also be a full ASS/SSA script with embedded fonts, positioning and karaoke timing that no browser renders on its own.
 
-This library absorbs both behind one typed surface. ```cls Html5VideoBackend``` picks native HLS or ```str hls.js``` per browser, so `player.play()` never branches on user agent. ```cls SubtitleOverlayPlugin``` renders VTT. 
-```cls OctopusPlugin``` brings in a real libass renderer the moment a track needs ASS/SSA.
+This library absorbs both behind one typed surface. `cls Html5VideoBackend` picks native HLS or `str hls.js` per browser, so `player.play()` never branches on user agent. `cls SubtitleOverlayPlugin` renders VTT. 
+`cls OctopusPlugin` brings in a real libass renderer the moment a track needs ASS/SSA.
 
 ## The setup, then freedom model
 
 Create an instance, call `setup(config)` once, wait for it, then build whatever UI you want.
 
-`nmplayer(id)` is the factory. It returns the existing instance for an id already in use, or mounts a new one into the ```html <div>``` with that id.
+`nmplayer(id)` is the factory. It returns the existing instance for an id already in use, or mounts a new one into the `html <div>` with that id.
 
 ## What you get without writing interface code
 
-```cls DesktopUiPlugin``` ships inside the package. Two imports and one call.
+`cls DesktopUiPlugin` ships inside the package. Two imports and one call.
 
 {/* partial */}
 ```ts
@@ -61,11 +61,11 @@ Nothing here asks you for styling. The plugin injects its own stylesheet, and it
 
 ## What the engine does
 
-- **HLS with no branch in your code.** A URL ending in ```str .m3u8``` plays as HLS. Where the browser demuxes HLS itself the URL goes straight to the video element. Everywhere else ```str hls.js``` loads on demand, and it arrives with the package.
-- **Two subtitle renderers.** ```cls SubtitleOverlayPlugin``` paints VTT cues into positioned DOM. ```cls OctopusPlugin``` runs libass, and claims a track only when the file is `.ass` or `.ssa`.
-- **Display modes.** ```str fullscreen()```, ```str pip()``` and ```str theater()```, plus an aspect ratio of ```str uniform```, ```str fill```, ```str exactfit```, or ```str none```.
-- **Quality on top of ABR.** ```str qualityLevels()``` lists what the manifest offers. ```str quality()``` pins one, or hands control back with ```str auto```.
-- **Chapters and segments.** ```str seekToChapter()``` jumps to a chapter. ```str playSegment()``` plays a bounded window, which is what an intro loop or a chapter preview needs.
+- **HLS with no branch in your code.** A URL ending in `str .m3u8` plays as HLS. Where the browser demuxes HLS itself the URL goes straight to the video element. Everywhere else `str hls.js` loads on demand, and it arrives with the package.
+- **Two subtitle renderers.** `cls SubtitleOverlayPlugin` paints VTT cues into positioned DOM. `cls OctopusPlugin` runs libass, and claims a track only when the file is `str .ass` or `str .ssa`.
+- **Display modes.** `fullscreen()`, `pip()` and `theater()`, plus an aspect ratio of `str uniform`, `str fill`, `str exactfit`, or `str none`.
+- **Quality on top of ABR.** `qualityLevels()` lists what the manifest offers. `quality()` pins one, or hands control back with `str auto`.
+- **Chapters and segments.** `seekToChapter()` jumps to a chapter. `playSegment()` plays a bounded window, which is what an intro loop or a chapter preview needs.
 - **Language memory.** The chosen audio and subtitle language is stored and re-applied on the next item. It is kept as a language, never as a track number, so it survives a file whose tracks are ordered differently.
 - **Ten plugins in the box.** Cast sender, desktop UI, DRM, key handler, live transcoding, media session, Octopus, subtitle overlay, touch zones and TV key handler. Each has its own import path, and a bundler drops the ones you never register.
 

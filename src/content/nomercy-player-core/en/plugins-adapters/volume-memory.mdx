@@ -1,0 +1,47 @@
+---
+title: 'Volume Memory'
+description: 'Opt-in plugin that restores the volume and mute state a listener chose, through the storage adapter.'
+---
+
+{/* Source: packages/nomercy-player-core/src/plugins/volume-memory/index.ts */}
+
+# Volume Memory
+
+A player starts at its configured volume every time. `cls VolumeMemoryPlugin` makes it start where the listener left it instead.
+
+It is opt-in, it lives in the core, and video and music both take it — the `fn volume`, `fn mute` and `fn unmute` surface it reads is the same on both.
+
+```ts
+import { volumeMemoryPlugin } from '@nomercy-entertainment/nomercy-player-core';
+
+player.addPlugin(volumeMemoryPlugin);
+```
+
+`cls VolumeMemoryPlugin` is the class; `fn volumeMemoryPlugin` is the alias to pass to `fn addPlugin`. Both come from the package root.
+
+## What it does
+
+On registration it reads the persisted level and mute flag and applies them, before `str ready` fires. From then on it writes on every `str volume` and `str mute` event, so nothing has to be saved by hand.
+
+Storage goes through the plugin's own `key storage` facade, which is the kit's [storage adapter](/nomercy-player-core/plugins-adapters/adapter-storage) with the key namespaced per player. Choosing a different backing store is `setup({ storage })`, and it applies to this plugin along with everything else.
+
+## Options
+
+| Option | Default | Meaning |
+|---|---|---|
+| `key persistKey` | `str volume` | The key the level and mute flag are stored under. |
+
+Give two players on one page different keys if they should remember separately.
+
+## Rules & restrictions
+
+- The restore reads synchronously. With an async backend such as `cls IndexedDBBackend` there is no value in hand at registration, so nothing is restored then; the state saves normally afterwards and the next synchronous read has it.
+- A restore calls `fn volume` and `fn mute` like any other caller, so a `key beforeVolume` listener sees it. Guard yours if a restore should not be treated as a listener's choice.
+- Muted is restored only when it was true. A stored `false` leaves the current state alone.
+- A missing, unreadable or malformed stored value is ignored rather than raised. The player keeps its configured volume.
+- Removing the plugin stops the writes. It does not clear what was already stored.
+
+## Next steps
+
+- [Adapter: Storage](/nomercy-player-core/plugins-adapters/adapter-storage): the port this writes through, and the backends that ship with it.
+- [Audio Output](/nomercy-player-core/plugins-adapters/adapter-audio-output): the device half of the same picture, which does not persist.

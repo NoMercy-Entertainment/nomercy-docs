@@ -1,0 +1,51 @@
+---
+title: 'Audio Output'
+description: 'Enumerate output devices, open the browser picker, and route playback to a chosen device with audioOutput().'
+---
+
+{/* Source: packages/nomercy-player-core/src/core/mixins/audio-output.ts */}
+
+# Audio Output
+
+Four methods on every player choose which speaker or headset the sound comes out of. They sit on the core, so video and music behave identically.
+
+| Method | Returns |
+|---|---|
+| `fn audioOutputs` | `Promise<MediaDeviceInfo[]>` — every output device the browser will name. |
+| `fn selectAudioOutput` | `Promise<MediaDeviceInfo \| null>` — opens the browser's own picker. `str null` when the listener cancels. |
+| `audioOutput()` | `Promise<string \| null>` — the active device id, or `str null` for the system default. |
+| `audioOutput(deviceId)` | `Promise<void>` — routes playback to that device. |
+
+## Permission comes first
+
+`fn audioOutputs` returns an empty array until the browser has granted output-device access, and an empty array is also what it returns where the API is missing altogether. Both look the same from the outside.
+
+`fn selectAudioOutput` is what triggers the grant. Open the picker once, and the enumeration afterwards has real device labels in it.
+
+```ts
+await player.selectAudioOutput();
+const devices = await player.audioOutputs();
+```
+
+## Routing
+
+`audioOutput(deviceId)` calls `setSinkId` on the media element underneath and resolves once the switch has completed.
+
+```ts
+const devices = await player.audioOutputs();
+await player.audioOutput(devices[0].deviceId);
+```
+
+Reading it back prefers the element's live `key sinkId` over the value the player stored, so an id set by something other than this method is still reported correctly.
+
+## Rules & restrictions
+
+- The picker is Chrome 105 and later. Anywhere else `fn selectAudioOutput` throws a `cls BrowserPolicyError` with code `str core:policy/audioOutputPickerUnsupported`.
+- `audioOutput(deviceId)` throws `str core:policy/setSinkIdUnsupported` where `fn setSinkId` is missing, and also when no media element is bound yet. Route after `fn ready`, not before.
+- The empty string means the system default. Passing it clears the stored id, and reading it back gives `str null` rather than `str ""`.
+- Nothing here is persisted. A new session starts on the system default until you route it again.
+
+## Next steps
+
+- [Music: Audio Output](/nomercy-music-player/tour/audio-output): the same four methods with a device switcher built on them.
+- [Volume Memory](/nomercy-player-core/plugins-adapters/volume-memory): the volume half of the same picture, which does persist.

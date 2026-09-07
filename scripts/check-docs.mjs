@@ -180,6 +180,49 @@ export function checkCrossTokenViolations(page) {
   return violations;
 }
 
+/**
+ * An inline code span opened with one run of backticks and closed with a
+ * different one. Markdown does not close it, so the page ships the backticks
+ * as literal text: `cls Name``` renders as "`cls Name```" mid-sentence.
+ *
+ * An empty span written as a pair of backticks is legal and stays legal — the
+ * rule compares the opening run to the closing one rather than banning runs.
+ */
+export function checkBacktickViolations(page) {
+  if (page.draft) return [];
+  const violations = [];
+  let inFence = false;
+
+  page.body.split(/\r?\n/).forEach((line, index) => {
+    if (/^\s*```/.test(line)) {
+      inFence = !inFence;
+      return;
+    }
+    if (inFence) return;
+
+    const runs = [...line.matchAll(/`+/g)].map((match) => match[0].length);
+    for (let i = 0; i + 1 < runs.length; i += 2) {
+      if (runs[i] !== runs[i + 1]) {
+        violations.push({
+          rule: 'UNBALANCED-BACKTICKS',
+          file: page.relFile,
+          detail: `line ${index + 1}: a span opened with ${runs[i]} backtick(s) closes with ${runs[i + 1]}`,
+        });
+        break;
+      }
+    }
+    if (runs.length % 2 === 1) {
+      violations.push({
+        rule: 'UNBALANCED-BACKTICKS',
+        file: page.relFile,
+        detail: `line ${index + 1}: an odd number of backtick runs, so one span never closes`,
+      });
+    }
+  });
+
+  return violations;
+}
+
 export function matchesArcSection(slug, section) {
   if (section.exact?.includes(slug)) return true;
   if (section.prefix?.some((prefix) => slug.startsWith(prefix))) return true;
@@ -240,6 +283,7 @@ function runLint() {
     for (const page of pages) {
       violations.push(...checkFrontmatterViolations(page, collectionNavLookup));
       violations.push(...checkCrossTokenViolations(page));
+      violations.push(...checkBacktickViolations(page));
       const budgetViolation = checkBudgetViolation(page);
       if (budgetViolation) violations.push(budgetViolation);
     }

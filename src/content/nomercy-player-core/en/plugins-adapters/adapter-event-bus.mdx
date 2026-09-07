@@ -1,0 +1,63 @@
+---
+title: 'Adapter: Event Bus'
+description: 'IEventBus is the shape of the emitter every player and plugin exposes. It is a type to write against, not a slot to fill.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/event-bus/IEventBus.ts, src/adapters/event-bus/default.ts, src/adapters/event-bus/index.ts */}
+
+# Adapter: Event Bus
+
+`cls IEventBus` describes the listening surface every player and every plugin exposes: `fn on`, `fn once`, `fn off`, `fn emit`, `fn hasListeners`, `fn listenerCount`. [The Event Bus](/nomercy-player-core/tour/event-bus) is where that surface is introduced. This page is the contract itself.
+
+Unlike the other entries in this section, it is not a slot. There is no `key eventBus` option on `fn setup` and nothing in the kit reads a replacement. `cls EventEmitter` is the one implementation, and both player classes extend it.
+
+What the type is for is writing against the surface: a wrapper that forwards events into a store, a fake in a test, a function that accepts "anything you can listen to" without naming a player.
+
+## The interface
+
+```ts
+interface IEventBus<E extends Record<string, any> = Record<string, any>> {
+	on<K extends keyof E>(event: K, fn: (data: E[K]) => void): void;
+	once<K extends keyof E>(event: K, fn: (data: E[K]) => void): void;
+	off<K extends keyof E>(event: K, fn?: (data: E[K]) => void): void;
+	off(event: 'all'): void;
+	emit<K extends keyof E>(event: K, data?: E[K]): void;
+	hasListeners<K extends keyof E>(event: K): boolean;
+	listenerCount(): number;
+}
+```
+
+Every method also has a bare-`str string` overload beside the typed one, so a dynamic name such as a plugin's `str plugin:<id>:<event>` still type-checks.
+
+## Where to import it from
+
+The type lives on a subpath, not the package root:
+
+```ts
+import type { IEventBus } from '@nomercy-entertainment/nomercy-player-core/adapters/event-bus';
+```
+
+`cls EventEmitter` is available from both the root and that subpath.
+
+## What the emitter does beyond the contract
+
+`cls EventEmitter` is a superset. Three of its behaviors are not in `cls IEventBus`, so code typed against the interface cannot reach them.
+
+| Behavior | What it does |
+|---|---|
+| `str all` | `on('all', fn)` calls `fn(event, data)` for every emit. The firehose used for debugging. `off('all')` with no handler removes every listener on every event. |
+| `str listeners-changed` | Emitted a microtask after an event goes from no listeners to some, or back to none. Carries `key name` and `key count`. |
+| Renamed-event warning | `on('current', …)` logs a console warning. That event was renamed to `str item`, and a listener on the old name would never fire. |
+
+A handler that throws does not abort the dispatch: `fn emit` catches it, and the remaining listeners still run. Registering the same function twice for one event registers it once.
+
+## Rules & restrictions
+
+- `fn once` wraps your handler so it removes itself. Pass your original function reference to `fn off` to cancel it early; the wrapper is tracked for you.
+- `fn emit` snapshots the listener set before iterating, so calling `fn off` inside a handler does not disturb the dispatch in progress.
+- `fn listenerCount` takes no arguments. It is the total across every event, not a count for one.
+
+## Next steps
+
+- [The Event Bus](/nomercy-player-core/tour/event-bus): what the player announces and how to listen.
+- [Events](/nomercy-player-core/reference/events): every event name and payload.
