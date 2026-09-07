@@ -1,42 +1,98 @@
 ---
 title: 'Volume'
-description: 'volume(), mute()/unmute()/toggleMute(), volumeUp()/volumeDown(), and volumeState(), the gain surface a slider or mute icon reads.'
+description: 'Reading and setting the level, muting, and where the number you set actually lands in the audio.'
 ---
 
 {/* Source: packages/nomercy-player-core/src/core/mixins/volume.ts */}
+{/* Source: packages/nomercy-music-player/src/index.ts */}
+{/* Source: packages/nomercy-music-player/src/adapters/audio-backend/html5-audio.ts */}
+{/* Source: packages/nomercy-music-player/src/adapters/audio-backend/web-audio.ts */}
 
 # Volume
 
-Volume is another kit surface `nomercy-music-player` inherits unchanged. There's no music-specific volume behavior. The backend just needs a real gain to move.
+Volume here is one number with two meanings, and keeping them apart is most of the work.
+
+`player.volume()` gives you a slider position on a 0 to 100 scale.
+What reaches the audio is a gain, and it is a different number.
+
+Everything below is safe to call once `ready()` has resolved.
 
 ## Reading and setting the level
 
-`volume()` reads the current level as a number in `[0, 100]`. `volume(level)` sets it, clamped to that range, and returns a `Promise<void>` once the backend applies it. Full signatures for every method on this page are on [Reference: Domain Types](/nomercy-player-core/reference/types#volume--mute-methods).
+`volume()` with no argument returns the current position.
+`volume(level)` sets it, clamps it to 0 to 100, and hands back a promise you can await.
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
 
 const player = nmplayer('player');
 
-const level = player.volume(); // 0-100
+await player.ready();
+
+const level = player.volume(); // 0 to 100
 await player.volume(50);
 ```
 
-`MusicPlayerConfig` doesn't add a volume field of its own. It inherits `defaultVolume` from the kit's `BasePlayerConfig`. Set it at `setup()` for a declarative initial level. It defaults to `100` when omitted:
+A fresh player sits at 100.
+
+`volumeUp()` and `volumeDown()` move the level by five points.
+Pass your own step to either one.
+
+```ts
+player.volumeDown(); // five points down
+player.volumeUp(10); // ten points up
+```
+
+Both route through `volume()`, so both clamp the same way.
+Neither returns anything to await, which is what makes them the pair a key binding reaches for.
+
+## What the level does to the sound
+
+The position is squared before it becomes gain.
+
+| Position | Gain |
+| --- | --- |
+| 100 | 1 |
+| 50 | 0.25 |
+| 30 | 0.09 |
+| 0 | 0 |
+
+Loudness is heard logarithmically.
+Mapping the slider straight onto gain packs most of the audible range into the bottom of the travel, so the top half of the slider does almost nothing.
+The square-law taper spreads the change out instead.
+
+The squaring happens where the level meets the audio, not in `volume()`.
+`player.volume()` always reports the position you set.
+
+## Where the level lands
+
+Two audio backends ship, and the same `volume(50)` call reaches the sound differently in each.
+
+The default is `audio-element`.
+It writes the gain straight onto the `<audio>` element, in one step: `element.volume` becomes `0.25`.
+
+Ask for the other one at setup:
 
 ```ts
 player.setup({
-  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
-  playlist: [/* ... */],
-  defaultVolume: 40,
+  backend: 'webaudio',
+  // baseUrl, playlist, and the rest
 });
 ```
 
-Read a saved preference into that same field before `setup()` runs instead of calling `volume()` after `ready()`.
+Now the gain goes onto a `GainNode` in front of the analyser instead.
+It is eased in with a 10 ms time constant rather than set outright, which is the difference between a fade and a click under a fast drag.
+
+The audio element's own `volume` is not what carries the level on this path.
+Reading it tells you nothing about where the slider is.
+
+So read `player.volume()` and nothing else.
+Neither backend holds a position: one holds the squared gain, the other holds a value the player never touches.
 
 ## Mute
 
-`mute()` and `unmute()` are absolute. `toggleMute()` flips based on the current state. When already in the target state, all three no-op instead of dispatching. Otherwise, they dispatch `beforeMute` first, the same cancellable shape as transport:
+`mute()` and `unmute()` are absolute.
+`toggleMute()` flips whichever way the player currently sits.
 
 ```ts
 await player.mute();
@@ -44,29 +100,50 @@ await player.unmute();
 player.toggleMute();
 ```
 
-`volumeUp(step?)` and `volumeDown(step?)` nudge the level by `step`, a sane default when omitted. Both clamp to `[0, 100]`, the same as a direct `volume()` call. This is the pair a keyboard shortcut binds to.
+Calling for a state the player is already in does nothing at all.
+No event, no change.
 
-## Reading the gain stage
+Mute is the audio element's own `muted` flag, on both backends.
+The gain is left where it was, so unmuting brings the level back without you storing it.
 
-`volumeState()` returns a typed `VolumeState.UNMUTED` or `VolumeState.MUTED`. A mute-icon component reads this value instead of tracking its own boolean. That way, it stays correct even when something other than that icon, such as a keyboard shortcut or a Connect sync, changes the mute state:
+While muted, `volume()` reports `0` rather than the stored level.
+A slider bound to it drops to zero on mute and returns on unmute, with nothing extra to write.
+
+Set a level above 0 while muted and the player unmutes itself.
+That is what someone dragging a muted slider means, and it saves you from a slider that moves while nothing plays.
+
+## Keeping a control in step
+
+`volumeState()` returns `VolumeState.MUTED` or `VolumeState.UNMUTED`.
+Render a mute button from that, never from a boolean of your own.
+
+The `volume` and `mute` events fire whatever caused the change: your slider, a key binding, or another part of your app.
+A control that draws itself from those two cannot fall out of step.
 
 ```ts
 import { VolumeState } from '@nomercy-entertainment/nomercy-music-player';
 
-if (player.volumeState() === VolumeState.MUTED) {
-  // show the muted icon
-}
-```
+player.on('volume', ({ level }) => {
+  slider.value = String(level);
+});
 
-`volume`, `beforeVolume`, `mute`, and `beforeMute` each carry their own payload, see [Reference: Events](/nomercy-player-core/reference/events#language-volume-mode-state). Subscribe to those instead of polling the getters from a render loop.
+player.on('mute', () => {
+  const muted = player.volumeState() === VolumeState.MUTED;
+  muteButton.setAttribute('aria-pressed', String(muted));
+});
+```
 
 ## See it running
 
-Drag the slider and click mute. The button reads `volumeState()` on every change, so it cannot drift out of step with the player.
+Drag the slider and press mute.
+The button reads `volumeState()` on every `mute` event, so it cannot drift.
 
-:::snippet{file="music-tour-volume" preview="first"}
+:::snippet{file="music-tour-volume"}
 :::
 
-## Next steps
+## Remembering the level
 
-- [The Queue](/nomercy-music-player/tour/queue): queue(), item(), and the mutators a playlist UI reads and drives.
+Nothing here persists.
+Every reload starts at 100 again, unmuted.
+
+[Volume Memory](/nomercy-player-core/plugins-adapters/volume-memory) is the plugin that saves the level and the mute flag on every change, and puts them back when it starts.

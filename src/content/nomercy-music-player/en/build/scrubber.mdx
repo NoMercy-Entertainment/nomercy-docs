@@ -1,17 +1,19 @@
 ---
 title: 'Build a Player: The Scrubber'
-description: "Step 2 of 5: the native bar's scrubber, and the time() / 'time' / 'duration' surface it's already wired to underneath."
+description: "Step 2 of 5: the native bar's scrubber, and the time() / 'time' / 'duration' surface you build your own against."
 ---
 
 {/* Source: packages/nomercy-player-core/src/core/mixins/time.ts */}
 
 # Build a Player: The Scrubber
 
-[Step 1](/nomercy-music-player/build/shell) mounted the native bar. The config below is identical. There is nothing to add, because the native scrubber already covers seeking. This page exists to name the methods underneath it, for the day you build your own.
+[Step 1](/nomercy-music-player/build/shell) mounted the native bar. The config below is identical. There is nothing to add, because the native scrubber already covers seeking. This page names the methods you will use the day you build your own.
 
-## What's already wired
+## What the native scrubber actually does
 
-`controls: true`'s scrubber reads the same position/length pair the kit exposes to everyone. `'time'` reports position and `'duration'` reports length, both covered on [Time & Seeking](/nomercy-music-player/tour/time). The scrubber seeks through `time(seconds)` on release. A custom scrubber built from `nomercy-player-core`'s `createElement` would subscribe to exactly those two events:
+`controls: true` sets `controls` on the audio element and stops there. The scrubber you see is the browser's, and it seeks that element directly rather than calling `time(seconds)`.
+
+The player still follows along, because it tracks the element's `timeupdate`. So a native seek moves `time()` and keeps `'time'` and `'duration'` firing, both covered on [Time & Seeking](/nomercy-music-player/tour/time). Those two events and `time(seconds)` are what a custom scrubber is built from:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
@@ -37,9 +39,9 @@ The `dragging` guard matters the moment you build this yourself. Without it, an 
 
 ## See it running
 
-The scrubber below is the browser's own, drag it, it seeks through exactly the `time()` method just described.
+The scrubber below is the browser's own. Drag it and it seeks the audio element; watch `time()` follow, which is the player tracking that element rather than the bar calling into it.
 
-:::snippet{file="music-build-2-scrubber" preview="first"}
+:::snippet{file="music-build-2-scrubber"}
 :::
 
 ## Next steps

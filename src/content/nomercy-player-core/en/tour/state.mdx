@@ -7,18 +7,22 @@ description: 'The typed values the player reports about itself, when each one ch
 
 # State
 
-The player keeps its state in fields you never touch, and gives you a method for each one you can read.
+The player keeps its state in fields you never touch.
+Each one has a method you read it with.
 
-Every reader hands back a typed enum, and every one of those enums is exported from the package root.
-None of them is reactive. A reader is a snapshot taken at the moment you call it.
+Most of those methods hand back a typed enum, and every one of those enums is exported from the package root.
+`streamState()` is the exception: it is typed `string` and hands back whatever the backend reports.
+
+No reader is reactive.
+A reader is a snapshot taken at the moment you call it.
 
 The event that changed a value is what tells you to read it again, so a reader paired with a listener is the normal shape.
 
-[Playback position](/nomercy-player-core/tour/time) is the one piece of state carrying a unit rather than an enum, and it has a page of its own.
+[Playback position](/nomercy-player-core/tour/time) is measured in seconds rather than reported as a state value, and it has a page of its own.
 
 ## Playback state
 
-`playState()` answers what playback is doing, as one of `IDLE`, `LOADING`, `PLAYING`, `PAUSED`, `STOPPED` or `ERROR`.
+`playState()` returns the playback state as one of six values: `IDLE`, `LOADING`, `PLAYING`, `PAUSED`, `STOPPED`, `ERROR`.
 
 A player that has been constructed and nothing more reports `IDLE`.
 
@@ -31,7 +35,8 @@ player.on('play', () => {
 ```
 
 **`play()` writes `PLAYING` optimistically.**
-When the backend refuses, which is what a blocked autoplay looks like, the state rolls back to `PAUSED` and `playPrevented` arrives with reason `backend-refused`.
+When the backend refuses, which is what a blocked autoplay looks like, the state rolls back to `PAUSED`.
+`playPrevented` is emitted with reason `backend-refused`.
 
 Without that rollback a UI rendered from state shows a pause button over a silent element, and the viewer's first click pauses what never played.
 
@@ -50,16 +55,20 @@ An `error`, `warning` or `info` never touches the play state, and the next `load
 
 A fresh player is `UNMUTED`.
 
-Setting a positive level while muted counts as an unmute: the state flips to `UNMUTED`, `mute` is emitted with `{ muted: false }`, and the backend is unmuted with it.
+Setting a positive level while muted counts as an unmute, and three things happen together:
+
+- The state flips to `UNMUTED`.
+- `mute` is emitted with `{ muted: false }`.
+- The backend is unmuted.
 
 ## Repeat and shuffle
 
 These two are the state you write as well as read.
-
-Called with no argument, each returns the current value. Called with one, each returns a promise, because a write runs the full cancellable cycle.
+Called with no argument, each returns the current value.
+Called with one, each returns a promise, because a write runs the full cancellable cycle.
 
 `beforeRepeat` or `beforeShuffle` dispatches first.
-A listener that cancels gets `repeatPrevented` or `shufflePrevented` and no change.
+A listener that cancels gets `repeatPrevented` or `shufflePrevented`, and nothing changes.
 Otherwise the value is written and `repeat` or `shuffle` is emitted.
 
 ```ts
@@ -70,11 +79,16 @@ await player.repeatState(RepeatState.ALL);
 
 Both start at `OFF`.
 
-`repeatState()` is read by `next()` and by nothing else.
-`ONE` reloads the current item, `ALL` returns to the first item when the queue runs out, and `OFF` emits `queue:exhausted` there instead.
+`repeatState()` is read by `next()` and by nothing else, and each mode gives `next()` a different ending:
+
+- `ONE` reloads the current item.
+- `ALL` returns to the first item when the queue runs out.
+- `OFF` emits `queue:exhausted` there instead.
 
 `shuffleState('on')` randomizes the queue order at once, and takes `true` as shorthand.
-`shuffleState('off')` changes the value and leaves the order as it stands, so getting the original order back means supplying the queue again.
+
+`shuffleState('off')` changes the value but leaves the order as it stands.
+Getting the original order back means supplying the queue again.
 
 ## The four coarse readers
 
@@ -84,7 +98,7 @@ These turn backend and platform detail into something you can render, and each h
 | --- | --- | --- |
 | `bufferState()` | `IDLE`, `LOADING`, `SEEKING` or `STALLED`, mapped from the backend's own state string | `IDLE` |
 | `networkState()` | `ONLINE`, `OFFLINE`, or `SLOW` below a 1.5 Mbps downlink | `ONLINE` |
-| `streamState()` | the backend's raw state string | `'idle'` |
+| `streamState()` | the backend's raw state string, typed `string` | `'idle'` |
 | `visibilityState()` | `VISIBLE` or `HIDDEN` | `VISIBLE` |
 
 That last column is what a player composed from the kit reports before you attach a backend or a platform monitor.
@@ -111,7 +125,7 @@ Every emit passes through one wrapper that keeps CSS classes on your container i
 - `active` or `inactive` from the `activity` event's `active` flag.
 
 **An advancing clock removes `buffering` as well.**
-Every `time` event drops that class, which is the backstop for an engine that recovers without emitting `canplay`.
+Every `time` event drops the class, and that is the backstop for an engine that recovers without emitting `canplay`.
 
 The `phase` event moves the same group. Reaching `ready` leaves the container `playing` when playback is running and `paused` otherwise.
 

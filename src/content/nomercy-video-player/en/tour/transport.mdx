@@ -1,75 +1,106 @@
 ---
 title: 'Transport'
-description: 'play(), pause(), stop(), togglePlayback(), next()/previous(), rewind()/forward()/restart(), and seeking through time(seconds).'
+description: 'Play, pause and seek on a video player, and what the video element reports back while you do it.'
 ---
 
 {/* Source: packages/nomercy-video-player/src/index.ts, packages/nomercy-player-core/src/core/mixins/transport.ts, src/core/mixins/time.ts */}
 
 # Transport
 
-`nomercy-video-player` doesn't reimplement transport. Every method below is `nomercy-player-core`'s [Transport Contract](/nomercy-player-core/tour/transport): a cancellable `before*` dispatch, then a call into the video backend. Video adds nothing to the surface here, only a real `<video>` element for it to drive.
+The video player adds no transport methods of its own.
 
-## Play, pause, stop
+`play()`, `pause()`, `stop()`, `togglePlayback()`, `next()`, `previous()`, `rewind()`, `forward()` and `restart()` are [the core transport contract](/nomercy-player-core/tour/transport), and they behave here as that page describes.
+`time()` is a core method too, and the page that describes it is [Time](/nomercy-player-core/tour/time).
 
-`play()`, `pause()`, `stop()`, and `togglePlayback()` all return a `Promise<void>` that resolves once the backend call settles. `next()` / `previous()` move the queue cursor and load. `restart()` seeks to `0` and resumes.
+What video adds underneath them is a real `<video>` element, and an element that answers back.
 
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+## The element answers back
 
-const player = nmplayer('player');
+The player does not only push state at the element. It listens to the element and lets the element correct it.
 
-await player.play();
-await player.pause();
-await player.togglePlayback(); // flips based on the current playState()
-await player.stop();
-await player.next();
-await player.previous();
-await player.restart();
-```
-
-Every one of these accepts an `ActionOptions` bag `{ source, silent }` (`next()` and `previous()` take the wider `LoadOptions`, which extends it). `source` defaults to `'user'` and gets stamped onto the emitted event. So a Connect plugin syncing playback across devices can tell its own remote-triggered `play()` apart from a real click.
-
-## Seeking through time()
-
-`time()` reads the current position in seconds. `time(seconds)` seeks to a new one. There is no separate `seek()`.
-
-Position is reported by two different events, for two different reasons:
-
-| Reason | Events |
+| The element fires | The player does |
 | --- | --- |
-| Ordinary playback | The `time` event per frame, plus the throttled `progress` event. |
-| A deliberate jump | The cancellable `beforeSeek` → `seek` → `seeked` cycle. |
+| `play` | Sets the play state to playing and emits `play`, unless it already read as playing. |
+| `pause` | Sets the play state to paused and emits `pause`, unless the element has already ended. |
+| `loadstart`, `emptied` | Emits `pause` when the play state was playing. A new source is not a continuation. |
+| `timeupdate` | Emits `time`, carrying the element's own position. |
 
-It is the same split the web platform draws between `timeupdate` and `seeking`/`seeked`. The tick against the jump:
+The element's `playing` event passes through as `playing`, with no state change attached to it.
+
+This channel exists because the element changes state without being asked.
+The end of the file and a source swap during `load()` both pause it.
+A stall does not: it raises `waiting` and `stalled` while playback stays where it was.
+
+Without the sync the play state would still read `playing` afterwards. `togglePlayback()` would then call `pause()` on something already paused, and the viewer's next click would do nothing.
+
+Two guards keep the channel quiet:
+
+- The `pause` a browser fires immediately before `ended` is suppressed, so a film that runs to the end reports `ended` rather than a pause first.
+- A `play()` you called yourself is not announced twice, because the bridge only emits when the play state was not already playing.
+
+## Position comes from the element
+
+`time()` with no argument returns the position the last `timeupdate` published, read off the element itself.
+
+`stop()` pauses the element and returns it to `0`.
+
+`duration()` is `0` until the element has metadata. The player fills it from the element's `loadedmetadata` event, and resets it to `0` on every item change.
+
+**`seekByPercentage()` does nothing while duration is `0`.** A scrubber wired to it is inert until metadata lands, which is the usual reason an early click looks ignored.
+
+Between a `next()` and the incoming item mounting, the outgoing element is still attached and still ticking. The player suppresses `time` for that window, so a watch position is never written against the wrong item.
+
+## When the browser refuses to play
+
+`play()` forwards to the video element's own `play()`, and a browser declining playback without a gesture rejects there.
+
+The player treats that rejection as a refusal rather than a success:
+
+- The play state rolls back to `paused`.
+- A `starting` phase rolls back to `ready` or `paused`.
+- `playPrevented` fires with reason `backend-refused`, carrying the browser's own error as `cause`.
+- The rejection is rethrown.
+
+**An unawaited `play()` therefore becomes an unhandled rejection in the console.**
 
 ```ts
-const currentTime = player.time(); // seconds
-await player.time(120); // jump to 2:00
+player.on('playPrevented', ({ reason }) => {
+  if (reason === 'backend-refused')
+    showTapToPlay();
+});
+
+try {
+  await player.play();
+}
+catch {
+  // Already reported through playPrevented.
+}
 ```
 
-`rewind(seconds?)` and `forward(seconds?)` compute a relative target from the current position. The target runs through the same `beforeSeek` → `seek` → `seeked` cycle. Both default to a `5`-second step when called with no argument.
+`muted: true` is what makes the refusal unlikely. A muted element is the case browsers allow with no gesture, and the player mutes the element from that config before any `play()` call reaches it.
 
-`seekByPercentage(pct)` seeks to a position expressed as `0`–`100` percent of `duration()`. That is the calculation a progress bar's click handler would otherwise have to do by hand:
+The playback the player starts for you is already caught. `autoPlay: true` and every `item()` navigation swallow their own rejection, so a refusal on those paths reaches you as `playPrevented` and nothing more.
 
-```ts
-await player.rewind(10); // -10s
-await player.forward(30); // +30s
-player.seekByPercentage(50); // jump to the halfway point
-```
+The call you write yourself is the one you have to catch.
 
-## Guard first
+## Playing one stretch
 
-Every transport method calls the kit's `_assertReady()` guard before doing anything else. Calling `play()` before `setup()` resolves, or after `dispose()`, throws a typed `StateError` instead of silently reaching into missing state.
+`playSegment({ startSec, endSec, onEnd })` is the one transport-shaped call video adds.
 
-[Core: Transport Contract](/nomercy-player-core/tour/transport) documents that contract in full, including the `preventDefault()` / `delay()` shape of the `before*` event.
+It seeks to `startSec`, watches each `time` event for `endSec`, and emits `segmentBoundary` when the boundary is crossed.
+
+[Reference: Video Player Methods](/nomercy-video-player/reference/player-methods) carries it, together with `clearSegment()` and the three `onEnd` behaviors.
 
 ## See it running
 
-`controls: true` mounts the browser's own bar. Its play, pause and scrubber call the same methods this page describes, and nothing else is wired.
+`controls: true` sets `controls` on the video element and nothing else.
 
-:::snippet{file="video-tour-transport" preview="first"}
+**That bar drives the element directly, not the player.** Its buttons never enter `play()` or `pause()`, so no `beforePlay` or `beforePause` listener sees them and nothing you hang off those events runs.
+
+:::snippet{file="video-tour-transport"}
 :::
 
 ## Next steps
 
-- [Volume](/nomercy-video-player/tour/volume): volume(), mute()/unmute(), and the volume gain state a slider or mute icon reads.
+- [Core: Transport](/nomercy-player-core/tour/transport) for the cancellable `before*` cycle, the queue moves, and attributing a call with `source`.
+- [Reference: Video Player Methods](/nomercy-video-player/reference/player-methods) for everything video adds on top of that contract.

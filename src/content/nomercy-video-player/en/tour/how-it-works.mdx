@@ -1,194 +1,123 @@
 ---
 title: 'How It Works'
-description: 'The setup pipeline in order, how an item becomes playable, the html5/hls.js/Safari split, why levels match by index, the overlay stack, failure recovery, and the traps no method reference covers.'
+description: 'The video work wrapped around the core setup sequence: the config it fills in, the item it loads first, and what settles before a frame appears.'
 ---
-
-{/* Source: packages/nomercy-video-player/src/index.ts, src/player/*.ts, src/adapters/video-backend/*.ts,
-    packages/nomercy-player-core/src/core/mixins/lifecycle.ts, loading.ts, activity.ts,
-    src/plugins/desktop-ui/**, src/plugins/octopus/index.ts, src/plugins/subtitle-overlay/index.ts */}
 
 # How It Works
 
-Every other tour page describes one method group. This page describes the machine those methods sit on. The order things happen in, the fields that actually matter, and the places a plain signature list cannot warn you about.
+`setup()` hands your config to the player core, which runs [nine stages](/nomercy-player-core/tour/lifecycle) before `ready()` resolves.
 
-## From setup() to first frame
+This page is the video layer wrapped around that sequence.
+It decides which item loads first, what fills the container while it loads, and which tracks are playing by the time a frame appears.
 
-`setup()` returns immediately. It does not wait for the player to be usable. It wires state, then fires an internal pipeline in the background. Only `ready()` (or a `ready`/`mediaReady` listener) proves the pipeline actually got there.
+## What setup fills in
 
-The pipeline runs in this order, every time:
+Your config object is enriched before the core ever sees it.
 
-1. `setupStart`
-2. `configResolved`
-3. `pluginsRegistering` (plugins register in the order they were queued; a plugin that adds another plugin from its own `use()` gets picked up in the same pass)
-4. `pluginsRegistered`
-5. translation loading (a failure here is swallowed, not surfaced)
-6. `streamsReady`
-7. `authReady`
-8. `playlistResolving` (only when relevant) then `playlistReady`
-9. `mediaReady`
-10. `ready`
+| Field | What the video player puts there |
+| --- | --- |
+| `crossfadeEnabled` | `false` |
+| `preloadLeadSeconds` | `10` |
+| `preloadStrategy` | `VideoPreloadStrategy`, built with that lead |
+| `transitionStrategy` | `GaplessTransitionStrategy` |
 
-A failure at any stage emits `<stage>Error` plus a plain `error`, rejects the `ready()` promise, and skips every stage after it.
+Each one is filled in only when your own config left it out.
+A value you pass always wins.
 
-One timing detail matters for a config-driven UI: `theaterDefault` applies synchronously, right after `setup()` returns. It does not wait for `ready()`. Resume and autoplay, covered next, do wait for `ready()`. Two different clocks inside the same `setup()` call.
+`VideoPreloadStrategy` is the video-shaped list of what to prefetch for the next item: its media URL, poster, preview sprite, subtitle sidecars, chapter file and fonts.
 
+One field is applied on the way out of `setup()` rather than during the sequence.
+`theaterDefault` calls `theater(true)` before `setup()` returns, so the layout is already in theater mode while the stages are still running.
+
+Everything else on this page happens after that.
+
+## The player loads the first item itself
+
+`setup()` arms the queue. It loads nothing.
+
+The load is a separate pass, and it runs whether or not `autoPlay` is set.
+That is what keeps a player from mounting blank.
+
+A queue still empty at that point primes nothing.
+
+**Calling `item()` yourself between `setup()` and `ready()` keeps your choice.**
+The pass sees an explicit navigation and loads that item, with no resume applied.
+
+{/* partial */}
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+player.setup({ baseUrl, playlist });
 
-const player = nmplayer('player');
-
-player.setup({ baseUrl, playlist: [item] });
-// player is NOT usable yet here
+// Your pick, not the resume rule's.
+player.item(2);
 
 await player.ready();
-// now it is
 ```
 
-## How an item becomes playable
+## How the first item is picked
 
-A playlist item goes through `normalizeVideoPlaylistItem` before the player ever touches it. The function is idempotent: a canonical v2 item passes through unchanged. Only a legacy v1/server shape (`file` instead of `url`, millisecond chapter times, a `{time,date}` progress pair, a `tracks[]` array) gets reshaped into the v2 form.
+With no pick of your own, the choice comes from the `progress` field on your items.
 
-The player core reads a narrow set of fields off that item. Everything else on `VideoPlaylistItem` exists so a server response type-checks, not because the core reads it:
+Items carrying no `progress` at all leave the choice at the first item in the list.
 
-- Read by the core: `url`/`file`, `image`/`poster`/`thumbnail` (in that priority order), `previewSpriteUrl`, `subtitles` (only to prefetch assets, never to pick one), `chapters`, `fonts`, `progress`, `duration` (backfills a legacy progress percentage).
-- Declared but never read by the core: `seasonName`, `uuid`, `logo`, `rating`, `audio`, `playlist_type`, `tmdb_id`, `video_id`, `video_type`, `year`. `title`, `show`, `season`, and `episode` are also untouched by the core itself; the desktop UI title bar, the cast sender, and the media session plugin read those instead.
+Otherwise the item with the newest `progress.timestamp` wins, and its `percentage` decides what happens to it.
 
-URL resolution has a split you will only notice once it bites: an absolute poster/image URL (any scheme) is applied as-is. Only a relative one runs through your configured `urlResolver`. If your resolver signs image URLs, a relative poster gets signed and an absolute one does not, silently.
+Past 90, the player rolls forward to the next item in the list and starts it from the beginning.
+The last item has nowhere to roll forward to, so it starts over instead.
 
-Start position is decided once, right after `setup()`, and only when you have not already called `item(target)` yourself before `ready()` resolves:
+Below 90, the player loads that item and starts at its `progress.time`.
 
-- The most-recently-watched item, by `progress.timestamp`, wins the queue position.
-- Past 90% watched, the player rolls forward to the next item instead of restarting this one.
-- Otherwise it resumes at `progress.time`, passed down as a `startTime` hint to the backend.
+That offset rides the load down to the backend rather than being seeked afterwards, so the stream begins at the offset instead of fetching the opening first.
 
-That resume pass runs exactly once, against the queue you gave `setup({ playlist })`. Swapping the queue later with `queue(items)` does not repeat it. If you replace the queue after `ready()` and still want to resume, call `item(target, opts)` yourself with the saved time.
+## The backend arrives with the first load
 
-## The backend boundary: html5, hls.js, and Safari
+The video backend is built on that first load, not during setup.
+That is the moment `muted` and `controls` from your config reach the element.
 
-`backend('html5')`, the default, is not one code path. Inside it, the player picks `hls.js` on browsers without native HLS, and falls back to the browser's own `<video>` HLS support on Safari. Same backend name, two different implementations underneath, with real differences a UI has to account for.
+`html5` is the only kind with a built-in implementation.
+Any other kind needs a `backendFactory` in your config, covered in [the video backend adapter](/nomercy-video-player/plugins-adapters/adapter-video-backend).
 
-| Capability | hls.js (Chrome, Firefox) | Native HLS (Safari) |
-| --- | --- | --- |
-| Stream auth | Header injected via `xhrSetup` | Token appended as a URL query parameter |
-| `qualityLevels()` / `quality()` | Populated from the parsed manifest | Always `[]`, no manual switching |
-| Subtitle track choice | Prefers a WebVTT track over CEA-608/708 captions when both match | Handled by the browser's native track list |
+## What the container shows while it loads
 
-Two consequences follow from that table.
+The item's image goes onto the video element as its poster before the source is attached.
+That is what fills the container until there is a frame to show.
 
-A server that authenticates only via header, or only via query parameter, works on one browser family and fails on the other. There is no error on the failing side.
+An image already written as an absolute URL is used as given.
+A relative one is joined to `baseImageUrl` in the same tick, then upgraded if your own `urlResolver` returns something different.
 
-A quality menu that does not check for an empty `qualityLevels()` list renders empty on Safari. Again, no error to hook into.
+## Track selection settles on mediaReady
 
-## The track model
+The load path emits `mediaReady` again once the backend really holds the item.
+That second one is the video player's cue to choose tracks.
 
-Quality levels are matched by their `index` field, never by position in the array `qualityLevels()` returns. That array is already filtered. HDR levels drop out when the display cannot render them, and unsupported codecs drop out too.
+A `videoRect` event carrying the displayed picture rectangle is emitted inside that same dispatch, so your own `mediaReady` listener runs after it rather than before.
 
-A level at array position 2 is not "the third rendition" once anything has been filtered. Matching by position silently picks the wrong one.
+Selection is by language tag, never by track index.
+`defaultAudioLanguage` and `defaultSubtitleLanguage` are matched exactly first and then by prefix, so `en` matches `en-US`.
+A tag matching nothing leaves an unselected slot alone.
+Where a track is already selected it does not: the slot is handed to the stream's own default rendition instead, with no warning.
 
-Two events track two different moments of a quality change. `quality:requested` fires immediately, before the backend confirms anything. It is for a UI that needs to reflect the request the instant it happens.
+A language the viewer already chose on an earlier item wins over the config default.
 
-`level-switched` fires once the backend has actually applied the new level, for a "now playing at 1080p" toast. Between those two events, the "requested" and "playing" quality can legitimately disagree.
+`defaultQuality` is applied on the first `levels` event and only then.
+A quality chosen after that survives the next item, because the config value is never reapplied.
 
-`mediaReady` is the point where selection state should be trusted as settled. Reading `subtitle()`/`audioTrack()`/`quality()` live, rather than caching a guess earlier, is what makes a plugin-rendered track work. ASS subtitles through Octopus, for instance, never appear in the browser's native track list, so live reads are the only way to see them.
+## The first frame
 
-Re-reading that live state during a menu repaint is the wrong move. It overwrites a selection the user just made manually with whatever the kit last knew, and there is no error to flag it.
+The backend's `canplay` is the point the player treats as the first frame.
 
-Audio and subtitle language memory records a language, never a track index, because index position is not stable across items with a different stream order. That memory layer sits on top of positional track selection, not instead of it. Matching a remembered language back to the right track still has to resolve to an index in the end.
+`firstFrame` is emitted there.
 
-## The overlay stack
+The phase only moves to `playing` if something called `play()`, so on the default path it stays at `ready` and no `phase` event fires.
 
-`DesktopUiPlugin` owns the control chrome's container. While it is mounted, it disables the player's own activity tracker and becomes the sole source of `activity` events.
+It fires once per source. Loading another item resets the latch, so the next item announces its own.
 
-`overlay()` returns `null` until `use()` has actually run. A plugin that mounts too early into it gets nothing.
-
-Showing and hiding the chrome is a counted hold, not a flag. `holdChrome()`/`releaseChrome()` compose: if two independent plugins each hold the chrome open, it stays open until both release. Pair every hold with exactly one release, even across plugins that do not know about each other.
-
-A plugin that wants its own visual layer, like `SubtitleOverlayPlugin`, does not mount inside `DesktopUiPlugin`'s overlay at all. It builds its own container sized to `player.videoRect()`, independent of the control bar. `overlay()` is for a plugin that wants to render inside the desktop chrome itself, such as an extra button.
-
-Two mechanisms decide what a control-bar item shows, and they do not share state.
-
-A button's own visibility (no subtitle tracks, no audio tracks) is expressed as `hidden` plus a `data-content-hidden` attribute. The responsive fit logic reads that attribute when deciding what to drop under a narrow width.
-
-A settings-menu row's visibility is set through inline `style.display` instead. Toggling a control-bar button by touching only its `style.display` desyncs it from the responsive fit math, since that math never looks at the style, only the attribute.
-
-## Failure and recovery
-
-An HLS source outage retries on a fixed ladder: `1s, 2s, 4s, 8s`, then `15s` six more times, about 105 seconds of budget before giving up.
-
-The same HTTP status does not always mean the same thing.
-
-A 404 or 410 gets zero retries by default, on the assumption the file is really gone. But if a connection failure already happened earlier in the same outage, that same 404/410 is treated as a server still finishing a restart. It then gets the full ~105 second ladder instead.
-
-That distinction lives in state private to the backend. A consumer inspecting the error alone cannot see which case they are in. A 5xx or a dropped connection always gets the full ladder from the start.
-
-Calling `backend('mse')` (or any non-default kind) without a `backendFactory` configured does not throw synchronously. It rejects inside a promise chain. A caller that does not `await` or `.catch()` the call sees a silent unhandled rejection instead of a visible error.
-
-`dispose()` only proceeds once the `beforeDispose` hook actually lets it through. A plugin that calls `preventDefault()` on `beforeDispose` leaves the video backend, and the player's own instance registry entry, fully intact.
-
-What a consumer can actually act on: `AuthError` versus `NetworkError` from any plugin's own `fetch()` calls (narrow with `isAuthError`/`isNetworkError`), and the player's `error`/`buffering` events for playback-level trouble. The outage classification itself (media-absent vs origin-down) is internal, not exported through any public entry point. Branch on the events the player emits, not on inspecting a status code yourself.
-
-## Traps
-
-**An absolute poster URL skips your URL resolver.**
-You expect a configured `urlResolver` to sign or tokenize every image URL you set on an item.
-What actually happens: only a relative `image`/`poster`/`thumbnail` value goes through it. An absolute URL, any scheme, is used exactly as given.
-Do this instead: keep server-provided image URLs relative, or apply your own signing before you put them on the item.
-
-**Quality switching silently does nothing on Safari.**
-You expect `qualityLevels()` to return renditions once the manifest has loaded.
-What actually happens: on Safari's native-HLS path, and on plain progressive MP4, it always returns an empty array. No error, no flag.
-Do this instead: hide the quality menu entirely when the list comes back empty, rather than treating empty as "still loading".
-
-**The same 404 can mean two different things.**
-You expect a 404 to always mean "give up, the file is gone".
-What actually happens: if a connection failure happened earlier in the same outage, that 404 gets a full ~105 second retry ladder instead of being treated as final.
-Do this instead: drive your UI off the player's buffering/error events, not off assumptions about a specific status code.
-
-**`backend(kind)` throws inside a promise, not synchronously.**
-You expect a missing `backendFactory` to throw where you call `backend('mse')`, so a plain `try`/`catch` catches it.
-What actually happens: the throw happens inside a promise chain and surfaces only as a rejection.
-Do this instead: always `await` or `.catch()` a `backend(kind)` call.
-
-**Resume-on-load only ever fires once.**
-You expect replacing the queue with `queue(items)` to resume wherever the new list left off.
-What actually happens: the resume pass runs exactly once, against the queue from the original `setup({ playlist })`, and never again.
-Do this instead: after swapping the queue post-`ready()`, call `item(target, opts)` yourself with the saved resume time.
-
-**A thumbnail sprite manifest is tagged `'thumbnails'`, not `'sprite'`.**
-You expect a track entry with `kind: 'sprite'` to supply the seek-preview sprite sheet.
-What actually happens: `kind: 'thumbnails'` is the field the player reads as the sprite manifest URL. `'sprite'` is never looked up as a kind at all.
-Do this instead: tag the manifest track `kind: 'thumbnails'` on the server side.
-
-**A chapters track file does not populate chapters.**
-You expect `tracks: [{ kind: 'chapters', file: '...' }]` to make `chapters()` return that file's content.
-What actually happens: nothing in the shipped player parses that file into chapter data. Only a pre-populated `item.chapters` array is ever read.
-Do this instead: send parsed chapter objects directly on `item.chapters`, not as a track reference.
-
-**Re-syncing selection state during a menu repaint erases the user's pick.**
-You expect refreshing an open quality/audio/subtitle menu to re-check the player's live selection first, so the menu never looks stale.
-What actually happens: doing that overwrites a choice the user just made manually with the kit's last known selection, with no error.
-Do this instead: repaint from cached selection state, and only re-sync from the live player when the track list itself changes.
-
-**A broken sprite or an unparseable font degrades to nothing, not an error.**
-You expect a failed sprite fetch, or a font whose name table cannot be parsed, to give you something to branch on.
-What actually happens: every sprite failure (network, empty manifest, bad image) collapses into the same `null`. A font that fails to parse still registers under its filename as a fallback, which may not match what the subtitle file asks for.
-Do this instead: treat "no sprite" and "font resolved to nothing" as their own visible states, not as errors you can distinguish.
-
-**Chrome holds and releases are counted, not toggled.**
-You expect one `releaseChrome()` call to always bring the chrome back.
-What actually happens: it is a count. The chrome stays hidden until every plugin that called `holdChrome()` has also called `releaseChrome()`.
-Do this instead: pair every hold with exactly one matching release, even across plugins that do not coordinate with each other.
-
-**Octopus subtitle rendering degrades once and never recovers.**
-You expect ASS/SSA subtitles to start working again once the renderer's lazy-loaded chunk finishes, even after an earlier attempt failed.
-What actually happens: the plugin caches that first failure and never retries for the rest of the player's life.
-Do this instead: make sure the octopus renderer chunk is loadable before the first `.ass`/`.ssa` track is selected, rather than racing it.
-
-**Cast artwork and lock-screen artwork read different fields.**
-You expect one image field on an item to reach both the Chromecast receiver and the OS lock-screen/media session.
-What actually happens: the cast sender reads only `item.poster`. The media session plugin reads `image` first, then `poster`, then `thumbnail`, then `cover`.
-Do this instead: always set `item.poster`, even when you have already set `item.image` for the lock screen.
+```ts
+player.on('firstFrame', () => {
+  hideYourOwnPlaceholder();
+});
+```
 
 ## Next steps
 
-- [Transport](/nomercy-video-player/tour/transport): play(), pause(), stop(), togglePlayback(), next()/previous(), and seeking through time(seconds).
+- [Lifecycle](/nomercy-player-core/tour/lifecycle) for the nine stages themselves, and where a plugin fits into them.
+- [Video backend](/nomercy-video-player/plugins-adapters/adapter-video-backend) for what the backend does with a URL once it has one.

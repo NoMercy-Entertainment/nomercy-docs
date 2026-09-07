@@ -112,7 +112,7 @@ dispose(): void
 
 Override this only for resources the lifecycle registry cannot track: third-party library instances, custom WebGL contexts, non-standard observers.
 
-Everything registered through the helpers is already released before your `dispose()` body runs: listeners, timers, animation-frame loops, observers, abort controllers, mount nodes. Do not re-clean them here.
+Everything registered through the helpers is released after your `dispose()` body returns: listeners, timers, animation-frame loops, observers, abort controllers, mount nodes. All of it is still live while `dispose()` runs, so the body can read its own DOM and its own subscriptions on the way out.
 
 The kit calls `dispose()` when the player itself disposes, or when the plugin is removed with `player.removePlugin(PluginClass)`.
 

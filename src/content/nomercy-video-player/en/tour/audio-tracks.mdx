@@ -1,65 +1,134 @@
 ---
 title: 'Audio Tracks'
-description: 'audioTracks(), audioTrack(), audioTrackMode(), and cycleAudioTracks(), the same selection shape as subtitles, applied to embedded audio renditions.'
+description: 'Where the audio track list comes from, how you switch between entries, and why the choice is carried as a language.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/mixins/media-tracks.ts, packages/nomercy-player-core/src/core/mixins/player-state.ts, packages/nomercy-video-player/src/index.ts */}
+{/* Source: packages/nomercy-video-player/src/index.ts, packages/nomercy-video-player/src/adapters/video-backend/html5.ts, packages/nomercy-player-core/src/core/mixins/media-tracks.ts */}
 
 # Audio Tracks
 
-An HLS manifest can carry more than one audio rendition per item:
+One item can carry more than one audio rendition.
+A second language, a commentary, a stereo mix beside a surround one.
 
-- alternate languages
-- a commentary track
-- a stereo/5.1 pair
+The player reads that list off the source and lets you move between the entries.
+It never invents a track and it never mixes two.
 
-`audioTracks()` and `audioTrack()` mirror the subtitle surface from [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles) exactly. They use the same index-based selection, the same `Current*Selection` shape, and the same auto-select config field.
+## Where the list comes from
 
-## Listing and selecting
+`audioTracks()` returns what the mounted backend can see.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-
-const player = nmplayer('player');
-
-const tracks = player.audioTracks(); // AudioTrack[]: { id, language?, label }
-const current = player.audioTrack(); // { index, track } | null
-
-await player.audioTrack(1); // switch to the second rendition
+const tracks = player.audioTracks();
 ```
 
-Unlike subtitles, audio tracks have no "off" state. Once the manifest resolves, one track is always active. Because there is no off position to land on, `cycleAudioTracks()` walks the list and wraps around at the end instead of stopping.
+An HLS manifest hands over its audio renditions.
+A source the browser plays on its own hands over whatever the media element exposes, which today means Safari. Chrome does not implement `HTMLMediaElement.audioTracks` at all, so the property is absent rather than empty.
 
-## Default language
+A source with no HLS manifest and no native track list returns an empty list.
+That is the ordinary answer rather than a failure. Where the native list does exist, a single-audio file yields one entry, not none.
 
-Once the manifest parses, `defaultAudioLanguage` on `VideoPlayerConfig` auto-selects a track. It uses the same BCP-47 exact-then-prefix matching as `defaultSubtitleLanguage`:
+Each entry is an `AudioTrack`.
+
+| Field | What it holds |
+| --- | --- |
+| `id` | An identifier within this source. For HLS it is `audio-0`, `audio-1`, and so on. |
+| `language` | The tag the source declares, when it declares one. |
+| `label` | Text to show: the rendition's own name, or `Track 1` when it has none. |
+| `default` | `true` on the rendition the source marks as its default. |
+
+## Switching
+
+```ts
+await player.audioTrack(1);
+```
+
+The argument is a position in the list `audioTracks()` just returned.
+It is not the `id`, and the two are not interchangeable.
+
+The call returns a promise because a listener sees the request first.
+`beforeAudioTrack` carries the requested position and can cancel it, which raises `audioTrackPrevented` and leaves the current track playing.
+Awaiting the call is how you know that whole cycle finished.
+
+Called with nothing, `audioTrack()` reads back `{ index, track }`, or `null` when no track has been picked yet.
+
+## The choice is a language, never a position
+
+Position two is a different language on the next file.
+So a position is worth nothing the moment the item changes, and storing one is how a viewer ends up in Japanese on episode four.
+
+The player takes the language off the track and keeps that instead.
+
+**The event payload's field is called `id`, and it carries a position.**
+That is the published name, and it is the same position `audioTrack()` takes, so index the list with it rather than searching for a track whose `id` matches.
+
+```ts
+player.on('audioTrack', ({ id }) => {
+  const chosen = id === null ? undefined : player.audioTracks()[id];
+  remember(chosen?.language);
+});
+```
+
+That is the same rule the caption choice follows, and [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles) covers the memory both selections share.
+Your own code wants the same key: read `language` off the track, and let the next item find its own position.
+
+## Choosing before the viewer does
+
+`defaultAudioLanguage` names the language you want the item to open in.
 
 ```ts
 player.setup({
   baseUrl,
   playlist: [item],
-  defaultAudioLanguage: 'jpn',
+  defaultAudioLanguage: 'eng',
 });
 ```
 
-## Reading the selection mode
+The player applies it once the media for that item is ready.
 
-`audioTrackMode()` reports which one is driving the current choice:
+Matching is exact first, then a prefix split on a hyphen.
+So `en` answers a track tagged `en-US`, and `en-US` answers one tagged `en`.
 
-| Mode | Meaning |
-| --- | --- |
-| `AudioTrackState.DEFAULT` | No explicit choice has been made yet. The backend's own default rendition is active. |
-| `AudioTrackState.MANUAL` | A consumer or preference plugin has picked a track. |
+It is not a prefix on letters.
+`en` does not answer a track tagged `eng`, so pass the tag the source itself declares.
+The Sintel manifest below declares `eng`.
 
-A "reset to default" menu item reads this mode before deciding whether to show itself.
+A remembered choice outranks this option.
+Once a viewer picks a track, that language is what the next item opens in.
+With nothing to honour, the rendition the source marks default is the one that plays.
+
+## Which one is driving
+
+`audioTrackMode()` reports `AudioTrackState.DEFAULT` until a track is explicitly picked, and `AudioTrackState.MANUAL` after.
+The move is announced on the `audioTrackState` event.
+
+A control offering to undo the choice reads this first, so it can stay hidden while there is nothing to undo.
+
+## Walking the list
+
+`cycleAudioTracks()` moves to the next entry and wraps from the last one back to the first.
+
+There is no off position here, because something is always audible.
+That is the one place it parts company with the subtitle cycle, which walks through off.
+
+It does nothing at all when the list is empty.
+
+## When the list is ready
+
+The `audioTracks` event carries the list, but only when hls.js has already populated its track list at the moment the manifest is parsed.
+A manifest whose audio is muxed into the video renditions has not, so the event does not arrive even though `audioTracks()` returns an entry a moment later.
+A natively played source never raises it either.
+
+So build your menu from an `audioTracks()` call at the moment you draw it, rather than waiting for an event that half of the sources do not send.
 
 ## See it running
 
-Sintel's manifest carries a single embedded audio rendition, so there is nothing to switch between here. The player below is the plain config; the calls above are the same ones a multi-language item answers.
+The Sintel manifest declares one audio rendition, in `eng`, marked as its default.
+`audioTracks()` therefore returns a single entry here, and every call above behaves the same way against it as against a manifest carrying six.
 
-:::snippet{file="video-tour-audio-tracks" preview="first"}
+:::snippet{file="video-tour-audio-tracks"}
 :::
 
 ## Next steps
 
-- [Quality Levels](/nomercy-video-player/tour/quality): qualityLevels(), quality(), and the 'levels' event a bitrate selector waits for.
+- [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles) for the selection surface beside this one, and the language memory the two share.
+- [Player Methods](/nomercy-video-player/reference/player-methods) for the full signatures.

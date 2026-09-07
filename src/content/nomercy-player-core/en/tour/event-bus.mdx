@@ -86,7 +86,7 @@ That last one is why one broken listener cannot stop the player telling everybod
 Whenever a name gains its first listener or loses its last, the bus emits `listeners-changed` with `{ name, count }`.
 It arrives on a microtask, not inside your `on()` call.
 
-The example below drives all of that on a bus of its own, so the mechanics are visible with no player around them.
+`EventEmitter` is exported on its own, so every mechanic above can be driven with no player around it.
 
 :::snippet{file="tour-event-bus" live="false"}
 :::
@@ -155,7 +155,9 @@ A browser blocking autoplay is the case you will actually meet.
 
 **Order decides whether a delay is honored.**
 Every handler runs to the end before any promise is awaited.
-So a handler that stops propagation silences a later handler's `delay()`, and the action goes ahead unwaited.
+So a handler that stops propagation silences a later handler's `delay()`.
+
+The action then goes ahead unwaited.
 
 `player.dispatching()` returns the names being dispatched right now, innermost last.
 Reach for it when a handler needs to know which chain it is inside.
@@ -163,4 +165,4 @@ Reach for it when a handler needs to know which chain it is inside.
 ## Next steps
 
 - [Reference: Events](/nomercy-player-core/reference/events) for every event name and the payload it carries.
-- [Adapter: Event Bus](/nomercy-player-core/plugins-adapters/adapter-event-bus) for replacing the bus with your own.
+- [Adapter: Event Bus](/nomercy-player-core/plugins-adapters/adapter-event-bus) for `IEventBus`, the type to write your own code against.

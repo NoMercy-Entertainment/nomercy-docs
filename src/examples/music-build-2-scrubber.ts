@@ -9,12 +9,16 @@
 /**
  * Build a Player, step 2 of 5: the scrubber.
  *
- * Nothing to add — `controls: true`'s native bar already carries a seek
- * scrubber, and unlike `DesktopUiPlugin` there's no options surface to
- * customize it with (the browser owns its rendering entirely). The scrubber
- * you see is driven by the exact same `time()` / `'time'` / `'duration'`
- * kit surface the [Time & Seeking](/nomercy-music-player/tour/time) page
- * documents — the native bar is just already wired to it for you.
+ * Nothing to add. `controls: true`'s native bar already carries a seek
+ * scrubber, and unlike `DesktopUiPlugin` there is no options surface to
+ * customize it with, because the browser owns its rendering entirely.
+ *
+ * That scrubber seeks the audio element directly rather than calling
+ * `time()`. The player tracks the element's `timeupdate`, so it follows a
+ * native seek and keeps publishing the `'time'` and `'duration'` events the
+ * [Time & Seeking](/nomercy-music-player/tour/time) page documents. Build
+ * your own scrubber against those methods and events, not against the
+ * native bar.
  */
 
 import type { IMusicPlayer, MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';

@@ -1,68 +1,111 @@
 ---
-title: 'Playback State & Events'
-description: 'playState(), bufferState(), timeData(), and the video-specific events layered on top of the kit event bus: levels, audioTracks, fullscreen, videoRect, and the rest.'
+title: 'State and Events'
+description: 'What the player tells you while it plays, and the refusals your own code has to answer for.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/mixins/player-state.ts, src/core/mixins/time.ts, packages/nomercy-video-player/src/types.ts */}
+{/* Source: packages/nomercy-video-player/src/index.ts, node_modules/@nomercy-entertainment/nomercy-video-player/dist/index.js */}
 
-# Playback State & Events
+# State and Events
 
-A UI reads state two ways. Pull a typed reader when you need a value right now. Or subscribe once and let the player push updates.
+Nothing here needs polling.
 
-Both ways come from the kit. Video only adds the events specific to its own medium on top.
+The player announces a value when it changes, and holds the same value for you to read back on demand.
+`player.on('levels', handler)` reacts to a change, and `player.qualityLevels()` answers right now.
 
-## Typed state readers
+Both come from one place, so a menu built on the event and a menu built on the reader never disagree.
 
-These come straight from `nomercy-player-core` (see [Core: State](/nomercy-player-core/tour/state) for the full contract) and work identically here. Each one returns a typed enum value or a snapshot object, never a raw string to compare by hand.
+## What it announces
 
-The full [state enum list](/nomercy-player-core/reference/types#state-enums) and the [`TimeState` shape](/nomercy-player-core/reference/types#time--tracks) `timeData()` returns are on Reference: Domain Types. `volumeState()` is the one a mute-icon component reads most, see [Volume](/nomercy-video-player/tour/volume).
+The names fall into six groups.
 
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import { PlayState } from '@nomercy-entertainment/nomercy-video-player';
+- Playback signals, including the first painted frame and the buffering stalls.
+- Quality and track lists, once the manifest has been parsed.
+- Subtitle cues, one channel whatever the cue came from.
+- Display state: fullscreen, picture-in-picture, theater, aspect ratio, and the video rectangle.
+- Segment boundaries, when you asked the player to watch a window.
+- On-screen messages and navigation intents.
 
-const player = nmplayer('player');
+[Reference: Events](/nomercy-video-player/reference/events) carries every name, its payload and what makes it fire.
 
-if (player.playState() === PlayState.PLAYING) {
-  // ...
-}
+**The last group is not the player talking.**
+Those events are raised by the interface and key-handling plugins, so a build that registers neither never sees one.
+They are on the map because your own code listens for them, not because the player produces them.
 
-const { position, duration, percentage } = player.timeData();
-```
+## The rectangle the picture actually fills
 
-## Video-specific events
+`videoRect()` is the one reader with no equivalent anywhere else in the kit.
 
-Most of what follows is unique to `VideoEventMap`, layered over the kit's `BaseEventMap`. That base carries transport, queue, volume, and i18n. Every tour page so far has covered those events.
+It returns the box the picture occupies inside your container, which is smaller than the container whenever there are black bars.
+An overlay aligned to the container sits over the bars.
+An overlay aligned to this rectangle sits over the picture.
 
-Three rows are the exception. `firstFrame`, `level-switched` and `subtitleCue` are `BaseEventMap` members, listed here because they matter most in a video context. The music player and a raw core consumer see the same three.
-
-The events fall into a handful of groups: playback signals (`firstFrame`, `waiting`/`canplay`/`stalled`), quality and track population (`levels`, `audioTracks`), subtitle cues, display state (`fullscreen`, `pip`, `theater`, `aspectRatio`, `videoRect`), segment boundaries, and OSD/navigation intents (`display-message`, `back`, `close`). Every name, payload shape, and firing condition is on [Reference: Events](/nomercy-video-player/reference/events).
-
-```ts
-player.on('levels', ({ levels }) => {
-  // populate a quality menu now that the manifest is parsed
-});
-
-player.on('fullscreen', ({ active }) => {
-  // sync a fullscreen button's icon
-});
-```
-
-`videoRect()` and its event exist for overlay plugins:
-
-- subtitles
-- a letterbox border
-- a click-to-seek layer
-
-Under `object-fit: contain`, they let the overlay align to the actual painted video area. The container is the wrong target, because it includes the letterbox padding.
+It answers `null` until the video has metadata, and the `videoRect` event fires when the box moves: on `mediaReady`, on `duration`, on `fullscreen`, and whenever the container or the video element resizes.
 
 ## See it running
 
-Play, pause and seek in the native bar. Every reader on this page is fed by the events those actions fire, never by polling for them.
+Play, pause and seek in the native bar.
 
-:::snippet{file="video-tour-state-events" preview="first"}
+:::snippet{file="video-tour-state-events"}
 :::
 
-## Next steps
+## The failures you have to answer
 
-- [Build a Player: The Shell](/nomercy-video-player/build/shell): stop reading the API and start wiring it to real buttons, step by step.
+Most failures arrive on the four severity channels, and [Errors](/nomercy-player-core/tour/errors) is where those live.
+
+Two refusals are yours to answer here, because in both the browser overrules the player.
+
+### Autoplay
+
+A browser declines to start playback that no one asked for.
+That is the ordinary outcome of `autoPlay: true` on a page the viewer has not touched yet.
+
+The player does not pretend otherwise.
+It rolls `playState()` back to paused, rolls the phase back to where it started, emits `playPrevented`, and rethrows.
+
+Without the rollback, every control drawn from state would show a pause button over a silent picture, and the viewer's first click would pause something that never played.
+
+```ts
+player.on('playPrevented', ({ reason, cause }) => {
+  if (reason === 'backend-refused') showTapToPlay(cause);
+});
+```
+
+`reason` is one of four, and only one of them is the browser.
+
+| `reason` | Raised when |
+| --- | --- |
+| `backend-refused` | The browser rejected the play call. |
+| `listener-prevented` | One of your own `beforePlay` listeners called `preventDefault()`. |
+| `delay-rejected` | A promise a `beforePlay` listener passed to `delay()` rejected. |
+| `delay-timeout` | Those promises took longer than ten seconds. |
+
+The first is the only one that also throws.
+A `play()` you await therefore rejects, and a `play()` you do not await becomes an unhandled rejection.
+
+```ts
+try {
+  await player.play();
+}
+catch {
+  // Already reported through playPrevented.
+}
+```
+
+**The autoplay attempt `setup` makes for you is different.**
+The player starts that one itself and handles its own rejection, so nothing reaches your console.
+`playPrevented` is the only notice you get.
+
+Muted playback is the case browsers do allow, so `muted: true` beside `autoPlay: true` is what makes the attempt succeed.
+
+### Fullscreen and picture-in-picture
+
+Both need a user gesture, and both are requests rather than commands.
+
+`player.fullscreen(true)` emits `fullscreen` with the state it asked for, whether or not the browser agreed.
+**`player.fullscreen()` does not read the browser's answer.** It reports the state the player asked for, so it still says `on` after a refused request and after the viewer leaves fullscreen by pressing escape.
+
+`player.platform().fullscreen.isActive()` is the reader that answers for the browser, and it is the one a button icon should follow.
+`pip()` has the same shape.
+
+Calling either on a player set up without a platform controller throws instead: `core:policy/fullscreenUnsupported` and `core:policy/pipUnsupported`.
+The default platform supplies both, so this is a wiring mistake rather than a runtime condition.

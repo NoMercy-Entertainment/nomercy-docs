@@ -3,23 +3,31 @@ title: 'Adapters'
 description: 'Why the kit takes storage, platform, formats and strategies as named interfaces with working defaults, and the three shapes a replacement comes in.'
 ---
 
+{/* Source: packages/nomercy-player-core/src/types/config.ts, src/core/mixins/lifecycle.ts, src/core/mixins/stream-registration.ts, src/core/mixins/cue-parser.ts, src/adapters/stream/registry.ts, src/adapters/cue-parser/registry.ts, src/adapters/platform/IPlatform.ts, src/adapters/url-resolver/IUrlResolver.ts */}
+
 # Adapters
 
-The kit needs things it does not own. Somewhere to save a value, a way to know the device went offline, code that understands an `.m3u8`.
+The kit needs things it does not own.
 
-None of that is written into the player. Each one is a named interface, and the kit ships a working implementation of it.
+- Somewhere to save a value.
+- A way to know the device went offline.
+- Code that understands an `.m3u8`.
+
+Each one is a named interface, and the kit ships a working implementation of it.
 
 That pairing is an adapter: one interface, one default.
 
 ## What an adapter answers
 
 An adapter answers a single question the kit refuses to answer for itself.
+`IStorage` answers where a saved value lives.
 
-`IStorage` answers where a saved value lives. `IPlatform` answers what the device can do. `IStreamFactory` answers which code claims a URL.
+The ports table below carries the question every other family answers.
 
 Every port has a default, so a player set up with nothing but a playlist is already fully wired.
 
-**Nothing in the kit checks which implementation is active.** Every read goes through the interface, so replacing one changes behavior without a fork, a subclass, or a patched call site.
+**Swapping a default needs no fork, no subclass, and no patched call site.**
+You name the replacement in `setup()`, and the code above it goes on calling the same interface.
 
 ## An adapter is not a plugin
 
@@ -47,7 +55,8 @@ The ports group into five families.
 
 One default is not the kit's to give. The transition strategy comes from the player library wrapped around the kit: `GaplessTransitionStrategy` for video, `CrossfadeTransitionStrategy` for music.
 
-Not everything filed under adapters is a port you replace. The element builder, the event emitter and the lifecycle registry are the kit's own machinery, published as contracts so a plugin can build on the same pieces.
+The element builder, the event emitter and the lifecycle registry live under `adapters/` as well.
+They are the kit's own machinery, published as contracts so a plugin can build on the same pieces rather than replace them.
 
 ## Supplying your own
 
@@ -66,9 +75,17 @@ Passing one replaces the default outright. Every call site downstream is untouch
 
 Streams and cue parsers are many, not one, so they are added rather than swapped.
 
-`player.registerStream(factory)` and `player.registerCueParser(parser)` put yours alongside the built-ins at any point, before or after setup. The most recently registered entry is asked first, so yours is consulted ahead of `nativeFactory`, `hlsFactory` and the three built-in cue parsers.
+`player.registerStream(factory)` and `player.registerCueParser(parser)` put yours alongside the built-ins.
+The most recently registered entry is asked first, so yours is consulted ahead of `nativeFactory`, `hlsFactory` and the three built-in cue parsers.
 
-Those built-ins stay registered underneath as the fallback. `setup({ cueParsers })` is the same registration, run for you once the built-ins are in place.
+**Register once `ready()` has resolved.**
+`setup()` is where the built-ins land, so anything registered before it is the older entry.
+`streams()` reads back `['hls', 'native', 'mine']` in that case, and a built-in claims the URL first.
+
+Register after `ready()` and the same factory reads back first, as `['mine', 'hls', 'native']`.
+
+Those built-ins stay registered underneath as the fallback.
+`setup({ cueParsers })` is the same registration, run for you once the built-ins are in place.
 
 ### Override one member of a bundle
 
@@ -82,7 +99,10 @@ player.setup({
 });
 ```
 
-The URL resolver offers the same escape hatch through its argument rather than a spread. A resolver you supply receives `ctx.defaultResolve(url)` and calls it for any category it does not want to handle.
+The URL resolver offers the same escape hatch through its argument rather than a spread.
+A resolver you supply is called as `(url, ctx)`, and that second argument carries the auth config, the base URL, the category hint and a `defaultResolve(url)`.
+
+Call `ctx.defaultResolve(url)` for any category you do not want to handle.
 
 That port is also the one you can move at runtime. `player.urlResolver(fn)` swaps it after setup, and `player.urlResolver(undefined)` hands the work back to the built-in pipeline.
 
@@ -92,7 +112,7 @@ That port is also the one you can move at runtime. `player.urlResolver(fn)` swap
 
 **Native shells stop needing a fork.** A Capacitor, Tauri or Electron build injects its own wake lock and network monitor through `platform`, and the queue, crossfade and preload code above it never learns that anything changed.
 
-**A format the kit has never heard of still plays.** TTML, SRT, or a proprietary manifest arrives as a factory you register, and the resolution walk finds it before the built-ins.
+**A format the kit has never heard of still plays.** TTML, SRT, or a proprietary manifest arrives as a factory you register once the player is ready, and the resolution walk finds it before the built-ins.
 
 ## Next steps
 

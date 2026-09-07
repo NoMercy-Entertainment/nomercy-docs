@@ -9,12 +9,20 @@
 /**
  * Build a Player, step 3 of 5: volume and mute.
  *
- * Same story as the scrubber — the native bar's volume control and mute
- * toggle are the browser's own, not something to rebuild. They drive
- * `volume()` / `mute()` / `unmute()` under the hood, the same methods and
- * `'volume'` / `'mute'` events the [Volume](/nomercy-music-player/tour/volume)
- * page describes for building your OWN volume UI, should you ever swap the
- * native bar out for a custom one.
+ * The native bar's volume control and mute toggle are the browser's own,
+ * not something to rebuild.
+ *
+ * They differ from the scrubber in one way worth knowing. A native seek
+ * reaches the player, because it tracks the element's `timeupdate`. A
+ * native volume change does not: nothing listens for `volumechange`, so
+ * moving that slider sets the element's own volume and `volume()` still
+ * reports what the player last set. Read the element if you need the
+ * browser's value while the native bar is in use.
+ *
+ * `volume()` / `mute()` / `unmute()` and the `'volume'` / `'mute'` events
+ * the [Volume](/nomercy-music-player/tour/volume) page describes are what
+ * you build your OWN volume UI against, once you swap the native bar out
+ * for a custom one.
  */
 
 import type { IMusicPlayer, MusicPlayerConfig } from '@nomercy-entertainment/nomercy-music-player';

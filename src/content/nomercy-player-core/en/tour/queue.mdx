@@ -56,9 +56,9 @@ Otherwise the cursor goes to the first item, or to nothing when the new array is
 
 `queue()`, `queueAppend()`, `queuePrepend()` and `queueInsert()` all run each item through three steps before it lands.
 
-Your player class's optional `normalizePlaylistItem` runs first, which is where a library adapts a wire format of its own.
-Your `transformPlaylistItem` config callback runs second, on the result.
-Title tokens are resolved last.
+1. `normalizePlaylistItem`, your player class's optional hook, where a library adapts a wire format of its own.
+2. `transformPlaylistItem`, your config callback, on the normalized result.
+3. Title token resolution, on the item's `title`.
 
 A title token is `%` plus a letter plus digits, such as `%S2`.
 `registerTitleTokens({ S: 'some.translation.key' })` maps the letter to a translation key, and the digits arrive as `number` for the translation to place.
@@ -94,14 +94,16 @@ The cursor is adjusted on every one of them so it keeps pointing at the item it 
 | --- | --- |
 | Add items before it | Moves up by that many positions. |
 | Remove an item before it | Moves down one position. |
-| Remove the item it is on | Stays put, so it now points at the following item. |
+| Remove the item it is on | Stays put, so it now points at the following item. On the last item it clamps to the new final position. |
 | Move, shuffle or sort | Follows its item to the item's new position. |
 | Clear the queue | Goes to `-1`, and `item()` is empty. |
 
-Removing the last item while the cursor is on it clamps the cursor to the new final position.
+`queueRemoveAt` and `queueMove` ignore an index outside the list.
+Nothing moves, and nothing is emitted.
+`queueMove(2, 2)` and `queueShuffle()` on a one-item queue are silent for the same reason.
 
-An out-of-range index is a no-op, not an error.
-`queueMove(2, 2)` and `queueShuffle()` on a one-item queue also do nothing, and emit nothing.
+**`queueInsert` is the exception.** It clamps the index into `[0, length]` and inserts anyway.
+So `queueInsert(item, 99)` on a three-item queue appends the item, and a negative index puts it at the front.
 
 ## Moving the cursor
 
@@ -114,8 +116,9 @@ player.item(2);
 ```
 
 A target is an item, its `id`, a zero-based integer index, or a predicate.
-A number that is not an integer is matched against `id` rather than used as an index.
 A target that resolves to nothing leaves the cursor where it was.
+
+**Only a whole number is read as an index.** A fractional number is matched against `id` instead.
 
 **Playing is the default.** Pass `autoplay: false` to move the cursor without starting playback.
 
@@ -184,9 +187,10 @@ A method that changes nothing emits nothing, so an out-of-range remove is silent
 A second list runs alongside the queue, reached through `backlog()`, `backlogAppend()`, `backlogRemove()` and `backlogClear()`.
 It emits `backlog`, `backlog:append`, `backlog:remove` and `backlog:clear` in the same shapes.
 
-**Nothing fills it for you.** Playing past an item does not put it there, `previous()` never reads it, and its contents skip the ingest pipeline above.
+**Nothing fills it for you.** Playing past an item does not put it there, and `previous()` never reads it.
 
-It is storage for a history your own code keeps.
+It is raw storage for a history your own code keeps.
+Its contents skip the ingest pipeline above.
 
 ## Choosing an item before the queue exists
 

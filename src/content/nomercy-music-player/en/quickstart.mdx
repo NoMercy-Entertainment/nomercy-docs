@@ -1,52 +1,94 @@
 ---
 title: 'Quick Start'
-description: 'Install nomercy-music-player and play a real song with the baseUrl pattern. One copy-paste example that works first try.'
+description: 'From an empty page to a track playing, with the reason nothing starts on its own named where it bites.'
 ---
 
-# Music Player: Quick Start
+# Quick Start
 
-This gets a real song playing in the preview below: "Where Dreams Drift" by Ketsa, streamed from the `nomercy-media` fixture catalogue. It uses the baseUrl pattern every NoMercy player and app is built around.
+Five steps to a track playing in your own page. Each one says what you should see, so you can tell it worked before moving on.
 
-## Install
+## 1. Install it
 
 ```bash
 npm install @nomercy-entertainment/nomercy-music-player
 ```
 
-That's the only package you need. `nomercy-player-core` is a regular dependency of `nomercy-music-player`. npm installs it for you, so there is no peer dependency to add by hand.
+That is the whole install. `nomercy-player-core` arrives with it as an ordinary dependency, so there is no peer dependency to add by hand.
 
-## Play your first song
+Nothing else arrives with it. The package ships no stylesheet, so there is none to import at any point.
 
-Here it is loaded for real: an MP3 streamed from `baseUrl`, through the native `<audio>` controls that `controls: true` mounts. Press play in the bar to start it. Below the player is the exact code that produced it, ready to copy:
+## 2. Give it a container
 
-:::snippet{file="music-quickstart" runnable preview="first"}
-:::
-
-The player is headless. It mounts a plain `<audio>` element into your container, and `controls: true` gives it the browser's own control bar. `item(0)` loads the first track so those controls have something to play.
-
-Add the container and style it however your app needs. Here it sits as a full-width bar along the bottom:
+The player mounts into an element you provide.
 
 ```html
 <div id="player"></div>
 ```
 
-```css
-#player audio {
-  position: fixed;
-  inset: auto 0 0 0;
-  width: 100%;
-}
-```
+That div becomes the player root.
+`setup()` marks it `nomercyplayer` and keeps state classes on it as playback changes, so `playing` and `paused` are available to your own CSS without a line of JavaScript.
 
-## The baseUrl pattern
+**It must be a `<div>`.**
+Any other tag throws `core:player/element-not-div`, and an id matching no element throws `core:player/element-missing`.
 
-`baseUrl` is the one config field every playlist should set. Item paths (`url` above) stay relative, exactly the shape a real media server sends. The player prepends `baseUrl` as a plain string prefix and keeps the whole base path:
+The player creates its own `<audio>` element inside that div. Put an `<audio>` in there yourself and it uses that one instead.
 
-- The server sends the base with no trailing slash (`.../master/Music`) and each item path with a leading slash (`/K/Ketsa/...`).
-- Move to a different server, a different environment, or a signed-URL CDN, and you change one config value; nothing in your catalogue is hardcoded to today's origin.
-- Never pre-join an absolute URL into an item yourself. That is the player's job, and doing it twice breaks the moment the base changes.
+Size it yourself. There is nothing to lay out until you add controls, and the whole visible height at this stage is whatever the audio element takes.
 
-## Next steps
+## 3. Create the player and give it something to play
 
-- [Guided Tour: Transport](/nomercy-music-player/tour/transport): play(), pause(), and moving through the queue, the first stop on the full method surface.
-- [Build a Player](/nomercy-music-player/build/shell): put a real overlay UI on top of the player, one control at a time.
+The argument is your container's id.
+
+:::snippet{file="music-quickstart"}
+:::
+
+**You should now see the album cover with a control bar across it.**
+Press play and the track starts.
+
+`controls: true` is what puts that bar there. It sets `controls` on the audio element, which is the browser's own transport rather than anything the package draws.
+
+The cover is not the player's doing. Nothing in the package puts artwork on screen, so the last function in the block paints it onto the container itself.
+
+`name` is the field a music item is displayed by, not `title`. It is what the cast and media-session plugins read for the track's title, and it is the one item field the type makes required.
+
+Calling `nmplayer('player')` again with the same id gives back the same player rather than a second one. That is what makes it safe inside a component that re-renders.
+
+A real second player therefore needs a second container with a different id.
+
+## 4. Wait for it before calling anything
+
+`setup` returns the player straight away, and it is not usable yet. That is what the `await player.ready()` line is for.
+
+`ready()` resolves once setup has finished and every plugin has come up.
+
+**Past that line every method is safe to call.** Restoring a saved position or selecting a track belongs after it.
+
+Calling `setup` a second time throws `core:lifecycle/already-setup`, so a half-configured instance is not a state you can reach.
+
+## 5. Nothing plays until something asks it to
+
+This is the one place a video habit misleads you. `MusicPlayerConfig` has no `autoPlay` field, and no config value starts playback.
+
+What `setup` does instead is arm the queue. Once `ready()` resolves it selects the first item with autoplay off, so the player never sits there blank.
+
+Starting it is then a separate call. `player.play()` after `ready()` is one way, and `item(target)` is the other, because selecting an item starts it by default.
+
+That default is why the example passes `{ autoplay: false }`. It wants the track armed and the page quiet until you press play.
+
+## Keep item paths relative
+
+`baseUrl` is the one config field every playlist should set. It prefixes media and sidecar paths, and `baseImageUrl` does the same for artwork.
+
+Both are string prefixes joined by plain concatenation, so give the base no trailing slash and the path a leading one.
+
+**Artwork gets its own base because it has to end up absolute.** The operating system's now-playing panel and a Cast receiver both fetch it with no page to resolve against.
+
+An item that carries a full URL of its own is passed through untouched, which is why the cover in the example ignores both bases. The two mix freely and each path is judged on its own.
+
+## What you have, and what is next
+
+That is a working player with the browser's controls on it. Controls of your own are code you write against the typed surface, and plugins cover the rest.
+
+- [Configuration](/nomercy-music-player/reference/config) for every `setup` option and its default.
+- [Types](/nomercy-music-player/reference/types) for every field a music item carries.
+- [State and events](/nomercy-music-player/tour/state-events) for reacting to what the player does.

@@ -1,32 +1,70 @@
 ---
 title: 'Volume'
-description: 'volume(), mute()/unmute()/toggleMute(), volumeUp()/volumeDown(), and volumeState(), the gain surface a slider or mute icon reads.'
+description: 'Setting the level, muting, and the curve between the number you set and the gain the browser applies.'
 ---
-
-{/* Source: packages/nomercy-player-core/src/core/mixins/volume.ts */}
 
 # Volume
 
-Volume is another kit surface `nomercy-video-player` inherits unchanged. There is no video-specific volume behavior. The backend just needs a real `<audio>`/`<video>` gain to move.
+The player's volume is one number between 0 and 100.
+That number is a position on a slider, not a gain.
+What reaches the video element is a curve applied to it, and most of this page is about that curve.
 
-## Reading and setting the level
+## Setting the level
 
-`volume()` reads the current level as a number in `[0, 100]`. `volume(level)` sets it, clamped to that range. The setter returns a `Promise<void>` that resolves once the backend applies it:
+Call `volume` with a number once [`ready()`](/nomercy-video-player/quickstart) has resolved.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-
-const player = nmplayer('player');
-
-const level = player.volume(); // 0-100
 await player.volume(50);
 ```
 
-Set an initial level through `setup({ defaultVolume })`, a number on the same 0-100 scale that defaults to `100`. A player with no `defaultVolume` starts at full gain. So read a saved preference into that config field. Or call `volume()` yourself after `ready()` if you would rather set it later.
+The value is clamped, so `volume(140)` lands on 100 and `volume(-20)` lands on 0.
+The call returns a promise that resolves once the new level has reached the backend.
 
-## Mute
+`volume()` with no argument reads the level back.
 
-`mute()` and `unmute()` are absolute; `toggleMute()` flips based on the current state. All three dispatch `beforeMute` first, the same cancellable shape as transport. When the player is already in the target state, they no-op and never dispatch:
+```ts
+const level = player.volume(); // 50
+```
+
+`volumeUp()` and `volumeDown()` move the level by five points.
+Pass a number for a different step, as in `volumeUp(10)`.
+Both clamp the same way, and neither hands you a promise to await.
+
+Until the first `volume` call the video element runs at full output.
+Set the level yourself after `ready()` if you want playback to start anywhere but the top.
+
+## The curve between the two numbers
+
+The number you set is a position.
+The number the browser applies is that position squared.
+
+```
+gain = (level / 100) ** 2
+```
+
+| `volume(level)` | `element.volume` |
+| --- | --- |
+| 100 | 1 |
+| 75 | 0.5625 |
+| 50 | 0.25 |
+| 25 | 0.0625 |
+| 0 | 0 |
+
+So halfway up the slider is a quarter of the amplitude.
+
+The reason is that loudness is not heard on a linear scale.
+Map the slider straight onto the gain and almost the whole audible range piles into the bottom third of the travel.
+The squared taper spreads the change out, so a step of five sounds about the same size wherever the reader takes it.
+
+The curve is applied at the last moment, where the gain is written to the media element.
+Everything above that point works in positions.
+`volume()` therefore always answers with the position you set, and the element's own `volume` property holds the gain, so the two numbers agree only at 0 and at 100.
+
+## Muting
+
+`mute()` silences the output and keeps the level.
+`unmute()` brings the sound back at the level that was set.
+`toggleMute()` flips between the two.
 
 ```ts
 await player.mute();
@@ -34,36 +72,47 @@ await player.unmute();
 player.toggleMute();
 ```
 
-`volumeUp(step?)` and `volumeDown(step?)` nudge the level by `step` (`5` by default). The result clamps to `[0, 100]`, the same as a direct `volume()` call. This is the pair a keyboard shortcut or a remote's volume rocker binds to.
-
-## Reading the gain stage
-
-`volumeState()` returns a typed `VolumeState.UNMUTED` or `VolumeState.MUTED`. A mute-icon component reads this value instead of tracking its own boolean. The value stays correct even when something else (a keyboard shortcut, a Connect sync) changes the mute state:
+`volume()` reports 0 for as long as the player is muted, and the stored level is not lost.
+`volumeState()` is what tells those two apart.
+It returns `VolumeState.MUTED` or `VolumeState.UNMUTED`, whose values are the strings `'muted'` and `'unmuted'`.
 
 ```ts
 import { VolumeState } from '@nomercy-entertainment/nomercy-video-player';
 
 if (player.volumeState() === VolumeState.MUTED) {
-  // show the muted icon
+  // draw the muted icon
 }
 ```
 
-Two event pairs carry the payload a listener needs:
+Setting a level while muted lifts the mute.
+`volume(40)` on a muted player unmutes it, then applies the level.
+That is what makes a slider drag work while the mute button is on, and it is why a mute icon should read `volumeState()` rather than keep a boolean of its own.
 
-| Events | Payload |
-| --- | --- |
-| `volume` / `beforeVolume` | `{ level }` |
-| `mute` / `beforeMute` | `{ muted }` |
+**A level of 0 is not a mute.**
+`volume(0)` writes a gain of zero and leaves `volumeState()` at `'unmuted'`, so there is nothing for `unmute()` to undo.
+Reach for `mute()` whenever you want the level held for later.
 
-Subscribe to those instead of polling the getters from a render loop.
+`mute()` can be called before `setup()`, and the state carries through it.
+That is the way to start a player silent and hand the sound back after the viewer's first gesture.
 
-## See it running
+## What a listener sees
 
-The native bar's volume slider and mute button drive `volume()` and `mute()` underneath. The player starts muted, which is why the bar opens on the muted glyph.
+`volume` fires with `{ level }` on every change, including each step of `volumeUp()`.
+`mute` fires with `{ muted }` on every mute and unmute, including the one that lifting a mute produces.
+Subscribe to those rather than polling the getters from a render loop.
 
-:::snippet{file="video-tour-volume" preview="first"}
-:::
+`beforeVolume` and `beforeMute` run first, and either can be canceled.
+
+```ts
+player.on('beforeVolume', (event) => {
+  if (event.data.level > 80) event.preventDefault();
+});
+```
+
+A canceled change leaves the level and the mute state untouched.
+`volumePrevented` or `mutePrevented` fires instead, carrying `reason: 'listener-prevented'`.
+`beforeMute` is not dispatched at all when the player is already in the state being asked for.
 
 ## Next steps
 
-- [The Queue & Playlist](/nomercy-video-player/tour/queue): the cursor-aware list `next()`, `previous()`, and `item()` read from and move through.
+- [Volume Memory](/nomercy-player-core/plugins-adapters/volume-memory) saves the level and the mute state, and restores them the next time the reader arrives.

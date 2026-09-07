@@ -1,6 +1,6 @@
 ---
 title: 'Build a Player: Volume'
-description: "Step 3 of 5: the native bar's volume slider and mute button, and the volume() / mute() / volumeState() surface underneath."
+description: "Step 3 of 5: the native bar's volume slider and mute button, and the volume() / mute() / volumeState() surface your own UI is built from."
 ---
 
 {/* Source: packages/nomercy-player-core/src/core/mixins/volume.ts */}
@@ -9,11 +9,19 @@ description: "Step 3 of 5: the native bar's volume slider and mute button, and t
 
 [Step 2](/nomercy-music-player/build/scrubber) covered seeking. The same pattern applies here: the native bar already has a volume slider and a mute toggle, so the config stays unchanged. This is the last of the three "nothing to build" steps before [The Track List](/nomercy-music-player/build/track-list) adds something real.
 
-## What's already wired
+## What the native controls actually do
 
-The native slider applies live on every drag through `volume(level)`. The value is 0-100 and clamped. Spamming it costs nothing, unlike seeking.
+The native slider and mute button set the audio element's own `volume` and `muted`. They do not call `volume(level)` or `toggleMute()`.
 
-The mute button reflects `volumeState()` (see [Volume](/nomercy-music-player/tour/volume)). It resyncs on the `'mute'` event instead of tracking a local boolean.
+This is where volume differs from seeking. The player tracks a fixed set of element events, `timeupdate` among them, which is why a native seek moves `time()`. `volumechange` is not one of them, so the player never learns that the native slider moved and `volume()` keeps reporting the last level the player itself set.
+
+That matters the moment you build your own control. Read it from the player and drive it with the player's methods, and the two agree. Mix the native bar and a custom slider in one interface and they will disagree, because only one of them is talking to the player.
+
+## Building your own
+
+`volume(level)` applies live on every drag. The value is 0-100 and clamped. Spamming it costs nothing, unlike seeking.
+
+A custom mute button renders from `volumeState()` (see [Volume](/nomercy-music-player/tour/volume)) and resyncs on the `'mute'` event instead of tracking a local boolean.
 
 That keeps it honest when something else changes the mute state: a keyboard shortcut, a Connect sync, or another tab.
 
@@ -29,13 +37,13 @@ player.on('mute', () => {
 });
 ```
 
-A click only ever *requests* a change, through `toggleMute()`. The `'mute'` event is what confirms it, and it's the only thing a custom UI should render from.
+A click on your own button only ever *requests* a change, through `toggleMute()`. The `'mute'` event is what confirms it, and it's the only thing a custom UI should render from.
 
 ## See it running
 
-Drag the native slider or click mute below, same track, same config as the last two steps.
+Drag the native slider or click mute below, same track, same config as the last two steps. The sound changes because the element changed. `volume()` does not move with it, which is the point of this step.
 
-:::snippet{file="music-build-3-volume" preview="first"}
+:::snippet{file="music-build-3-volume"}
 :::
 
 ## Next steps

@@ -1,66 +1,117 @@
 ---
 title: 'Transport'
-description: 'play(), pause(), stop(), togglePlayback(), and next()/previous(), the queue-driven playback commands every music UI wires first.'
+description: 'play(), pause() and seeking on a music player, and what to do when the browser refuses to make a sound.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/mixins/transport.ts */}
+{/* Source: packages/nomercy-music-player/src/index.ts, packages/nomercy-player-core/src/core/mixins/transport.ts, packages/nomercy-player-core/src/core/mixins/time.ts */}
 
 # Transport
 
-`nomercy-music-player` doesn't reimplement transport. Every method below is `nomercy-player-core`'s [Transport Contract](/nomercy-player-core/tour/transport): a cancellable `before*` dispatch, then a call into the active audio backend. Music adds nothing to the surface here, only a real audio element (or Web Audio graph) for it to drive.
+A music player makes no sound on its own.
+
+The player you built in [Quick Start](/nomercy-music-player/quickstart) has a track cued and is silent, and it stays that way until you call `play()`.
+Every method below comes from [Core: Transport](/nomercy-player-core/tour/transport), which owns the cancellable cycle each one runs.
+Music adds no transport method of its own.
+
+## Nothing starts until you ask
+
+`setup()` arms the queue and returns.
+Once the player is ready it loads the first track with autoplay off, so a control bar has something to act on and the room stays quiet.
+
+There is no autoplay option on the music config.
+The first `play()` is the first sound, and that is what a browser wants: a gesture before the audio.
 
 ## Play, pause, stop
 
-These methods all return a `Promise<void>` that resolves once the backend call settles:
-
-- `play()`
-- `pause()`
-- `stop()`
-- `togglePlayback()`
-
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-music-player';
-
-const player = nmplayer('player');
-
 await player.play();
 await player.pause();
-await player.togglePlayback(); // flips based on the current playState()
+await player.togglePlayback();
 await player.stop();
 ```
 
-Every one of these accepts `ActionOptions`: `{ source, silent }`. `source` defaults to `'user'` and gets stamped onto the emitted event. That lets a Connect plugin syncing playback across devices tell its own remote-triggered `play()` apart from a real click.
+`togglePlayback()` pauses while the player is playing and plays otherwise.
 
-## Moving through the queue
+`stop()` moves the player to its stopped phase and releases the source.
+Reach for it when the now-playing view goes away, and for `pause()` when it stays.
 
-`next()` and `previous()` move the queue cursor and load the resulting item. [The Queue](/nomercy-music-player/tour/queue) covers the cursor itself.
+**Only `play()` waits for the audio backend.**
+It awaits the backend's own `play()` and rejects when that rejects.
+`pause()` and `stop()` set the state, emit their event, and hand the call to the backend without waiting on it.
 
-`next()` honours `repeatState()`:
+## When the browser refuses
 
-- `'one'` reloads the current item without moving the cursor.
-- `'all'` wraps back to the first item at the end.
-- `'off'` fires `queue:exhausted` when there is no next item.
+A browser blocks audio nobody asked for, and the refusal arrives inside `play()`.
 
-`previous()` ignores repeat. It steps back one item. It no-ops at the start of the queue:
+The player sets the state to playing before the backend has answered, because that is what keeps a control bar responsive.
+When the answer is a refusal it undoes all of it: the play state goes back to paused, the phase change is reversed, `playPrevented` is emitted with reason `backend-refused`, and the error is rethrown.
+
+**The rethrow is the part that bites.**
+A `play()` nobody awaits becomes an unhandled rejection in the console.
 
 ```ts
-await player.next();
-await player.previous();
+player.on('playPrevented', ({ reason }) => {
+  if (reason === 'backend-refused') showTapToPlay();
+});
+
+try {
+  await player.play();
+} catch {
+  // Already reported through playPrevented.
+}
 ```
 
-There's no music-only variant of either. The shuffle-aware, repeat-aware logic lives once in the kit, and every player built on it gets it for free.
+The event also carries `cause`, which is the error the backend threw.
 
-## Guard first
+**A listener can refuse too.**
+`beforePlay` is cancellable, and a listener calling `preventDefault()` emits that same `playPrevented` with reason `listener-prevented`.
+Nothing changes state on that path and `play()` returns normally, so `reason` is what tells the two apart.
 
-Every transport method calls the kit's `_assertReady()` guard before doing anything else. Calling `play()` before `setup()` resolves, or after `dispose()`, throws a typed `StateError` instead of silently reaching into missing state. That is the same contract [Core: Transport Contract](/nomercy-player-core/tour/transport) documents in full, including the `preventDefault()` / `delay()` shape of the `before*` event.
+`pause()` and `stop()` have the matching `pausePrevented` and `stopPrevented`.
+Neither can be refused by the backend, because neither waits for it.
+
+## Seeking
+
+Seeking is `time()` with a number, in seconds.
+
+```ts
+await player.time(90);
+```
+
+It returns a promise, so awaiting it is how you know the seek finished rather than started.
+
+| Call | Where it lands |
+| --- | --- |
+| `time(90)` | Ninety seconds in. A negative number lands at 0. |
+| `rewind()` / `forward()` | Five seconds either way, or the seconds you pass. |
+| `seekByPercentage(50)` | Halfway. It does nothing while the duration is still 0. |
+| `restart()` | The start, and then it plays. |
+
+`rewind()` stops at 0.
+`forward()` has no limit of its own, so a backend that will not seek past the end snaps there instead.
+
+`seekByPercentage()` is the one that hands back nothing to await.
+It is built for a scrubber, where the next drag is more interesting than the last one landing.
+
+Every seek runs the cancellable `beforeSeek` cycle, and a listener that stops one gets `seekPrevented` instead.
+A prevented `restart()` skips its `play()` as well, because restart is one intent rather than a seek followed by a play.
+
+## Before setup and after dispose
+
+Each call here checks the player first.
+Before `setup()` it throws `core:player/not-ready`, and after `dispose()` it throws `core:player/disposed`.
+
+Reading `time()` with no argument skips that check.
+A progress bar still polling after teardown gets the last position back rather than a throw.
 
 ## See it running
 
-Music ships no play button, so this builds the smallest bar that can drive the methods above.
+Music ships no play button, so this builds the smallest bar that can press the methods above.
 
-:::snippet{file="music-tour-transport" preview="first"}
+:::snippet{file="music-tour-transport"}
 :::
 
 ## Next steps
 
-- [Time & Seeking](/nomercy-music-player/tour/time): time(), duration(), and rewind()/forward() for the scrubber this bar is missing.
+- [Core: Transport](/nomercy-player-core/tour/transport) for the `before*` cycle, `preventDefault()` and `delay()`.
+- [Reference: Player Methods](/nomercy-music-player/reference/player-methods) for every signature on the player.

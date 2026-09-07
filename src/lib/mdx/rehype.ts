@@ -212,9 +212,21 @@ function rehypeShiki() {
             '#98c379': '#89ca78',
             '#56b6c2': '#2bbac5',
           },
+            // Vitesse paints its string-escape token with an eight-digit hex,
+            // so the color carries alpha and the token lands at 47% opacity.
+            // Inside a sentence that is a fragment of body text rendered
+            // nearly transparent. Same color, full strength.
+            'vitesse-light': { '#b5695977': '#b56959' },
+            'vitesse-dark': { '#c98a7d77': '#c98a7d' },
         },
       })
-      const parsed = fromHtml(html, { fragment: true }).children as ElementContent[]
+      // Vitesse paints some tokens with an eight-digit hex, so the color
+      // carries alpha. Dimmed punctuation inside a fenced block is the theme
+      // working as intended; the same token inline is a fragment of a sentence
+      // rendered at 47% opacity, which is unreadable next to full-strength
+      // prose. Drop the alpha on the inline path and leave blocks alone.
+      const opaque = html.replace(/(#[0-9a-fA-F]{6})[0-9a-fA-F]{2}/g, '$1')
+      const parsed = fromHtml(opaque, { fragment: true }).children as ElementContent[]
       if (pseudo) stripWrapper(parsed, pseudo.before.length, pseudo.after.length)
       node.children = parsed
     })
@@ -282,6 +294,12 @@ function rehypeShiki() {
             '#98c379': '#89ca78',
             '#56b6c2': '#2bbac5',
           },
+            // Vitesse paints its string-escape token with an eight-digit hex,
+            // so the color carries alpha and the token lands at 47% opacity.
+            // Inside a sentence that is a fragment of body text rendered
+            // nearly transparent. Same color, full strength.
+            'vitesse-light': { '#b5695977': '#b56959' },
+            'vitesse-dark': { '#c98a7d77': '#c98a7d' },
         },
         structure: 'inline',
       })

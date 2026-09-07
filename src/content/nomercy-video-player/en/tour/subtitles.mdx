@@ -1,82 +1,159 @@
 ---
-title: 'Subtitles & Text Tracks'
-description: 'subtitles(), subtitle(), subtitleStyle(), cycleSubtitles(), defaultSubtitleLanguage, and where the cue text actually gets painted.'
+title: 'Subtitles'
+description: 'How a subtitle track is chosen, how the cue text gets painted, and how the choice carries to the next item.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/mixins/media-tracks.ts, packages/nomercy-video-player/src/plugins/subtitle-overlay/index.ts */}
+{/* Source: packages/nomercy-player-core/src/core/mixins/media-tracks.ts, packages/nomercy-video-player/src/index.ts, packages/nomercy-video-player/src/player/track-language-memory.ts, packages/nomercy-video-player/src/plugins/subtitle-overlay/index.ts, packages/nomercy-video-player/src/plugins/octopus/index.ts */}
 
-# Subtitles & Text Tracks
+# Subtitles
 
-Subtitle *selection* and subtitle *rendering* are two separate concerns.
+The player from [Quick Start](/nomercy-video-player/quickstart) plays a film with nothing over the picture.
 
-Most of this page is selection: listing tracks, picking one, styling the text. Selection is kit surface. It comes from `nomercy-player-core`'s `mediaTracksMethods`, which read and write state. `cycleSubtitles()` and `subtitleState()` are the two video-only additions, called out below.
+Captions add three separate things.
+The player picks a track out of a list.
+A renderer paints the cue text on screen.
 
-Painting cue text on screen is a plugin's job. `SubtitleOverlayPlugin` for VTT, `OctopusPlugin` for ASS/SSA with embedded fonts.
+The player writes the choice down, so the next episode opens the way the viewer left it.
 
-[Build a Player: Selectors](/nomercy-video-player/build/selectors) hand-builds the picker that calls `subtitle(idx)`. Pair it with `SubtitleOverlayPlugin` to render the text.
+Each one is wired on its own, and each one fails on its own, which is why they are three sections rather than one.
 
-Neither renderer is loaded by default. Selecting a track without one changes state correctly and paints nothing.
+## The list you pick from
 
-## Listing and selecting tracks
+`subtitles()` returns one flat list for the item that is playing.
 
-Four calls cover listing and selecting a track:
+Tracks the stream itself carries come first.
+Tracks declared on the playlist item come after them.
+When a stream track and an item track share a language and a kind, the item's track wins and the stream's is dropped.
+
+A position in that list is a position in the merged list, not a position in the manifest.
+Hand it straight back to `subtitle()` and the player maps it to whatever the backend needs.
+
+```ts
+const tracks = player.subtitles();
+
+await player.subtitle(0);
+await player.subtitle(null);
+```
 
 | Call | What it does |
 | --- | --- |
-| `subtitles()` | Returns the track list for the active item. |
-| `subtitle()` | Reads the current selection as `{ index, track }`, or `null` when subtitles are off. |
-| `subtitle(idx)` | Selects a track by index. |
-| `subtitle(null)` | Turns subtitles off. |
+| `subtitles()` | The merged track list for the current item. |
+| `subtitle()` | The current selection as `{ index, track }`, or `null` when captions are off. |
+| `subtitle(idx)` | Selects the track at that position. |
+| `subtitle(null)` | Turns captions off. A negative number does the same. |
+
+Reading takes no argument and answers straight away.
+Writing returns a promise, because a listener is allowed to cancel the change before it lands.
+
+`cycleSubtitles()` walks off, then each track in turn, then back to off.
+Bind a caption key to that rather than working out the next index yourself.
+
+## Nothing is painted until you register a renderer
+
+The player never lets the browser draw the cues.
+The selected text track is held at `hidden`, so its cues still fire while the browser paints nothing.
+Every renderer reads the same `subtitleCue` stream instead.
+
+Two renderers ship with the player, and they split on the file's extension.
+
+[Subtitle Overlay](/nomercy-video-player/plugins-adapters/subtitle-overlay) builds a positioned DOM tree above the video and puts the cue text in it.
+That covers WebVTT sidecar files and the text tracks a stream carries.
+
+[Octopus](/nomercy-video-player/plugins-adapters/octopus) hands the file to libass, which reproduces the typesetting, positioning and fonts the file describes.
+It claims a track only when the resolved extension is `ass` or `ssa`, and tears itself down for anything else.
+
+The split has a sharp edge.
+Register only the overlay, and an `.ass` track selects correctly and shows nothing: the file has no `WEBVTT` header, so it parses to zero cues.
+Register only Octopus, and a `.vtt` track does the same.
+
+Register both when your library holds both formats.
+They never double up, because each one stands down for what the other claims.
+
+Neither is an extra install.
+The libass build Octopus loads arrives as a dependency of the player, and is imported the first time an ASS track is selected.
+
+## What is remembered is a language, never a position
+
+Every selection goes through `subtitle(idx)`, and that setter is the only thing that emits the `subtitle` event.
+The player listens to its own event and records what was picked.
+An automatic selection travels the same path, so it is recorded too.
+
+The index is not what gets stored.
+An index means a different language on the next file, and a stream's own default flag follows the order the encode happened to use.
+
+Three things travel with the choice instead:
+
+- the language tag
+- the variant, which is the `type` field a track carries for `sdh` or `forced`
+- the format, read off the end of the file's URL
+
+The variant and the format are there because a viewer who picked English SDH and got plain English back was handed a different track under one name.
+Two renditions of the same language can also differ only by container, and an `.ass` carries the show's own styling where a `.vtt` does not.
+
+On the next item the player takes the closest track it can find:
+
+1. same language, same variant, same format
+2. same language, same variant
+3. same language, matched by exact tag or across a hyphen
+
+Nothing matching leaves the selection alone, and captions stay off.
+No event is emitted for the miss.
+
+Off is a choice as well, not an absence.
+A viewer who turned captions off gets the next episode with captions off.
+
+### It survives a reload only when the player has storage
+
+The memory writes through the `storage` adapter on your setup config.
+Leave that field out and there is nothing to write to.
+The choice still carries from item to item inside that player, and a reload starts blank.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { LocalStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
 
-const player = nmplayer('player');
-
-const tracks = player.subtitles(); // SubtitleTrack[]: { id, language?, label }
-const current = player.subtitle(); // { index, track } | null
-
-await player.subtitle(0); // select the first track
-await player.subtitle(null); // off
-```
-
-`cycleSubtitles()` walks `off → 0 → 1 → ... → N-1 → off` in one call. That is what a keyboard shortcut or a remote's CC button binds to, instead of resolving the next index by hand.
-
-`subtitleState()` returns `SubtitleState.ON` or `OFF`, for a UI that only needs to know whether *any* track is active.
-
-Both are defined on the video player rather than the kit.
-
-## Auto-selecting a language
-
-Once the manifest resolves, `defaultSubtitleLanguage` on `VideoPlayerConfig` auto-selects a track. It matches an exact BCP-47 tag first, then a prefix (`'en'` matches a track tagged `'en-US'`):
-
-```ts
 player.setup({
   baseUrl,
-  playlist: [sintelItem],
-  defaultSubtitleLanguage: 'en',
+  playlist,
+  storage: new LocalStorageBackend(),
 });
 ```
 
-When no track matches, subtitles stay off, silently. There is no error, and no fallback track is forced on.
+Two keys are written: `nmplayer-language-audio` and `nmplayer-language-subtitle`.
+A backend that throws is swallowed, so a viewer with site data blocked keeps the in-session carry-over and loses the rest.
 
-## Styling
+## Choosing the language to open with
 
-`subtitleStyle()` reads the current `SubtitleStyle`. `subtitleStyle(patch)` merges a partial patch onto it, then emits `subtitleStyle` with the merged result. `SubtitleOverlayPlugin` listens for that event and repaints every active cue immediately:
+`defaultSubtitleLanguage` on the setup config names the language a fresh viewer starts in.
+
+It is a fallback, not an override.
+A remembered choice is read first, and `defaultSubtitleLanguage` is consulted only when there is none.
+Once a viewer has picked once, their pick wins on every item after.
+
+The tag has to match the track's own tag, either exactly or across a hyphen.
+`nl` matches a track tagged `nl-NL`.
+`en` does not match a track tagged `eng`, because there is no hyphen to split on.
+
+A language asked for on its own lands on the plain track first.
+Asking for `eng` against a list holding English SDH and English selects English.
+
+## Styling the text
+
+`subtitleStyle()` reads the current style, and `subtitleStyle(patch)` merges a patch onto it and emits `subtitleStyle` with the result.
 
 ```ts
 player.subtitleStyle({ fontSize: 120, edgeStyle: 'dropShadow' });
 ```
 
-The kit only owns the in-memory value and the event. Persisting a user's choice across sessions is your app's job (or a preference plugin's).
+The overlay listens for that event and repaints every cue already on screen.
+Octopus does not listen for it, because an ASS file carries its own styling and that is the reason to reach for the format.
+
+The style lives in memory for the life of the player.
+[Adapter: Subtitle Style Store](/nomercy-video-player/plugins-adapters/adapter-subtitle-style-store) is the contract for keeping it, and the shipped implementation writes it through that same storage adapter.
 
 ## See it running
 
-Sintel carries four real subtitle tracks on its own `subtitles` field. `defaultSubtitleLanguage: 'eng'` picks English once the manifest resolves, and `SubtitleOverlayPlugin` paints the cues over the video.
+Sintel declares four sidecar tracks on the item: English, Dutch, French and German.
+`defaultSubtitleLanguage: 'eng'` opens on English once the manifest resolves, and the overlay paints the cues.
 
-:::snippet{file="video-tour-subtitles" preview="first"}
+:::snippet{file="video-tour-subtitles"}
 :::
-
-## Next steps
-
-- [Audio Tracks](/nomercy-video-player/tour/audio-tracks): audioTracks(), audioTrack(), and the same selection shape applied to embedded audio renditions.

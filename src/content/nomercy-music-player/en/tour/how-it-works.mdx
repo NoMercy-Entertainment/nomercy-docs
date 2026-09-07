@@ -1,153 +1,102 @@
 ---
 title: 'How It Works'
-description: 'The system view: what setup() actually does in order, the two audio backends, the item model, crossfade internals, the audio graph, and the traps that fail silently.'
+description: 'What the music player fills in before the shared setup sequence runs, when the audio backend is built, and why the first track is loaded but never played.'
 ---
 
 {/* Source: packages/nomercy-music-player/src/index.ts, src/types.ts, src/player/preload.ts,
-    src/adapters/audio-backend/{IAudioBackend,html5-audio,web-audio}.ts,
-    src/plugins/{key-handler,media-session,auto-advance,scrobble,lyrics,v1-compat}/,
-    packages/nomercy-player-core/src/core/volume-curve.ts,
-    packages/nomercy-player-core/src/plugins/{audio-graph,equalizer,mixer,spectrum,visualization,canvas}/ */}
+    src/streams/hls.ts, src/streams/native.ts,
+    src/adapters/audio-backend/{html5-audio,web-audio}.ts */}
 
 # How It Works
 
-Every other Guided Tour page covers one method group. This page covers the machine underneath.
+`setup()` returns straight away, and the first sound is several steps after it.
 
-It walks the order things happen in, the two backends you can pick between, and the places where the player fails silently instead of throwing. Read this once before you build on the rest of the trio.
+This page is that stretch. It covers what the music player adds around the shared setup sequence, and what it does once that sequence finishes.
 
-## From setup() to first sound
+## What setup() fills in first
 
-`setup()` returns before a sound plays. It starts a pipeline and resolves once that pipeline is queued, not once audio is ready. In order:
+Your config is enriched with music defaults before the shared sequence ever sees it.
 
-1. `setup()` merges your config over its own defaults. Music turns `crossfadeEnabled: true` on, unless your own config object sets it too. Your value spreads last, so it wins.
-2. It injects `preloadLeadSeconds` (`10`), `crossfadeLeadSeconds` (`3`), and `crossfadeTailSeconds` (`3`) if you did not set them.
-3. It builds a default `CrossfadeTransitionStrategy` for automatic track-boundary transitions. Its curve is `config.crossfadeDefaults?.curve ?? 'equal-power'`.
-4. Once `ready()` resolves internally, `setup()` auto-primes the first non-empty queue: `item(preselected ?? 0, { autoplay: false, source: 'auto-play' })`. This runs inside a `.then()`, off the promise chain `setup()` itself returns.
+Four values are filled in when you leave them out. Your own value wins on every one of them, including `0` and `false`.
 
-That last step is why `item()` can still return `undefined` right after `setup()` returns. The auto-prime is not synchronous with `setup()`. Await `ready()` before you read `item()` for the first time:
+| Filled in when absent | Value |
+| --- | --- |
+| `crossfadeEnabled` | `true` |
+| `preloadLeadSeconds` | `10` |
+| `crossfadeLeadSeconds` | `3` |
+| `crossfadeTailSeconds` | `3` |
+
+Two objects are built from those numbers: a preload strategy, and a transition strategy for the boundary between queue items.
+
+The transition strategy takes `crossfadeDefaults.curve` when your config sets one, and `'equal-power'` when it does not.
+
+Supply your own `preloadStrategy` or `transitionStrategy` and the matching object is not built at all.
+
+## Then the shared sequence runs
+
+From there it is the core's own sequence, and music adds no stage of its own to it.
+
+[Lifecycle](/nomercy-player-core/tour/lifecycle) has the nine stages, what each one settles, and where a stage failure surfaces.
+
+## The backend is built after ready(), not during setup
+
+`setup()` constructs no audio backend at all.
+
+The kind is settled by the `backend` field on your config, which is `'audio-element'` when you leave it out. A `backendFactory` on the config replaces that choice entirely: it is called with the resolved kind, and whatever it returns is used.
+
+The backend itself is built by the first call that needs one. In a plain setup that is the first-track prime below, which runs after `ready()` has already resolved.
+
+That timing decides where a `'webaudio'` failure lands.
+
+`WebAudioBackend` throws `core:policy/audioContextUnsupported` at construction when the browser has no Web Audio API. A `try` around `setup()` never sees it, because nothing was constructed there.
+
+Wrap your own first `backend()` call instead:
 
 ```ts
-const player = nmplayer('player-container').setup({ /* ... */ });
-player.item(); // may still be undefined here
+try {
+  console.log(player.backend().kind);
+}
+catch (error) {
+  reportAudioUnsupported(error);
+}
+```
+
+[Adapter: Audio Backend](/nomercy-music-player/plugins-adapters/adapter-audio-backend) covers what the two shipped backends do differently, and how to supply one of your own.
+
+## The first track is primed, not played
+
+Once `ready()` resolves, the player loads a track so it does not sit empty. It loads the first one, with autoplay off.
+
+The music player has no `autoPlay` option, so nothing in the sequence starts a sound. The first sound comes from your own `play()` call, or from a listener pressing a control.
+
+A track you pick yourself between `setup()` and `ready()` is kept, and the prime lands on that one rather than the first:
+
+```ts
+player.setup({ baseUrl, playlist });
+
+// Optional. Without this the prime takes the first track.
+player.item(2);
+
 await player.ready();
-player.item(); // now populated, unless the queue was empty
+
+player.item(); // the primed track
 ```
 
-Calling `item(target)` yourself between `setup()` and `ready()` keeps your choice. Only an explicit `item()` call bumps the player's internal selection epoch.
+`item()` returns `undefined` while setup is still running, and the primed track the moment `ready()` resolves.
 
-Having the track you want already sitting at queue index 0 does not count as "already chosen." The auto-prime still calls `item(0, ...)` on top of it. It happens to land on the same track, which looks like your choice was respected. It was a coincidence of index, not a check the player made.
+A queue that came up empty leaves it `undefined` and primes nothing.
 
-## The two audio backends
+## How a track URL is loaded
 
-`nomercy-music-player` ships two backends behind one typed `IAudioBackend` interface. Neither is created at `setup()` time. The player creates one lazily, the first time a call needs it: the first `backend()` access, or the first backend-requiring method.
+The backend makes one decision about a track URL: whether it ends in `.m3u8`.
 
-- **`AudioElementBackend`** (the default) drives a plain `HTMLAudioElement`. Its crossfade runs on a `requestAnimationFrame` loop, so it is not sample-accurate. It sets `crossOrigin` lazily, only once a plugin taps the Web Audio graph. Construction never throws.
-- **`WebAudioBackend`** drives an `AudioContext` graph. Its crossfade is sample-accurate, on the Web Audio clock. It sets `crossOrigin` eagerly at construction, unconditionally. Construction throws `BrowserPolicyError` synchronously if `AudioContext` is unsupported.
+An `.m3u8` plays through hls.js, unless the audio element plays HLS natively, in which case the element is handed the URL directly. Every other URL goes straight to the element as a plain source.
 
-Pick `'webaudio'` for a sample-accurate crossfade, an equalizer, or a visualizer tap. The default element backend costs less and never risks a construction throw.
+hls.js ships inside `nomercy-player-core`, so there is nothing extra to install. It is imported only once an `.m3u8` actually arrives.
 
-Two consequences follow:
-
-- `WebAudioBackend`'s construction throw happens on first lazy creation, not at `setup()`. A try/catch around only `setup()` for "unsupported browser" misses it. Wrap the first `backend()` call, or the first play, instead.
-- `backend(kind)`, the runtime backend switch, is async, but nothing inside it needs to await. It defers disposing the old backend and creating the new one inside a `Promise.resolve().then()`. Reading `backend()` synchronously right after `backend('webaudio')` can still return the old instance.
-
-A custom `backendFactory` on `MusicPlayerConfig` bypasses both branches. When it is set, the player never looks at `kind` at all.
-
-## The item model: name, title, image, cover
-
-`MusicPlaylistItem` has no `title` field. The display name is `item.name`.
-
-Map `title` to `name` yourself if your data comes from a `title`-based schema. TypeScript will not catch the gap. An item shaped like `{ title, artist, cover }` compiles fine as long as it also happens to carry `name`. If it does not, nothing reads `title` anywhere, and media session and cast metadata both go blank with no warning.
-
-Artwork works the other way around. `MusicPlaylistItem` carries `cover`. `BasePlaylistItem`, from the core, carries `image`. Every consumer that resolves art, including the preload strategy, the media session plugin, and the cast sender, resolves it as `image ?? cover`.
-
-`image` wins when both are set. `cover` alone still works, silently, as a fallback.
-
-Populate `image` for lock screen and cast artwork to both show up. Treat `cover` as a fallback field for older data, not a second source of truth.
-
-## Crossfade and gapless
-
-`crossfadeTo(item, opts)` is the manual call. Under the hood:
-
-- The secondary track's URL is resolved through the same `resolveUrl(url, 'media')` seam `load()` uses, not the raw item URL. A relative URL resolves against `baseUrl`, the same as everywhere else in the player.
-- Duration resolves `opts.duration` first, then `crossfadeDefaults.duration`, then `5` seconds. It is then multiplied by `1000` for the backend call.
-- Curve resolves `opts.curve` first, then `crossfadeDefaults.curve`. When neither is set, `crossfadeTo()` passes no curve argument at all, and the backend's own default is a plain linear ramp.
-
-The automatic, lead/tail-triggered transition between queue items is a different code path, with a different default. It always uses `'equal-power'` unless `crossfadeDefaults.curve` overrides it.
-
-A manual `crossfadeTo()` call with no `curve` option, and an automatic track-boundary crossfade, sound different by default. Both read the same `crossfadeDefaults.curve` config slot, but only one falls back to it the same way.
-
-Calling `crossfadeTo()` again while one is already in flight does nothing. `isTransitioning()` guards it. The second call returns without an error, a rejected promise, or an event. Code awaiting a chained sequence of crossfades gets a resolved promise that did nothing on the second call.
-
-`durationMs <= 0` on either backend means an instant swap with no ramp, not a very fast one.
-
-`crossfade()` on both backends throws a plain `Error`, not one of the library's typed error classes, when called without a prior `loadSecondary()`. A `catch` block written to match `StateError` or `MediaFormatError` will not catch it.
-
-## The audio graph: one context, ordered inserts
-
-`AudioGraphPlugin`, from the core, owns the single `AudioContext` and the node chain: `source → pre-effects → post-effects → destination`.
-
-`EqualizerPlugin`, `MixerPlugin`, and `SpectrumPlugin` all declare `AudioGraphPlugin` as a requirement, so they share that one context and chain. Nothing in this trio creates a second `AudioContext` per player. A second one is a bug, not a feature.
-
-Both `EqualizerPlugin` and `MixerPlugin` insert themselves as `'post'` effects. `insertEffect()` just appends, so whichever plugin's `use()` runs first ends up earlier in the signal path.
-
-Registering the equalizer before the mixer feeds EQ output into the mixer. Registering the mixer first silently reverses that, with no error either way:
-
-```ts
-player.addPlugin(AudioGraphPlugin);
-player.addPlugin(EqualizerPlugin, { persistKey: 'eq' }); // registers first: EQ feeds the mixer
-player.addPlugin(MixerPlugin);
-```
-
-`SpectrumPlugin` reads through the same shared analyser node `AudioGraphPlugin` owns. Setting `fftSize` or `smoothingTimeConstant` from `SpectrumOptions` mutates that shared node. That affects any other plugin reading it too. There is one analyser, not one per consumer.
-
-A crossfade promoting its secondary track to primary is one kind of backend source swap. `AudioGraphPlugin` listens for `'backend:sourceswap'` and re-mounts the chain onto the new node when that happens. Losing that event would leave the equalizer and mixer feeding a disconnected source.
-
-## Volume: the perceptual curve
-
-`volume()` stores and returns a plain `0-100` slider position. That is never the number written to the audio hardware.
-
-Before either backend writes a gain value, the player runs the slider position through a quadratic taper: `perceptualGain(position) = position²`. Loudness is perceived logarithmically. A linear map would crowd most of the audible range into the bottom third of the slider.
-
-| Slider position | Gain written | Approx. level |
-| --- | --- | --- |
-| `0` | `0` | Silence |
-| `0.3` | `0.09` | ≈ −21 dB |
-| `0.5` | `0.25` | ≈ −12 dB |
-| `1.0` | `1` | 0 dB, unity |
-
-`volume()` itself always returns the slider position you set, on both backends.
-
-The trap sits one layer down. `WebAudioBackend`'s own internal getter for the raw `GainNode` value returns the curved gain amplitude, not the `0-100` position, to anything that reads the node directly instead of going through `player.volume()`. A UI slider percentage computed from a raw node read gets a perceptually curved number, not a linear one.
-
-The OS or device volume control is a separate, later stage. It sits after the browser's own output mixing. It is invisible to `volume()` in both directions: the system level does not change what `volume()` reports, and `volume()` does not touch the system level.
-
-During a manual crossfade, calling `secondaryGain()` yourself fights the automatic fade ramp. Both write the same gain node, and the last write wins. Let the crossfade own that node until it completes.
-
-## Traps
-
-The traps below are the silent failures. Nothing here throws, so nothing here shows up in a stack trace.
-
-**A stacked `crossfadeTo()` call does nothing.** You expect a queued or rejected second crossfade. What happens: `isTransitioning()` guards it, and the call resolves having done nothing, with no event and no error. Check `isTransitioning()` yourself before calling it again.
-
-**Manual and automatic crossfades default to different curves.** You expect `crossfadeTo(item)` with no options to sound like the automatic transition. What happens: automatic defaults to `'equal-power'`, manual defaults to plain linear. Pass `curve: 'equal-power'` explicitly to match them.
-
-**Setting both `image` and `cover` does not merge them.** You expect some combination, or a warning about the conflict. What happens: `image` silently wins everywhere, and `cover` is dropped with no warning. Populate `image`, and treat `cover` as legacy-only.
-
-**An item shaped like `{ title, ... }` compiles.** You expect a type error for the missing `name` field. What happens: structural typing lets it through if `name` exists anywhere on the object. If it does not, every consumer reads an empty title, with no runtime warning. Map `title` to `name` at the boundary where your data enters the player.
-
-**`WebAudioBackend` can throw on first use, not at `setup()`.** You expect a construction failure to surface where you called `setup()`. What happens: the unsupported-`AudioContext` check runs lazily, on the first call that needs the backend. Wrap the first `backend()` call, or the first play, instead.
-
-**Registering the mixer before the equalizer reverses the signal path.** You expect plugin registration order to be cosmetic. What happens: `insertEffect()` appends, so the plugin whose `use()` runs first sits earlier in the chain, with no error either way. Register `EqualizerPlugin` before `MixerPlugin` for EQ feeding into the mixer.
-
-**`crossfade()` without `loadSecondary()` throws a bare `Error`.** You expect one of the library's typed errors, `StateError` or `MediaFormatError`. What happens: both backends throw a plain `new Error(...)` here. A `catch` narrowed to the typed error classes will not catch it.
-
-**`backend(kind)` does not dispose the old backend synchronously.** You expect the switch to finish once the call returns. What happens: disposal and creation defer into a microtask. Reading `backend()` right after `backend('webaudio')` can still return the previous instance. Read it from an event handler instead of the next line.
-
-**A raw read of the Web Audio gain node is not the volume you set.** You expect `player.volume()` and the node value to match. What happens: the node carries the curved gain (`position²`), while `player.volume()` always gives back the linear `0-100` position. Read `player.volume()`, never the node, for anything UI-facing.
+Both stream factories are re-exported from this package, at `@nomercy-entertainment/nomercy-music-player/streams/native` and `@nomercy-entertainment/nomercy-music-player/streams/hls`.
 
 ## Next steps
 
-- [Transport](/nomercy-music-player/tour/transport): play(), pause(), and moving through the queue.
-- [Crossfade](/nomercy-music-player/tour/crossfade): the full crossfadeTo() call shape and event sequence.
-- [Equalizer](/nomercy-music-player/tour/equalizer): registering the shared audio graph chain.
+- [Lifecycle](/nomercy-player-core/tour/lifecycle) for the nine stages between `setup()` and `ready()`.
+- [Adapter: Audio Backend](/nomercy-music-player/plugins-adapters/adapter-audio-backend) for the two backends and the port between them.

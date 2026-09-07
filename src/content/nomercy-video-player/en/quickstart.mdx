@@ -13,13 +13,13 @@ Five steps to a film playing in your own page. Each one says what you should see
 npm install @nomercy-entertainment/nomercy-video-player
 ```
 
-That is the whole install. `hls.js` arrives with it, as a dependency of the core package underneath, and the player imports it only when the browser cannot play HLS on its own.
+That is the whole install. `str hls.js` arrives with it, as a dependency of the core package underneath, and the player imports it only when the browser cannot play HLS on its own.
 
-The player makes one decision about a URL: whether it ends in `.m3u8`.
-An `.m3u8` plays as HLS and needs no flag.
+The player makes one decision about a URL: whether it ends in `str .m3u8`.
+An `str .m3u8` plays as HLS and needs no flag.
 
-Everything else is handed to the video element, so `.mp4`, `.webm` and anything else your browser decodes play with nothing further.
-[Streams](/nomercy-video-player/reference/streams) has the rule in full, including the one case where a query string makes an `.mp4` play as HLS.
+Everything else is handed to the video element, so `str .mp4`, `str .webm` and anything else your browser decodes play with nothing further.
+[Streams](/nomercy-video-player/reference/streams) has the rule in full, including the one case where a query string makes an `str .mp4` play as HLS.
 
 ## 2. Give it a container
 
@@ -30,11 +30,11 @@ The player fills an element you provide.
 ```
 
 That div becomes the player root.
-The player marks it `nomercyplayer` and keeps state classes on it as playback changes, so `playing`, `paused` and `active` are available to your own CSS without a line of JavaScript.
+The player marks it `css .nomercyplayer` and keeps state classes on it as playback changes, so `css .playing`, `css .paused` and `css .active` are available to your own CSS without a line of JavaScript.
 
 The video element is created inside it when the stream is attached, which is after `setup()` has returned and after `ready()` has resolved.
 
-**It must be a ```html <div>```.**
+**It must be a `html <div>`.**
 Any other tag throws `str core:player/element-not-div`, and an id matching no element throws `str core:player/element-missing`.
 
 Size it yourself.
@@ -64,7 +64,7 @@ A controls plugin injects its own.
 
 The argument is your container's id.
 
-:::snippet{file="quickstart" preview="first"}
+:::snippet{file="quickstart"}
 :::
 
 **You should now see Sintel's artwork, with the browser's own controls across the bottom of it.**
@@ -76,7 +76,7 @@ The artwork is the item's `image`, which the player sets as the element's poster
 If the picture is there but nothing you wrote in CSS applies, the id in your stylesheet and the id on the div do not match.
 The player reads only the div's own id, so a selector that misses is invisible to it.
 
-An id passed to `nmplayer()` that matches no element is the other case, and it throws ```str core:player/element-missing``` before anything mounts.
+An id passed to `nmplayer()` that matches no element is the other case, and it throws `str core:player/element-missing` before anything mounts.
 
 Calling `nmplayer('player')` again with the same id gives back the same player rather than a second one.
 The registry is checked before the element is, so a repeat call holds up even after the div has gone.
@@ -86,9 +86,9 @@ A real second player therefore needs a second container with a different id.
 
 ## 4. Wait for it before calling anything
 
-`setup` returns straight away, and the player is not usable yet. That is what the last line of the block above is for.
+`fn setup` returns straight away, and the player is not usable yet. That is what the last line of the block above is for.
 
-```ts await player.ready()``` resolves once setup has finished and every plugin has come up.
+`await player.ready()` resolves once setup has finished and every plugin has come up.
 
 **Past that line every method is safe to call.** Restoring a saved position or selecting a track belongs after it, and a method called before it may quietly do nothing.
 
@@ -96,7 +96,7 @@ Calling `ready()` again on a player that is already ready resolves immediately, 
 
 ## 5. Keep item paths relative
 
-`baseUrl` is the one config field every playlist should set. It prefixes media and sidecar paths, and `baseImageUrl` does the same for artwork.
+`key baseUrl` is the one config field every playlist should set. It prefixes media and sidecar paths, and `key baseImageUrl` does the same for artwork.
 
 Both are string prefixes joined by plain concatenation, so give the base no trailing slash and the path a leading one.
 
@@ -109,6 +109,6 @@ Setting the base once is what lets one config value move a whole catalogue betwe
 That is a working player with the browser's controls. Controls of the player's own are a plugin, and everything past this point adds one.
 
 - [The desktop interface](/nomercy-video-player/plugins-adapters/desktop-ui) puts real controls over the picture: a title bar, a scrubber with chapter markers and preview thumbnails, volume, and menus.
-- [Configuration](/nomercy-video-player/reference/config) for every `setup` option and its default.
+- [Configuration](/nomercy-video-player/reference/config) for every `fn setup` option and its default.
 - [Playlist items](/nomercy-video-player/reference/playlist-item) for every field an item carries.
 - [State and events](/nomercy-video-player/tour/state-events) for reacting to what the player does, including the failures worth handling before you ship.

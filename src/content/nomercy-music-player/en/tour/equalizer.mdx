@@ -1,71 +1,99 @@
 ---
 title: 'Equalizer'
-description: 'AudioGraphPlugin + EqualizerPlugin: the shared kit Web Audio chain and its 10-band parametric equalizer, available on either audio backend.'
+description: 'Ten filters and a pre-gain stage over the audio, what registering them asks of the backend, and why they go in before setup().'
 ---
 
-{/* Source: packages/nomercy-player-core/src/plugins/audio-graph/index.ts, src/plugins/equalizer/index.ts */}
+{/* Source: packages/nomercy-music-player/src/index.ts, packages/nomercy-music-player/src/adapters/audio-backend/html5-audio.ts, packages/nomercy-player-core/src/plugins/equalizer/index.ts, packages/nomercy-player-core/src/plugins/audio-graph/index.ts */}
 
 # Equalizer
 
-An equalizer isn't music-specific code living in this package. It's `nomercy-player-core`'s shared `AudioGraphPlugin` + `EqualizerPlugin` pair, available to any player built on the kit. `nomercy-music-player` just makes them the plugin most listening apps reach for first.
+Tone control is two plugins, and neither of them is music-specific.
+`AudioGraphPlugin` owns the Web Audio chain, and `EqualizerPlugin` inserts a pre-gain stage and ten filters into it.
+Both ship in `nomercy-player-core`, so a video player wires them the same way.
 
-## Registering the chain
+Reach for them when a listener should be able to shape the sound: a preset picker, a band panel, or one stored curve that follows them between sessions.
 
-`AudioGraphPlugin` owns:
+## Register the graph first
 
-- The Web Audio signal chain
-- `AudioContext`
-- The media source node
-- `insertEffect()`
-
-`EqualizerPlugin` inserts itself into that chain and requires it to already be registered:
+`EqualizerPlugin` declares `AudioGraphPlugin` as a required dependency, and that is checked the moment you register it.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-music-player';
 import { AudioGraphPlugin, EqualizerPlugin } from '@nomercy-entertainment/nomercy-player-core';
 
-const player = nmplayer('player-container');
 player.addPlugin(AudioGraphPlugin);
-player.addPlugin(EqualizerPlugin, { persistKey: 'my-app-eq' });
-player.setup({
-  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
-  playlist: [
-    {
-      id: 'ketsa-01-where-dreams-drift',
-      name: 'Where Dreams Drift',
-      artist: 'Ketsa',
-      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
-    },
-  ],
-});
+player.addPlugin(EqualizerPlugin);
 ```
 
-Both plugins register *before* `setup()`, so they install as part of the setup pipeline. That is the rule every plugin in the trio follows.
+Swap those two lines and the second `addPlugin` throws, synchronously, with `core:plugin/missing-dep`:
 
-Register either one after `setup()` and its `use()` still runs. It runs inline and fire-and-forget rather than inside that pass. Completion then surfaces through the `plugin:installed` event or `ready()`, not through `setup()` resolving.
+```
+Plugin "equalizer" requires "audio-graph" but it is not registered.
+```
 
-`AudioElementBackend`, the default, creates the Web Audio source node the first time `AudioGraphPlugin` asks for it. So registering the equalizer neither forces `WebAudioBackend` nor costs anything on a player that never taps the graph.
+Nothing is registered when it throws, so `getPlugin(EqualizerPlugin)` gives back `undefined` afterwards.
+Moving both calls before `setup()` does not change this. The order is what matters, not the timing.
 
-## Driving it
+## What this asks of your audio backend
+
+A filter only exists inside a Web Audio graph, so registering the equalizer routes the audio through one.
+
+Both music backends can give it one.
+`webaudio` is built around a graph already.
+`audio-element`, the default when `backend` is absent from your config, builds one the first time a plugin asks for it.
+
+So the equalizer runs on the default backend, and it really filters there.
+Playing a 440 Hz tone through it, a +12 dB setting on the 600 Hz band lifted that tone by about 8 dB and a -12 dB setting dropped it by about 9 dB.
+Nothing here needs `backend: 'webaudio'`.
+
+### The graph costs you CORS
+
+Feeding a media element into an `AudioContext` needs the element in CORS mode, so the backend sets `crossOrigin = 'anonymous'` when the graph is built.
+
+From that point your media host has to send `Access-Control-Allow-Origin`.
+A host that sends nothing serves a track that will not start, and the same file plays fine on a player carrying no graph plugins.
+
+This is the graph's price rather than the equalizer's.
+A player set to `backend: 'webaudio'` is in CORS mode from the moment its backend is constructed, with no plugins registered at all.
+
+### Register before `setup()`
+
+`crossOrigin` only takes effect on the next load, so the backend has to reload whatever is already attached.
+
+Register the two plugins while a track is playing and that track is emptied, fetched again, and returned to its position.
+Register them before `setup()` and the graph is built against an element with nothing on it, so the first track loads once and stays.
+
+## Shaping the sound
+
+The default layout is ten peaking filters, at 70, 180, 320, 600, 1000, 3000, 6000, 12000, 14000 and 16000 Hz.
+Ahead of them sits the pre-gain stage, which `bands()` returns as an eleventh entry at index 0 with `frequency: 'Pre'`.
 
 ```ts
-const eq = player.getPlugin(EqualizerPlugin);
-eq!.band(1000, 4); // +4 dB at 1 kHz
-eq!.preset('Rock'); // one of 19 built-in presets
-eq!.save(); // persists through the configured storage adapter, if persistKey was set
+const eq = player.getPlugin(EqualizerPlugin)!;
+
+eq.band(1000, 4); // +4 dB at 1 kHz
+eq.preset('Rock'); // one of 19 built in
+eq.preGain(0.5);
 ```
 
-`band(freq, gain)` sets one band directly. `preset(name)` applies a named preset in one call.
+Setting a band or the pre-gain clears the selected preset, because the curve is no longer that preset's.
+`preset()` with no argument reads the active name back, or `undefined` once a band has moved.
 
-The full options table, event list, and persistence rules live on [Core: Plugin: Equalizer](/nomercy-player-core/plugins-adapters/equalizer). This page only covers what's specific to reaching for it from a music player.
+A pre-gain of `0` is unity gain. The plugin adds one to the value before it reaches the `GainNode`, which is why its range runs from `-1` to `3` rather than around zero.
+Values within 0.05 of zero snap to exactly zero, so a slider settles in the middle instead of resting at 0.0003.
+
+For a UI, `bandSliderMin`, `bandSliderMax` and `bandSliderStep` hand you the range to put on an `<input type="range">`.
+That is -12 to +12 dB for a band and -1 to 3 for the pre-gain, both in steps of 0.01.
+
+Every option, all five events, and the persistence rules are on [Plugin: Equalizer](/nomercy-player-core/plugins-adapters/equalizer).
 
 ## See it running
 
-Two buttons swap between two of the plugin's presets. Both plugins are shared kit plugins, registered in `configure()`.
+Both plugins are registered before `setup()`, in the order above. Two buttons swap between built-in presets.
 
-:::snippet{file="music-tour-equalizer" preview="first"}
+:::snippet{file="music-tour-equalizer"}
 :::
 
 ## Next steps
 
-- [Audio Output Devices](/nomercy-music-player/tour/audio-output): audioOutputs(), selectAudioOutput(), and routing playback to a specific speaker.
+- [Recipe: Equalizer Presets](/nomercy-music-player/recipes/equalizer-presets): a preset picker driven by `presets()`, and saving a listener's own curve as a preset.
+- [Plugin: Equalizer](/nomercy-player-core/plugins-adapters/equalizer): the full options table, the event list, and how persistence reaches your storage adapter.

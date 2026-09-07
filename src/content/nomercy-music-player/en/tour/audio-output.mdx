@@ -1,55 +1,79 @@
 ---
 title: 'Audio Output Devices'
-description: 'audioOutputs(), selectAudioOutput(), and audioOutput(deviceId), routing playback to a specific speaker or Bluetooth device.'
+description: 'Listing the output devices a browser reports, opening its picker, and routing playback to the device the listener chose.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/mixins/audio-output.ts */}
+{/* Source: packages/nomercy-music-player/src/index.ts, packages/nomercy-player-core/src/core/mixins/audio-output.ts */}
 
 # Audio Output Devices
 
-A listening session moves between speakers all the time: headphones now, a Bluetooth speaker in ten minutes, a desk speaker after that. The device-routing surface lives in the kit. `nomercy-music-player` is simply the library most consumers reach for it from.
+Sound leaves the machine through whichever device the system already chose.
+A listener who wants a different one, headphones now and a Bluetooth speaker in ten minutes, has to be able to say so.
 
-## Listing devices
+Three calls cover it, and the player you created in the [Quick Start](/nomercy-music-player/quickstart) carries all three.
+They come from the kit rather than from music, so a video player answers to the same names.
 
-`audioOutputs()` enumerates available output devices without prompting for permission:
+| Call | Answers with |
+| --- | --- |
+| `audioOutputs()` | Every device the browser reports as an audio output. |
+| `selectAudioOutput()` | The device chosen in the browser's own picker, or `null`. |
+| `audioOutput(deviceId)` | Nothing. Playback moves to that device. |
 
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-music-player';
+## List what the browser reports
 
-const player = nmplayer('player');
+`audioOutputs()` calls `navigator.mediaDevices.enumerateDevices()` and keeps the entries whose `kind` is `audiooutput`.
 
-const devices = await player.audioOutputs(); // MediaDeviceInfo[]
-```
+Nothing on that path asks for permission, so the list is safe to build while the page loads.
 
-Browsers gate device *labels* behind a permission grant. Without a grant, `enumerateDevices()` still returns entries, but some carry an empty `label`. Render what you get. A picker button covers the rest.
+Each entry is a `MediaDeviceInfo`, and the two fields you want are `deviceId` and `label`.
+The example below names each device by its `label`, and falls back to a numbered name when that label is empty.
 
-## Picking one
+## Let the listener choose
 
-`selectAudioOutput()` opens the browser's own output picker. It resolves with the chosen device, or `null` when the user cancels. The picker exists in Chrome 105 and later only. Every other browser throws a structured `BrowserPolicyError`:
+`selectAudioOutput()` opens the browser's own output picker and resolves with the device chosen in it.
+
+Dismissing the picker is not a failure.
+The call inspects the rejection's `name`, and returns `null` for both `AbortError` and `NotAllowedError`.
+Any other rejection is rethrown as it arrived.
+
+## Route playback there
+
+`audioOutput(deviceId)` calls `setSinkId(deviceId)` on the backend's media element, then stores the id.
+
+An empty string is passed straight through to `setSinkId`, and the stored id is cleared to `null` rather than kept as `''`.
+
+Called with no argument, `audioOutput()` reads instead of writes.
+It returns the element's live `sinkId`, or the id last stored when the element has none, and `null` when either is the empty string.
 
 ```ts
 const device = await player.selectAudioOutput();
-if (device) {
-  await player.audioOutput(device.deviceId);
-}
+
+if (device) await player.audioOutput(device.deviceId);
 ```
 
-Two calls read and set the device:
+## Where a browser stops you
 
-| Call | What it does |
-| --- | --- |
-| `audioOutput()` | Reads the currently-selected device id (`null` for the system default). |
-| `audioOutput(deviceId)` | Routes playback to that device by calling `setSinkId()` on the backend's media element. |
+Not every browser exposes both halves of this, and the player says so in three different shapes.
 
-When the browser does not support `setSinkId()`, the call throws `BrowserPolicyError`.
+`audioOutputs()` resolves with an empty array where there is no `navigator.mediaDevices.enumerateDevices` to call.
+It throws nothing, so an empty list is the whole signal.
+
+`selectAudioOutput()` throws a `BrowserPolicyError` with code `core:policy/audioOutputPickerUnsupported` when the browser exposes no picker.
+The list above is still the working path there, which is why the example offers both.
+
+`audioOutput(deviceId)` throws a `BrowserPolicyError` with code `core:policy/setSinkIdUnsupported` when the media element has no `setSinkId`.
+The same error covers the case where no element is bound yet, so make the call once `ready()` has resolved.
+
+Both are thrown out of the call rather than emitted on the bus, so they land in your `catch` and not in an `error` listener.
 
 ## See it running
 
-The list is enumerated without a permission prompt. Picking a device opens the browser's own picker, which needs a real click.
+The device list is built on load, because enumerating asks for nothing.
+The button opens the browser's picker, which needs a real click.
 
-:::snippet{file="music-tour-audio-output" preview="first"}
+:::snippet{file="music-tour-audio-output"}
 :::
 
-## Next steps
+## Where the rest lives
 
-- [Lyrics](/nomercy-music-player/tour/lyrics): the synced-lyrics plugin, parsing a timed lyrics file into cues and firing an event on every active line change.
+- [Audio Output adapter](/nomercy-player-core/plugins-adapters/adapter-audio-output): the full surface, the stored state, and every error the three calls raise.

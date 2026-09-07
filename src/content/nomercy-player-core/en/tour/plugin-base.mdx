@@ -3,7 +3,7 @@ title: 'Plugins'
 description: 'What a plugin is, what the runtime does with one, and why the base class hands you a scoped helper for everything a plugin would otherwise reach for globally.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/core/plugin/base.ts, src/core/plugin/index.ts, src/core/plugin/lifecycle.ts, src/core/mixins/plugin-registration.ts */}
+{/* Source: packages/nomercy-player-core/src/core/plugin/base.ts, src/core/plugin/index.ts, src/core/plugin/lifecycle.ts, src/core/mixins/plugin-registration.ts, src/core/mixins/state-mutators.ts, src/adapters/lifecycle-registry/default.ts */}
 
 # Plugins
 
@@ -29,8 +29,17 @@ The `plugins` array in `setup()` is the same call under another spelling, with i
 
 `static id` is the one field every plugin must set, and nearly every other behavior on this page derives from it.
 
-A plugin with `id = 'play-counter'` gets a logger prefixed `[nmplayer][play-counter]`, storage keys prefixed `nmplayer-play-counter-`, and a mount node classed `nmplayer-play-counter-<name>`.
-Its events go out as `plugin:play-counter:<event>`, its translation keys resolve under `plugin.play-counter.*`, and every error it raises is stamped with that id.
+A plugin with `id = 'play-counter'` gets these names without asking for them:
+
+| What | Shape |
+| --- | --- |
+| Logger prefix | `[nmplayer][play-counter]` |
+| Storage keys | `nmplayer-play-counter-<key>` |
+| Mount node class | `nmplayer-play-counter-<name>` |
+| Events | `plugin:play-counter:<event>` |
+| Translation keys | `plugin.play-counter.<key>` |
+
+Every error the plugin raises carries the same id in its scope, so a report names the plugin that produced it.
 
 Two plugins can therefore do the same thing without ever colliding, and none of them has to remember to prefix anything.
 
@@ -55,15 +64,29 @@ The player keeps going without it, and announces the loss on `plugin:failed`.
 
 The base class carries a helper for every global a plugin would otherwise reach for.
 
-Every helper that opens something registers the matching cleanup as you call it, so teardown releases the lot and the plugin holds no handles of its own.
+Every helper that opens something registers the matching cleanup as you call it.
+Teardown then releases the lot, and the plugin holds no handles of its own.
 
-- **Listening.** `on`, `once`, `off` and `hasListeners`, in two forms: a string for the player's own events, a plugin class for another plugin's.
-- **Timers and observers.** `listen`, `timeout`, `interval`, `frame` and `abortable`. `this.lifecycle.observe(observer)` does the same for a `ResizeObserver` or any object with `disconnect()`.
-- **Speaking.** `emit(event, data)` for fire-and-forget, and `dispatchBefore(name, data)` when listeners should be able to mutate, cancel or delay the action.
-- **Failing.** `throw(payload)` surfaces the error and aborts the flow. `report(payload)` surfaces it and returns, defaulting to `warning` severity.
-- **Network.** `fetch(url, options?)` runs the player's own auth pipeline and aborts on teardown. `websocket(url, opts?)` closes on teardown. `resolveUrl(url, category?)` covers the URLs you cannot attach a header to.
-- **Building.** `mount(name)` claims a `<div>` on the player container and removes it again. `createElement`, `createButton`, `createSVG`, `appendStyles` and `appendInlineStyles` build the rest.
-- **Translating.** `t(key, vars?)`, which looks the key up under the plugin's own namespace.
+- **Listening.** `on`, `once`, `off` and `hasListeners`.
+- **Timers and observers.** `listen`, `timeout`, `interval`, `frame` and `abortable`.
+- **Speaking.** `emit` and `dispatchBefore`.
+- **Failing.** `throw` and `report`.
+- **Network.** `fetch`, `websocket` and `resolveUrl`.
+- **Building.** `mount`, `createElement`, `createButton`, `createSVG`, `appendStyles` and `appendInlineStyles`.
+- **Translating.** `t`.
+
+Each listening helper takes two forms: a string for one of the player's own events, a plugin class for another plugin's.
+`this.lifecycle.observe(observer)` puts a `ResizeObserver`, or any object with a `disconnect()`, under the same cleanup.
+
+`emit(event, data)` is fire-and-forget.
+`dispatchBefore(name, data)` lets a listener mutate, cancel or delay the action first.
+
+`throw(payload)` surfaces the error and aborts the flow.
+`report(payload)` surfaces it and returns, at `warning` severity unless the payload says otherwise.
+
+`fetch(url, options?)` runs the player's own auth pipeline.
+`resolveUrl(url, category?)` covers the URLs you cannot attach a header to.
+`mount(name)` claims a `<div>` on the player container.
 
 The raw equivalent of any of these leaks something past teardown, or drops a contract the helper carries.
 `this.player.on` skips both the scoping and the auto-removal.
@@ -71,8 +94,11 @@ A bare `setTimeout` outlives the plugin, a bare `fetch` sends no credentials, an
 
 The `@nomercy-entertainment/eslint-plugin-player` rules flag each of those as you write them.
 
-Override `dispose()` only for something the helpers cannot already track, such as a third-party library instance.
-Whatever they do track is released before your `dispose()` runs.
+`dispose()` is where a plugin releases what the helpers cannot track, such as a third-party library instance.
+Leave it out and that instance stays alive after the plugin is gone.
+
+**The helpers' own cleanup runs after your `dispose()` returns.**
+Inside `dispose()` the listeners are still subscribed, the timers are still armed, and the mount node is still on the page.
 
 ## What a plugin declares about itself
 
@@ -97,11 +123,8 @@ A plugin is enabled from the moment it is constructed.
 Listeners stay subscribed, timers keep their handles, and mounted DOM stays on the page.
 This is also what the runtime does to a plugin whose declared dependency failed to install.
 
-| State | Listeners, timers and DOM | Reached by |
-| --- | --- | --- |
-| Enabled | Live | `addPlugin`, then `enable()` |
-| Disabled | Still live | `disable(reason?)` |
-| Removed | Released | `removePlugin(PluginClass)` |
+`enable()` starts the behavior again, and there is nothing to re-wire.
+Both calls are idempotent, and both announce themselves on `plugin:enabled` and `plugin:disabled`.
 
 Because nothing is unsubscribed, a disabled plugin's handlers still run.
 Guarding them is the plugin author's job:
@@ -116,8 +139,6 @@ override use(): void {
   });
 }
 ```
-
-Both calls are idempotent, and both announce themselves on `plugin:enabled` and `plugin:disabled`.
 
 **Removal is the one that actually releases.**
 `removePlugin(PluginClass)` runs the plugin's `dispose()`, drops everything its helpers registered, unmerges the translations it declared, and emits `plugin:disposed`.
