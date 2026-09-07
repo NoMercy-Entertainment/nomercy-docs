@@ -1,82 +1,106 @@
 ---
 title: 'Plugin: Subtitle Overlay'
-description: 'SubtitleOverlayPlugin: renders the subtitleCue event stream as a positioned, WebVTT-layout-accurate DOM overlay, pooled per active cue, styled from subtitleStyle().'
+description: 'SubtitleOverlayPlugin paints the subtitleCue stream as a positioned DOM tree over the video, one pooled box per active cue, laid out by the WebVTT cue rules and styled from subtitleStyle().'
 ---
 
 {/* Source: packages/nomercy-video-player/src/plugins/subtitle-overlay/index.ts */}
 
 # Plugin: Subtitle Overlay
 
-`SubtitleOverlayPlugin` (id `'subtitle-overlay'`) is the VTT rendering half of subtitle support.
+`cls SubtitleOverlayPlugin` (id `str subtitle-overlay`) is the WebVTT rendering half of subtitle support.
 
-It turns the player's `'subtitleCue'` stream into a styled, positioned DOM tree above the video. Those cues arrive either as sidecar VTT parsed by the kit, or as native `TextTrack` cuechange forwarded by the backend.
+It turns the player's `str subtitleCue` stream into a styled, positioned DOM tree over the video. Those cues arrive either as sidecar VTT the kit parsed itself, or as native `ts TextTrack` cue changes the backend forwards, and both funnel into that one event.
 
-It is a pure consumer. Where cues come from is decided upstream, in the kit and the video backend. This plugin paints what it is handed.
+The plugin is a pure consumer of it. Which track is playing and where its cues come from are settled upstream, in the kit and the backend. This one paints what it is handed.
 
-## Options
+## Registering it
 
-`SubtitleOverlayOptions` currently has no configurable fields, add the plugin as-is:
+`cls SubtitleOverlayOptions` declares no fields, so the plugin takes no options:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { SubtitleOverlayPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/subtitle-overlay';
 
 const player = nmplayer('player');
 
 player.addPlugin(SubtitleOverlayPlugin);
+player.setup({ playlist: [] });
+await player.ready();
 ```
 
-Visual customization goes through `player.subtitleStyle()` (see [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles)), not plugin options, the plugin repaints every active cue immediately on the `'subtitleStyle'` event.
+Appearance is set through `fn player.subtitleStyle` rather than through the plugin. It caches the current style when it starts and repaints every live cue the moment a `str subtitleStyle` event arrives, so a settings menu that writes the style sees the change on screen without a reload. [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles) covers that surface.
 
-## DOM tree and cue pooling
+## The DOM tree
 
+```text
+subtitle-overlay > subtitle-safezone > subtitle-area.aligned-center > subtitle-text[data-language]
 ```
-subtitle-overlay > subtitle-safezone > subtitle-area.<aligned> > subtitle-text
-```
 
-`.subtitle-area` and `.subtitle-text` pairs are pooled, one per active cue.
+The `.subtitle-area` and `.subtitle-text` pairs are pooled, one per active cue, growing on demand and shrinking back to nothing when no cue is active. Two cues at different `key line` positions therefore render as two independently positioned boxes, which is what a browser's own VTT renderer does with simultaneous cues.
 
-Two cues active at different `line` positions render as two independently positioned boxes, the way a browser's native VTT renderer handles simultaneous cues.
+Each `.subtitle-text` carries a `key data-language` attribute holding the active language tag, so a stylesheet can target one language, a script that needs a larger line height for instance.
 
-Where cues would collide, the later one is nudged along the line axis. That mirrors the WebVTT collision-avoidance step, rather than letting two lines paint over each other.
+## The stylesheet it injects
 
-The overlay itself is sized and positioned to the actual video display rectangle (`player.videoRect()`, letterbox-fit under `object-fit: contain`), not the container, so subtitles never sit inside letterbox padding on a wide container playing a narrower-aspect video.
+The plugin appends a `ts <style>` element with the id `str nm-subtitle-overlay-styles` on first use, once per document. That sheet is where the overlay geometry lives, and a rule of yours at equal or higher specificity overrides any of it.
+
+Three parts of it decide what a reader sees.
+
+The safezone insets 5% on the block axis and 3% on the inline axis. The vertical figure keeps a caption clear of a scrubber, a bezel or any other chrome that might clip it.
+
+The horizontal figure is smaller than the SMPTE convention on purpose: that rule was calibrated for CRT overscan, which web delivery does not have, and equal percentages produce a lopsided pixel inset on a non-square picture.
+
+Cue text is sized at `ts clamp(14px, calc(var(--subtitle-scale, 1) * 2.5cqi), 56px)`. The `ts cqi` unit resolves against the player container, so text scales with the picture, and the clamp holds it readable at the small end and sane at the large one. The `str --subtitle-scale` variable is written per box from the style's font size.
+
+The overlay root is `ts pointer-events: none` at `ts z-index: 0`, so it never intercepts a click meant for the video or for the chrome above it.
+
+## Where the overlay sits
+
+The overlay is sized and positioned to the video's actual display rectangle, read from `fn player.videoRect` and kept current by the `str videoRect` event. That rectangle is the letterboxed picture under `ts object-fit: contain`, not the container.
+
+So a wide container playing a narrower picture keeps its captions on the picture rather than down in the letterbox bar, and pillarboxed 4:3 content gets its 3% margin measured against the 4:3 picture.
 
 ## Cue geometry
 
-Cue `line`, `align`, `size` and `position` map to CSS following the WebVTT 1.0 layout algorithm.
+A cue's `key line`, `key align`, `key size` and `key position` map to CSS by the WebVTT 1.0 cue layout rules.
 
-Horizontally, `left` and `width` derive from `position`, `size` and an alignment anchor of 0, 0.5 or 1 for start, center and end.
+Horizontally, the alignment picks an anchor of 0, 0.5 or 1 for start, center and end, and a default position of 0%, 50% or 100% to match. `key left` is then the position minus the anchor times the size, and `key width` is the size.
 
-Vertically, the anchor picks `top` or `bottom` from which half of the safezone `line` falls in. That approximates the native renderer's overflow fallback.
+Both are clamped into the safezone, so a box the spec would send off the edge keeps its anchor and loses no trailing text.
 
-The safezone insets 5% top and bottom, 3% left and right. It is calibrated for widescreen delivery rather than the CRT-era SMPTE convention, matching what streamers ship today.
+Vertically, an automatic line anchors the box to the bottom of the safezone. A line in the lower half anchors by `key bottom`, so the box sits above the line rather than hanging past the safezone. A line in the upper half anchors by `key top`.
 
-## Rules & restrictions
+Where two boxes would collide, the cue listed first keeps its position and the later one is pushed along the line axis, which is the WebVTT displacement step. The push is downward where there is room below and upward where there is not, and the displaced box is re-anchored so it stays inside the safezone either way.
 
-- Renders only. Subtitle *selection* is kit surface, `subtitle()` and `subtitles()`. Selecting a track without this plugin loaded changes state correctly and paints nothing. See [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles).
-- ASS/SSA is not this plugin's job. [`OctopusPlugin`](/nomercy-video-player/plugins-adapters/octopus) renders those. The two coexist safely because they react to different signals: native cue events here, the `'subtitle'` selection event there. Each tears its own rendering down for formats it does not own.
-- Colors resolve through a canvas-normalized hex conversion, with an alpha byte folded in from `textOpacity`, `backgroundOpacity` and `windowOpacity`. So any CSS color string works in `subtitleStyle`, not only hex literals.
+## Rules and restrictions
+
+- The plugin renders and nothing else. Choosing a track is kit surface, `fn subtitle` and `fn subtitles`. Selecting a track with this plugin absent moves the player's state correctly and paints nothing.
+- ASS and SSA belong to [`cls OctopusPlugin`](/nomercy-video-player/plugins-adapters/octopus). The two coexist because they react to different signals: cue events here, the selection event there. Each tears its own rendering down for a format it does not own.
+- Colors accept any CSS color string, not only hex. Nine common names resolve from a table, and everything else is normalized through a 2D canvas. The result is `str #RRGGBBAA` with the alpha byte folded in from `key textOpacity`, `key backgroundOpacity` or `key windowOpacity`, so an opacity of zero stays exact rather than rounding to opaque.
+- An item change clears every box, so nothing from the previous item survives into the next one.
 
 ## How to extend it
 
-There's no subclass hook, the plugin is a leaf consumer of `subtitleCue` and `subtitleStyle`. A genuinely different rendering strategy (canvas-based, WebGL, a different cue-collision algorithm) is a new plugin against the same two signals rather than a subclass of this one:
+There is no subclass hook. The plugin is a leaf consumer of `str subtitleCue` and `str subtitleStyle`, so a genuinely different strategy, a canvas renderer or a different collision algorithm, is a new plugin against the same two signals:
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { NMVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
 
-class MySubtitleRenderer extends Plugin {
+class MySubtitleRenderer extends Plugin<NMVideoPlayer> {
   static override readonly id = 'my-subtitle-renderer';
 
   override use(): void {
     this.on('subtitleCue', (change) => {
-      // paint change.cues your own way
+      console.log(change.cues.length, change.language);
     });
   }
 }
 ```
 
-Don't register both `SubtitleOverlayPlugin` and a custom renderer for the same format at once, both would paint the same cue stream independently and double up the DOM.
+Register one renderer per format. Two plugins on the same cue stream both paint it and double the DOM.
 
 ## Next steps
 
-- [Plugin: Octopus (ASS/SSA Subtitles)](/nomercy-video-player/plugins-adapters/octopus): the renderer for the format this plugin intentionally leaves alone.
+- [Plugin: Octopus (ASS/SSA subtitles)](/nomercy-video-player/plugins-adapters/octopus): the renderer for the format this plugin leaves alone.
+- [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles): selecting a track, and the style surface this plugin paints from.

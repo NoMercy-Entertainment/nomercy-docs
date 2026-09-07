@@ -1,0 +1,174 @@
+---
+title: 'Plugin: Desktop UI — Labels'
+description: 'The full translation key set the desktop overlay draws its labels, tooltips and shortcut names from, and how to add or override a language.'
+---
+
+{/* Source: packages/nomercy-video-player/src/plugins/desktop-ui/i18n/ (en.ts, token-bundle.ts) */}
+
+# Plugin: Desktop UI — Labels
+
+`cls DesktopUiPlugin` draws no hardcoded English. Every tooltip, menu row, shortcut name and status message it shows comes from a translation key, and `packages/nomercy-video-player/src/plugins/desktop-ui/i18n/en.ts` is the canonical set.
+
+`cls DesktopUiTranslationKey` is derived from that file, so every sibling `<tag>.ts` in the folder is typed against exactly those keys. A locale missing one, or carrying one English doesn't have, fails to compile.
+
+This page lists the keys by group. For the options and buttons the overlay itself accepts, see [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui).
+
+## How a locale loads
+
+```ts
+static override readonly translations: Translations = translationsFromGlob('./i18n/*.ts');
+```
+
+That call is a literal string a Vite plugin rewrites at build time into `import.meta.glob('./i18n/*.ts')` — without `str { eager: true }`. Loading is lazy: only the active language's file, and its BCP-47 parents, is ever fetched. A visitor reading Dutch never pulls in the other 78.
+
+Nothing registers a language by hand either way. Adding a file to the folder is what adds the language — discovered at build time, even though it only loads later.
+
+`str token-bundle.ts` is the one exception, and it is not a language file. `cls NMVideoPlayer` needs the three `key plugin.desktop-ui.token.*` keys — the `%S<n>` / `%E<n>` title-prefix tokens — at queue-ingest time, before it knows whether `cls DesktopUiPlugin` will even be added.
+
+That bundle seeds those three keys standalone, for every language, so token resolution never waits on the plugin's own lazy load. It does not duplicate the rest of the set.
+
+## Tooltip keys
+
+Hover and long-press text for each control-bar button, in both a bare and a titled form — the titled form fills in the actual next/previous item or chapter name.
+
+| Key | English |
+|---|---|
+| `key plugin.desktop-ui.tooltip.play` | Play / Pause |
+| `key plugin.desktop-ui.tooltip.previous` | Previous |
+| `key plugin.desktop-ui.tooltip.next` | Next |
+| `key plugin.desktop-ui.tooltip.seekBack` | Seek back 10 s |
+| `key plugin.desktop-ui.tooltip.seekForward` | Seek forward 10 s |
+| `key plugin.desktop-ui.tooltip.chapterPrev` | Previous chapter |
+| `key plugin.desktop-ui.tooltip.chapterNext` | Next chapter |
+| `key plugin.desktop-ui.tooltip.mute` | Mute / Unmute |
+| `key plugin.desktop-ui.tooltip.aspectRatio` | Aspect ratio |
+| `key plugin.desktop-ui.tooltip.theater` | Theater mode |
+| `key plugin.desktop-ui.tooltip.pip` | Picture-in-picture |
+| `key plugin.desktop-ui.tooltip.speed` | Playback speed |
+| `key plugin.desktop-ui.tooltip.subtitles` | Subtitles |
+| `key plugin.desktop-ui.tooltip.audio` | Audio track |
+| `key plugin.desktop-ui.tooltip.quality` | Quality |
+| `key plugin.desktop-ui.tooltip.playlist` | Episodes |
+| `key plugin.desktop-ui.tooltip.settings` | Settings |
+| `key plugin.desktop-ui.tooltip.fullscreen` | Fullscreen |
+| `key plugin.desktop-ui.tooltip.nextWithTitle` | Next: {`{title}`} |
+| `key plugin.desktop-ui.tooltip.previousWithTitle` | Previous: {`{title}`} |
+| `key plugin.desktop-ui.tooltip.nextChapterWithTitle` | Next chapter: {`{title}`} |
+| `key plugin.desktop-ui.tooltip.previousChapterWithTitle` | Previous chapter: {`{title}`} |
+
+## Shortcuts overlay
+
+The dialog the `str ?` key opens, and the group headings it lays its rows out under.
+
+| Key | English |
+|---|---|
+| `key plugin.desktop-ui.shortcuts.title` | Keyboard shortcuts |
+| `key plugin.desktop-ui.shortcuts.hint` | Press ? or Esc to close |
+| `key plugin.desktop-ui.shortcuts.hintToast` | Press ? for keyboard shortcuts |
+| `key plugin.desktop-ui.shortcuts.help` | Keyboard shortcuts |
+
+Group headings: `key plugin.desktop-ui.shortcuts.group.playback` (Playback), `key plugin.desktop-ui.shortcuts.group.speed` (Speed), `key plugin.desktop-ui.shortcuts.group.volume` (Volume), `key plugin.desktop-ui.shortcuts.group.seeking` (Seeking), `key plugin.desktop-ui.shortcuts.group.quickSeek` (Quick Seek), `key plugin.desktop-ui.shortcuts.group.navigation` (Navigation), `key plugin.desktop-ui.shortcuts.group.tracksAndSubtitles` (Tracks & Subtitles), `key plugin.desktop-ui.shortcuts.group.display` (Display).
+
+Each group's own row labels:
+
+**Playback** — `key plugin.desktop-ui.shortcuts.playPause` (Play / Pause), `key plugin.desktop-ui.shortcuts.stop` (Stop), `key plugin.desktop-ui.shortcuts.frameAdvance` (Next frame (paused)).
+
+**Speed** — `key plugin.desktop-ui.shortcuts.speedUp` (Speed up), `key plugin.desktop-ui.shortcuts.speedDown` (Speed down), `key plugin.desktop-ui.shortcuts.normalSpeed` (Normal speed (1×)).
+
+**Volume** — `key plugin.desktop-ui.shortcuts.volumeUp` (Volume up), `key plugin.desktop-ui.shortcuts.volumeDown` (Volume down), `key plugin.desktop-ui.shortcuts.mute` (Mute / Unmute).
+
+**Seeking** — `key plugin.desktop-ui.shortcuts.seekBack5` (Seek back 5 s), `key plugin.desktop-ui.shortcuts.seekForward5` (Seek forward 5 s), `key plugin.desktop-ui.shortcuts.seek3s` (Seek ±3 seconds), `key plugin.desktop-ui.shortcuts.seek10s` (Seek ±10 seconds), `key plugin.desktop-ui.shortcuts.seek60s` (Seek ±1 minute).
+
+**Quick Seek** — `key plugin.desktop-ui.shortcuts.seek30s` (Seek +30 seconds), `key plugin.desktop-ui.shortcuts.seek60sKey` (Seek +60 seconds), `key plugin.desktop-ui.shortcuts.seek90s` (Seek +90 seconds), `key plugin.desktop-ui.shortcuts.seek120s` (Seek +120 seconds).
+
+**Navigation** — `key plugin.desktop-ui.shortcuts.next` (Next item), `key plugin.desktop-ui.shortcuts.previous` (Previous item), `key plugin.desktop-ui.shortcuts.nextChapter` (Next chapter), `key plugin.desktop-ui.shortcuts.previousChapter` (Previous chapter).
+
+**Tracks & Subtitles** — `key plugin.desktop-ui.shortcuts.cycleSubs` (Cycle subtitles), `key plugin.desktop-ui.shortcuts.cycleAudio` (Cycle audio), `key plugin.desktop-ui.shortcuts.cycleAspect` (Cycle aspect ratio), `key plugin.desktop-ui.shortcuts.subSizeUp` (Subtitle size up), `key plugin.desktop-ui.shortcuts.subSizeDown` (Subtitle size down).
+
+**Display** — `key plugin.desktop-ui.shortcuts.fullscreen` (Toggle fullscreen), `key plugin.desktop-ui.shortcuts.exitFullscreen` (Exit fullscreen), `key plugin.desktop-ui.shortcuts.showTime` (Show time).
+
+Five keys carry no group heading, kept for backwards compatibility with an older shortcuts layout rather than for the current one: `key plugin.desktop-ui.shortcuts.seekBackForward`, `key plugin.desktop-ui.shortcuts.volumeUpDown`, `key plugin.desktop-ui.shortcuts.theater`, `key plugin.desktop-ui.shortcuts.pip`, `key plugin.desktop-ui.shortcuts.chapters`. A custom overlay reading the dialog's own row set does not need them; something reading the raw translation bundle still finds them there.
+
+## Menu and settings
+
+| Key | English |
+|---|---|
+| `key plugin.desktop-ui.menu.back` | Back |
+| `key plugin.desktop-ui.menu.close` | Close |
+| `key plugin.desktop-ui.menu.settings` | Settings |
+| `key plugin.desktop-ui.menu.audio` | Audio |
+| `key plugin.desktop-ui.menu.subtitles` | Subtitles |
+| `key plugin.desktop-ui.menu.subtitleSettings` | Subtitle Settings |
+| `key plugin.desktop-ui.menu.quality` | Quality |
+| `key plugin.desktop-ui.menu.speed` | Speed |
+| `key plugin.desktop-ui.menu.aspectRatio` | Aspect Ratio |
+| `key plugin.desktop-ui.menu.playlist` | Playlist |
+| `key plugin.desktop-ui.menu.episodes` | Episodes |
+| `key plugin.desktop-ui.menu.off` | Off |
+| `key plugin.desktop-ui.menu.auto` | Auto |
+| `key plugin.desktop-ui.menu.normal` | Normal |
+| `key plugin.desktop-ui.menu.original` | Original |
+| `key plugin.desktop-ui.menu.stretch` | Stretch |
+| `key plugin.desktop-ui.menu.crop` | Crop |
+| `key plugin.desktop-ui.menu.native` | Native |
+| `key plugin.desktop-ui.menu.reset` | Reset |
+| `key plugin.desktop-ui.menu.season` | Season {`{number}`} |
+| `key plugin.desktop-ui.menu.subtitleType.full` | Full |
+| `key plugin.desktop-ui.menu.subtitleType.sign` | Sign |
+
+The `str cast` top-bar button carries its own key, `key plugin.desktop-ui.button.cast` (Cast to device) — see [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui#which-buttons-render) for why clicking it opens no menu of its own.
+
+## Subtitle settings rows
+
+The pane `key plugin.desktop-ui.menu.subtitleSettings` opens onto.
+
+| Key | English |
+|---|---|
+| `key plugin.desktop-ui.menu.subtitle.font` | Font |
+| `key plugin.desktop-ui.menu.subtitle.textSize` | Text size |
+| `key plugin.desktop-ui.menu.subtitle.textColor` | Text color |
+| `key plugin.desktop-ui.menu.subtitle.textOpacity` | Text opacity |
+| `key plugin.desktop-ui.menu.subtitle.edgeStyle` | Edge style |
+| `key plugin.desktop-ui.menu.subtitle.areaColor` | Area color |
+| `key plugin.desktop-ui.menu.subtitle.areaOpacity` | Area opacity |
+| `key plugin.desktop-ui.menu.subtitle.backgroundColor` | Background color |
+| `key plugin.desktop-ui.menu.subtitle.backgroundOpacity` | Background opacity |
+
+## Status messages and accessibility labels
+
+| Key | English |
+|---|---|
+| `key plugin.desktop-ui.message.loading` | Loading… |
+| `key plugin.desktop-ui.message.volume` | Volume: {`{level}`}% |
+| `key plugin.desktop-ui.message.muted` | Muted |
+| `key plugin.desktop-ui.message.unmuted` | Unmuted |
+| `key plugin.desktop-ui.message.buffering` | Buffering… |
+| `key plugin.desktop-ui.message.error` | Something went wrong trying to play this item |
+| `key plugin.desktop-ui.a11y.seek` | Seek |
+| `key plugin.desktop-ui.a11y.volume` | Volume |
+| `key plugin.desktop-ui.a11y.speed` | Speed ({`{rate}`}×) |
+
+## Title-prefix tokens
+
+The three keys `str token-bundle.ts` seeds standalone, so a queued item's title resolves its `str %S<n>` / `str %E<n>` prefixes before the plugin itself has loaded.
+
+| Key | English | Notes |
+|---|---|---|
+| `key plugin.desktop-ui.token.season` | S{`{number}`} | |
+| `key plugin.desktop-ui.token.episode` | E{`{number}`} | Localized per language — Dutch is `str A{number}`, from "aflevering", not `str E`. |
+| `key plugin.desktop-ui.token.extras` | Extras | |
+
+## Adding or overriding a language
+
+Add a file named for the [BCP 47](https://en.wikipedia.org/wiki/IETF_language_tag) tag — `str fr.ts`, `str pt-BR.ts` — default-exporting an object literal typed `str satisfies Record<DesktopUiTranslationKey, string>`, the same shape every shipped file uses.
+
+That `str satisfies` is what makes a stray key or a missing one a compile error rather than a silent gap. The object has to carry the full 113, not a subset.
+
+Overriding one key in a shipped language without hand-copying the other 112 still needs the full set to satisfy that type. Spread the language's own default export as a base and your replacement over it, and the result carries every key even though you only wrote one.
+
+The glob picks the file up either way; nothing else needs to know it exists.
+
+```ts
+import base from './nl';
+export default { ...base, 'plugin.desktop-ui.menu.reset': 'Herstellen' } satisfies Record<DesktopUiTranslationKey, string>;
+```

@@ -1,17 +1,17 @@
 ---
 title: 'Plugin: Media Session (video)'
-description: 'MediaSessionPlugin registration for video: the OS "Now Playing" surface, artist filled from show and album from the season label. Full surface lives in core.'
+description: 'The video subclass of MediaSessionPlugin maps a VideoPlaylistItem onto the OS Now Playing text: title from title, artist from show, album from the translated season label.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/plugins/media-session/index.ts */}
+{/* Source: packages/nomercy-video-player/src/plugins/media-session/index.ts, packages/nomercy-player-core/src/plugins/media-session/index.ts */}
 
 # Plugin: Media Session
 
-## Purpose
+`cls MediaSessionPlugin` (id `str media-session`) puts the playing video item on the operating system's "Now Playing" surface: the lock screen, the notification shade, hardware media keys and Bluetooth remotes.
 
-`MediaSessionPlugin` (id `'media-session'`) feeds a video item's title, show, and season into the OS "Now Playing" surface: lock-screen controls, hardware media keys, Bluetooth remotes. It is a one-method specialization of the kit's [`MediaSessionPlugin`](/nomercy-player-core/plugins-adapters/media-session), which owns the actual `navigator.mediaSession` wiring. This subclass only overrides `getMetadata()`, how a `VideoPlaylistItem` becomes the lock-screen text.
+It is a one-method subclass of the kit's [`cls MediaSessionPlugin`](/nomercy-player-core/plugins-adapters/media-session), which owns the `ts navigator.mediaSession` wiring, the action handlers and the position reporting. This page covers the one thing the video subclass decides, which is the text a `cls VideoPlaylistItem` produces.
 
-## Using it
+## Registering it
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -20,37 +20,51 @@ import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-video-player/
 const player = nmplayer('player');
 
 player.addPlugin(MediaSessionPlugin);
+player.setup({ playlist: [] });
 await player.ready();
 ```
 
-Subclass and override `getMetadata()` for fields beyond the canonical item, such as a release `year`:
+## The three text fields
+
+| Field | Video source |
+|---|---|
+| `key title` | `key title`, or an empty string when the item has none |
+| `key artist` | `key show`, or an empty string. A film carries no show, so this field is empty for one. |
+| `key album` | the season label, built with `fn t` from the `str season` key, whose English string is `str Season {season}`. An item with no `key season` gets an empty string. |
+
+The season label is translated. The subclass ships a bundle for 79 locales, discovered by `fn translationsFromGlob`, so the lock screen follows the player's language rather than always reading English.
+
+## Where the artwork comes from
+
+The base class picks it, not this subclass. It reads the first of `key image`, `key poster`, `key thumbnail` and `key cover` that the item defines, resolves that one through `fn resolveUrl` under the `str poster` category, and publishes it as a single 512x512 artwork entry with a MIME type guessed from the URL.
+
+An item with none of the four publishes text and no artwork.
+
+The chain stops at the first field the item defines rather than the first non-empty one, so leave a field out instead of setting it to an empty string.
+
+## How to extend it
+
+Override `fn getMetadata` when your items carry fields beyond the canonical shape. Calling up to the base gives you the three fields above to build on:
 
 ```ts
-class MyMediaSessionPlugin extends MediaSessionPlugin {
-	protected override getMetadata(item) {
-		const base = super.getMetadata(item);
-		return {
-			...base,
-			album: item.year ? `${base.album} (${item.year})`.trim() : base.album,
-		};
-	}
+import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/media-session';
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+interface ArchiveItem extends VideoPlaylistItem {
+  year?: number;
 }
 
-player.addPlugin(MyMediaSessionPlugin);
+class ArchiveMediaSession extends MediaSessionPlugin<ArchiveItem> {
+  protected override getMetadata(item: ArchiveItem) {
+    const base = super.getMetadata(item);
+    return { ...base, album: item.year ? `${base.album} (${item.year})`.trim() : base.album };
+  }
+}
 ```
 
-## Reference
-
-`getMetadata()` builds:
-
-| MediaSession field | Video source |
-|---|---|
-| `title` | `item.title` |
-| `artist` | `item.show` (empty string when unset, a movie has no show). |
-| `album` | The season label, translated through `this.t('season', { season })`, locale-dependent (English default `str Season {season}`) when `item.season` is set, empty string otherwise. |
-
-Artwork comes from the kit base class unchanged, `poster` resolved through the same `resolveUrl` pipeline every other image on the item uses. See [Plugin: Media Session (core)](/nomercy-player-core/plugins-adapters/media-session) for options, events, action handlers, and the artwork priority chain.
+`fn getMetadata` returns the text only. Artwork is resolved separately by the base class, so an override never has to build the `key artwork` array.
 
 ## Next steps
 
-- [Plugin: Cast Sender](/nomercy-video-player/plugins-adapters/cast-sender): the same show/season/poster fields feeding a Chromecast receiver instead of the OS lock screen.
+- [Plugin: Media Session (core)](/nomercy-player-core/plugins-adapters/media-session): options, action handlers, position reporting and the events.
+- [Plugin: Cast Sender](/nomercy-video-player/plugins-adapters/cast-sender): the same title, show and season fields feeding a Chromecast receiver instead of the OS.

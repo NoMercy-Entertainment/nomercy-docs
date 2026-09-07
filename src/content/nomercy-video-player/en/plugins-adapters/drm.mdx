@@ -1,80 +1,133 @@
 ---
 title: 'Plugin: DRM'
-description: 'DrmPlugin: EME key-system coordination for Widevine/FairPlay/PlayReady, license fetch routing with optional request signing, and safe no-op degradation without EME.'
+description: 'DrmPlugin probes an EME key system for the playing item and posts license challenges through the kit authenticated fetch, with request signing and challenge and response transforms.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/plugins/drm/index.ts */}
+{/* Source: packages/nomercy-video-player/src/plugins/drm/index.ts, packages/nomercy-player-core/src/adapters/media-element/helpers.ts */}
 
 # Plugin: DRM
 
-`DrmPlugin` (id `'drm'`) coordinates Encrypted Media Extensions (EME) license acquisition for Widevine, FairPlay, and PlayReady, and carries HDCP / output-protection requirements. Registration and license-fetch routing are real. The actual key-system handshake is gated behind `requestMediaKeySystemAccess`, so environments without EME (headless test runners, older browsers) stay quiet instead of throwing.
+`cls DrmPlugin` (id `str drm`) covers two halves of Encrypted Media Extensions work for you: it probes the browser for the key system the playing item asks for, and it posts license challenges to your license server through the kit's authenticated `fn fetch`.
+
+Widevine, PlayReady and FairPlay all go through the same two calls. The key system is a string, and the plugin picks the FairPlay initialization data type from it, so nothing else in the plugin is per-vendor.
+
+Everything below was read from the published build and driven under a DOM stub with a stand-in `fn requestMediaKeySystemAccess`. No license server and no protected content were in the loop, so the page says what the plugin sends and never what a license server answers.
 
 ## Options
 
-| Option | Type | Purpose |
+| Option | Type | What it does |
 |---|---|---|
-| `keySystem` | `string` | EME key system identifier, `'com.widevine.alpha'`, `'com.apple.fps'`, `'com.microsoft.playready'`, etc. |
-| `licenseUrl` | `string` | License server URL. Required before `fetchLicense()` can be called. |
-| `certificate` | `ArrayBuffer \| string` | FairPlay service certificate. Optional for Widevine/PlayReady. |
-| `customSignRequest` | `(request: Request) => Request \| Promise<Request>` | Sign the license request (HMAC, proprietary auth) before it goes out. |
-| `transformLicenseRequest` | `(challenge: ArrayBuffer) => ArrayBuffer \| Promise<ArrayBuffer>` | Transform the challenge body before sending. |
-| `transformLicenseResponse` | `(response: ArrayBuffer) => ArrayBuffer \| Promise<ArrayBuffer>` | Transform the license response body after receiving. |
+| `key keySystem` | `ts string` | The key system probed when the item names none. `str com.widevine.alpha`, `str com.microsoft.playready`, `str com.apple.fps` and the rest. |
+| `key licenseUrl` | `ts string` | The license server `fn fetchLicense` posts to. |
+| `key customSignRequest` | `ts (request: Request) => Request \| Promise<Request>` | Signs the license call. The URL and headers of the request you return are used; the body stays the challenge. |
+| `key transformLicenseRequest` | `ts (challenge: ArrayBuffer) => ArrayBuffer \| Promise<ArrayBuffer>` | Reshapes the challenge before it goes out. |
+| `key transformLicenseResponse` | `ts (response: ArrayBuffer) => ArrayBuffer \| Promise<ArrayBuffer>` | Reshapes the license body on the way back. |
+
+Both `key keySystem` and `key licenseUrl` are required by the type.
+
+## What the probe reads
+
+The plugin listens for the player's `str item` event and reads a `key drm` field off the item. That field is yours: the canonical `cls VideoPlaylistItem` does not declare it, so extend the item type with the shape you want to carry.
+
+An item with no `key drm` field is skipped entirely. An item that has one is probed with `ts item.drm.keySystem`, and the `key keySystem` option is the fallback when that inner field is absent. Measured: an item carrying `str com.microsoft.playready` was probed for PlayReady while the registration passed `str com.widevine.alpha`, so the item wins.
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DrmPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/drm';
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
+interface ProtectedItem extends VideoPlaylistItem {
+  drm?: { keySystem?: string };
+}
+
+const player = nmplayer<ProtectedItem>('player');
+
+player.addPlugin(DrmPlugin, {
+  keySystem: 'com.widevine.alpha',
+  licenseUrl: 'https://license.nomercy.tv/widevine',
+});
+
+player.setup({
+  playlist: [
+    {
+      id: 'sintel',
+      title: 'Sintel',
+      url: 'https://cdn.nomercy.tv/Films/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      drm: { keySystem: 'com.microsoft.playready' },
+    },
+  ],
+});
+await player.ready();
+```
+
+The probe asks for one configuration: `str cenc` initialization data, AAC audio and baseline H.264 video, with `str skd` initialization data instead on a key system whose name starts with `str com.apple.fps`.
 
 ## Events
 
-| Event | Payload | Fires when |
+Both events reach the player bus under a `str plugin:drm:` prefix, which is the name a listener spells out:
+
+```ts
+player.on('plugin:drm:key:error', ({ error }: { sessionId: string; error: Error }) => {
+  console.warn(`key system refused: ${error.message}`);
+});
+```
+
+| Event | Payload | Raised when |
 |---|---|---|
-| `key:error` | `{ sessionId, error }` | The key-system handshake fails. |
-| `unsupported` | `{ reason }` | EME isn't available in this environment, either at plugin registration or at handshake time. |
+| `str plugin:drm:key:error` | `key sessionId`, always the literal `str init`, and `key error`, always an `cls Error` | The browser refused the key system the item or the option named. |
+| `str plugin:drm:unsupported` | `key reason` | `fn requestMediaKeySystemAccess` is absent, either at registration or by the time an item arrives. |
 
-## How activation works
+## Fetching a license
 
-The plugin listens for the player's `'item'` event. When the incoming item carries a `drm.keySystem` hint (a consumer-supplied field on your own item shape, not part of the canonical `VideoPlaylistItem`), the plugin attempts the EME handshake for that key system. When the item doesn't specify one, the plugin falls back to its own `keySystem` option:
+`fn fetchLicense` posts the challenge to `key licenseUrl` as a `str POST` and answers the response body as an `ts ArrayBuffer`.
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
 import { DrmPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/drm';
 
 const player = nmplayer('player');
-
-player.addPlugin(DrmPlugin, {
-  keySystem: 'com.widevine.alpha',
-  licenseUrl: 'https://license.example.com/widevine',
-});
-await player.ready();
-```
-
-`fetchLicense(challenge)` posts the challenge to `licenseUrl`, wrapped through `customSignRequest` when provided, and through `transformLicenseRequest` / `transformLicenseResponse` for payload shaping either direction:
-
-```ts
 const drm = player.getPlugin(DrmPlugin);
-const licenseBlob = await drm?.fetchLicense(challengeBuffer);
+
+declare const challenge: ArrayBuffer;
+declare const keys: MediaKeys;
+
+const license: ArrayBuffer | undefined = await drm?.fetchLicense(challenge);
+await player.backend()?.setMediaKeys(keys);
 ```
 
-## Rules & restrictions
+Three hooks apply in a fixed order. `key transformLicenseRequest` reshapes the challenge first. `key customSignRequest` then receives a `cls Request` built over `key licenseUrl` with that challenge as its body, and the URL and headers of whatever it returns are what go out; the body remains the transformed challenge, so a signer that rewrites the body has no effect.
 
-- `requestMediaKeySystemAccess` missing at registration time emits `unsupported` immediately and the plugin does nothing further. It does not throw and does not retry.
-- `fetchLicense()` throws `core:drm/license-url-missing` if `licenseUrl` was never configured. This is a real, addressable configuration error, not a soft failure.
-- All license network I/O goes through the kit's `Plugin.fetch()`, the same auth pipeline every other plugin uses. The `auth` config from `setup()` (bearer token, custom headers, request signing) already applies without extra config here.
-- `mediaKeys()` returns `null` whenever EME isn't supported or the handshake hasn't completed, always guard before use.
+`key transformLicenseResponse` reshapes the answer last.
+
+Every one of those calls travels on the kit's `fn Plugin.fetch`, which is the same authenticated pipeline every other plugin uses. The `key auth` block from `fn setup`, its bearer token, its headers and its signing, already applies with nothing extra configured here.
+
+## Attaching the keys
+
+`fn mediaKeys` reads `ts player.videoElement.mediaKeys` back, so it answers what is currently attached to the media element. The backend is what attaches: `player.backend()?.setMediaKeys(keys)` calls the element's own `fn setMediaKeys` and raises a `cls BrowserPolicyError` where the method is missing. Guard the read either way, because it answers `ts null` until keys are attached.
+
+## Rules and restrictions
+
+- With `fn requestMediaKeySystemAccess` absent at registration, the plugin emits `str plugin:drm:unsupported` and installs no `str item` listener. It neither throws nor retries, so a headless test runner or an older browser stays quiet. Measured under a DOM stub with no EME.
+- `fn fetchLicense` throws a `cls DrmError` carrying `str core:drm/license-url-missing` when `key licenseUrl` was never configured. That is an addressable configuration error, and the error's own suggestion names the fix.
+- The probe is per item, not per session. An item that keeps the same key system is probed again on every load.
 
 ## How to extend it
 
-Subclass to add key-system-specific certificate handling or a different license transport (a WebSocket-based DRM proxy, for instance):
+Override `fn fetchLicense` to put a different transport in front of the license server, a proxy over a WebSocket for instance, and fall back to the base for the ordinary case:
 
 ```ts
 import { DrmPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/drm';
 
-class MyDrmPlugin extends DrmPlugin {
+class ProxyDrmPlugin extends DrmPlugin {
   override async fetchLicense(challenge: ArrayBuffer): Promise<ArrayBuffer> {
-    // custom transport, then fall back to the base implementation if needed
     return super.fetchLicense(challenge);
   }
 }
-
-player.addPlugin(MyDrmPlugin, { keySystem: 'com.widevine.alpha', licenseUrl });
 ```
+
+Keeping the `str drm` id means the subclass replaces the built-in at registration rather than running beside it.
 
 ## Next steps
 
-- [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-video-backend): the backend that mounts the media source EME and DRM attach to.
+- [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-video-backend): the backend that owns the media element, and the `fn setMediaKeys` call keys are attached through.
+- [Plugin Development](/nomercy-video-player/plugins-adapters/plugin-development): the video surfaces a plugin of your own reaches for.

@@ -1,164 +1,197 @@
 ---
 title: 'Plugin Development'
-description: 'Writing plugins for nomercy-video-player v2: the video-specific layer a bare core plugin cannot reach, the video element, track surfaces, chapters, and the overlay stack over the video.'
+description: 'The video-specific surface a plugin reaches that a bare core plugin cannot: the video element, videoRect, the three track surfaces, chapters, the display states, and the overlay stack above the picture.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/types.ts, src/index.ts, src/plugins/desktop-ui/, packages/nomercy-player-core/src/core/plugin/base.ts, src/types/player.ts */}
+{/* Source: packages/nomercy-video-player/src/types.ts, src/index.ts, src/plugins/desktop-ui/, packages/nomercy-player-core/src/core/plugin/base.ts, src/core/mixins/media-tracks.ts */}
 
 # Plugin Development: Video Player
 
-Plugins for `nomercy-video-player` are core plugins. The whole shared toolkit lives on the `Plugin` base: `mount`, `createElement`, `createButton`, `addClasses`, `listen`, `timeout`, `frame`, `fetch`, `t`, `emit`, and the rest of `this.*`. The [Plugin Handbook](/nomercy-player-core/handbook/anatomy) teaches every one:
+A plugin for `nomercy-video-player` is a core plugin. The whole shared toolkit sits on the `cls Plugin` base: `fn mount`, `fn createElement`, `fn createButton`, `fn addClasses`, `fn listen`, `fn timeout`, `fn frame`, `fn fetch`, `fn t`, `fn emit` and the rest of `ts this.*`. The [Plugin Handbook](/nomercy-player-core/handbook/anatomy) teaches every one:
 
-- [Anatomy of a Plugin](/nomercy-player-core/handbook/anatomy), the class shape, generics, and lifecycle
+- [Anatomy of a Plugin](/nomercy-player-core/handbook/anatomy), the class shape, generics and lifecycle
 - [Building DOM](/nomercy-player-core/handbook/building-dom) and [Styling](/nomercy-player-core/handbook/styling)
 - [Listening](/nomercy-player-core/handbook/listening) and [Timing](/nomercy-player-core/handbook/timing)
 - [Emitting](/nomercy-player-core/handbook/emitting), [Network](/nomercy-player-core/handbook/network), [i18n](/nomercy-player-core/handbook/i18n)
 - [Errors & State](/nomercy-player-core/handbook/errors-state) and [Registration](/nomercy-player-core/handbook/registration)
 
-This page teaches only what a video plugin can reach that a bare core plugin cannot. That is the video element, the track surfaces, chapters, the display states, and the overlay stack over the video.
+What follows is the part a bare core plugin cannot reach: the video element, the track surfaces, chapters, the display states, and the overlay stack above the picture.
 
-## Built-in plugin catalog
+## The built-in plugins
 
-All built-in plugins are importable from `@nomercy-entertainment/nomercy-video-player/plugins`.
+Every one of these is importable from `@nomercy-entertainment/nomercy-video-player/plugins`, and each also has its own subpath under `/plugins/<id>`.
 
 | Plugin | Plugin id | What it does |
 | ------ | --------- | ------------ |
-| [`DesktopUiPlugin`](/nomercy-video-player/plugins-adapters/desktop-ui) | `'desktop-ui'` | Full controls overlay (progress bar, menus, activity hiding) for pointer devices |
-| [`SubtitleOverlayPlugin`](/nomercy-video-player/plugins-adapters/subtitle-overlay) | `'subtitle-overlay'` | Renders VTT subtitle cues as a positioned DOM overlay |
-| [`OctopusPlugin`](/nomercy-video-player/plugins-adapters/octopus) | `'octopus'` | High-fidelity ASS/SSA subtitle rendering via libass/WASM |
-| [`TouchZonesPlugin`](/nomercy-video-player/plugins-adapters/touch-zones) | `'touch-zones'` | Tap-zone overlay: double-tap to seek, single-tap to toggle playback |
-| [`KeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/key-handler) | `'key-handler'` | Full keyboard binding set: playback, seek, volume, chapters, subtitles, speed |
-| [`TvKeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/tv-key-handler) | `'tv-key-handler'` | TV remote bindings; subclasses `KeyHandlerPlugin` |
-| [`DrmPlugin`](/nomercy-video-player/plugins-adapters/drm) | `'drm'` | EME license acquisition for Widevine, FairPlay, and PlayReady |
-| [`CastSenderPlugin`](/nomercy-video-player/plugins-adapters/cast-sender) | `'cast-sender'` | Chromecast CAF sender with session lifecycle and metadata mirroring |
-| [`MediaSessionPlugin`](/nomercy-video-player/plugins-adapters/media-session) | `'media-session'` | Populates the OS "Now Playing" surface (lock screen, notifications) |
+| [`cls DesktopUiPlugin`](/nomercy-video-player/plugins-adapters/desktop-ui) | `str desktop-ui` | The shipped controls overlay: progress bar, menus, auto-hide |
+| [`cls SubtitleOverlayPlugin`](/nomercy-video-player/plugins-adapters/subtitle-overlay) | `str subtitle-overlay` | Paints WebVTT cues as a positioned DOM overlay |
+| [`cls OctopusPlugin`](/nomercy-video-player/plugins-adapters/octopus) | `str octopus` | Renders ASS and SSA subtitles with libass |
+| [`cls TouchZonesPlugin`](/nomercy-video-player/plugins-adapters/touch-zones) | `str touch-zones` | Tap zones: double tap to seek, single tap to toggle playback |
+| [`cls KeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/key-handler) | `str key-handler` | The keyboard binding set for playback, seek, volume, chapters and tracks |
+| [`cls TvKeyHandlerPlugin`](/nomercy-video-player/plugins-adapters/tv-key-handler) | `str tv-key-handler` | Remote bindings, subclassing `cls KeyHandlerPlugin` |
+| [`cls DrmPlugin`](/nomercy-video-player/plugins-adapters/drm) | `str drm` | EME key-system probing and license fetching |
+| [`cls CastSenderPlugin`](/nomercy-video-player/plugins-adapters/cast-sender) | `str cast-sender` | The Chromecast sender bridge |
+| [`cls MediaSessionPlugin`](/nomercy-video-player/plugins-adapters/media-session) | `str media-session` | Fills the OS "Now Playing" surface |
+| `cls LiveTranscodingPlugin` | `str live-transcoding` | Drives a server-side transcode session for the playing item |
+
+The same barrel re-exports the core plugins a video player can use unchanged, among them `cls EmbedPlugin`, `cls MessagePlugin`, `cls TabLeaderPlugin`, `cls VolumeMemoryPlugin` and the audio-graph family.
 
 ## Typing against the video player
 
-Use `IVideoPlayer` as the `P` generic. It is the stable public interface for the video player and the correct type for plugins and consumer functions. `NMVideoPlayer` is the concrete class, an implementation detail; a plugin typed against it depends on the class hierarchy for no gain.
+Use `cls IVideoPlayer` as the `cls P` generic. It is the public interface, and it is the right type for a plugin and for any consumer function that takes a player. `cls NMVideoPlayer` is the concrete class, so a plugin typed against it buys a dependency on the class hierarchy and nothing else.
 
 ```ts
 import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
 import type { IVideoPlayer, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
 export class MyVideoPlugin extends Plugin<IVideoPlayer<VideoPlaylistItem>> {
-	static override readonly id = 'my-video-plugin';
-	static override readonly version = '1.0.0';
+  static override readonly id = 'my-video-plugin';
+  static override readonly version = '1.0.0';
 
-	override use(): void {
-		this.on('item', ({ item }) => {
-			// item is a VideoPlaylistItem
-		});
-	}
+  override use(): void {
+    this.on('item', ({ item }) => {
+      console.log(item?.title);
+    });
+  }
 }
 ```
 
-`IVideoPlayer<T>` takes your playlist item type as its generic. Extend `VideoPlaylistItem` with your own fields and the type threads through `item()`, `queue()`, and every event payload that carries an item.
+`cls IVideoPlayer<T>` takes your playlist item type as its generic. Extend `cls VideoPlaylistItem` with your own fields and that type threads through `fn item`, `fn queue` and every event payload carrying an item. The `key item` on that payload is optional, so narrow it before reading a field.
 
 ## The video element
 
-`this.player.videoElement` is the raw `<video>` element. It is `undefined` until the first `backend()` call constructs the backend, so guard the read:
+`ts this.player.videoElement` is the raw `ts <video>` element, typed `ts HTMLVideoElement | undefined`. It stays undefined until the first `fn backend` call builds the backend, so guard the read:
 
 ```ts
-const videoEl = this.player.videoElement;
-if (videoEl) {
-	this.listen(videoEl, 'enterpictureinpicture', () => this.applyPipIcon(true));
-	this.listen(videoEl, 'leavepictureinpicture', () => this.applyPipIcon(false));
+import { Plugin } from '@nomercy-entertainment/nomercy-player-core';
+import type { IVideoPlayer } from '@nomercy-entertainment/nomercy-video-player';
+
+export class GeomPlugin extends Plugin<IVideoPlayer> {
+  static override readonly id = 'geom';
+  private box!: HTMLDivElement;
+
+  override use(): void {
+    const videoEl = this.player.videoElement;
+    if (videoEl) {
+      this.listen(videoEl, 'enterpictureinpicture', () => console.log('pip on'));
+      this.listen(videoEl, 'leavepictureinpicture', () => console.log('pip off'));
+    }
+
+    this.on('videoRect', ({ rect }) => {
+      if (!rect) return;
+      this.box.style.left = `${rect.x}px`;
+      this.box.style.width = `${rect.width}px`;
+    });
+
+    this.on('chapters', () => this.renderChapterMarkers());
+    this.on('duration', () => this.renderChapterMarkers());
+
+    this.player.activityTracking(false);
+    this.lifecycle.addCleanup(() => this.player.activityTracking(true));
+  }
+
+  private renderChapterMarkers(): void {}
 }
 ```
 
-That snippet is how `DesktopUiPlugin` tracks PiP: native element events through the scoped `listen()` from the [handbook](/nomercy-player-core/handbook/listening), so the listeners unwind on dispose.
+That is how `cls DesktopUiPlugin` follows picture-in-picture: native element events through the scoped `fn listen` from the [handbook](/nomercy-player-core/handbook/listening), so the listeners unwind on dispose.
 
-Read from the element when the player surface has no answer yet. `DesktopUiPlugin` resolves duration in three steps: `player.duration()`, then its own cached value, then `videoElement.duration` as the last fallback.
+Read from the element where the player surface has no answer yet. `cls DesktopUiPlugin` resolves duration in three steps, `fn player.duration` first, then its own cached value, then `ts videoElement.duration` where that is finite.
 
-## Video geometry: videoRect()
+## Video geometry
 
-The video renders with `object-fit: contain`, so the displayed picture is usually smaller than the container. `videoRect()` returns the displayed content rectangle relative to the player container, or `null` before video dimensions are known. Changes are signaled by the `'videoRect'` event.
+The picture is drawn with `ts object-fit: contain`, so it is usually smaller than the container. `fn videoRect` answers the displayed content rectangle relative to the container, or `ts null` before the video dimensions are known, and the `str videoRect` event announces every change.
 
-Overlay plugins that align to the picture (a subtitle renderer, a zone highlighter) use this instead of computing their own letterbox math. `SubtitleOverlayPlugin` consumes exactly this pair.
+The rectangle carries `key x` and `key y` as the offsets inside the container, `key width` and `key height` in CSS pixels, and `key scale` as the ratio of displayed width to native width. There is no `key left` or `key top`, which is the one thing to get right when porting DOM-rect code into a listener.
 
-```ts
-this.on('videoRect', ({ rect }) => {
-	if (!rect)
-		return;
-	this.box.style.left = `${rect.left}px`;
-	this.box.style.width = `${rect.width}px`;
-});
-```
+An overlay that aligns to the picture rather than the container reads this pair instead of computing its own letterbox math. `cls SubtitleOverlayPlugin` consumes exactly it.
 
 ## The track surfaces
 
-Three surfaces follow the same read-list, read-selection, select shape:
+Three surfaces share one read-list, read-selection, select shape:
 
 | Surface | List | Read selection | Select |
 | ------- | ---- | -------------- | ------ |
-| Subtitles | `subtitles()` | `subtitle()` returns `{ index, track }` or `null` | `subtitle(idx)`, `subtitle(null)` for off |
-| Audio | `audioTracks()` | `audioTrack()` | `audioTrack(idx)` |
-| Quality | `qualityLevels()` | `quality()` returns `'auto'` or `{ index, ... }` | `quality(idx)`, `quality('auto')` |
+| Subtitles | `fn subtitles` | `fn subtitle` answers `ts { index, track }` or `ts null` | `fn subtitle` with an index, or `ts null` for off |
+| Audio | `fn audioTracks` | `fn audioTrack` answers `ts { index, track }` or `ts null` | `fn audioTrack` with an index |
+| Quality | `fn qualityLevels` | `fn quality` answers `ts { index, track }` or `str auto` | `fn quality` with an index or `str auto` |
 
-And the events that drive a UI built on them:
+And the events a UI built on them follows:
 
 | Event | Fires when |
 | ----- | ---------- |
-| `subtitle` | The active subtitle selection changed |
-| `subtitles` | The subtitle track list changed without a reload (`addSubtitleTrack()` / `removeSubtitleTrack()`) |
-| `audioTrack` / `audioTracks` | Audio selection changed / list changed |
-| `quality:requested` | Someone picked a level (or auto) |
-| `level-switched` | The stream actually changed level, which in auto mode happens without any pick |
-| `levels` | The quality level list changed |
-| `mediaReady` | The new item finished loading; the reconcile point |
+| `str subtitle` | The active subtitle selection changed |
+| `str subtitles` | The subtitle track list changed without a reload |
+| `str audioTrack` | The audio selection changed |
+| `str quality:requested` | Someone picked a level, or asked for auto |
+| `str level-switched` | The stream actually changed level, which in auto mode happens with nobody picking |
+| `str levels` | The quality level list changed |
+| `str mediaReady` | The new item finished loading, and the point to reconcile at |
 
-`mediaReady` is where a track UI reconciles its cached indexes with the player's canonical state. `DesktopUiPlugin` reads `subtitle()`, `audioTrack()`, and `quality()` there rather than guessing from track defaults, because plugin-rendered tracks (ASS via Octopus) never appear in the backend's native lists.
+`str mediaReady` is where a track UI reconciles its cached indexes against the player's own state. `cls DesktopUiPlugin` reads `fn subtitle`, `fn audioTrack` and `fn quality` there rather than guessing from track defaults, because a plugin-rendered track, ASS through Octopus, never appears in the backend's native lists.
 
-Two quality facts trip up every hand-rolled quality menu:
+Two quality facts catch every hand-rolled menu:
 
-- Requested and playing are different values. `quality()` stays `'auto'` while `level-switched` reports what is actually on screen. `DesktopUiPlugin` caches the playing index from `level-switched`, and before the first one lands it peeks `player.backend()?.currentLevel?.()`.
-- `qualityLevels()` filters unsupported codecs, so match a level by its `index` field, not by array position.
+- Requested and playing are different values. `fn quality` stays `str auto` while `str level-switched` reports what is on screen. `cls DesktopUiPlugin` caches the playing index from that event, and before the first one lands it peeks `ts backend.currentLevel()`.
+- `fn qualityLevels` drops levels whose codec the browser said it cannot decode, so match a level by its `key index` field rather than by array position. `fn qualityLevels` with `ts { includeUnsupported: true }` returns the unfiltered list, each entry still carrying its true `key index`.
 
 Runtime subtitle injection is a first-class surface:
 
 {/* partial */}
 ```ts
-addSubtitleTrack(track: SidecarSubtitleInput, opts?: ActionOptions): KitSubtitleTrack;
-removeSubtitleTrack(id: string, opts?: ActionOptions): void;
+addSubtitleTrack(track: SidecarSubtitleInput): KitSubtitleTrack;
+removeSubtitleTrack(id: string): void;
 ```
 
-`addSubtitleTrack()` injects a sidecar track into the currently playing item with no reload. It is idempotent by `url` plus normalized `language`, and selects the track immediately when you pass `default: true`. Both methods fire the `subtitles` event, which is your cue to recheck any content-gated UI.
+`fn addSubtitleTrack` injects a sidecar track into the playing item with no reload. It is idempotent on `key url` plus normalized `key language`, returning the existing track rather than a duplicate, and it selects the track straight away when you pass `key default` as `ts true`.
+
+It throws a `cls StateError` carrying `str core:media-tracks/no-active-item` when no item is loaded, so call it once an item is playing.
+
+`fn removeSubtitleTrack` takes the id back off and does nothing where the id is not a sidecar track, which is how a track from the HLS manifest is left alone. Removing the active track turns subtitles off through the same path as `fn subtitle` with `ts null`.
+
+Both fire `str subtitles` with the refreshed list, which is the cue to recheck any content-gated UI.
 
 ## Chapters
 
-`chapters()` returns the current item's chapter list, each entry `{ index, start, end, title }` in seconds. `seekToChapter(idx)` jumps to one and emits `'chapter'`. The `'chapters'` event announces list changes.
+`fn chapters` answers the playing item's chapter list, each entry carrying `key index`, `key start` and `key end` in seconds, and `key title`. The list is filled asynchronously from a sidecar VTT once the item loads, so `str chapters` is the "ready now" signal.
 
-Chapter markers need the duration too, so render on both signals, whichever arrives last:
+`fn seekToChapter` jumps to one and emits `str chapter`, whose payload carries the `key index` and the `key title` rather than the whole chapter. It takes the same `cls ActionOptions` every other transport call does and forwards them to the seek. `fn chapter` with no argument reads back the chapter containing the playhead, or `ts null`.
 
-```ts
-this.on('chapters', () => this.renderChapterMarkers());
-this.on('duration', () => this.renderChapterMarkers());
-```
+Chapter markers need the duration as well as the list, so render on both signals and let whichever arrives last do the work. That is the pair of listeners in the plugin above.
 
-For previous/next navigation, `DesktopUiPlugin` uses a one-second tolerance. "Previous chapter" is the last chapter whose `start` is before `time - 1`. So pressing it inside the first second of a chapter goes to the chapter before it, instead of restarting the current one. "Next" is the first chapter whose `start` is after `time + 1`.
+For previous and next navigation, `cls DesktopUiPlugin` allows a one-second tolerance. Previous is the last chapter starting before `time - 1`, so pressing it just inside a chapter goes to the one before rather than restarting the current one. Next is the first chapter starting after `time + 1`.
 
 ## Display states
 
-Fullscreen, PiP, and theater are accessor pairs plus toggles plus events:
+Fullscreen, picture-in-picture, theater and aspect ratio are each an accessor pair plus an event:
 
 {/* partial */}
 ```ts
-fullscreen(): FullscreenState; // toggleFullscreen(), 'fullscreen' event with { active }
-pip(): PipState;               // togglePip(), 'pip' event
-theater(): TheaterState;       // toggleTheater(), 'theater' event
-aspectRatio(): Stretching;     // cycleAspectRatio(), 'aspectRatio' event
+fullscreen(): FullscreenState; // fullscreen(state), 'fullscreen' event with { active }
+pip(): PipState; //              pip(state), 'pip' event
+theater(): TheaterState; //      theater(state), 'theater' event
+aspectRatio(): Stretching; //    aspectRatio(value), 'aspectRatio' event
 ```
 
-Fullscreen enters on the player container, not the video element, so everything a plugin mounted on the container comes along into fullscreen. No re-parenting is needed.
+`fn fullscreen` and `fn pip` report the request the player made. The reader that answers for the browser is `ts player.platform().fullscreen?.isActive()`, and a button icon that has to survive the viewer pressing escape reads that one:
 
-The states interact, and a UI plugin has to compose them. `DesktopUiPlugin`'s rule is worth copying. Theater is meaningless inside fullscreen or PiP, so the theater button hides whenever either is active. PiP chrome floats over another window, so navigation buttons hide there too. A config opt-out always wins over state-driven showing.
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+const player = nmplayer('player');
+const isFullscreen: boolean = player.platform().fullscreen?.isActive() ?? false;
+const levels = player.qualityLevels({ includeUnsupported: true });
+```
+
+Fullscreen is entered on the player container rather than on the video element, so anything a plugin mounted on the container comes along. No re-parenting is needed.
+
+The states interact, and a UI plugin composes them. `cls DesktopUiPlugin`'s rule is worth copying: theater means nothing inside fullscreen or picture-in-picture, so that button hides while either is active, and picture-in-picture chrome floats over another window, so navigation buttons hide there too. A configured opt-out always beats state-driven showing.
 
 ## The overlay stack
 
-The player container (`.nomercyplayer`) is `position: relative` with the `<video>` at `z-index: 0`. Every `mount()` call appends a `<div>` to that container, in call order. Stacking above the video is a matter of your own stylesheet: absolute positioning plus a `z-index`.
+The player container, `str .nomercyplayer`, is `ts position: relative` with the `ts <video>` at `ts z-index: 0`. Every `fn mount` call appends a `ts <div>` to that container in call order, and stacking above the video is your own stylesheet's job: absolute positioning plus a `key z-index`.
 
-`DesktopUiPlugin` claims one mount named `overlay` and puts its whole chrome inside it, at `z-index: 20`. The root is `pointer-events: none`; the bars and buttons re-enable pointer events on themselves. Inside that root:
+`cls DesktopUiPlugin` claims one mount, named `str overlay`, and puts its whole chrome inside it at `ts z-index: 20`. That root is `ts pointer-events: none`, and the bars and buttons switch pointer events back on for themselves. Inside it:
 
 ```text
 overlay                       z-index 20 on the container
@@ -166,68 +199,59 @@ overlay                       z-index 20 on the container
   center                      spinner + center play button
   bottom-bar                  slider bar + button row
   menu-frame-dialog           a <dialog>, the settings menus
-  keybinds overlay            the ? shortcuts dialog
+  keybinds dialog             the shortcuts sheet
 ```
 
 So your own mount coexists with the desktop UI by picking a layer:
 
-- Below `20`: your element renders under the chrome. Right for content-anchored overlays (a subtitle layer, a watermark).
-- Above `20`: your element renders over the chrome. Right for modal surfaces of your own.
-- Inside the chrome: append into `player.getPlugin(DesktopUiPlugin)?.overlay()` and your element inherits the auto-hide lifecycle instead of floating over hidden bars. See [the desktop UI page](/nomercy-video-player/plugins-adapters/desktop-ui) for `overlay()`, `holdChrome()`, and `releaseChrome()`.
+- Below 20: your element renders under the chrome, which is right for anything anchored to the content, a watermark or a subtitle layer.
+- Above 20: your element renders over the chrome, which is right for a modal surface of your own.
+- Inside the chrome: append into `ts player.getPlugin(DesktopUiPlugin)?.overlay()` and your element inherits the auto-hide lifecycle instead of floating over hidden bars. [The desktop UI page](/nomercy-video-player/plugins-adapters/desktop-ui) covers `fn overlay`, `fn holdChrome` and `fn releaseChrome`.
 
 ## Who owns activity
 
-The player has built-in activity tracking. It watches its own container for pointer, touch, and key input, emits the `activity` event, and keeps `.active` / `.inactive` classes on the container. A plugin whose UI should fade with the controls needs no timer at all; it keys visibility off those classes in CSS.
+The player tracks activity itself. It watches its own container for pointer, touch and key input, emits the `str activity` event, and keeps an `str active` or `str inactive` class on the container to match. A plugin whose UI should fade with the controls needs no timer of its own: it keys visibility off those classes in CSS.
 
-A UI plugin that brings a richer activity state machine takes over as the sole emitter with `activityTracking(false)`. `DesktopUiPlugin` does exactly this in `use()`, because open menus, hover, and scrubbing all pin its chrome, and hands ownership back at teardown:
+A UI plugin bringing a richer activity state machine takes over as the only emitter with `fn activityTracking` set to `ts false`, and hands ownership back at teardown. `cls DesktopUiPlugin` does exactly that in `fn use`, because open menus, hover and scrubbing all have to pin its chrome. The plugin above shows both halves.
 
-```ts
-this.player.activityTracking(false);
-this.lifecycle.addCleanup(() => this.player.activityTracking(true));
-```
-
-Do not run a second activity timer next to the desktop UI. React to the `activity` event or the container classes, and if your overlay must pin the chrome, use `holdChrome()` / `releaseChrome()`.
+Do not run a second activity timer beside the desktop UI. React to the `str activity` event or to the container classes, and where your overlay has to pin the chrome, use `fn holdChrome` and `fn releaseChrome`.
 
 ## Taking over the screen
 
-A plugin that needs the whole screen (a disc-menu interpreter painting the disc's own chrome) does not fight the desktop UI. It disables it:
+A plugin that needs the whole screen, a disc-menu interpreter painting the disc's own chrome for instance, disables the desktop UI rather than fighting it:
 
 ```ts
-const ui = this.player.getPlugin(DesktopUiPlugin);
-ui?.disable('disc-menu');
-// later
-ui?.enable();
-```
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { DesktopUiPlugin, KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
 
-`disable()` hides the overlay outright, cancels the inactivity timer, and emits one final `activity: false`. `enable()` restores it and re-arms auto-hide.
-
-## Surfaced intents: back, close, cast
-
-The desktop UI's top-bar buttons emit player events and do nothing else. `back` and `close` buttons appear only while a listener for their event is registered. The `listeners-changed` event keeps that in sync live. `cast` is an option-gated button that emits `'cast'` instead. All three are handled in the consumer, not in a plugin:
-
-```ts
-player.on('back', () => router.back());
-player.on('cast', () => openDevicePicker());
-```
-
-## Extending a built-in plugin
-
-A subclass that keeps the same `static id` replaces the built-in at registration:
-
-```ts
-import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins';
+const player = nmplayer('player');
 
 class MyKeyHandler extends KeyHandlerPlugin {
-	static override readonly id = 'key-handler'; // same id = replaces the built-in
+  static override readonly id = 'key-handler';
 
-	protected override addPlaybackKeys(): void {
-		super.addPlaybackKeys();
-		this.bind('n', player => player.next({ source: 'user' }));
-	}
+  protected override addPlaybackKeys(): void {
+    super.addPlaybackKeys();
+    this.bind('n', p => p.next({ source: 'user' }));
+  }
 }
 
 player.addPlugin(MyKeyHandler);
+
+const ui = player.getPlugin(DesktopUiPlugin);
+ui?.disable('disc-menu');
+ui?.enable();
+
+player.on('back', () => history.back());
+player.on('cast', () => console.log('open device picker'));
 ```
+
+`fn disable` hides the overlay outright, cancels the inactivity timer and emits one last `str activity` with `key active` false. `fn enable` restores it and re-arms auto-hide.
+
+The same block shows two more things a consumer owns.
+
+A subclass keeping the built-in's `str id` replaces it at registration, which is how a key binding is added without reimplementing the set.
+
+The top bar's back, close and cast buttons emit a player event and do nothing else, so the handling is yours. The back and close buttons appear only while a listener for their event exists, checked with `fn hasListeners` and kept live by the `str listeners-changed` event. The cast button is gated by an option instead.
 
 ## Next steps
 
