@@ -3,6 +3,8 @@ title: 'How It Works'
 description: 'The video work wrapped around the core setup sequence: the config it fills in, the item it loads first, and what settles before a frame appears.'
 ---
 
+{/* Source: packages/nomercy-video-player/src/index.ts, packages/nomercy-video-player/src/player/start-selection.ts, packages/nomercy-video-player/src/player/preload.ts, packages/nomercy-player-core/src/core/mixins/lifecycle.ts */}
+
 # How It Works
 
 `setup()` hands your config to the player core, which runs [nine stages](/nomercy-player-core/tour/lifecycle) before `ready()` resolves.
@@ -16,29 +18,43 @@ Your config object is enriched before the core ever sees it.
 
 | Field | What the video player puts there |
 | --- | --- |
-| `crossfadeEnabled` | `false` |
-| `preloadLeadSeconds` | `10` |
-| `preloadStrategy` | `VideoPreloadStrategy`, built with that lead |
-| `transitionStrategy` | `GaplessTransitionStrategy` |
+| `key crossfadeEnabled` | `false` |
+| `key preloadLeadSeconds` | `10` |
+| `key preloadStrategy` | `cls VideoPreloadStrategy`, built with that lead |
+| `key transitionStrategy` | `cls GaplessTransitionStrategy` |
 
 Each one is filled in only when your own config left it out.
 A value you pass always wins.
 
-`VideoPreloadStrategy` is the video-shaped list of what to prefetch for the next item: its media URL, poster, preview sprite, subtitle sidecars, chapter file and fonts.
+`cls VideoPreloadStrategy` is the video-shaped list of what to prefetch for the next item: its media URL, poster, preview sprite, subtitle sidecars, chapter file and fonts.
 
 One field is applied on the way out of `setup()` rather than during the sequence.
-`theaterDefault` calls `theater(true)` before `setup()` returns, so the layout is already in theater mode while the stages are still running.
-
-Everything else on this page happens after that.
+`key theaterDefault` calls `theater(true)` before `setup()` returns, so the layout is already in theater mode while the stages are still running.
 
 ## The player loads the first item itself
 
-`setup()` arms the queue. It loads nothing.
+`setup()` arms the queue.
+It loads nothing.
 
-The load is a separate pass, and it runs whether or not `autoPlay` is set.
+The load is a separate pass, and it runs whether or not `key autoPlay` asked for playback.
 That is what keeps a player from mounting blank.
 
 A queue still empty at that point primes nothing.
+
+## How the first item is picked
+
+With no pick of your own, the choice comes from the `progress` field on your items.
+
+Items carrying no `progress` at all leave the choice at the first item in the list.
+
+Otherwise the item with the newest `progress.timestamp` wins, and its `percentage` decides what happens to it.
+
+Above 90, the player rolls forward to the next item in the list and starts it from the beginning.
+The last item has nowhere to roll forward to, so it starts over instead.
+
+At 90 or below, the player loads that item and starts at its `progress.time`.
+
+That offset rides the load down to the backend rather than being seeked afterwards, so the stream begins at the offset instead of fetching the opening first.
 
 **Calling `item()` yourself between `setup()` and `ready()` keeps your choice.**
 The pass sees an explicit navigation and loads that item, with no resume applied.
@@ -53,28 +69,14 @@ player.item(2);
 await player.ready();
 ```
 
-## How the first item is picked
-
-With no pick of your own, the choice comes from the `progress` field on your items.
-
-Items carrying no `progress` at all leave the choice at the first item in the list.
-
-Otherwise the item with the newest `progress.timestamp` wins, and its `percentage` decides what happens to it.
-
-Past 90, the player rolls forward to the next item in the list and starts it from the beginning.
-The last item has nowhere to roll forward to, so it starts over instead.
-
-Below 90, the player loads that item and starts at its `progress.time`.
-
-That offset rides the load down to the backend rather than being seeked afterwards, so the stream begins at the offset instead of fetching the opening first.
-
 ## The backend arrives with the first load
 
 The video backend is built on that first load, not during setup.
-That is the moment `muted` and `controls` from your config reach the element.
+That is the moment `key muted` and `key controls` from your config are set on the element.
+`key controls` is the one that draws the browser's own bar over the picture.
 
-`html5` is the only kind with a built-in implementation.
-Any other kind needs a `backendFactory` in your config, covered in [the video backend adapter](/nomercy-video-player/plugins-adapters/adapter-video-backend).
+`str html5` is the only kind with a built-in implementation.
+Any other kind needs a `key backendFactory` in your config, covered in [the video backend adapter](/nomercy-video-player/plugins-adapters/adapter-video-backend).
 
 ## What the container shows while it loads
 
@@ -82,23 +84,23 @@ The item's image goes onto the video element as its poster before the source is 
 That is what fills the container until there is a frame to show.
 
 An image already written as an absolute URL is used as given.
-A relative one is joined to `baseImageUrl` in the same tick, then upgraded if your own `urlResolver` returns something different.
+A relative one is joined to `key baseImageUrl` in the same tick, then upgraded if your own `key urlResolver` returns something different.
 
 ## Track selection settles on mediaReady
 
-The load path emits `mediaReady` again once the backend really holds the item.
+`mediaReady` is one of the nine stages, and the load path emits it a second time once the backend really holds the item.
 That second one is the video player's cue to choose tracks.
 
-A `videoRect` event carrying the displayed picture rectangle is emitted inside that same dispatch, so your own `mediaReady` listener runs after it rather than before.
-
 Selection is by language tag, never by track index.
-`defaultAudioLanguage` and `defaultSubtitleLanguage` are matched exactly first and then by prefix, so `en` matches `en-US`.
-A tag matching nothing leaves an unselected slot alone.
-Where a track is already selected it does not: the slot is handed to the stream's own default rendition instead, with no warning.
+`key defaultAudioLanguage` and `key defaultSubtitleLanguage` are matched exactly first and then by prefix, so `str en` matches `str en-US`.
+
+A subtitle tag that matches nothing leaves the captions as they are.
+An audio tag that matches nothing does the same while no track has been picked.
+Once one has, the slot is handed to the rendition the stream marks default, with no warning.
 
 A language the viewer already chose on an earlier item wins over the config default.
 
-`defaultQuality` is applied on the first `levels` event and only then.
+`key defaultQuality` is applied on the first `levels` event and only then.
 A quality chosen after that survives the next item, because the config value is never reapplied.
 
 ## The first frame
@@ -107,9 +109,10 @@ The backend's `canplay` is the point the player treats as the first frame.
 
 `firstFrame` is emitted there.
 
-The phase only moves to `playing` if something called `play()`, so on the default path it stays at `ready` and no `phase` event fires.
+The phase only moves to `str playing` if something called `play()`, so on the default path it stays at `str ready` and no `phase` event fires.
 
-It fires once per source. Loading another item resets the latch, so the next item announces its own.
+It fires once per source.
+Loading another item resets the latch, so the next item announces its own.
 
 ```ts
 player.on('firstFrame', () => {

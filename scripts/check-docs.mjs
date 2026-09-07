@@ -223,6 +223,45 @@ export function checkBacktickViolations(page) {
   return violations;
 }
 
+/**
+ * A repo path spliced into the middle of a sentence: `Add/content/no the ratio`.
+ * A find-and-replace across the tree produces exactly this, and it reads as
+ * prose to every other gate, so it ships. The signature is a letter followed
+ * immediately by a slash and a directory this repository has.
+ *
+ * Provenance comments, links and fenced code all legitimately hold paths and
+ * are skipped.
+ */
+export function checkSplicedPathViolations(page) {
+  if (page.draft) return [];
+  const violations = [];
+  let inFence = false;
+
+  page.body.split(/\r?\n/).forEach((line, index) => {
+    if (/^\s*```/.test(line)) {
+      inFence = !inFence;
+      return;
+    }
+    if (inFence) return;
+    if (/^\s*\{\/\*/.test(line)) return;
+
+    const stripped = line
+      .replace(/`[^`]*`/g, '')
+      .replace(/\]\([^)]*\)/g, '');
+
+    const hit = /[A-Za-z]\/(content|src|packages|docs|node_modules)\//.exec(stripped);
+    if (hit) {
+      violations.push({
+        rule: 'SPLICED-PATH',
+        file: page.relFile,
+        detail: `line ${index + 1}: a repo path is spliced into a sentence near '${hit[0]}'`,
+      });
+    }
+  });
+
+  return violations;
+}
+
 export function matchesArcSection(slug, section) {
   if (section.exact?.includes(slug)) return true;
   if (section.prefix?.some((prefix) => slug.startsWith(prefix))) return true;
@@ -284,6 +323,7 @@ function runLint() {
       violations.push(...checkFrontmatterViolations(page, collectionNavLookup));
       violations.push(...checkCrossTokenViolations(page));
       violations.push(...checkBacktickViolations(page));
+      violations.push(...checkSplicedPathViolations(page));
       const budgetViolation = checkBudgetViolation(page);
       if (budgetViolation) violations.push(budgetViolation);
     }

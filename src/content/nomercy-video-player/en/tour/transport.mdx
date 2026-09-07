@@ -7,7 +7,7 @@ description: 'Play, pause and seek on a video player, and what the video element
 
 # Transport
 
-The video player adds no transport methods of its own.
+The video player overrides none of the core's transport methods.
 
 `play()`, `pause()`, `stop()`, `togglePlayback()`, `next()`, `previous()`, `rewind()`, `forward()` and `restart()` are [the core transport contract](/nomercy-player-core/tour/transport), and they behave here as that page describes.
 `time()` is a core method too, and the page that describes it is [Time](/nomercy-player-core/tour/time).
@@ -16,7 +16,8 @@ What video adds underneath them is a real `<video>` element, and an element that
 
 ## The element answers back
 
-The player does not only push state at the element. It listens to the element and lets the element correct it.
+The player drives the element and also listens to it.
+Where the two disagree, what the element reports wins.
 
 | The element fires | The player does |
 | --- | --- |
@@ -31,7 +32,8 @@ This channel exists because the element changes state without being asked.
 The end of the file and a source swap during `load()` both pause it.
 A stall does not: it raises `waiting` and `stalled` while playback stays where it was.
 
-Without the sync the play state would still read `playing` afterwards. `togglePlayback()` would then call `pause()` on something already paused, and the viewer's next click would do nothing.
+Without the sync the play state would still read `str playing` afterwards.
+`togglePlayback()` would then call `pause()` on something already paused, and the viewer's next click would do nothing.
 
 Two guards keep the channel quiet:
 
@@ -44,11 +46,14 @@ Two guards keep the channel quiet:
 
 `stop()` pauses the element and returns it to `0`.
 
-`duration()` is `0` until the element has metadata. The player fills it from the element's `loadedmetadata` event, and resets it to `0` on every item change.
+`duration()` is `0` until the element has metadata.
+The player fills it from the element's `loadedmetadata` event, and resets it to `0` on every item change.
 
-**`seekByPercentage()` does nothing while duration is `0`.** A scrubber wired to it is inert until metadata lands, which is the usual reason an early click looks ignored.
+**`seekByPercentage()` does nothing while duration is `0`.**
+A scrubber wired to it is inert until metadata lands, which is the usual reason an early click looks ignored.
 
-Between a `next()` and the incoming item mounting, the outgoing element is still attached and still ticking. The player suppresses `time` for that window, so a watch position is never written against the wrong item.
+Between a `next()` and the incoming item mounting, the outgoing element is still attached and still ticking.
+The player suppresses `time` for that window, so a watch position is never written against the wrong item.
 
 ## When the browser refuses to play
 
@@ -56,9 +61,9 @@ Between a `next()` and the incoming item mounting, the outgoing element is still
 
 The player treats that rejection as a refusal rather than a success:
 
-- The play state rolls back to `paused`.
-- A `starting` phase rolls back to `ready` or `paused`.
-- `playPrevented` fires with reason `backend-refused`, carrying the browser's own error as `cause`.
+- The play state rolls back to `str paused`.
+- A `str starting` phase rolls back to `str ready` or `str paused`.
+- `playPrevented` fires with reason `str backend-refused`, carrying the browser's own error as `key cause`.
 - The rejection is rethrown.
 
 **An unawaited `play()` therefore becomes an unhandled rejection in the console.**
@@ -77,9 +82,11 @@ catch {
 }
 ```
 
-`muted: true` is what makes the refusal unlikely. A muted element is the case browsers allow with no gesture, and the player mutes the element from that config before any `play()` call reaches it.
+`muted: true` is what makes the refusal unlikely.
+A muted element is the case browsers allow with no gesture, and the player mutes the element from that config before any `play()` call reaches it.
 
-The playback the player starts for you is already caught. `autoPlay: true` and every `item()` navigation swallow their own rejection, so a refusal on those paths reaches you as `playPrevented` and nothing more.
+The playback the player starts for you is already caught.
+`autoPlay: true` and every `item()` navigation swallow their own rejection, so a refusal on those paths reaches you as `playPrevented` and nothing more.
 
 The call you write yourself is the one you have to catch.
 
@@ -87,15 +94,17 @@ The call you write yourself is the one you have to catch.
 
 `playSegment({ startSec, endSec, onEnd })` is the one transport-shaped call video adds.
 
-It seeks to `startSec`, watches each `time` event for `endSec`, and emits `segmentBoundary` when the boundary is crossed.
+It seeks to `key startSec`, watches each `time` event for `key endSec`, and emits `segmentBoundary` when the boundary is crossed.
 
-[Reference: Video Player Methods](/nomercy-video-player/reference/player-methods) carries it, together with `clearSegment()` and the three `onEnd` behaviors.
+[Reference: Video Player Methods](/nomercy-video-player/reference/player-methods) carries it, together with `clearSegment()` and the three `key onEnd` behaviors.
 
 ## See it running
 
 `controls: true` sets `controls` on the video element and nothing else.
 
-**That bar drives the element directly, not the player.** Its buttons never enter `play()` or `pause()`, so no `beforePlay` or `beforePause` listener sees them and nothing you hang off those events runs.
+**Its buttons drive the element, never `play()` or `pause()`.**
+The element reports back through the channel above, so `playState()` and `time()` stay correct.
+What the bar skips is the dispatch, so no `beforePlay` or `beforePause` listener sees a native click.
 
 :::snippet{file="video-tour-transport"}
 :::

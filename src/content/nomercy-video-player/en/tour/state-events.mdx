@@ -19,7 +19,7 @@ Both come from one place, so a menu built on the event and a menu built on the r
 The names fall into six groups.
 
 - Playback signals, including the first painted frame and the buffering stalls.
-- Quality and track lists, once the manifest has been parsed.
+- Quality levels, once the manifest has been parsed.
 - Subtitle cues, one channel whatever the cue came from.
 - Display state: fullscreen, picture-in-picture, theater, aspect ratio, and the video rectangle.
 - Segment boundaries, when you asked the player to watch a window.
@@ -39,11 +39,14 @@ It returns the box the picture occupies inside your container, which is smaller 
 An overlay aligned to the container sits over the bars.
 An overlay aligned to this rectangle sits over the picture.
 
-It answers `null` until the video has metadata, and the `videoRect` event fires when the box moves: on `mediaReady`, on `duration`, on `fullscreen`, and whenever the container or the video element resizes.
+It answers `null` until the video has metadata.
+The `videoRect` event fires whenever the box moves: on `mediaReady`, on `duration`, on `fullscreen`, and on a resize of either the container or the video element.
+The `mediaReady` one is emitted inside that dispatch, so a `mediaReady` listener of your own runs after it.
 
 ## See it running
 
 Play, pause and seek in the native bar.
+`playState()` and `time()` follow each move without a poll.
 
 :::snippet{file="video-tour-state-events"}
 :::
@@ -70,14 +73,14 @@ player.on('playPrevented', ({ reason, cause }) => {
 });
 ```
 
-`reason` is one of four, and only one of them is the browser.
+`key reason` is one of four, and only one of them is the browser.
 
-| `reason` | Raised when |
+| `key reason` | Raised when |
 | --- | --- |
-| `backend-refused` | The browser rejected the play call. |
-| `listener-prevented` | One of your own `beforePlay` listeners called `preventDefault()`. |
-| `delay-rejected` | A promise a `beforePlay` listener passed to `delay()` rejected. |
-| `delay-timeout` | Those promises took longer than ten seconds. |
+| `str backend-refused` | The browser rejected the play call. |
+| `str listener-prevented` | One of your own `beforePlay` listeners called `preventDefault()`. |
+| `str delay-rejected` | A promise a `beforePlay` listener passed to `delay()` rejected. |
+| `str delay-timeout` | Those promises took longer than `key beforeEventTimeoutMs`, ten seconds by default. |
 
 The first is the only one that also throws.
 A `play()` you await therefore rejects, and a `play()` you do not await becomes an unhandled rejection.
@@ -102,10 +105,12 @@ Muted playback is the case browsers do allow, so `muted: true` beside `autoPlay:
 Both need a user gesture, and both are requests rather than commands.
 
 `player.fullscreen(true)` emits `fullscreen` with the state it asked for, whether or not the browser agreed.
-**`player.fullscreen()` does not read the browser's answer.** It reports the state the player asked for, so it still says `on` after a refused request and after the viewer leaves fullscreen by pressing escape.
 
-`player.platform().fullscreen.isActive()` is the reader that answers for the browser, and it is the one a button icon should follow.
+`player.fullscreen()` answers `str on` while the browser is in fullscreen, and also `str on` for the last request the player made.
+Nothing withdraws that request, so a refused call and a viewer pressing escape both leave it reading `str on` while the browser is out.
+
+`player.platform().fullscreen.isActive()` answers for the browser alone, and it is the one a button icon should follow.
 `pip()` has the same shape.
 
-Calling either on a player set up without a platform controller throws instead: `core:policy/fullscreenUnsupported` and `core:policy/pipUnsupported`.
+Calling either on a player set up without a platform controller throws instead: `str core:policy/fullscreenUnsupported` and `str core:policy/pipUnsupported`.
 The default platform supplies both, so this is a wiring mistake rather than a runtime condition.
