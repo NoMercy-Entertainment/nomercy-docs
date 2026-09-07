@@ -30,7 +30,6 @@ interface Props {
 const { doc } = Astro.props;
 const { Content, headings } = await render(doc);
 
-const isMdx = doc.id.endsWith('.mdx');
 
 const sections = doc.data.sections || headings
   .filter((h: any) => h.depth === 2)
@@ -45,21 +44,12 @@ const sections = doc.data.sections || headings
   description={doc.data.description}
   sections={sections}
 >
-  {isMdx ? (
-    <>
-      <Content components={mdxComponents} />
-      <div class="mx-auto w-full max-w-3xl lg:max-w-5xl">
-        <PageFooterNav pathname={Astro.url.pathname} />
-      </div>
-    </>
-  ) : (
-    <article class="pt-2 pb-10">
-      <div class="prose dark:prose-invert [html_:where(&>*)]:mx-auto [html_:where(&>*)]:max-w-3xl lg:[html_:where(&>*)]:mx-[calc(50%-min(50%,var(--container-lg)))] lg:[html_:where(&>*)]:max-w-5xl">
-        <Content components={mdxComponents} />
-      </div>
-      <div class="mx-auto w-full max-w-3xl lg:max-w-5xl">
-        <PageFooterNav pathname={Astro.url.pathname} />
-      </div>
-    </article>
-  )}
+  {/* `mdxComponents.wrapper` supplies the article and the Prose column, for
+      every page. A branch that added its own wrapped the content twice, so a
+      page taking it carried two nested articles and paid the top padding
+      twice — which is why two pages in one section did not line up. */}
+  <Content components={mdxComponents} />
+  <div class="mx-auto w-full max-w-3xl lg:max-w-5xl">
+    <PageFooterNav pathname={Astro.url.pathname} />
+  </div>
 </MarkdownLayout>

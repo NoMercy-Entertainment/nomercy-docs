@@ -94,8 +94,55 @@
       // changed (npm default), instead of flattening them to plain textContent.
       var norm = function (s) { return (s || '').replace(/\s+/g, ' ').trim(); };
       if (norm(targetEl.textContent) !== norm(next)) {
-        targetEl.textContent = next;
+        writeHighlighted(targetEl, next);
       }
+    }
+
+    // Setting textContent replaces the highlighted span tree with one bare text
+    // node, so switching away from npm used to strip the colors off the block.
+    // Shiki paints a shell line as a command word plus its arguments, and the
+    // style attributes it emitted carry every theme's variable. Reuse the two
+    // that are already on the block as templates rather than re-highlighting in
+    // the browser, and a rewritten line keeps its colors in all four palettes.
+    function styleTemplates(el) {
+      var spans = el.querySelectorAll('span[style]');
+      if (!spans.length) return null;
+      var command = spans[0].getAttribute('style');
+      var argument = command;
+      for (var i = 1; i < spans.length; i++) {
+        var candidate = spans[i].getAttribute('style');
+        if (candidate !== command) { argument = candidate; break; }
+      }
+      return { command: command, argument: argument };
+    }
+
+    function writeHighlighted(el, text) {
+      var tpl = styleTemplates(el);
+      if (!tpl) { el.textContent = text; return; }
+
+      var frag = document.createDocumentFragment();
+      var lines = text.split(/\r?\n/);
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        var match = /^(\s*)(\S+)([\s\S]*)$/.exec(line);
+        if (match) {
+          if (match[1]) frag.appendChild(document.createTextNode(match[1]));
+          var cmd = document.createElement('span');
+          cmd.setAttribute('style', tpl.command);
+          cmd.textContent = match[2];
+          frag.appendChild(cmd);
+          if (match[3]) {
+            var arg = document.createElement('span');
+            arg.setAttribute('style', tpl.argument);
+            arg.textContent = match[3];
+            frag.appendChild(arg);
+          }
+        } else if (line) {
+          frag.appendChild(document.createTextNode(line));
+        }
+        if (i < lines.length - 1) frag.appendChild(document.createTextNode(String.fromCharCode(10)));
+      }
+      el.replaceChildren(frag);
     }
 
     function applyAll(target) {

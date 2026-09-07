@@ -10,6 +10,7 @@ import {
   useIsInsideMobileNavigation,
   useMobileNavigationStore,
 } from './MobileNavigation';
+import { A11yMenu } from './A11yMenu';
 import { PackageManagerMenu } from './PackageManagerMenu';
 import { MobileSearch, Search } from './Search';
 import { ThemeToggle } from './ThemeToggle';
@@ -58,7 +59,7 @@ function TopLevelNavItem({
         className={clsx(
           'text-sm/5 transition',
           isActive
-            ? 'text-emerald-700 dark:text-emerald-400'
+            ? 'text-(--color-accent)'
             : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
         )}
       >
@@ -96,9 +97,8 @@ export const Header = forwardRef<
       ref={ref}
       className={clsx(
         className,
-        'fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between gap-12 px-4 transition sm:px-6 lg:left-72 lg:z-30 lg:px-8 xl:left-80',
-        !isInsideMobileNavigation &&
-        'backdrop-blur-xs lg:left-72 xl:left-80 dark:backdrop-blur-sm',
+        'fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between gap-8 px-4 transition sm:px-6 lg:gap-12 lg:px-8',
+        !isInsideMobileNavigation && 'backdrop-blur-xs dark:backdrop-blur-sm',
         isInsideMobileNavigation
           ? 'bg-white dark:bg-zinc-900'
           : 'bg-white/(--bg-opacity-light) dark:bg-zinc-900/(--bg-opacity-dark)',
@@ -117,6 +117,14 @@ export const Header = forwardRef<
           'bg-zinc-900/7.5 dark:bg-white/7.5',
         )}
       />
+      {/* The Logo svg carries an inline `height: 100%`, so the anchor is what
+          gives it a size. The slot is the width of the sidebar column beneath
+          it, which lines the wordmark up with the page list. */}
+      <div className="hidden lg:flex lg:w-64 lg:shrink-0 lg:items-center xl:w-72">
+        <Link href="/" aria-label="Home" className="flex h-9 items-center">
+          <Logo className="w-auto" />
+        </Link>
+      </div>
       <Search />
       <div className="flex items-center gap-5 lg:hidden">
         <MobileNavigation navigation={navigation} apiGroups={apiGroups} initialPathname={initialPathname} />
@@ -142,6 +150,7 @@ export const Header = forwardRef<
         <div className="flex items-center gap-4">
           <MobileSearch />
           <PackageManagerMenu />
+          <A11yMenu />
           <ThemeToggle />
         </div>
       </div>

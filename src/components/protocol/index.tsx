@@ -28,7 +28,7 @@ export const h2 = (props: Omit<React.ComponentPropsWithoutRef<typeof Heading>, '
  *  (prev/next nav, copyright) is owned by the page template / Layout. */
 export function wrapper({ children }: { children: React.ReactNode }) {
   return (
-    <article className="pt-16 pb-10">
+    <article className="pt-12 pb-10">
       <Prose>{children}</Prose>
     </article>
   );

@@ -134,8 +134,8 @@ function NavLinkItem({
         isAnchorLink ? 'pl-7' : 'pl-4',
         active
           ? isAnchorLink
-            ? 'font-medium text-emerald-700 dark:text-emerald-400'
-            : 'bg-emerald-500/10 font-semibold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400'
+            ? 'font-medium text-(--color-accent)'
+            : 'bg-(--color-accent-soft) font-semibold text-(--color-accent)'
           : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
       )}
     >
@@ -246,7 +246,7 @@ function ActivePageMarker({
   return (
     <motion.div
       layout
-      className="absolute left-2 h-6 w-px bg-emerald-500"
+      className="absolute left-2 h-6 w-px bg-(--color-accent)"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1, transition: { delay: 0.2 } }}
       exit={{ opacity: 0 }}
@@ -399,7 +399,7 @@ function NavigationSection({
         className={clsx(
           'flex items-center gap-2 text-sm font-semibold transition',
           isActiveSection
-            ? 'text-emerald-700 dark:text-emerald-400'
+            ? 'text-(--color-accent)'
             : 'text-zinc-900 hover:text-zinc-700 dark:text-white dark:hover:text-zinc-300'
         )}
       >

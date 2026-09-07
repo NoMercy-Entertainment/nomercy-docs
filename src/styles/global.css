@@ -47,6 +47,13 @@
     --color-logo-front: hsl(from var(--color-emerald-500) h 50% 85%);
     --color-logo-back: hsl(from var(--color-emerald-500) h 50% 40%);
     --color-logo-text: hsl(from var(--color-emerald-500) h 50% 50%);
+
+    /* The accent every interactive surface uses: the sidebar's active page,
+       a hovered link, a prose link, a selected setting. It is the logo's own
+       green rather than raw emerald — same hue, the logo's softer saturation.
+       Raw emerald beside the wordmark reads as two different brands. */
+    --color-accent: hsl(from var(--color-emerald-500) h 62% 21%);
+    --color-accent-soft: hsl(from var(--color-emerald-500) h 60% 94%);
   }
 
   :root:has(.dark),
@@ -55,6 +62,9 @@
     --color-logo-front: hsl(from var(--color-emerald-500) h 50% 85%);
     --color-logo-back: hsl(from var(--color-emerald-500) h 50% 50%);
     --color-logo-text: hsl(from var(--color-emerald-500) h 50% 50%);
+
+    --color-accent: hsl(from var(--color-emerald-500) h 60% 84%);
+    --color-accent-soft: hsl(from var(--color-emerald-500) h 32% 15%);
   }
 
   /* Shiki dual-theme: One Light (default) + One Dark Pro via --shiki-dark.
@@ -62,17 +72,57 @@
      we swap to the --shiki-dark var the renderer also emits. The pre keeps its
      data-language attribute (the `shiki` class is dropped by the Astro MDX `pre`
      override), so we hook on that. */
+  /* Shiki writes the light color as an inline style and every other theme as
+     a CSS variable beside it, so a palette is a variable swap and no JavaScript
+     touches a token. An inline style beats a stylesheet, which is why each
+     override carries `!important`; One Light is the inline color itself and so
+     needs no rule at all.
+
+     The target list is spelled out rather than wrapped in `:where()`. `:where()`
+     contributes no specificity, so a themed rule written that way loses to the
+     plain `.dark` rule below it and only the fenced blocks would change color. */
   .dark pre[data-language] span,
-  .dark .shiki span {
-    color: var(--shiki-dark) !important;
+  .dark code[data-inline-highlighted] span { color: var(--shiki-dark) !important; }
+
+  html[data-syntax='github'] pre[data-language] span,
+  html[data-syntax='github'] code[data-inline-highlighted] span { color: var(--shiki-ghLight) !important; }
+  html[data-syntax='contrast'] pre[data-language] span,
+  html[data-syntax='contrast'] code[data-inline-highlighted] span { color: var(--shiki-hcLight) !important; }
+  html[data-syntax='vitesse'] pre[data-language] span,
+  html[data-syntax='vitesse'] code[data-inline-highlighted] span { color: var(--shiki-vtLight) !important; }
+
+  html.dark[data-syntax='github'] pre[data-language] span,
+  html.dark[data-syntax='github'] code[data-inline-highlighted] span { color: var(--shiki-ghDark) !important; }
+  html.dark[data-syntax='contrast'] pre[data-language] span,
+  html.dark[data-syntax='contrast'] code[data-inline-highlighted] span { color: var(--shiki-hcDark) !important; }
+  html.dark[data-syntax='vitesse'] pre[data-language] span,
+  html.dark[data-syntax='vitesse'] code[data-inline-highlighted] span { color: var(--shiki-vtDark) !important; }
+
+  /* The `.dark[data-syntax]` form has to be spelled out. A themed dark rule
+     above carries three class-level parts, so an off rule with two loses to it
+     and the switch would work in light mode only. */
+  html[data-inline-syntax='off'] code[data-inline-highlighted] span,
+  html[data-inline-syntax='off'].dark code[data-inline-highlighted] span,
+  html[data-inline-syntax='off'][data-syntax] code[data-inline-highlighted] span,
+  html[data-inline-syntax='off'].dark[data-syntax] code[data-inline-highlighted] span {
+    color: inherit !important;
+  }
+
+  html[data-font='hyperlegible'] body { font-family: 'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif; }
+  html[data-font='lexend'] body { font-family: 'Lexend', ui-sans-serif, system-ui, sans-serif; }
+  html[data-font='mono'] body { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* The page keeps its scrollbar track at all times. A menu that locks the
+     body would otherwise remove the scrollbar, the content would widen by its
+     width, and every line on the page would shift sideways as the menu opens. */
+  html {
+    scrollbar-gutter: stable;
   }
 
   /* Inline `code` is highlighted by the same pass, so it needs the same swap.
      Scoped to the marker the rehype plugin sets rather than to `code`, so a
      span a page author wrote by hand inside a backtick is left alone. */
-  .dark :not(pre) > code[data-inline-highlighted] span {
-    color: var(--shiki-dark) !important;
-  }
+
 
   /* The highlighter emits one span per token; inline code has to stay on one
      line, and the spans inherit the nowrap from their `code` parent. This keeps
@@ -334,28 +384,15 @@
   background-color: var(--tw-prose-code-bg);
 }
 
-/* Reading measure. Unlayered on purpose: the width it overrides comes from a
-   Tailwind utility, and a rule inside `@layer base` loses to the utilities
-   layer no matter how specific it is.
+/* Unlayered on purpose: the widths here override Tailwind utilities, and a
+   rule inside `@layer base` loses to the utilities layer however specific it
+   is.
 
-   The content column widens to ~1280px on large screens so tables, code
-   blocks and the player islands get the room they need. Flowing text at that
-   width runs to about 20 words a line, where the eye loses its place on the
-   way back to the left edge. Cap the text, leave every wide block alone.
-
-   `margin-inline: 0` matters: the column centres its children, so a narrower
-   paragraph would sit indented from the code block above it. Left-aligned,
-   every block shares one left edge. */
+   Every direct child of the column shares one cap and one centre, set in
+   Prose.tsx. Nothing here pins a block to the left: a paragraph that sat at
+   the column's left edge while the code block above it centred is the exact
+   misalignment this file used to create. */
 @media (min-width: 1024px) {
-  .prose > :where(p, ul, ol, dl, blockquote) {
-    max-width: 123ch;
-    margin-inline: 0;
-  }
-
-  .prose > :where(h1, h2, h3, h4, h5, h6) {
-    margin-inline: 0;
-  }
-
   /* A table stretched to the full column draws its row hairlines hundreds of
      pixels past the last word in the row. Size to content instead, and let a
      dense reference table still take the whole column when it needs it. */

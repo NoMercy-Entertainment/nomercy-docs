@@ -7,8 +7,8 @@ export default {
         css: {
           '--tw-prose-body': theme('colors.zinc.700'),
           '--tw-prose-headings': theme('colors.zinc.900'),
-          '--tw-prose-links': theme('colors.emerald.700'),
-          '--tw-prose-links-hover': theme('colors.emerald.800'),
+          '--tw-prose-links': 'var(--color-accent)',
+          '--tw-prose-links-hover': 'var(--color-accent)',
           '--tw-prose-links-underline': theme('colors.emerald.700 / 0.3'),
           '--tw-prose-bold': theme('colors.zinc.900'),
           '--tw-prose-counters': theme('colors.zinc.500'),
@@ -25,7 +25,7 @@ export default {
 
           '--tw-prose-invert-body': theme('colors.zinc.400'),
           '--tw-prose-invert-headings': theme('colors.white'),
-          '--tw-prose-invert-links': theme('colors.emerald.400'),
+          '--tw-prose-invert-links': 'var(--color-accent)',
           '--tw-prose-invert-links-hover': theme('colors.emerald.500'),
           '--tw-prose-invert-links-underline': theme(
             'colors.emerald.500 / 0.3',
@@ -38,7 +38,10 @@ export default {
           '--tw-prose-invert-quote-borders': theme('colors.zinc.700'),
           '--tw-prose-invert-captions': theme('colors.zinc.400'),
           '--tw-prose-invert-code': theme('colors.white'),
-          '--tw-prose-invert-code-bg': theme('colors.zinc.700 / 0.15'),
+          // zinc-700 at 15% is barely a fill on the dark ground, so a code tag
+          // read as a ring around nothing. A light tint at the same opacity
+          // gives the tag a body to sit in.
+          '--tw-prose-invert-code-bg': 'color-mix(in oklab, oklch(0.74 0.03 285.86) 15%, transparent)',
           '--tw-prose-invert-code-ring': theme('colors.white / 0.1'),
           '--tw-prose-invert-th-borders': theme('colors.zinc.600'),
           '--tw-prose-invert-td-borders': theme('colors.zinc.700'),

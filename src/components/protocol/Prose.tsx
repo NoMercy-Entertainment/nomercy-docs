@@ -16,9 +16,11 @@ export function Prose<T extends React.ElementType = 'div'>({
         className,
         'prose max-w-none dark:prose-invert',
         // Content blocks are centred (mx-auto) in the available column, widening
-        // from max-w-3xl on narrow viewports to ~1280px on large screens.
+        // from max-w-3xl on narrow viewports to 64rem on large screens. This is
+        // the one knob for the body's width: it caps every direct child, so a
+        // code block, a table and a paragraph all stop at the same edge.
         // `html :where(& > *)` selects direct children at base specificity.
-        '[html_:where(&>*)]:mx-auto [html_:where(&>*)]:max-w-3xl lg:[html_:where(&>*)]:max-w-7xl',
+        '[html_:where(&>*)]:mx-auto [html_:where(&>*)]:max-w-3xl lg:[html_:where(&>*)]:max-w-5xl',
       )}
       {...props}
     />

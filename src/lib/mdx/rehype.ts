@@ -79,7 +79,12 @@ function getHighlighter(): HighlighterPromise {
   let cached = g[HIGHLIGHTER_KEY]
   if (!cached) {
     cached = shiki.createHighlighter({
-      themes: ['one-light', 'one-dark-pro'],
+      themes: [
+        'one-light', 'one-dark-pro',
+        'github-light', 'github-dark',
+        'github-light-high-contrast', 'github-dark-high-contrast',
+        'vitesse-light', 'vitesse-dark',
+      ],
       langs: LANGS,
     })
     g[HIGHLIGHTER_KEY] = cached
@@ -183,12 +188,30 @@ function rehypeShiki() {
       const source = pseudo ? `${pseudo.before}${text}${pseudo.after}` : text
       const html = highlighter.codeToHtml(source, {
         lang: pseudo ? 'ts' : (taggedLang ?? 'ts'),
-        themes: { light: 'one-light', dark: 'one-dark-pro' },
+        themes: {
+          light: 'one-light',
+          dark: 'one-dark-pro',
+          ghLight: 'github-light',
+          ghDark: 'github-dark',
+          hcLight: 'github-light-high-contrast',
+          hcDark: 'github-dark-high-contrast',
+          vtLight: 'vitesse-light',
+          vtDark: 'vitesse-dark',
+        },
         defaultColor: 'light',
         structure: 'inline',
+        // One Dark Pro ships two palettes and Shiki bundles only the first.
+        // These four are the Vivid scheme's values for the same token roles,
+        // which is what the editor beside this site is set to: a brighter red
+        // and purple, a slightly cooler green and cyan. Blue, yellow, orange
+        // and the foreground are identical in both and are not listed.
         colorReplacements: {
-          'one-dark-pro': { '#e06c75': '#d99aa4' },
-          'one-light': { '#e45649': '#b4574e' },
+          'one-dark-pro': {
+            '#e06c75': '#ef596f',
+            '#c678dd': '#d55fde',
+            '#98c379': '#89ca78',
+            '#56b6c2': '#2bbac5',
+          },
         },
       })
       const parsed = fromHtml(html, { fragment: true }).children as ElementContent[]
@@ -236,19 +259,31 @@ function rehypeShiki() {
       // the dark var under .dark.
       const highlightedHtml = highlighter.codeToHtml(rawText, {
         lang: syntaxLanguage,
-        themes: { light: 'one-light', dark: 'one-dark-pro' },
-        defaultColor: 'light',
-        structure: 'inline',
-        colorReplacements: {
-          // One Dark Pro paints every variable, parameter and property #e06c75,
-          // a saturated red. Ordinary code carries enough keywords and strings
-          // to balance it, but a block that is only a signature is almost all
-          // identifiers, so it rendered as a wall of red. Same hue family, far
-          // less shout: identifiers read as content, not as an error.
-          'one-dark-pro': { '#e06c75': '#d99aa4' },
-          // One Light's variable red has the same problem on a pale ground.
-          'one-light': { '#e45649': '#b4574e' },
+        themes: {
+          light: 'one-light',
+          dark: 'one-dark-pro',
+          ghLight: 'github-light',
+          ghDark: 'github-dark',
+          hcLight: 'github-light-high-contrast',
+          hcDark: 'github-dark-high-contrast',
+          vtLight: 'vitesse-light',
+          vtDark: 'vitesse-dark',
         },
+        defaultColor: 'light',
+        // One Dark Pro ships two palettes and Shiki bundles only the first.
+        // These four are the Vivid scheme's values for the same token roles,
+        // which is what the editor beside this site is set to: a brighter red
+        // and purple, a slightly cooler green and cyan. Blue, yellow, orange
+        // and the foreground are identical in both and are not listed.
+        colorReplacements: {
+          'one-dark-pro': {
+            '#e06c75': '#ef596f',
+            '#c678dd': '#d55fde',
+            '#98c379': '#89ca78',
+            '#56b6c2': '#2bbac5',
+          },
+        },
+        structure: 'inline',
       })
       // Parse shiki's HTML into HAST and replace the code element's
       // children with the parsed span tree. Round-tripping through a
