@@ -1,90 +1,145 @@
 ---
 title: 'Adapter: Thumbnail Source'
-description: 'IThumbnailSource: load(item), lookup(time), unload(). Sprite-sheet scrub-preview lookup, standalone like Chapter Source, sharing DesktopUiPlugin sprite helpers but not wired into that plugin.'
+description: 'IThumbnailSource answers "what image shows this second" for a scrubber preview. VttSpriteThumbnailSource reads the item sprite manifest; a custom implementation reads anywhere else.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/adapters/thumbnail-source/IThumbnailSource.ts, src/adapters/thumbnail-source/vtt-sprite.ts */}
+{/* Source: packages/nomercy-video-player/src/adapters/thumbnail-source/IThumbnailSource.ts, src/adapters/thumbnail-source/vtt-sprite.ts, src/adapters/thumbnail-source/index.ts, src/plugins/desktop-ui/helpers/sprite.ts, src/plugins/desktop-ui/mixins/spriteMethods.ts, src/player/normalize-item.ts, src/types.ts; packages/nomercy-player-core/src/adapters/cue-parser/vtt.ts, src/adapters/url-resolver/IUrlResolver.ts */}
 
 # Adapter: Thumbnail Source
 
-`IThumbnailSource` answers "what sprite sub-region shows this timestamp" for a scrubber's hover preview. Load once per item, then a synchronous `lookup(time)` on every hover-move.
+A scrub preview asks one question thousands of times: what image belongs at this second. `cls IThumbnailSource` is the port that answers it, loaded once per item and read synchronously from then on, because a pointer moving across the scrubber cannot wait on a fetch.
 
-Like [Adapter: Chapter Source](/nomercy-video-player/plugins-adapters/adapter-chapter-source), it is a standalone contract rather than a `setup()` field.
-
-`DesktopUiPlugin`'s own scrub preview calls the same sprite-parsing helpers directly, without going through this interface. The adapter is for a custom scrubber built outside that plugin.
+`cls VttSpriteThumbnailSource` is the implementation the package ships, and it reads the item's `key previewSpriteUrl`. Implement the port yourself when your frames come from somewhere else, and call it from your own scrubber.
 
 ## The interface
 
 ```ts
 interface IThumbnailSource {
-	/** Fetch/cache thumbnails for item. Returns false when the item has no source. */
-	load(item: BasePlaylistItem): Promise<boolean>;
+  /** Fetch and cache here. false means this item has no preview. */
+  load(item: BasePlaylistItem): Promise<boolean>;
 
-	/** Frame covering timeSeconds, or null. Synchronous, called on every scrub event. */
-	lookup(timeSeconds: number): ThumbnailFrame | null;
+  /** The frame covering timeSeconds, or null. Synchronous. */
+  lookup(timeSeconds: number): ThumbnailFrame | null;
 
-	/** Release cached data for the current item. */
-	unload(): void;
-}
-
-interface ThumbnailFrame {
-	spriteUrl: string;
-	x: number; y: number; w: number; h: number; // sub-region within spriteUrl, in pixels
-	start: number; end: number;                 // cue time range, in seconds
+  /** Drop the cache. */
+  unload(): void;
 }
 ```
 
-`x`/`y`/`w`/`h` are all zero for a source that packs one standalone image per cue instead of a sprite sheet. `ThumbnailFrame` covers both shapes with the same fields.
+A `cls ThumbnailFrame` names both an image and the rectangle to show from it, so one sprite sheet covers a whole film and a per-frame source fits the same shape.
+
+```ts
+interface ThumbnailFrame {
+  spriteUrl: string; // the image to paint
+  x: number; // left offset inside it, in pixels
+  y: number; // top offset inside it, in pixels
+  w: number; // width of the sub-region
+  h: number; // height of the sub-region
+  start: number; // cue start, in seconds
+  end: number; // cue end, in seconds
+}
+```
 
 ## The shipped implementation
 
-`VttSpriteThumbnailSource` reads `item.previewSpriteUrl` and fetches a WebVTT sprite manifest. It then preloads the sprite image, so `lookup()` stays synchronous once loaded.
+`cls VttSpriteThumbnailSource` fetches the WebVTT manifest at `key previewSpriteUrl`, parses it, preloads the sprite image, and then answers from memory.
 
-The cue body format is `sprite.webp#xywh=x,y,w,h`. That is the format NoMercy's media-server sprite generator produces. It is also compatible with ffmpeg tileify output and the common web-player sprite convention:
+Each cue body is an image reference with a media fragment, `sprite.webp#xywh=x,y,w,h`. That is what the NoMercy media server's sprite generator writes, and it is the same convention ffmpeg tiling output and other web players use.
+
+Sintel's manifest in the docs catalogue, `str Films/Sintel.(2010)/thumbs_256x109.vtt`, holds 89 cues, one every ten seconds, each a 256 by 109 tile. `fn lookup` at 45 seconds answers with x 1024 and y 0.
+
+Every cue carries its own image URL, so a set that spills across several sheets works without anything extra.
+
+Nothing calls a source on your behalf, so the load is yours to place. `str mediaReady` fires at the end of every successful load, which is where it belongs.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+import nmplayer, { VttSpriteThumbnailSource } from '@nomercy-entertainment/nomercy-video-player';
 
 const player = nmplayer('player');
+const thumbnails = new VttSpriteThumbnailSource();
 
-const source = new VttSpriteThumbnailSource();
-const available = await source.load(player.item()!); // false if no previewSpriteUrl
-if (available) {
-  const frame = source.lookup(45); // ThumbnailFrame | null
+const preview = document.createElement('div');
+document.body.append(preview);
+
+player.on('mediaReady', async () => {
+  const item = player.item();
+  if (!item?.previewSpriteUrl)
+    return;
+
+  const resolved = await player.resolveUrl(item.previewSpriteUrl, 'sprite');
+  const absolute: VideoPlaylistItem = { ...item, previewSpriteUrl: resolved.href };
+
+  await thumbnails.load(absolute);
+});
+```
+
+Painting is four style writes: the sheet as a background, the frame's own corner as the offset, and the frame's size as the box.
+
+```ts
+function paint(timeSeconds: number): void {
+  const frame = thumbnails.lookup(timeSeconds);
+  if (!frame)
+    return;
+
+  preview.style.backgroundImage = `url('${frame.spriteUrl}')`;
+  preview.style.backgroundPosition = `-${frame.x}px -${frame.y}px`;
+  preview.style.width = `${frame.w}px`;
+  preview.style.height = `${frame.h}px`;
 }
 ```
+
+## Where `previewSpriteUrl` comes from
+
+Set it on the item directly, and the field is used as it stands. An item that arrives in the server wire format gets it filled at queue ingest instead, from the `key tracks` entry whose `key kind` is `str thumbnails`. Both shapes end up in the same field.
+
+The field holds whatever you put in it, and `cls VttSpriteThumbnailSource` fetches that string as given. A path written against `key baseUrl` therefore needs absolutizing first, which is what `player.resolveUrl(url, 'sprite')` is for and why the example above goes through it.
 
 ## Rules & restrictions
 
-- `load()` resolves `false` rather than rejecting when the item has no `previewSpriteUrl`. That means "no preview available", not an error.
-- `lookup()` must stay synchronous in any implementation. It runs on every pointer-move across the scrubber.
-- The default implementation caches one item's sprite set at a time, so call `load()` again on every item change. There is no per-item eviction to configure.
+- `fn lookup` past the end of the table answers with the last frame rather than `str null`. A scrubber dragged beyond the final cue keeps showing the closing thumbnail instead of clearing the bubble.
+- `str null` therefore means one of two things: no successful `fn load` yet, or `fn unload` since.
+- `fn load` answers `false` and never rejects. A missing `key previewSpriteUrl`, a response the server does not answer with a success status, and a manifest whose cues carry no `#xywh` fragment all take that branch.
+- The parser keeps only cues carrying that fragment. A manifest of one standalone image per cue produces no frames, so a source of full-size stills is a custom implementation rather than a differently written manifest.
+- The default caches one item at a time, and `fn load` clears the previous set before it starts. Call it again on every item change.
+- The fetch is a plain `fn fetch` with no `str Authorization` header and no URL resolver behind it. Against a server that requires a credential, implement the port over your own fetch instead.
+- `cls DesktopUiPlugin` runs its own sprite path, through the plugin's authenticated fetch, and paints into its own bubble. Its preview and this port are independent, so register the plugin and you already have the feature. See [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui).
 
 ## How to extend it
 
-Implement against a different manifest format, or a source that returns one full-size frame per cue instead of sprite sub-regions:
+Implement the three methods against whatever holds your frames. Keep `fn lookup` a scan over a cached array.
 
 ```ts
-class ApiThumbnailSource implements IThumbnailSource {
-  private frames: ThumbnailFrame[] = [];
+import type { BasePlaylistItem } from '@nomercy-entertainment/nomercy-player-core';
+import type { IThumbnailSource, ThumbnailFrame } from '@nomercy-entertainment/nomercy-video-player';
+
+export class ApiThumbnailSource implements IThumbnailSource {
+  private _frames: ThumbnailFrame[] = [];
 
   async load(item: BasePlaylistItem): Promise<boolean> {
-    this.frames = await fetchThumbnailManifest(item.id);
-    return this.frames.length > 0;
+    const response = await fetch(`https://api.example.com/thumbnails/${item.id}`);
+    this._frames = (await response.json()) as ThumbnailFrame[];
+
+    return this._frames.length > 0;
   }
 
   lookup(timeSeconds: number): ThumbnailFrame | null {
-    return this.frames.find((f) => timeSeconds >= f.start && timeSeconds < f.end) ?? null;
+    const found = this._frames.find(
+      frame => timeSeconds >= frame.start && timeSeconds < frame.end,
+    );
+
+    return found ?? null;
   }
 
   unload(): void {
-    this.frames = [];
+    this._frames = [];
   }
 }
 ```
 
-Wire `load()` from a `'mediaReady'` listener. Wire `lookup()` from your scrubber's pointer-move handler in your own overlay code. Same as [Adapter: Chapter Source](/nomercy-video-player/plugins-adapters/adapter-chapter-source), there is no automatic hook.
+A source that returns one full-size still per cue puts that still's URL in `key spriteUrl`. Leave `key x` and `key y` at zero, and set `key w` and `key h` to the image's own size. The painting code above then draws it whole.
 
 ## Next steps
 
-- [Adapter: Subtitle Style Store](/nomercy-video-player/plugins-adapters/adapter-subtitle-style-store): the persistence-focused adapter, saving user preferences instead of looking up media metadata.
+- [Build a Player: Seek Preview & Chapters](/nomercy-video-player/build/seek-preview): the hover bubble built step by step, with chapter ticks on the same bar.
+- [Adapter: Chapter Source](/nomercy-video-player/plugins-adapters/adapter-chapter-source): the same load-once, look-up-synchronously shape applied to chapter marks.

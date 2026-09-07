@@ -1,148 +1,246 @@
 ---
 title: 'Adapter: Video Backend'
-description: 'IVideoBackend: the port every player-level method reads through for actual media playback. Default Html5VideoBackend, swappable via backendFactory for MSE/WebCodecs/native-shell.'
+description: 'IVideoBackend is the port every video method reads through. Html5VideoBackend is the default, backendFactory puts a different one in, and stream:recovering reports a server outage while the retry ladder rides it out.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/adapters/video-backend/IVideoBackend.ts, src/adapters/video-backend/html5.ts */}
+{/* Source: packages/nomercy-video-player/src/adapters/video-backend/IVideoBackend.ts, src/adapters/video-backend/html5.ts, src/adapters/video-backend/source-outage.ts, src/adapters/video-backend/index.ts, src/index.ts, src/types.ts; packages/nomercy-player-core/src/adapters/media-element/MediaElementBackend.ts, src/adapters/media-element/helpers.ts, src/core/mixins/abr.ts, src/plugins/audio-graph/index.ts, src/errors/not-implemented.ts */}
 
 # Adapter: Video Backend
 
-`IVideoBackend` is the one port every video-specific player method (`play()`, `time()`, `subtitles()`, `qualityLevels()`, and the rest) reads and writes through. `NMVideoPlayer` itself never touches `<video>` or `hls.js` directly.
-
-The shipped default is `Html5VideoBackend`. It passes HLS through natively on Safari and falls back to `hls.js` everywhere else. This port is the swap point for MSE, WebCodecs, or a native-shell `<video>` bridge.
+`cls IVideoBackend` is the port every video-specific method reads and writes through. Transport, position, volume, track lists, quality, DRM and audio routing all end at it, and `cls NMVideoPlayer` never touches a `str video` element or hls.js on its own. One implementation ships, `cls Html5VideoBackend`, and `key backendFactory` is where a different one goes in.
 
 ## The interface
 
 ```ts
 interface IVideoBackend {
-	readonly kind: VideoBackendKind; // 'html5' | 'mse' | 'webcodecs'
-	readonly canStartAt?: boolean;
+  readonly kind: VideoBackendKind; // 'html5' | 'mse' | 'webcodecs'
+  readonly canStartAt?: boolean;
 
-	load(url: string, opts?: { preload?: HtmlPreloadMode; startTime?: number }): Promise<void>;
-	unload(): void;
-	dispose(): void;
-	setAuthHeaderProvider?(provider: () => string | undefined | Promise<string | undefined>): void;
+  // Lifecycle
+  load(url: string, opts?: { preload?: HtmlPreloadMode; startTime?: number }): Promise<void>;
+  unload(): void;
+  dispose(): void;
+  setAuthHeaderProvider?(provider: AuthHeaderProvider): void;
+  setHdrOnSdrFallback?(fallback: HdrOnSdrFallback): void;
 
-	play(): Promise<void>;
-	pause(): void;
-	stop(): void;
+  // Transport
+  play(): Promise<void>;
+  pause(): void;
+  stop(): void;
 
-	currentTime(): number;
-	currentTime(seconds: number): void;
-	duration(): number;
-	buffered(): number;
-	bufferedRanges(): TimeRanges;
-	seekable(): TimeRanges;
-	playbackRate(): number;
-	playbackRate(rate: number): void;
+  // Time and position
+  currentTime(): number;
+  currentTime(seconds: number): void;
+  duration(): number;
+  buffered(): number;
+  bufferedRanges(): TimeRanges;
+  seekable(): TimeRanges;
+  playbackRate(): number;
+  playbackRate(rate: number): void;
 
-	volume(): number;
-	volume(level: number): void;
-	mute(): void;
-	unmute(): void;
+  // Volume
+  volume(): number;
+  volume(level: number): void;
+  mute(): void;
+  unmute(): void;
 
-	videoWidth(): number;
-	videoHeight(): number;
-	audioTracks(): AudioTrack[];
-	setAudioTrack(idx: number): void;
-	subtitleTracks(): SubtitleTrack[];
-	setSubtitleTrack(idx: number | null): void;
-	qualityLevels(): QualityLevel[];
-	qualityLevels(opts: { includeUnsupported: true }): QualityLevel[];
-	setQuality(idx: number | 'auto'): void;
-	currentLevel(): number;
+  // Video
+  videoWidth(): number;
+  videoHeight(): number;
+  audioTracks(): AudioTrack[];
+  setAudioTrack(idx: number): void;
+  subtitleTracks(): SubtitleTrack[];
+  setSubtitleTrack(idx: number | null): void;
+  qualityLevels(): QualityLevel[];
+  qualityLevels(opts: { includeUnsupported: true }): QualityLevel[];
+  setQuality(idx: number | 'auto'): void;
+  currentLevel(): number;
+  bandwidthEstimate?(): number;
 
-	state(): BackendState;
-	mediaElement(): HTMLVideoElement;
-	captureStream(): MediaStream;
+  // State and raw access
+  state(): BackendState;
+  mediaElement(): HTMLVideoElement;
+  captureStream(): MediaStream;
 
-	setSinkId(deviceId: string): Promise<void>;
-	getSinkId(): string;
-	outputNode?(ctx: AudioContext): AudioNode;
-	analysisNode?(ctx: AudioContext): AudioNode;
+  // Audio output routing
+  setSinkId(deviceId: string): Promise<void>;
+  getSinkId(): string;
 
-	mediaKeys(): MediaKeys | undefined;
-	setMediaKeys(keys: MediaKeys): Promise<void>;
-	outputProtectionState(): 'unrestricted' | 'restricted' | 'unsupported';
+  // Web Audio taps
+  outputNode?(ctx: AudioContext): AudioNode;
+  analysisNode?(ctx: AudioContext): AudioNode;
 
-	pauseLoader(): void;
-	resumeLoader(): void;
-	loaderState(): BackendLoaderState;
+  // EME and DRM
+  mediaKeys(): MediaKeys | undefined;
+  setMediaKeys(keys: MediaKeys): Promise<void>;
+  outputProtectionState(): 'unrestricted' | 'restricted' | 'unsupported';
 
-	on<E extends BackendEvent>(event: E, fn: (data?: BackendEventPayload[E]) => void): void;
-	off<E extends BackendEvent>(event: E, fn: (data?: BackendEventPayload[E]) => void): void;
+  // Loader backpressure
+  pauseLoader(): void;
+  resumeLoader(): void;
+  loaderState(): BackendLoaderState;
+
+  // Events
+  on<E extends BackendEvent>(event: E, fn: (data?: BackendEventPayload[E]) => void): void;
+  off<E extends BackendEvent>(event: E, fn: (data?: BackendEventPayload[E]) => void): void;
 }
 ```
 
-Method conventions mirror the player class itself:
+Method shapes follow the player class. A stateful value is one overloaded function, so `volume()` reads and `volume(level)` writes. An action is a bare verb. Seeking is `currentTime(seconds)`, and there is no `fn seek` at this layer either.
 
-- Stateful values are overloaded functions: `volume()` / `volume(level)`.
-- Actions are bare verbs: `play()`, `pause()`, `mute()`.
-- Seeking goes through `currentTime(seconds)`. There is no separate `seek()` method at this layer either.
+Six members are optional, and the kit probes for each rather than requiring it: `key canStartAt`, `fn setAuthHeaderProvider`, `fn setHdrOnSdrFallback`, `fn bandwidthEstimate`, `fn outputNode` and `fn analysisNode`. A backend that omits `fn bandwidthEstimate` makes `player.bandwidth()` read `0`. One that omits the two node getters leaves `cls AudioGraphPlugin` to build its own source node from the media element instead.
+
+## The events a backend emits
+
+`cls BackendEvent` is a key of this map, and every listener receives its payload as optional, because the same channel also carries DOM events that arrive with none.
+
+```ts
+interface BackendEventPayload {
+  loadstart: Event;
+  loadedmetadata: { url: string; kind: string; duration: number };
+  loadeddata: Event;
+  canplay: Event;
+  play: Event;
+  playing: Event; // media is rendering, not merely element.play()
+  pause: Event;
+  ended: Event;
+  timeupdate: Event;
+  waiting: Event;
+  stalled: Event;
+  ratechange: Event;
+  resize: Event;
+  encrypted: Event;
+  error: Event;
+  emptied: Event; // src cleared: paused at currentTime 0 after this
+  subtitleCue: SubtitleCueChange;
+  'stream:error': { details: string; fatal: boolean; message?: string; rawCodec?: string };
+  'stream:recovering': { details: string; attempt: number; maxAttempts: number };
+  levels: { levels: QualityLevel[] };
+  'level-switched': { level: number };
+  audioTracks: { tracks: AudioTrack[] };
+}
+```
 
 ## The shipped implementation
 
-`Html5VideoBackend` wraps a real `<video>` element.
+`cls Html5VideoBackend` takes the player's container and builds its own `str video` element inside it. Its `key kind` is `str html5` and `key canStartAt` is `true`, so the kit skips its post-load seek fallback and lets the engine fetch its first data at the offset.
 
-The backend uses native HLS on Safari and falls back to `hls.js` everywhere else. The import is dynamic, so the bundle cost is zero on Safari. `player.play()` never branches on browser.
+A source whose URL is HLS plays natively where `fn canPlayType` reports support, which is Safari. Everywhere else the backend imports hls.js dynamically and hands it the manifest. The library is fetched only on the browsers that need it, and `player.play()` never branches on any of this.
 
-It applies HDR-aware level constraints itself, capping or lifting HLS renditions as the display's HDR capability changes.
+`fn setAuthHeaderProvider` is what puts an `str Authorization` header on hls.js's own manifest and segment requests. `cls NMVideoPlayer` wires it at backend construction, from `key mediaAuthorization` on the `setup({ auth })` config. The provider is asked again on every request, so a token that changes mid-session is never answered from a stale closure. [Recipe: Auth Tokens](/nomercy-video-player/recipes/auth-tokens) covers the config side.
 
-It emits the full `BackendEventPayload` map, which `NMVideoPlayer` bridges onto its own public events:
+Two things a reader might expect here live elsewhere and work the same under any backend. Bandwidth is the kit's `abrMethods` mixin reading `fn bandwidthEstimate`, and the dropped-frame count is `cls NMVideoPlayer` polling `getVideoPlaybackQuality()` on the element.
 
-- `levels`
-- `level-switched`
-- `audioTracks`
-- `stream:error`
-- `stream:recovering`
-- `subtitleCue`
-- the standard media element events
+## Reading it from the player
 
-Two things are deliberately not the backend's. Bandwidth estimation, `bandwidth()` and `bandwidthEstimator()`, belongs to the kit's `abrMethods` mixin. Dropped-frame metrics come from `NMVideoPlayer` polling `mediaElement().getVideoPlaybackQuality()`.
+`player.backend()` returns the active instance and caches it. `player.backend(kind)` swaps it and resolves once the new one is up.
 
-Both work the same whichever `IVideoBackend` is active.
-
-`canStartAt` reports whether the backend consumes `startTime` natively. When `true`, the kit skips its own post-load seek fallback.
-
-`hls.js` supports this directly through `startPosition`. A resume-at-offset load fetches the correct segment from the first request, so nothing from the stream's beginning is downloaded and thrown away.
-
-## Auth on manifest and segment requests
-
-`setAuthHeaderProvider(provider)` is how `Authorization: Bearer <token>` reaches `hls.js`'s own manifest and segment requests, not just the kit's `fetch` calls. `NMVideoPlayer.backend()` wires this automatically from `setup({ auth })`. It resolves the bearer value fresh (sync or async getter) on every request rather than capturing it once. See [Recipe: Auth Tokens via baseUrl + auth](/nomercy-video-player/recipes/auth-tokens).
-
-## Rules & restrictions
-
-- `backend()` constructs the instance on first call and caches it. Call it before `setup()` and you get an instance not yet wired to a loaded source.
-- One backend is active per player at a time. `player.backend(kind)` swaps it mid-session, disposes the previous instance and emits `backend:changed`.
-
-- A swap is not a crossfade. Whatever was playing stops, and the new backend comes up with no source. Reload it to resume. See [Reference: Video Player Methods](/nomercy-video-player/reference/player-methods#video-element--geometry). Cast handoff is a separate concern, through `transferTo()` at plugin level.
-- `mediaKeys()`, `setMediaKeys()` and `outputProtectionState()` exist for EME and DRM coordination. See [Plugin: DRM](/nomercy-video-player/plugins-adapters/drm). A backend that never touches encrypted content implements them as no-ops.
-- `outputNode` and `analysisNode` are optional. Implement them only to support Web Audio taps such as the equalizer and spectrum visualizers re-exported from the kit. A backend that never builds a Web Audio graph omits them and pays nothing.
-
-## How to extend it
-
-Provide a `backendFactory` at `setup()`. It receives the resolved kind and full config, and returns any `IVideoBackend` implementation:
+Make the first read once `fn ready` has resolved. A read with no backend in place builds one, and before `fn setup` has run there is no config for it to build against.
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
-import type { VideoBackendFactory } from '@nomercy-entertainment/nomercy-video-player';
 
 const player = nmplayer('player');
 
-const backendFactory: VideoBackendFactory = (kind, config) => {
-  if (kind === 'webcodecs') return new MyWebCodecsBackend(config);
-  return new Html5VideoBackend(container); // fall back to the default for anything else
+const banner = document.createElement('p');
+document.body.append(banner);
+
+await player.ready();
+
+const backend = player.backend();
+
+backend.on('stream:recovering', (data) => {
+  if (!data)
+    return;
+
+  banner.textContent = `Reconnecting: attempt ${data.attempt} of ${data.maxAttempts}`;
+});
+
+backend.on('stream:error', (data) => {
+  if (!data)
+    return;
+
+  if (data.details === 'core:stream/media-absent') {
+    banner.textContent = 'This item has no media on the server.';
+    return;
+  }
+
+  banner.textContent = 'Playback stopped.';
+});
+```
+
+A swap replaces the instance, so listeners attached to the old one are gone with it. The player emits `str backend:changed` with the new `key kind`, which is where you attach them again.
+
+## Riding out a server outage
+
+A self-hosted server that restarts mid-film is a pause, not a broken file, and hls.js reports both as the same fatal network error. `cls Html5VideoBackend` tells them apart by the HTTP status the load gave up on, and by whether anything in the same outage already failed below the HTTP layer.
+
+Each rung emits `str stream:recovering` and then waits. The waits are 1 s, 2 s, 4 s, 8 s, then 15 s for each of the remaining six. A full ladder covers 105 seconds before the failure counts as real.
+
+| The failure | Rungs it earns | Wall clock |
+|---|---|---|
+| A refused connection, which arrives with no HTTP response at all | 10 | 105 s |
+| 502, 503, 504, or anything from 520 to 530 | 10 | 105 s |
+| Any status at all, once a refused connection came first in the same outage | 10 | 105 s |
+| 404 or 410 with no refused connection before it | 0 | none |
+| Any other status | 5 | 30 s |
+
+The 52x band is aimed at a server behind cloudflared. While the origin restarts, the edge answers instead, so the outage reaches the browser as a bad status with nothing connection-level in front of it. That is why an origin-down status earns the whole ladder on its own.
+
+The 404 row is the one that changes what a viewer sees. An episode that was never encoded answers 404 to every retry, so the backend stops at once and emits `str stream:error` with `key details` set to `str core:stream/media-absent`.
+
+That is the code to read when you want to offer the next item rather than a spinner. A 404 that follows a refused connection is a route table still warming up, and it gets the full ladder instead.
+
+When the ladder is spent, `str stream:error` carries hls.js's own `key details` string with `key fatal` true.
+
+A device with no route of its own must not spend the budget, so while `navigator.onLine` is false the attempt number holds where it is. Measured, twenty failures in that state all reported attempt 1 of 10. The backend also listens for `str online` and restarts the load with a fresh ladder when the route comes back.
+
+`cls Html5VideoBackend` exposes `key isRecoveringFromOutage`, true for as long as a ladder is running. Read it when your own code wants to probe the server rather than wait for the next event.
+
+## Rules & restrictions
+
+- A swap disposes the current instance before it builds the next one. Whatever was playing stops and the element is replaced, so load a source again afterwards.
+- Asking for a kind with no factory rejects with a `cls NotImplementedError` carrying the code `str core:not-implemented/video-backend`. The previous instance is already disposed by then, so the next `player.backend()` read builds a fresh `str html5` one.
+- The retry ladder is hls.js's error channel. A progressive source that fails puts the element's own `str error` event on the backend's `str error` channel instead.
+- `fn mediaKeys`, `fn setMediaKeys` and `fn outputProtectionState` are required members. A backend that never meets encrypted content implements them as no-ops. See [Plugin: DRM](/nomercy-video-player/plugins-adapters/drm).
+- `fn captureStream` hands out a `cls MediaStream` of what is playing, which is what clip and recording code binds to.
+
+## How to extend it
+
+`key backendFactory` receives the resolved kind and the full config, and returns any `cls IVideoBackend`. It is called at backend construction and again after every swap. `player.container` in the example below is the element you named when you created the player, which is what `cls Html5VideoBackend` builds its `str video` element inside.
+
+```ts
+import type { VideoBackendFactory } from '@nomercy-entertainment/nomercy-video-player';
+import nmplayer, { Html5VideoBackend } from '@nomercy-entertainment/nomercy-video-player';
+
+import { WebCodecsBackend } from './web-codecs-backend';
+
+const player = nmplayer('player');
+
+const backendFactory: VideoBackendFactory = (kind) => {
+  if (kind === 'webcodecs')
+    return new WebCodecsBackend(player.container);
+
+  return new Html5VideoBackend(player.container);
 };
 
 player.setup({
-  baseUrl,
-  playlist,
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Films',
+  playlist: [
+    {
+      id: 'sintel',
+      title: 'Sintel',
+      url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
+      duration: 888,
+    },
+  ],
   backendFactory,
 });
 ```
 
-`kind` is currently always `'html5'` from the kit's own resolution, unless your factory (or a plugin) requests otherwise. `'mse'` and `'webcodecs'` are reserved labels for a custom factory to branch on, not backends this package ships.
+`str mse` and `str webcodecs` are labels for a factory to branch on. Nothing reaches them unless your own code calls `player.backend('webcodecs')`, so a factory that only ever returns the default is a working factory.
 
 ## Next steps
 
-- [Adapter: Chapter Source](/nomercy-video-player/plugins-adapters/adapter-chapter-source): a much smaller, optional adapter for chapter lookup outside the built-in `chapters()` surface.
+- [Wire a Backend Contract](/nomercy-player-core/build/backend-contract): the same integration point from the kit's side, built up one method at a time.
+- [Adapter: Chapter Source](/nomercy-video-player/plugins-adapters/adapter-chapter-source): a much smaller port, for a lookup you drive rather than one the player reads through.

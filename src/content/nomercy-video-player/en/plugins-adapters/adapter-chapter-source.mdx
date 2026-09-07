@@ -1,89 +1,142 @@
 ---
 title: 'Adapter: Chapter Source'
-description: 'IChapterSource: load(item), current(time), all(), unload(). A standalone sync-lookup contract for custom UI, not wired into setup() or the built-in chapters() reader.'
+description: 'IChapterSource is a load-once, look-up-synchronously port for chapter data. VttChapterSource reads the item, and a custom implementation reads anywhere else.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/adapters/chapter-source/IChapterSource.ts, src/adapters/chapter-source/vtt-chapters.ts */}
+{/* Source: packages/nomercy-video-player/src/adapters/chapter-source/IChapterSource.ts, src/adapters/chapter-source/vtt-chapters.ts, src/adapters/chapter-source/index.ts, src/types.ts, src/index.ts; packages/nomercy-player-core/src/core/mixins/media-tracks.ts, src/core/mixins/queue.ts, src/core/mixins/loading.ts, src/types/chapter.ts */}
 
 # Adapter: Chapter Source
 
-`IChapterSource` is a small contract for chapter lookup. Load once per item, then answer "which chapter is active at this time" synchronously. The lookup is cheap enough to call on every scrubber hover.
+Chapters reach the player on the item. `player.chapters()` reads the list the active queue entry carries. The queue fills that field from the item's own `key chapters` array, or from a sidecar WebVTT track it fetches on the way in. [Chapters](/nomercy-video-player/tour/chapters) is that surface, and it needs nothing from this page.
 
-Unlike [Adapter: Video Backend](/nomercy-video-player/plugins-adapters/adapter-video-backend), it is not a `setup()` config field. The player's own `chapters()`, `chapter()` and `seekToChapter()` read `item.chapters` directly and never consult this interface. See [Chapters](/nomercy-video-player/tour/chapters).
-
-It exists for two things: custom UI that wants the same lookup shape without re-deriving it, and chapter data that does not live on the item.
+`cls IChapterSource` is the same lookup shaped as a port you hold: load once per item, then answer "which chapter covers this second" with no await in the way. Implement it when the chapter data lives somewhere the item does not reach, such as an endpoint of your own, and call it from your own overlay code.
 
 ## The interface
 
 ```ts
 interface IChapterSource {
-	/** Called after loadedmetadata. Fetch/cache here so current() is synchronous. */
-	load(item: BasePlaylistItem): Promise<Chapter[]>;
+  /** Fetch and cache here, so current() can stay synchronous. */
+  load(item: BasePlaylistItem): Promise<Chapter[]>;
 
-	/** Chapter active at timeSeconds, or null outside every chapter's range. Synchronous. */
-	current(timeSeconds: number): Chapter | null;
+  /** The chapter covering timeSeconds, or null. Synchronous. */
+  current(timeSeconds: number): Chapter | null;
 
-	/** The complete chapter list for the current item. Synchronous. */
-	all(): Chapter[];
+  /** The whole list for the current item. Synchronous. */
+  all(): Chapter[];
 
-	/** Release cached data. Called on unload/dispose. */
-	unload(): void;
+  /** Drop the cache. */
+  unload(): void;
+}
+```
+
+A `cls Chapter` is what both methods hand back, and it is the kit's own type, re-exported from the video package root and aliased there as `cls ChapterRef`.
+
+```ts
+interface Chapter {
+  index: number; // zero-based position in the list
+  start: number; // seconds
+  end: number; // seconds
+  title: string;
+  synthetic?: boolean; // present only on a filler the player generated
 }
 ```
 
 ## The shipped implementation
 
-`VttChapterSource` reads straight from `item.chapters`.
-
-That field is either populated by a consumer as canonical `ChapterRef[]`, or derived by `normalizePlaylistItem` from the server's millisecond-based `chapters` array at queue-ingest time. See [The Queue & Playlist](/nomercy-video-player/tour/queue).
-
-It fetches and parses nothing. The list is already resolved by the time `load()` runs, and this class only does the synchronous `current(time)` lookup on top of it:
+`cls VttChapterSource` reads the item's typed `key chapters` array and caches it. It fetches nothing of its own, so what this class adds is the position lookup over a list the queue has already put on the item.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import nmplayer, { VttChapterSource } from '@nomercy-entertainment/nomercy-video-player';
 
 const player = nmplayer('player');
+const chapters = new VttChapterSource();
 
-const source = new VttChapterSource();
-await source.load(player.item()!); // caches item.chapters
-const active = source.current(player.time()); // Chapter | null, no async lookup
+await player.ready();
+
+const item = player.item();
+if (item)
+  await chapters.load(item);
+
+const active = chapters.current(player.time()); // Chapter | null
 ```
 
 ## Rules & restrictions
 
-- `load()` returns an empty array for an item with no `chapters` field. That is a legitimate "no chapters" state, not an error.
-- `current()` and `all()` stay synchronous in any implementation. They are called from hot paths, scrubber hover and `timeupdate`-driven UI, where an `await` shows as lag.
-- `DesktopUiPlugin` does not use it either. Its chapter-marker rendering reads `player.chapters()` directly, the same source of truth this adapter's default reads, without going through the interface.
+- `fn current` matches a chapter when the time is at or after its `key start` and strictly before its `key end`. So a gap between two chapters answers `str null`, and so does the last chapter's own `key end` and anything past it.
+- `fn all` hands back the item's own array rather than a copy. Sort or splice the result and you have changed the queue entry.
+- `fn load` answers with an empty array for an item carrying no `key chapters`. That is a film without chapter marks, not a failure.
+- A `key tracks` entry with `kind: 'chapters'` is the queue's ingest path, not this class's. `cls VttChapterSource` handed an item that carries only that sidecar answers with an empty array.
+- The player's malformed-list safety net, which backfills uncovered spans and marks them `key synthetic`, runs over the queue entry. A list you return from this port is used exactly as you returned it.
+- `fn current` and `fn all` stay synchronous in any implementation. They run on every `str time` tick and every scrubber hover, where an await shows as lag.
 
 ## How to extend it
 
-Implement the four methods when your chapter data comes from a source `normalizePlaylistItem` does not cover. That means a chapters endpoint separate from the item payload, or a format your server does not ship as the item's `chapters` field:
+Implement the four methods against whatever holds your chapter data. Fetch and cache in `fn load`, and keep the two readers a plain scan over the cache.
 
 ```ts
-class ApiChapterSource implements IChapterSource {
-  private chapters: Chapter[] = [];
+import type { Chapter, IChapterSource, VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
 
-  async load(item: BasePlaylistItem): Promise<Chapter[]> {
-    this.chapters = await fetchChaptersFromApi(item.id);
-    return this.chapters;
+export class ApiChapterSource implements IChapterSource {
+  private _chapters: Chapter[] = [];
+
+  async load(item: VideoPlaylistItem): Promise<Chapter[]> {
+    const response = await fetch(`https://api.example.com/chapters/${item.id}`);
+    this._chapters = (await response.json()) as Chapter[];
+
+    return this._chapters;
   }
 
   current(timeSeconds: number): Chapter | null {
-    return this.chapters.find((c) => timeSeconds >= c.start && timeSeconds < c.end) ?? null;
+    const found = this._chapters.find(
+      chapter => timeSeconds >= chapter.start && timeSeconds < chapter.end,
+    );
+
+    return found ?? null;
   }
 
   all(): Chapter[] {
-    return this.chapters;
+    return this._chapters;
   }
 
   unload(): void {
-    this.chapters = [];
+    this._chapters = [];
   }
 }
 ```
 
-Call `load()` yourself from a `'mediaReady'` listener in your own overlay code. No automatic hook invokes it.
+Nothing calls a source on your behalf, so the three call sites are yours to place.
+
+`str mediaReady` fires at the end of every successful load, which is where the fetch belongs. `str time` carries the position on every media tick, so a label follows playback there. `str item` fires when the queue cursor moves, which is where the old cache goes.
+
+```ts
+import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+
+import { ApiChapterSource } from './api-chapter-source';
+
+const player = nmplayer('player');
+const chapters = new ApiChapterSource();
+
+const label = document.createElement('span');
+document.body.append(label);
+
+player.on('mediaReady', () => {
+  const item = player.item();
+  if (!item)
+    return;
+
+  void chapters.load(item);
+});
+
+player.on('time', (state) => {
+  label.textContent = chapters.current(state.time)?.title ?? '';
+});
+
+player.on('item', () => {
+  chapters.unload();
+});
+```
 
 ## Next steps
 
-- [Adapter: Thumbnail Source](/nomercy-video-player/plugins-adapters/adapter-thumbnail-source): the same standalone, sync-lookup shape applied to scrub-preview thumbnails.
+- [Chapters](/nomercy-video-player/tour/chapters): the player's own chapter surface, its `str chapter` event, and the segment primitive underneath it.
+- [Adapter: Thumbnail Source](/nomercy-video-player/plugins-adapters/adapter-thumbnail-source): the same load-once, look-up-synchronously shape applied to scrub previews.

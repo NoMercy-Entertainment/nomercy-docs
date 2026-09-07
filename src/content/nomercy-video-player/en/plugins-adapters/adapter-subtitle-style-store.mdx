@@ -1,88 +1,120 @@
 ---
 title: 'Adapter: Subtitle Style Store'
-description: 'ISubtitleStyleStore: load()/save(style)/clear(), a persistence contract for subtitleStyle() preferences. The kit keeps style in memory only; wiring a store is left to the consumer.'
+description: 'ISubtitleStyleStore is load/save/clear for a viewer subtitle style. StorageBackedSubtitleStyleStore writes it through the kit storage adapter, and you wire the two call sites.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/adapters/subtitle-style-store/ISubtitleStyleStore.ts, src/adapters/subtitle-style-store/storage-backed.ts */}
+{/* Source: packages/nomercy-video-player/src/adapters/subtitle-style-store/ISubtitleStyleStore.ts, src/adapters/subtitle-style-store/storage-backed.ts, src/adapters/subtitle-style-store/index.ts, src/index.ts; packages/nomercy-player-core/src/core/mixins/media-tracks.ts, src/types/tracks.ts, src/adapters/storage/local-storage.ts, src/adapters/storage/memory.ts, src/adapters/storage/indexed-db.ts, src/core/plugin/base.ts */}
 
 # Adapter: Subtitle Style Store
 
-`player.subtitleStyle()` (see [Subtitles & Text Tracks](/nomercy-video-player/tour/subtitles)) keeps the user's font, color, and edge-style choices in memory. It emits `'subtitleStyle'` on every change. It never persists anything on its own.
+`player.subtitleStyle()` holds a viewer's font, color and edge choices for the life of the player and emits `str subtitleStyle` on every change, which is what the overlay repaints from. [Subtitles](/nomercy-video-player/tour/subtitles) is that surface.
 
-`ISubtitleStyleStore` is the contract for the other half. Load a saved preference after `ready()` and apply it. Save on every change so the choice survives the next session.
+`cls ISubtitleStyleStore` is the other half: three methods that put the choice somewhere it survives a reload. `cls StorageBackedSubtitleStyleStore` is the shipped implementation. The two call sites that join it to the player are yours to place, so the timing and the backing store are both your decision.
 
 ## The interface
 
 ```ts
 interface ISubtitleStyleStore {
-	/** Persisted style, or null when nothing was saved yet. */
-	load(): Promise<Partial<SubtitleStyle> | null>;
+  /** The saved style, or null when nothing has been saved yet. */
+  load(): Promise<Partial<SubtitleStyle> | null>;
 
-	/** Persist style so it survives a reload. */
-	save(style: SubtitleStyle): Promise<void>;
+  /** Persist the merged style. */
+  save(style: SubtitleStyle): Promise<void>;
 
-	/** Clear any persisted preference ("reset to defaults"). */
-	clear(): Promise<void>;
+  /** Forget the saved record. */
+  clear(): Promise<void>;
 }
 ```
 
-## The shipped implementation
+`fn load` answers with a partial because a record written by an older build of your app may be missing fields a newer one has. `player.subtitleStyle(patch)` merges whatever it is given, so passing the loaded value straight through is correct even when it is incomplete.
 
-`StorageBackedSubtitleStyleStore` persists through the kit's [`IStorage`](/nomercy-player-core/plugins-adapters/adapter-storage) port, under the key `'subtitle-style'`. That is the same swappable storage interface the kit's plugins persist their preferences through via `this.storage`. The key is namespaced automatically when the storage backend itself is namespaced.
+## What is being stored
 
-The constructor takes an `IStorage` instance directly, not the player. The player has no public accessor for its own active storage adapter; only plugin code reaches it, via `this.storage`. Construct the store with the same instance passed to `setup({ storage })`, or with a fresh `LocalStorageBackend` (the kit's own default) when `setup()` didn't override it:
+`cls SubtitleStyle` is nine fields, and a player that has never been written to reports these values.
 
 ```ts
-import { StorageBackedSubtitleStyleStore } from '@nomercy-entertainment/nomercy-video-player';
-import { LocalStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
-
-const store = new StorageBackedSubtitleStyleStore(new LocalStorageBackend());
+interface SubtitleStyle {
+  fontSize: number; // percent of the renderer's base size. 100
+  fontFamily: string; // CSS font-family. 'ReithSans, sans-serif'
+  textColor: string; // CSS color. 'white'
+  textOpacity: number; // 0 to 100. 100
+  backgroundColor: string; // CSS color, the per-line box. 'black'
+  backgroundOpacity: number; // 0 to 100. 0
+  edgeStyle: 'none' | 'depressed' | 'dropShadow' | 'raised' | 'uniform' | 'textShadow'; // 'textShadow'
+  areaColor: string; // CSS color, the window behind every cue. 'black'
+  windowOpacity: number; // 0 to 100. 0
+}
 ```
 
-## Wiring it end to end
+The defaults are seeded on the first read, so `player.subtitleStyle()` before any write hands back the full object rather than an empty one. That first read is also how you capture a baseline to restore later.
+
+## The shipped implementation
+
+`cls StorageBackedSubtitleStyleStore` takes an `cls IStorage` and writes one JSON record under the key `str subtitle-style`, through the same [storage adapter](/nomercy-player-core/plugins-adapters/adapter-storage) the kit's plugins persist through.
+
+It takes the storage instance rather than the player, because the player has no public accessor for its own. Hand it the same instance you passed to `setup({ storage })`, or a fresh `cls LocalStorageBackend` when you left that unset, since that is the kit's own default.
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player';
+import { LocalStorageBackend } from '@nomercy-entertainment/nomercy-player-core';
+import nmplayer, { StorageBackedSubtitleStyleStore } from '@nomercy-entertainment/nomercy-video-player';
 
 const player = nmplayer('player');
+const store = new StorageBackedSubtitleStyleStore(new LocalStorageBackend());
 
 await player.ready();
 
 const saved = await store.load();
-if (saved) player.subtitleStyle(saved);
+if (saved)
+  player.subtitleStyle(saved);
 
 player.on('subtitleStyle', (style) => {
   void store.save(style);
 });
 ```
 
-`load()` returns `Partial<SubtitleStyle>`, not the full shape, because a store might only have persisted a subset of fields across app versions. `player.subtitleStyle(patch)` already merges a partial onto the current style. Passing the loaded value straight through is correct even when it's incomplete.
+The restore is a single read at start-up and the listener covers every writer from then on, including a settings menu you have not built yet. Neither call needs a backend, so `fn subtitleStyle` and `fn on` both work before `fn setup` as well, which makes the order above a convenience rather than a constraint.
 
 ## Rules & restrictions
 
-- The player never calls any of these three methods itself. Wiring load-on-ready and save-on-change is the consumer's responsibility, the same pattern as [Recipe: Swap an Adapter](/nomercy-player-core/recipes/swap-an-adapter) for other kit-level ports.
-- `clear()` only removes the persisted record. It does not reset the live `subtitleStyle()` value. For a "reset to defaults" action that also changes the rendered subtitles, call `player.subtitleStyle(defaultStyle)` alongside it.
+- Nothing in the player calls these three methods. The load and the save above are the whole wiring, and a store that is constructed and never called does nothing.
+- The key is the literal `str subtitle-style`, with no per-player namespacing. Two players sharing one `cls IStorage` instance therefore share one record; give each its own storage implementation to keep them apart.
+- `fn clear` removes the record and leaves the live style alone. To make a reset visible, write the values back with `player.subtitleStyle(...)` as well.
+- The event carries the merged style, never the patch, so what reaches `fn save` is always the complete object the interface asks for.
+- Both the shipped store's reads and its writes are awaited, so an asynchronous backend such as `cls IndexedDBBackend` works here with no change to the wiring above.
+- A record that is missing, unreadable, or not valid JSON comes back as `str null` from `fn load`. The player keeps the defaults, and the guard above skips the write.
 
 ## How to extend it
 
-Implement the three methods against a remote store for cross-device sync, or any other backing store you already have:
+Implement the three methods against a remote store when the choice should follow a viewer between devices, or against anything else you already have. The wiring in the example above is unchanged.
 
 ```ts
-class ApiSubtitleStyleStore implements ISubtitleStyleStore {
+import type { ISubtitleStyleStore, SubtitleStyle } from '@nomercy-entertainment/nomercy-video-player';
+
+export class ApiSubtitleStyleStore implements ISubtitleStyleStore {
   async load(): Promise<Partial<SubtitleStyle> | null> {
-    return fetchUserPreference('subtitleStyle');
+    const response = await fetch('https://api.example.com/me/subtitle-style');
+    if (!response.ok)
+      return null;
+
+    return (await response.json()) as Partial<SubtitleStyle>;
   }
 
   async save(style: SubtitleStyle): Promise<void> {
-    await saveUserPreference('subtitleStyle', style);
+    await fetch('https://api.example.com/me/subtitle-style', {
+      method: 'PUT',
+      body: JSON.stringify(style),
+    });
   }
 
   async clear(): Promise<void> {
-    await deleteUserPreference('subtitleStyle');
+    await fetch('https://api.example.com/me/subtitle-style', { method: 'DELETE' });
   }
 }
 ```
 
+A remote store saves on every change, and a viewer dragging a font-size slider produces a change per step. Debounce the `fn save` call if each one is a request.
+
 ## Next steps
 
-- [Reference: Types](/nomercy-video-player/reference/types): the full `SubtitleStyle` field list this adapter persists.
+- [Subtitles](/nomercy-video-player/tour/subtitles): choosing a track, painting the cues, and where `fn subtitleStyle` sits among them.
+- [Adapter: Storage](/nomercy-player-core/plugins-adapters/adapter-storage): the port the shipped store writes through, and the backends that ship with it.
