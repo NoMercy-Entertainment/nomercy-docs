@@ -1,17 +1,17 @@
 ---
 title: 'Adapter: URL Resolver'
-description: 'IUrlResolver: turns a raw URL into a ResolvedUrl for consumers that cannot attach an Authorization header, a <video>.src, a Cast receiver, a Worker, CSS.'
+description: 'IUrlResolver turns a raw URL into a ResolvedUrl for a consumer that sends the request itself and takes no Authorization header: a <video>.src, a Cast receiver, a Worker, CSS.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/adapters/url-resolver/IUrlResolver.ts */}
+{/* Source: packages/nomercy-player-core/src/adapters/url-resolver/IUrlResolver.ts, src/core/mixins/auth.ts, src/core/resolved-url.ts */}
 
 # Adapter: URL Resolver
 
-`IUrlResolver` turns a raw URL into one that carries its own credentials.
+`cls IUrlResolver` turns a raw URL into one that carries its own credentials.
 
-Reach for it wherever the fetch pipeline cannot help you, because the consumer sends the request itself and accepts no `Authorization` header: a `<video>.src`, a Cast receiver, a Worker, a CSS `url()`. A resolver moves the credential into the URL instead.
+Reach for it wherever the fetch pipeline cannot help you. Four consumers send the request themselves and accept no `Authorization` header: a `<video>.src`, a Cast receiver, a Worker, a CSS `url()`. A resolver moves the credential into the URL instead.
 
-[Recipe: Provide a Custom URL Resolver](/nomercy-player-core/recipes/custom-url-resolver) walks through a full worked example. This page is the reference for the port itself.
+[Recipe: Provide a Custom URL Resolver](/nomercy-player-core/recipes/custom-url-resolver) walks a signed-CDN example through from setup to a runtime swap. This page is the reference for the port itself.
 
 ## The interface
 
@@ -21,42 +21,58 @@ interface IUrlResolver {
 }
 ```
 
-`UrlResolverContext` carries `auth`, `baseUrl`, a `category` hint, and `defaultResolve(url)`.
+`player.resolveUrl(url, category)` is the call that reaches it, and `key category` is `str media` when the caller leaves it out.
 
-The `category` hint takes one of these values, or any custom string a plugin passes:
+## The context
 
-- `'media'`
-- `'subtitle'`
-- `'font'`
-- `'poster'`
-- `'sprite'`
-- `'lyrics'`
-- `'cast'`
-- `'license'`
+| Field | What it holds |
+| --- | --- |
+| `key auth` | A frozen copy of the auth config with `key bearerToken` removed, or `ts undefined` when the player has no auth. `key transformUrl`, `key headers`, `key credentials` and the rest survive. |
+| `key baseUrl` | The player's current base URL, or its `key baseImageUrl` for the `str poster` and `str cast` categories when one is set. |
+| `key category` | Which consumer asked. |
+| `key defaultResolve` | The built-in resolve, as a one-argument function. |
 
-`defaultResolve(url)` runs the built-in behavior. A custom resolver can delegate to it for categories it doesn't need to touch, instead of reimplementing the default from scratch.
+The token is the part a resolver most often needs and the one part `key auth` does not carry. Hold your own credential in the closure you pass to `fn setup`, and read the rest from the context.
+
+`key category` is one of `str media`, `str subtitle`, `str font`, `str poster`, `str sprite`, `str lyrics`, `str cast` or `str license`, or any string a plugin invents. Treat one you do not recognize as a passthrough.
+
+`defaultResolve(url)` runs the built-in behavior, so a resolver can sign the categories it cares about and hand back the rest untouched.
 
 ## ResolvedUrl
 
-The return shape:
-
 | Field | Meaning |
 | --- | --- |
-| `href` | The final string. Pass it to a `<video>.src`, a Worker, or a Cast receiver. |
-| `raw` | The unparsed input. |
-| `scheme`, `origin`, `pathname`, `search`, `hash`, `searchParams` | Parsed components of the query string. |
-| `ext` | The lowercase extension with no leading dot. Gate on file type with this rather than splitting on `.`, which breaks on query strings. |
-| `relative` | `true` when the input was relative and no `baseUrl` was available to absolutize against. |
+| `key href` | The final string. This is what goes to a `<video>.src`, a Worker or a Cast receiver. |
+| `key raw` | The input as the caller wrote it, before any transform. |
+| `key scheme`, `key origin`, `key pathname`, `key search`, `key hash` | The parsed parts of `key href`. Empty strings for `key scheme` and `key origin` when the input stayed relative. |
+| `key searchParams` | A `cls URLSearchParams` over `key search`. |
+| `key ext` | The extension, lowercased and without its dot, or an empty string when there is none. Gate on file type with this rather than splitting on a dot, which smears across a query string. |
+| `key relative` | `true` when the input was relative and no base was available to absolutize it against. `key href` keeps the relative form. |
+
+`toString()` returns `key href`, so a `ResolvedUrl` interpolates into a template string as itself.
 
 ## Rules & restrictions
 
-- The default implementation is `auth.transformUrl(url)` followed by structured parsing, and that is what `ctx.defaultResolve` calls. A custom resolver replacing the field outright still has that behaviour one call away.
-- This port is for URLs handed to something that is not `fetch()`. If you call `fetch` yourself, use [authFetch](/nomercy-player-core/recipes/auth-fetch): it sets the `Authorization` header rather than encoding credentials into the URL.
+- The built-in resolve is `auth.transformUrl(url)`, then the base prefix for a URL still relative, then the parse. `key baseUrl` and `key baseImageUrl` are prefixes rather than URL bases, so a leading slash on the path keeps the base's own path segment.
+- A resolver that answers with anything but an object carrying a string `key href` is ignored, and the built-in answers instead. A resolver that throws is not caught, and the rejection reaches whoever called `fn resolveUrl`.
+- This port is for URLs handed to something that is not `fetch()`. When you make the request yourself, use [authFetch](/nomercy-player-core/recipes/auth-fetch), which sets the `Authorization` header rather than writing the credential into the URL.
 
 ## How to extend it
 
-Swap it at `setup({ urlResolver })`, or at runtime via `player.urlResolver(fn)` / `player.urlResolver(undefined)` to revert. See the [recipe](/nomercy-player-core/recipes/custom-url-resolver) for a complete category-branching example.
+Name it at setup, or move it later with `player.urlResolver(fn)`. `player.urlResolver(undefined)` hands the work back to the built-in, and `player.urlResolver()` reads back whatever is installed.
+
+```ts
+player.setup({
+	urlResolver: (url, ctx) => {
+		if (ctx.category !== 'media') return ctx.defaultResolve(url);
+		return ctx.defaultResolve(`${url}${url.includes('?') ? '&' : '?'}token=${myToken}`);
+	},
+});
+```
+
+`buildResolvedUrl(raw, transformed, baseUrl?)` is exported for a resolver that builds its answer without delegating. It fills every field of the shape above, and an input it cannot parse comes back as `key relative` with `key href` equal to the input rather than as a throw.
 
 ## Next steps
 
+- [Recipe: Provide a Custom URL Resolver](/nomercy-player-core/recipes/custom-url-resolver): the same port, branched per category, with the runtime swap.
 - [Adapter: Translator](/nomercy-player-core/plugins-adapters/adapter-translator): the i18n engine port, same swap-at-setup shape.

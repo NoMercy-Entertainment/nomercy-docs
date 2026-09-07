@@ -1,0 +1,75 @@
+---
+title: 'Adapter: Lifecycle Registry'
+description: 'ILifecycleRegistry is the teardown ledger every plugin is handed. Listeners, timers, frame loops, observers and abort controllers record here, and one dispose releases all of them.'
+---
+
+{/* Source: packages/nomercy-player-core/src/adapters/lifecycle-registry/ILifecycleRegistry.ts, src/adapters/lifecycle-registry/default.ts, src/core/plugin/base.ts, src/core/mixins/plugin-registration.ts */}
+
+# Adapter: Lifecycle Registry
+
+`cls ILifecycleRegistry` is the teardown ledger every plugin is handed. A plugin's `fn listen`, `fn timeout`, `fn interval`, `fn frame` and `fn abortable` each record their handle in it, and one `fn dispose` releases the lot. [Timing](/nomercy-player-core/handbook/timing) teaches those helpers. This page is the contract itself.
+
+Unlike most entries in this section it is not a slot. `fn setup` takes no registry field and nothing in the kit reads a replacement. `cls LifecycleRegistry` is the one implementation, and the player builds a fresh one for every plugin it registers.
+
+What the type is for is writing against the surface. Name it on a helper that accepts anything cleanup can be recorded on, or on a ledger of your own for code that lives outside a plugin.
+
+## The interface
+
+```ts
+interface ILifecycleRegistry {
+	addCleanup(fn: () => void): void;
+	listen(target: EventTarget, event: string, handler: EventListener, options?: AddEventListenerOptions | boolean): void;
+	timeout(fn: () => void, ms: number): number;
+	interval(fn: () => void, ms: number): number;
+	observe<O extends { disconnect(): void }>(observer: O): O;
+	abortable(): AbortController;
+	frame(fn: (deltaMs: number, time: number) => void): void;
+	dispose(): void;
+	isDisposed(): boolean;
+}
+```
+
+## Where to import it from
+
+The class comes from the package root and from the subpath. The type lives on the subpath alone.
+
+```ts
+import { LifecycleRegistry } from '@nomercy-entertainment/nomercy-player-core';
+import type { ILifecycleRegistry } from '@nomercy-entertainment/nomercy-player-core/adapters/lifecycle-registry';
+```
+
+## What the class does beyond the contract
+
+`fn frame` is the one place the two differ. `cls LifecycleRegistry` hands back a `() => void` that stops that one loop and leaves any others running. `cls ILifecycleRegistry` declares no return, so code typed against the interface cannot reach that canceller. A plugin has it either way, because `ts this.frame(fn)` passes it through.
+
+## Calling it after dispose
+
+Every method stays safe once `fn dispose` has run, so a caller never has to check `fn isDisposed` first.
+
+| Call | What it does after dispose |
+|---|---|
+| `fn addCleanup` | Runs the callback right away. |
+| `fn listen` | Attaches nothing. |
+| `fn timeout`, `fn interval` | Schedule nothing and answer `-1`. |
+| `fn observe` | Records nothing and hands the observer straight back. |
+| `fn abortable` | Answers a controller whose signal is already aborted. |
+| `fn frame` | Starts nothing and answers a canceller that does nothing. |
+| `fn dispose` | Returns without repeating the teardown. |
+
+## What dispose releases
+
+DOM listeners come off first, then timers and intervals are cleared, then frame loops are cancelled, then observers are disconnected, then controllers are aborted. The `fn addCleanup` callbacks run last, most recently added first, so a ledger unwinds like a stack.
+
+A callback that throws is caught and logged, and the rest of the teardown still runs. The same holds inside a `fn timeout`, `fn interval` or `fn frame` body: one throw is logged and the loop or the player carries on.
+
+## Rules & restrictions
+
+- `fn observe` accepts anything carrying a `disconnect()`, which covers `cls MutationObserver`, `cls ResizeObserver` and `cls IntersectionObserver`. It returns the observer, so `this.lifecycle.observe(new ResizeObserver(cb)).observe(el)` reads in one line.
+- `fn abortable` mints a fresh `cls AbortController` per call, and dispose aborts every one it minted. That is what stops an in-flight `fetch`.
+- `fn frame` starts nothing where `requestAnimationFrame` is absent, so a registry built under Node or during server-side rendering is inert rather than broken.
+- A plugin's own `dispose()` runs before its registry's. Every listener, timer and loop it registered is still live inside that method. [The Plugin Base](/nomercy-player-core/tour/plugin-base) carries the full teardown order.
+
+## Next steps
+
+- [Timing](/nomercy-player-core/handbook/timing): the five plugin helpers that record into this ledger.
+- [The Plugin Base](/nomercy-player-core/tour/plugin-base): where a plugin gets its registry and what teardown does with it.

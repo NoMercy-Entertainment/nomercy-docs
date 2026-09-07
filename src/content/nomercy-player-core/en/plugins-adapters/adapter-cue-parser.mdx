@@ -1,17 +1,17 @@
 ---
 title: 'Adapter: Cue Parser'
-description: 'ICueParser: id, canParse, parse, resolved by CueParserRegistry newest-first. VTT, sprite-VTT, and LRC ship built in; add your own via setup() or at runtime.'
+description: 'ICueParser is id, canParse and parse. CueParserRegistry resolves newest-first, WebVTT, sprite VTT and LRC ship registered, and a format of your own joins them at setup or after ready.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/adapters/cue-parser/ICueParser.ts, src/adapters/cue-parser/registry.ts */}
+{/* Source: packages/nomercy-player-core/src/adapters/cue-parser/ICueParser.ts, src/adapters/cue-parser/registry.ts, src/adapters/cue-parser/built-ins.ts, src/core/mixins/cue-parser.ts, src/core/mixins/lifecycle.ts */}
 
 # Adapter: Cue Parser
 
-`ICueParser` turns a timed-text file into cues the player can display. WebVTT, sprite VTT, and LRC ship built in.
+`cls ICueParser` turns a timed-text file into cues the player can follow. WebVTT, sprite VTT and LRC ship registered, so a `.vtt` and an `.lrc` are already claimed.
 
-Write one when your content arrives in a format the kit does not read: SRT, TTML, a house subtitle format, or a lyrics feed of your own.
+Write one when your content arrives in a shape the kit does not read: SRT, TTML, a house caption format, a lyrics feed of your own.
 
-[Cue Parsers](/nomercy-player-core/tour/cue-parsers) and [Recipe: Register a Custom Cue Parser](/nomercy-player-core/recipes/custom-cue-parser) cover this port in depth. This page is the terse reference.
+[Cue Parsers](/nomercy-player-core/tour/cue-parsers) introduces the idea and [Recipe: Register a Custom Cue Parser](/nomercy-player-core/recipes/custom-cue-parser) builds one. This page is the reference for the port itself.
 
 ## The interface
 
@@ -25,34 +25,60 @@ interface ICueParser<T = unknown> {
 
 ## Shipped implementations
 
-- `vttSubtitleParser`: `.vtt` files. Inline `<b>`/`<i>`/`<u>` preserved, cue-setting alignment honored.
-- `spriteVttParser`: sprite-sheet crops via `#xywh=` fragments. Gated to URLs that hint at sprites.
-- `lrcParser`: `.lrc` files, plain or word-level enhanced LRC.
+| Id | Claims | Payload |
+|---|---|---|
+| `str vtt` | `.vtt`, and `str text/vtt` as a content type. Stands aside for a sprite URL. | Plain `key text` plus a `key markup` field keeping `<b>`, `<i>` and `<u>`, with the cue's own `align`, `line` and `size` settings. |
+| `str sprite-vtt` | A URL ending `.sprite.vtt` or `.sprites.vtt`. | The `#xywh=` crop off each cue: `key url`, `key x`, `key y`, `key w`, `key h`. |
+| `str lrc` | `.lrc`, and `str application/x-lrc`, `str application/x-lyrics` or `str text/lrc` as a content type. | `key text`, plus a `key words` array for enhanced LRC carrying per-word timestamps. |
+
+Each one is addressed by that id rather than by an import. `player.unregisterCueParser('vtt')` drops it, and registering a parser whose `key id` is `str vtt` replaces it.
+
+The functions behind them carry their own exports, so a parser of yours can reuse one. `fn parseVttSubtitles`, `fn parseVttSprite`, `fn parseVtt` and `fn parseLrc` all come from the package root and from `./adapters/cue-parser`.
+
+## Who asks the registry
+
+`player.resolveCueParser(url)` is the lookup, and it hands the registry a URL with no content type. The music player's lyrics plugin calls it for every lyrics file it loads, and your own code can call it for anything else.
+
+Sidecar captions, the chapter track and the desktop UI's seek preview each call a WebVTT function directly, so those three read WebVTT whichever parsers are registered.
+
+## Registration order
+
+`fn setup` seeds the three built-ins, then registers whatever `key cueParsers` carried. The registry resolves newest-first, so either route below wins a URL a built-in also claims:
+
+```ts
+player.setup({ cueParsers: [myParser] });
+
+await player.ready();
+player.registerCueParser(myParser);
+```
+
+A parser registered before `fn setup` is the older entry, and it still serves any URL the built-ins leave alone. `player.registerCueParser(parser, true)` puts one deliberately below the built-ins.
 
 ## Rules & restrictions
 
-- `CueParserRegistry.resolve(url, contentType?)` walks parsers most-recently-registered first and returns the first match. When you register a custom parser for an extension a built-in already claims, your parser wins resolution. The built-in still serves other URLs.
-- Returning `true` from `canParse` is a commitment. When `parse()` then throws, the registry does not fall through to the next parser.
+- Answering `true` from `fn canParse` is a commitment. The registry hands back the first match and never revisits the walk, so a `fn parse` that throws propagates to whoever asked rather than falling through.
+- Re-registering an id replaces that entry and moves it to the front of the walk. `player.resolveCueParser(url)` answers `ts undefined` when nothing claims the URL, which is the caller's decision to make rather than an error.
+- `fn parse` is synchronous and receives the whole file as a string. Fetching is the caller's job.
+- The optional `key baseUrl` in `fn parse` exists for cue bodies holding a relative reference, which is how the sprite parser turns a cue into an absolute image URL.
 
 ## How to extend it
 
+Any object with the three members is a parser. This one converts SRT timings into WebVTT and hands the rest to the built-in reader:
+
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
-import type { ICueParser } from '@nomercy-entertainment/nomercy-player-core';
-import { createCueList } from '@nomercy-entertainment/nomercy-player-core';
+import { parseVttSubtitles } from '@nomercy-entertainment/nomercy-player-core';
+import type { ICueParser, VTTSubtitlePayload } from '@nomercy-entertainment/nomercy-player-core';
 
-const player = nmplayer('player');
-
-const srtParser: ICueParser<{ text: string }> = {
+const srtParser: ICueParser<VTTSubtitlePayload> = {
 	id: 'srt',
 	canParse: url => url.endsWith('.srt'),
-	parse: raw => createCueList(parseSrtBlocks(raw)),
+	parse: raw => parseVttSubtitles(`WEBVTT\n\n${raw.replace(/(\d\d:\d\d:\d\d),(\d\d\d)/gu, '$1.$2')}`),
 };
 
-player.setup({ cueParsers: [srtParser] }); // registered after the built-ins, so it wins resolution
-// or at runtime: player.registerCueParser(srtParser); // pass prepend: true to rank it BELOW the built-ins instead
+player.setup({ cueParsers: [srtParser] });
 ```
 
 ## Next steps
 
+- [Recipe: Register a Custom Cue Parser](/nomercy-player-core/recipes/custom-cue-parser): the same port with a full parser written out.
 - [Adapter: Preload Strategy](/nomercy-player-core/plugins-adapters/adapter-preload-strategy): when and what to prefetch before the outgoing item ends.

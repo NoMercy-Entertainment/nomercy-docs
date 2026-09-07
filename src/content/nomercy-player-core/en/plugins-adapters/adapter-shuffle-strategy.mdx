@@ -1,15 +1,15 @@
 ---
 title: 'Adapter: Shuffle Strategy'
-description: 'IShuffleStrategy: a single order() method returning a permutation of the queue. MediaList owns cursor-follow, so a strategy only writes the ordering.'
+description: 'IShuffleStrategy is one order() method returning a permutation of the queue. The queue re-finds the playing item by id afterwards, so a strategy writes only the ordering.'
 ---
 
-{/* Source: packages/nomercy-player-core/src/adapters/shuffle-strategy/IShuffleStrategy.ts */}
+{/* Source: packages/nomercy-player-core/src/adapters/shuffle-strategy/IShuffleStrategy.ts, src/adapters/shuffle-strategy/default.ts, src/adapters/media-list/default.ts, src/core/mixins/queue.ts */}
 
 # Adapter: Shuffle Strategy
 
-`IShuffleStrategy` controls the permutation `queueShuffle()` applies to the queue. The contract is deliberately minimal.
+`cls IShuffleStrategy` decides the permutation `fn queueShuffle` applies to the queue. One method, and the queue does the rest.
 
-Swap it when uniform random is the wrong answer for your app: shuffle weighted by rating, grouped so an album stays together, or seeded so two devices shuffle alike. The default is a plain Fisher-Yates shuffle.
+Swap it when uniform random is the wrong answer for your app. Weight it by rating, group it so an album stays together, or seed it so two devices land on the same order. The default is an unbiased Fisher-Yates shuffle.
 
 ## The interface
 
@@ -19,31 +19,41 @@ interface IShuffleStrategy {
 }
 ```
 
-`items` is the current queue, read-only. `currentIndex` is the zero-based index of the playing item, or `-1` when nothing is active. `order()` returns a permutation: same items, no drops, no duplicates.
+`items` is the queue as it stands, read-only. `currentIndex` is the zero-based position of the playing item inside it. Return a permutation: the same items, no drops, no duplicates.
 
-## Rules & restrictions
+## What the queue does around you
 
-- Cursor-follow is not your responsibility. `MediaList` finds the playing item's new position after the permutation and updates the queue pointer. That works correctly for any implementation. A strategy author writes only the reordering logic.
-- `currentIndex` is there so a strategy *can* pin the currently-playing item: return it first, or leave it untouched and shuffle only the rest. Nothing forces that behavior. A strategy that ignores `currentIndex` entirely and reorders everything is equally valid.
+`fn queueShuffle` calls `fn order`, installs the result, then re-finds the playing item and points the cursor at it. The match is on `key id`, so a strategy is free to hand back fresh objects as long as each carries the id it came with.
+
+An item missing from the result leaves the cursor on the index it already held, which is now a different track. That is the one thing the permutation contract asks you not to do.
+
+`fn order` runs only when the queue holds two items or more, and a queue holding anything keeps its cursor on one of them. So `currentIndex` is a real position every time the queue calls you.
+
+The player emits `str queue:shuffle` and then `str queue` once the new order is in place.
 
 ## Default implementation
 
-`FisherYatesShuffle` (singleton instance: `fisherYatesShuffle`) is an unbiased uniform-random permutation. It ignores `currentIndex`. The whole queue reshuffles, including the playing item's position.
+`cls FisherYatesShuffle` is an unbiased uniform-random permutation, and `fisherYatesShuffle` is the shared instance the queue uses when `fn setup` names no other. It ignores `currentIndex`, so the playing item moves with everything else.
+
+Both names come from the package root and from `./adapters/shuffle-strategy`, which makes the default reusable inside a strategy of your own.
+
+## Rules & restrictions
+
+- `fn order` is synchronous and its return value is installed as-is. There is no hook for an asynchronous ordering.
+- The strategy is read at `fn setup` and holds for the life of the player. Each `fn queueShuffle` asks it again, so a stateful strategy sees every call.
+- `currentIndex` is offered rather than imposed. Pinning the playing item, leaving it in place, or shuffling it along with the rest are all valid.
 
 ## How to extend it
 
 ```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
+import { fisherYatesShuffle } from '@nomercy-entertainment/nomercy-player-core';
 import type { IShuffleStrategy } from '@nomercy-entertainment/nomercy-player-core';
-
-const player = nmplayer('player');
 
 const pinCurrentFirst: IShuffleStrategy = {
 	order: (items, currentIndex) => {
-		if (currentIndex < 0) return [...items].sort(() => Math.random() - 0.5);
 		const current = items[currentIndex];
-		const rest = items.filter((_, i) => i !== currentIndex).sort(() => Math.random() - 0.5);
-		return [current, ...rest];
+		const rest = items.filter((_, index) => index !== currentIndex);
+		return [current, ...fisherYatesShuffle.order(rest, -1)];
 	},
 };
 
@@ -52,4 +62,5 @@ player.setup({ shuffleStrategy: pinCurrentFirst });
 
 ## Next steps
 
+- [Adapters](/nomercy-player-core/tour/adapters): the five port families and the three shapes a replacement comes in.
 - [Adapter: Realtime Channel](/nomercy-player-core/plugins-adapters/adapter-realtime-channel): the transport port behind `Plugin.websocket()`.
