@@ -107,6 +107,13 @@ const INTERNAL_ONLY = [
 // for a conversation, and `licence` is a real noun in other varieties, so both
 // stay off. A word inside a URL or a code span is skipped by the same
 // stripping every other check here uses.
+//
+// Two entries were checked against the published packages before being listed,
+// because a rule that renames an identifier is worse than no rule. `cancelled`
+// appears in the shipped API only as `transitionCancelled`, which a word
+// boundary cannot match inside camelCase. `analyser` is the Web Audio spec's
+// own spelling and appears as `analyserNode`, `_analyserLeft` and six more, so
+// only the verb forms are listed and the noun is absent.
 const BRITISH = [
   'catalogue', 'catalogues', 'catalogued',
   'colour', 'colours', 'coloured', 'colouring',
