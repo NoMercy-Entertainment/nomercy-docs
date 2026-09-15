@@ -9,7 +9,7 @@
 // Syntax gate for every reader-facing `ts`/`tsx` code block the site renders —
 // both directive-driven (`:::snippet{file="..."}`, already real source under
 // `src/examples/`) and hand-written fenced blocks inside `.mdx` prose. Reads
-// `dist/**/*.html` (the same build `e2e/snippets.spec.ts` gates against, see
+// `dist-e2e/**/*.html` (the same build `e2e/snippets.spec.ts` gates against, see
 // its own header comment for why the built output is the one enumeration
 // that can't drift from what's actually served) rather than re-parsing MDX
 // itself, so this check exercises the EXACT text a reader would copy —
@@ -41,7 +41,11 @@ import { transform } from 'esbuild';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
-const distDir = path.join(root, 'dist');
+// The Playwright gate builds into `dist-e2e` so a concurrent `astro build`
+// cannot corrupt it. This gate parses that same build: pointed at `dist` it
+// silently reads whatever was there last, which is how two correctly marked
+// partials were reported as broken programs.
+const distDir = path.join(root, 'dist-e2e');
 const contentDir = path.join(root, 'src', 'content');
 
 const TRIO_COLLECTIONS = ['nomercy-player-core', 'nomercy-video-player', 'nomercy-music-player'];
