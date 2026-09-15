@@ -86,6 +86,12 @@ jobs:
           java-version: '21'
 
       - uses: android-actions/setup-android@v3
+        with:
+          # The action's default package list still names the legacy 'tools'
+          # package, which command-line tools 16 no longer ship, so sdkmanager
+          # exits 1 before Gradle ever runs. Gradle fetches the platforms and
+          # build-tools it needs itself once the licences are accepted.
+          packages: platform-tools
 
       - name: Publish the player libraries locally
         env:

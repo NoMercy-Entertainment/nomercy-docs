@@ -108,7 +108,13 @@ if (bySpecifier.size === 0) {
 	process.exit(0);
 }
 
-const probeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'doc-symbols-'));
+// The probes must live under the repo, not in the OS temp dir: tsc resolves a bare
+// specifier by walking up from the importing file, and from /tmp it never reaches
+// this repo's node_modules. Locally the `paths` mapping to monorepo source hid that;
+// a standalone checkout in CI falls through to node_modules and failed every probe.
+const probeParent = path.join(ROOT, 'node_modules', '.cache');
+fs.mkdirSync(probeParent, { recursive: true });
+const probeDir = fs.mkdtempSync(path.join(probeParent, 'doc-symbols-'));
 const probes = [];
 let index = 0;
 for (const [specifier, symbols] of bySpecifier) {
