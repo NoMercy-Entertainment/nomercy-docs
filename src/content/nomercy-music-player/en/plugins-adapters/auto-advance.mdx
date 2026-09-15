@@ -3,14 +3,16 @@ title: 'Auto Advance'
 description: 'Play the next track when one ends, with a strategy of your own deciding which track that is.'
 ---
 
+{/* Source: packages/nomercy-music-player/src/plugins/auto-advance/index.ts, src/plugins/auto-advance/linear.ts, src/plugins/auto-advance/smart-shuffle.ts */}
+
 # Auto Advance
 
-Reach for `AutoAdvancePlugin` when you want a queue that keeps playing.
+Reach for `cls AutoAdvancePlugin` when you want a queue that keeps playing.
 It listens for a track ending and moves to the next one.
 
-Without it the player stops at the end of every track and waits for your own code to call `player.next()`.
+Without it the player stops at the end of every track and waits for your own code to call `fn next`.
 
-It also does the one thing that has to happen slightly before a track ends, which is handing the change to `player.crossfadeTo`.
+It also does the one thing that has to happen slightly before a track ends, which is handing the change to `fn crossfadeTo`.
 That is off by default, because a fade costs bandwidth a listener may not want spent.
 
 ```ts
@@ -19,7 +21,7 @@ import { AutoAdvancePlugin } from '@nomercy-entertainment/nomercy-music-player/p
 player.addPlugin(AutoAdvancePlugin);
 ```
 
-Register it before `setup()`, like any plugin.
+Register it before `fn setup`, like any plugin.
 
 **You should now hear the queue run on its own:** let a track reach its end and the next one starts, with no call from you.
 
@@ -34,17 +36,17 @@ Every option is optional, and the defaults give you plain sequential playback.
 
 | Option | Type | Default | What it does |
 | --- | --- | --- | --- |
-| `enabled` | `boolean` | `true` | Master switch. `false` leaves the plugin registered and inert. |
-| `crossfade` | `boolean` | `false` | Routes the advance through `player.crossfadeTo` instead of a plain change. |
-| `crossfadeDuration` | `number` | `0` | Seconds of overlap. At `0` the change is a hard cut rather than a fade. |
-| `generator` | `IPlaylistGenerator` | the queue's own order | An object that decides which track is next. Covered below. |
+| `key enabled` | `ts boolean` | `ts true` | Master switch. `ts false` leaves the plugin registered and inert. |
+| `key crossfade` | `ts boolean` | `ts false` | Routes the advance through `fn crossfadeTo` instead of a plain change. |
+| `key crossfadeDuration` | `ts number` | `ts 0` | Seconds of overlap. At `ts 0` the change is a hard cut rather than a fade. |
+| `key generator` | `cls IPlaylistGenerator` | the queue's own order | An object that decides which track is next. Covered below. |
 
-**This plugin is the only thing that fades one track into the next on its own.** With `crossfade` off, a track reaching its end is a plain change from one source to the other.
+**This plugin is the only thing that fades one track into the next on its own.** With `key crossfade` off, a track reaching its end is a plain change from one source to the other.
 
-Turning it on hands the change to [`player.crossfadeTo`](/nomercy-music-player/tour/crossfade), which is the same call you would make yourself.
+Turning it on hands the change to [`fn crossfadeTo`](/nomercy-music-player/tour/crossfade), which is the same call you would make yourself.
 
 The handoff does not run at the advance.
-It runs earlier, on `itemEndingSoon`, which the player emits once the current track is within `itemEndingSoonThreshold` seconds of its end.
+It runs earlier, on `str itemEndingSoon`, which the player emits once the current track is within `key itemEndingSoonThreshold` seconds of its end.
 
 **Turning it on without also setting a duration cuts every track short.**
 At a duration of `0` there is no fade to fill the gap between that event and the end, so the tail of every track is dropped.
@@ -59,7 +61,7 @@ player.addPlugin(AutoAdvancePlugin, {
 ```
 
 Ten seconds is the default lead.
-It is `itemEndingSoonThreshold` on the player config, in seconds.
+It is `key itemEndingSoonThreshold` on the player config, in seconds.
 Moving it there means moving the duration here to match.
 
 ## Choosing what plays next
@@ -84,11 +86,11 @@ player.addPlugin(AutoAdvancePlugin, {
 
 **You should now hear the queue play out of order**, with tracks of one genre or decade spread apart rather than clustered.
 
-It reads two fields on each item, `genre` and `decade`.
+It reads two fields on each item, `key genre` and `key decade`.
 Neither is part of the music playlist item type, so both are yours to add.
 
 A candidate earns one penalty point for sharing a genre with the track just played, and another for sharing a decade.
-The next track is drawn at random from everything scoring within `0.1` of the best.
+The next track is drawn at random from everything scoring within `ts 0.1` of the best.
 
 That draw is what stops the order coming out the same every time.
 
@@ -101,18 +103,18 @@ Plays the queue in order, for code that picks a strategy at runtime and wants th
 
 **It is not the same as passing no generator.**
 
-With no generator the plugin calls the player's own `next()`, which honors the repeat setting and emits `next` or `queue:exhausted`.
-Any generator, this one included, is routed through [`player.item()`](/nomercy-music-player/tour/queue) instead.
+With no generator the plugin calls the player's own `fn next`, which honors the repeat setting and emits `str next` or `str queue:exhausted`.
+Any generator, this one included, is routed through [`fn item`](/nomercy-music-player/tour/queue) instead.
 
-`item()` emits `item`, never reaches either of the other two events, and does not read the repeat setting at all.
+`fn item` emits `str item`, never reaches either of the other two events, and does not read the repeat setting at all.
 
-The symptom is repeat-one quietly advancing once a generator is set, and a queue that ends without your `queue:exhausted` handler firing.
+The symptom is repeat-one quietly advancing once a generator is set, and a queue that ends without your `str queue:exhausted` handler firing.
 
 ### Writing your own
 
-A generator is an object with an id and two methods, `next` and `previous`. Each method receives the queue and the current position, and returns an index.
+A generator is an object with an id and two methods, `fn next` and `fn previous`. Each method receives the queue and the current position, and returns an index.
 
-**`next` is the one the plugin calls.** The interface asks for the other two so the compiler does, and `player.previous()` walks the queue cursor without consulting a generator at all.
+**`fn next` is the one the plugin calls.** The interface asks for the other one so the compiler does, and `fn previous` walks the queue cursor without consulting a generator at all.
 
 ```ts
 import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
@@ -141,10 +143,10 @@ player.addPlugin(AutoAdvancePlugin, {
 
 **You should now hear the queue skip any track whose artist just played**, and stop when it runs out of anything else to play.
 
-`currentIndex` is `-1` only while the queue is empty.
-A queue that is loaded but not yet started reports `0`, so `-1` means "nothing to choose from" rather than "not started".
+`key currentIndex` is `ts -1` only while the queue is empty.
+A queue that is loaded but not yet started reports `ts 0`, so `ts -1` means "nothing to choose from" rather than "not started".
 
-**Returning `undefined` means the end of the queue, and the player stops there.**
+**Returning `ts undefined` means the end of the queue, and the player stops there.**
 
 An out-of-range index stops it too, because the plugin looks the index up in a plain array and gets nothing back.
 

@@ -30,7 +30,7 @@ const fixtureContentPath = path.join(
   'en',
   `${FIXTURE_SLUG}.mdx`,
 );
-const fixtureHtmlPath = path.join(root, 'dist', 'nomercy-video-player', FIXTURE_SLUG, 'index.html');
+const fixtureHtmlPath = path.join(root, 'dist-e2e', 'nomercy-video-player', FIXTURE_SLUG, 'index.html');
 const quickstartSourcePath = path.join(root, 'src', 'examples', 'quickstart.ts');
 
 test.describe('remark snippet directive', () => {

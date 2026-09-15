@@ -1,6 +1,6 @@
 ---
 title: 'Plugin: Cast Sender (music)'
-description: 'CastSenderPlugin registration for music: audio/mpeg default content type, MusicTrackMediaMetadata built from name/artist/album/cover. Full surface lives in core.'
+description: 'The music CastSenderPlugin overrides two hooks on the core plugin: audio/mpeg as the default content type, and a MusicTrackMediaMetadata built from name, artist, album and image.'
 ---
 
 {/* Source: packages/nomercy-music-player/src/plugins/cast-sender/index.ts */}
@@ -9,7 +9,7 @@ description: 'CastSenderPlugin registration for music: audio/mpeg default conten
 
 ## Purpose
 
-`CastSenderPlugin` (id `'cast-sender'`) sends a track to a Chromecast receiver: session lifecycle, remote-state mirroring, and resume-on-disconnect. It is a two-method specialization of the kit's [`CastSenderPlugin`](/nomercy-player-core/plugins-adapters/cast-sender). This subclass supplies only the two things that differ per medium: the default MIME type, and how a `MusicPlaylistItem` becomes Cast metadata.
+`cls CastSenderPlugin` (id `str cast-sender`) sends a track to a Chromecast receiver: session lifecycle, remote-state mirroring, and resume-on-disconnect. It is a two-method specialization of the kit's [`cls CastSenderPlugin`](/nomercy-player-core/plugins-adapters/cast-sender). This subclass supplies only the two things that differ per medium: the default MIME type, and how a `cls MusicPlaylistItem` becomes Cast metadata.
 
 ## Using it
 
@@ -19,38 +19,64 @@ import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-music-player/pl
 
 const player = nmplayer('player');
 
-player.addPlugin(CastSenderPlugin, { chromecastAppId: 'ABCD1234' });
+player.addPlugin(CastSenderPlugin);
+player.setup({
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+  playlist: [
+    {
+      id: 'ketsa-01-where-dreams-drift',
+      name: 'Where Dreams Drift',
+      artist: 'Ketsa',
+      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
+    },
+  ],
+});
 await player.ready();
 
 await player.getPlugin(CastSenderPlugin)?.connect();
 ```
 
-Subclass and override `buildMetadata()` when your items carry fields beyond the canonical `MusicPlaylistItem`, such as linked artist/album entities instead of plain strings:
+Register before `fn setup` and await `fn ready` before `fn connect`. `fn ready` never settles on a player that was never set up.
+
+The receiver app id is not a plugin option. Set it on the Cast SDK's own `cls CastContext` before calling `fn connect`, which is where the core page's [rules](/nomercy-player-core/plugins-adapters/cast-sender) put it.
+
+Subclass and override `fn buildMetadata` when your items carry fields beyond the canonical `cls MusicPlaylistItem`, such as a composer or a linked artist entity rather than a plain string. `fn buildMetadata` is declared as returning `ts unknown`, because the metadata class comes from whichever Cast SDK build the page loaded, so narrow it before you write to it:
 
 ```ts
-class MyCastSenderPlugin extends CastSenderPlugin {
-	protected override async buildMetadata(item, ctors) {
-		const meta = await super.buildMetadata(item, ctors);
-		// add app-specific fields on top of the canonical set super() already built
-		return meta;
-	}
+import type { ChromeCastMediaCtors } from '@nomercy-entertainment/nomercy-player-core';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+interface StudioTrack extends MusicPlaylistItem {
+  composer?: string;
+}
+
+class StudioCastSender extends CastSenderPlugin<StudioTrack> {
+  protected override async buildMetadata(item: StudioTrack, ctors: ChromeCastMediaCtors) {
+    const meta = (await super.buildMetadata(item, ctors)) as Record<string, unknown>;
+    meta['composer'] = item.composer ?? '';
+    return meta;
+  }
 }
 ```
 
 ## Reference
 
-`defaultContentType` defaults to `'audio/mpeg'` here, unless you override it explicitly.
+`fn defaultContentType` answers `str audio/mpeg` here.
 
-`buildMetadata(item, ctors)` reads only fields already on the canonical `MusicPlaylistItem`, building a `MusicTrackMediaMetadata` (falls back to `GenericMediaMetadata` if the SDK build lacks the music-track constructor):
+`fn buildMetadata` reads a fixed list of fields off the item, and builds a `cls MusicTrackMediaMetadata`. When the loaded SDK build carries no music-track constructor it builds a `cls GenericMediaMetadata` instead, and fills the same fields.
 
 | Item field | Metadata field |
 |---|---|
-| `item.name` | `title` |
-| `item.artist` (if set) | `artist` |
-| `item.album` (if set) | `albumName` |
-| `item.image` (falls back to the deprecated `item.cover`) | Resolved through `resolveUrl(item.image ?? item.cover, 'poster')` and set as `images`. |
+| `key name` | `key title`, empty string when the field is absent |
+| `key artist` | `key artist`, left off when the field is absent |
+| `key album` | `key albumName`, left off when the field is absent |
+| `key image`, falling back to `key cover` | `key images`, a single entry whose URL went through `fn resolveUrl` under the `str poster` category |
 
-Options, events, browser restrictions, the volume conversion, and the `transferTo('cast')` boundary are unchanged from the kit. See [Plugin: Cast Sender (core)](/nomercy-player-core/plugins-adapters/cast-sender) for the full surface, including the translation auto-discovery this plugin's own `i18n/` folder plugs into.
+An item carrying fields outside that list needs your own override. Nothing else is read.
+
+Options, events, browser restrictions, the volume conversion, and the `fn transferTo` boundary are unchanged from the kit. See [Plugin: Cast Sender (core)](/nomercy-player-core/plugins-adapters/cast-sender) for the full surface.
+
+This subclass carries its own string bundle for every locale the package ships, loaded lazily through `fn translationsFromGlob`. The kit base carries English and Dutch eagerly. Both bundles end up in the table, because plugin registration walks the prototype chain, and a key this subclass defines wins.
 
 ## Next steps
 

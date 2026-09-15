@@ -1,6 +1,6 @@
 ---
 title: 'Plugin: Media Session (music)'
-description: 'MediaSessionPlugin registration for music: the OS "Now Playing" surface, title/artist/album filled from the canonical MusicPlaylistItem fields. Full surface lives in core.'
+description: 'The music MediaSessionPlugin overrides one hook on the core plugin, turning a track name, artist and album into the OS Now Playing text. Artwork and every other behavior stay in core.'
 ---
 
 {/* Source: packages/nomercy-music-player/src/plugins/media-session/index.ts */}
@@ -9,7 +9,7 @@ description: 'MediaSessionPlugin registration for music: the OS "Now Playing" su
 
 ## Purpose
 
-`MediaSessionPlugin` (id `'media-session'`) feeds a track's title, artist, and album into the OS "Now Playing" surface: lock-screen controls, hardware media keys, Bluetooth remotes. It is a one-method specialization of the kit's [`MediaSessionPlugin`](/nomercy-player-core/plugins-adapters/media-session), which owns the actual `navigator.mediaSession` wiring. This subclass only overrides `getMetadata()`, how a `MusicPlaylistItem` becomes the lock-screen text.
+`cls MediaSessionPlugin` (id `str media-session`) feeds a track's title, artist and album into the OS "Now Playing" surface: lock-screen controls, hardware media keys, Bluetooth remotes. It is a one-method specialization of the kit's [`cls MediaSessionPlugin`](/nomercy-player-core/plugins-adapters/media-session), which owns the `ts navigator.mediaSession` wiring. This subclass overrides `fn getMetadata`, which is how a `cls MusicPlaylistItem` becomes the lock-screen text.
 
 ## Using it
 
@@ -20,36 +20,60 @@ import { MediaSessionPlugin } from '@nomercy-entertainment/nomercy-music-player/
 const player = nmplayer('player');
 
 player.addPlugin(MediaSessionPlugin);
+player.setup({
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+  playlist: [
+    {
+      id: 'ketsa-01-where-dreams-drift',
+      name: 'Where Dreams Drift',
+      artist: 'Ketsa',
+      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
+    },
+  ],
+});
 await player.ready();
 ```
 
-Subclass and override `getMetadata()` for fields beyond the canonical item, such as linked artist entities instead of plain strings:
+**Start playback and the track name appears on the lock screen**, with the transport buttons there driving the player.
+
+Subclass and override `fn getMetadata` for fields beyond the canonical item, such as a featured-artist list rather than one plain string:
 
 ```ts
-class MyMediaSessionPlugin extends MediaSessionPlugin {
-	protected override getMetadata(item) {
-		const base = super.getMetadata(item);
-		return {
-			...base,
-			artist: item.featuredArtists?.length ? `${base.artist} feat. ${item.featuredArtists.join(', ')}` : base.artist,
-		};
-	}
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+interface FeaturedTrack extends MusicPlaylistItem {
+  featuredArtists?: string[];
 }
 
-player.addPlugin(MyMediaSessionPlugin);
+class FeaturedMediaSession extends MediaSessionPlugin<FeaturedTrack> {
+  protected override getMetadata(item: FeaturedTrack) {
+    const base = super.getMetadata(item);
+    const featured = item.featuredArtists ?? [];
+
+    if (featured.length === 0) return base;
+
+    return { ...base, artist: `${base.artist} feat. ${featured.join(', ')}` };
+  }
+}
+
+player.addPlugin(FeaturedMediaSession);
 ```
 
 ## Reference
 
-`getMetadata()` builds:
+`fn getMetadata` builds three text fields, and nothing else:
 
-| MediaSession field | Music source |
+| Now Playing field | Read from |
 |---|---|
-| `title` | `item.name` (empty string when unset). |
-| `artist` | `item.artist` (empty string when unset). |
-| `album` | `item.album` (empty string when unset). |
+| `key title` | `key name`, or an empty string when the field is absent |
+| `key artist` | `key artist`, or an empty string when the field is absent |
+| `key album` | `key album`, or an empty string when the field is absent |
 
-Artwork uses the kit base class's shared priority (`image` → `poster` → `thumbnail` → `cover`). For a `MusicPlaylistItem`, `poster` and `thumbnail` are never set (they are video-only fields), so `item.image` wins when set and `item.cover` is the fallback. See [Plugin: Media Session (core)](/nomercy-player-core/plugins-adapters/media-session) for options, events, action handlers, and the full artwork chain.
+Artwork is the kit base class's job, and it walks `key image`, then `key poster`, then `key thumbnail`, then `key cover`. A music item normally carries only the first and the last, so `key image` wins and `key cover` is the fallback.
+
+That walk stops on the first field that is present rather than the first field that holds a URL. An item with `key image` set to an empty string publishes no artwork at all, even with a real `key cover` beside it, so leave a field out rather than blanking it.
+
+See [Plugin: Media Session (core)](/nomercy-player-core/plugins-adapters/media-session) for options, events, action handlers and the rest of the surface.
 
 ## Next steps
 

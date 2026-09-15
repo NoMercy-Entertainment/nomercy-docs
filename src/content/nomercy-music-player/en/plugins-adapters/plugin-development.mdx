@@ -26,7 +26,7 @@ The music-specific plugins are importable from `@nomercy-entertainment/nomercy-m
 
 | Plugin | Plugin id | What it does |
 | ------ | --------- | ------------ |
-| [`AutoAdvancePlugin`](/nomercy-music-player/plugins-adapters/auto-advance) | `'auto-advance'` | Advances the queue on `ended`; optionally preloads and crossfades on `itemEndingSoon` |
+| [`AutoAdvancePlugin`](/nomercy-music-player/plugins-adapters/auto-advance) | `'auto-advance'` | Advances the queue on `ended`, and optionally crossfades on `itemEndingSoon` |
 | [`LyricsPlugin`](/nomercy-music-player/plugins-adapters/lyrics) | `'lyrics'` | Fetches and time-syncs lyrics via the cue parser registry; fires `line` / `lineEnter` / `lineExit` |
 | [`ScrobblePlugin`](/nomercy-music-player/plugins-adapters/scrobble) | `'scrobble'` | Reports plays to an `IScrobbler` backend on the 50%-or-4-minute rule |
 | [`CastSenderPlugin`](/nomercy-music-player/plugins-adapters/cast-sender) | `'cast-sender'` | Chromecast sender with music track metadata and `audio/mpeg` content type |
@@ -197,7 +197,9 @@ A control surface calls the instance methods directly:
 
 ## Crossfade awareness
 
-Crossfade is on by default. The music `setup()` wrapper injects `crossfadeEnabled: true`, a `MusicPreloadStrategy`, and a `CrossfadeTransitionStrategy` with an equal-power curve unless your config supplies its own. `crossfadeDefaults` in the config sets the fallback duration and curve for every fade.
+The music `setup()` wrapper seeds crossfading rather than starting it. It injects `crossfadeEnabled: true`, a `MusicPreloadStrategy`, and a `CrossfadeTransitionStrategy` on an equal-power curve, each only when your own config leaves the field out. `crossfadeDefaults` sets the duration and curve a fade falls back to, which is five seconds when nothing else says otherwise.
+
+A fade still starts from a `crossfadeTo` call. Yours, or `AutoAdvancePlugin`'s when it is registered with `crossfade: true`.
 
 What a plugin gets:
 
@@ -208,7 +210,7 @@ What a plugin gets:
 
 `crossfadeTo` throws `StateError('core:player/crossfade-unsupported')` when the active backend reports `supportsCrossfade() === false`. After the fade completes the player moves its cursor to the new item, so `item` fires and downstream plugins follow.
 
-`AutoAdvancePlugin` is the reference pattern. It listens to `itemEndingSoon` and resolves what plays next, from queue order or a custom `IPlaylistGenerator`. It optionally preloads that item into the next slot with `load(next, { slot: 'next' })`, then hands off to `crossfadeTo`.
+`AutoAdvancePlugin` is the reference pattern. It listens to `itemEndingSoon`, resolves what plays next from queue order or a custom `IPlaylistGenerator`, and hands that item to `crossfadeTo`. See [Auto Advance](/nomercy-music-player/plugins-adapters/auto-advance).
 
 ## Audio output devices
 

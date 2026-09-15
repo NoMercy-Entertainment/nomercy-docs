@@ -7,9 +7,9 @@ description: 'IAudioBackend: the port every player-level method reads through fo
 
 # Adapter: Audio Backend
 
-`IAudioBackend` is the one port every music-specific player method reads and writes through: `play()`, `time()`, `crossfadeTo()`, `audioOutput()`, and the rest. `NMMusicPlayer` itself never touches an `<audio>` element or the Web Audio API directly.
+`cls IAudioBackend` is the one port every music-specific player method reads and writes through: `fn play`, `fn time`, `fn crossfadeTo`, `fn audioOutput`, and the rest. `cls NMMusicPlayer` itself never touches an `<audio>` element or the Web Audio API directly.
 
-Two implementations ship: `AudioElementBackend` (the default) and `WebAudioBackend`. This is the swap point for a custom backend: WebCodecs, a native-shell `<audio>` bridge, or a test double.
+Two implementations ship: `cls AudioElementBackend` (the default) and `cls WebAudioBackend`. This is the swap point for a custom backend: WebCodecs, a native-shell `<audio>` bridge, or a test double.
 
 ## The interface
 
@@ -76,84 +76,100 @@ interface IAudioBackend {
 
 Method conventions mirror the player class itself:
 
-- Stateful values are overloaded functions (`volume()` / `volume(level)`).
-- Actions are bare verbs (`play()`, `pause()`, `mute()`).
-- Seeking goes through `currentTime(seconds)`. There is no separate `seek()` method at this layer either.
+- Stateful values are overloaded functions: `fn volume` reads, `fn volume` with a level writes.
+- Actions are bare verbs (`fn play`, `fn pause`, `fn mute`).
+- Seeking goes through `fn currentTime`. There is no separate `fn seek` method at this layer either.
 
 ## The two shipped implementations
 
-| Backend | `kind` | Signal path | Use for |
+| Backend | `key kind` | Signal path | Use for |
 |---|---|---|---|
-| `AudioElementBackend` | `'audio-element'` | Plain `HTMLAudioElement`. Lazily creates a `MediaElementAudioSourceNode` only the first time a plugin requests the analyser graph, so a consumer without an equalizer or spectrum plugin pays zero Web Audio cost. | The default, the safe fallback for environments where Web Audio is restricted or undesired. |
-| `WebAudioBackend` | `'webaudio'` | `<audio>` → `MediaElementAudioSourceNode` → `AnalyserNode` → destination, routed through a real `AudioContext`. When `AudioContext` is unavailable, it throws `BrowserPolicyError` immediately at construction. It never silently degrades to a no-op graph. | Sample-accurate crossfades, or when a plugin needs full Web Audio graph access. |
+| `cls AudioElementBackend` | `str audio-element` | Plain `cls HTMLAudioElement`. Lazily creates a `cls MediaElementAudioSourceNode` only the first time a plugin requests the analyser graph, so a consumer without an equalizer or spectrum plugin pays zero Web Audio cost. | The default, the safe fallback for environments where Web Audio is restricted or undesired. |
+| `cls WebAudioBackend` | `str webaudio` | `<audio>` → `cls MediaElementAudioSourceNode` → `cls AnalyserNode` → destination, routed through a real `cls AudioContext`. When `cls AudioContext` is unavailable, it throws `cls BrowserPolicyError` immediately at construction. It never silently degrades to a no-op graph. | Sample-accurate crossfades, or when a plugin needs full Web Audio graph access. |
 
-Switch at `setup()` via `backend: 'webaudio'`, or at runtime:
+Pick one at `fn setup` with `key backend`, or swap at runtime:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
 
 const player = nmplayer('player');
 
-await player.backend('webaudio');
+player.setup({ backend: 'webaudio', playlist: [] });
+await player.ready();
+
+// Later, on the same player:
+await player.backend('audio-element');
 ```
 
-Both back the identical `IAudioBackend` surface, so every player-level method, `crossfadeTo()` included, reads the same either way.
+**`player.backend().kind` now reads back the one you asked for.** The swap is asynchronous, so await it before reading.
+
+Both back the identical `cls IAudioBackend` surface, so every player-level method, `fn crossfadeTo` included, reads the same either way.
 
 ## Crossfade: the dual-buffer contract
 
-`crossfadeTo()` on the player delegates the dual-buffer work to whichever backend is active. Three calls do it:
+`fn crossfadeTo` on the player delegates the dual-buffer work to whichever backend is active. Three calls do it:
 
-- `loadSecondary(url)` allocates and loads a second playback handle, without touching primary playback.
-- `primeSecondary(seekMs)` pre-rolls it to a start position and waits for it to be ready.
-- `crossfade(durationMs, curve?)` ramps both gains over the window, then swaps the secondary in as primary and disposes the old one. The curve is linear by default, constant-power with `'equal-power'`.
+- `fn loadSecondary` allocates and loads a second playback handle, without touching primary playback.
+- `fn primeSecondary` pre-rolls it to a start position and waits for it to be ready.
+- `fn crossfade` ramps both gains over the window, then swaps the secondary in as primary and disposes the old one. The curve is linear by default, constant-power with `str equal-power`.
 
-`secondaryGain()` and `secondaryGain(value)` exist for tests and for callers inspecting mid-crossfade state.
+`fn secondaryGain` reads and writes the incoming handle's gain, for a test or a caller inspecting the middle of a fade.
 
 Precision differs by backend.
 
-`AudioElementBackend` drives the fade with a `requestAnimationFrame` loop. That is not sample-accurate, so expect a sub-frame seam at track boundaries.
+`cls AudioElementBackend` drives the fade with a `requestAnimationFrame` loop. That is not sample-accurate, so expect a sub-frame seam at track boundaries.
 
-`WebAudioBackend` ramps through real `AudioParam` automation, which is sample-accurate. It allocates a fresh `<audio>` element and `MediaElementAudioSourceNode` pair per crossfade, because `createMediaElementSource()` binds an element to a context permanently and the same element cannot be reattached.
+`cls WebAudioBackend` ramps through real `cls AudioParam` automation, which is sample-accurate. It allocates a fresh `<audio>` element and `cls MediaElementAudioSourceNode` pair per crossfade, because `fn createMediaElementSource` binds an element to a context permanently and the same element cannot be reattached.
 
-`supportsCrossfade()` reports whether a backend can allocate a second playback handle at all. Both built-in backends return `true`. When a custom backend returns `false`, `crossfadeTo()` throws a `StateError` (a `PlayerError` subclass) with code `core:player/crossfade-unsupported`. The throw happens before any crossfade event fires or any buffer is touched. The player never attempts the transition.
+`fn supportsCrossfade` reports whether a backend can allocate a second playback handle at all. Both built-in backends return `ts true`. When a custom backend returns `ts false`, `fn crossfadeTo` throws a `cls StateError` (a `cls PlayerError` subclass) with code `str core:player/crossfade-unsupported`. The throw happens before any crossfade event fires or any buffer is touched. The player never attempts the transition.
 
 ## Auth on manifest and segment requests
 
-On an HLS audio stream, `hls.js` makes its own manifest and segment requests. `setAuthHeaderProvider(provider)` is how `Authorization: Bearer <token>` reaches those requests, not just the kit's `fetch` calls.
+On an HLS audio stream, hls.js makes its own manifest and segment requests. `fn setAuthHeaderProvider` is how `Authorization: Bearer <token>` reaches those requests, not just the kit's `fn fetch` calls.
 
-`NMMusicPlayer.backend()` wires this automatically from `setup({ auth })`. It resolves the bearer value fresh on every request (sync or async getter) rather than capturing it once.
+The player wires the provider onto every backend it builds, reading the `key auth` block of your setup config. It resolves the bearer value on each request rather than capturing it once, so a getter backed by a store stays live.
 
 ## Rules & restrictions
 
-- `backend()` constructs the instance on first call and caches it. Call it before `setup()` and you get an instance not yet wired to a loaded source.
-- One backend is active per player at a time. Swapping mid-session with `backend('webaudio')` disposes the previous one and emits `backend:changed`.
+- `fn backend` builds the instance on the first call and keeps it. Make that first call after `fn ready` has resolved, so it is built from the config your `fn setup` passed. A backend built earlier is never rebuilt, and the `key backend`, `key backendFactory` and `key controls` fields of that config reach nothing.
+- One backend is active per player at a time. Swapping mid-session disposes the previous one and emits `str backend:changed`.
 
 - A swap is not a crossfade. Whatever was playing stops, and the new backend comes up with no source, so reload the current item to resume.
-- `mediaKeys()`, `setMediaKeys()` and `outputProtectionState()` exist for EME and DRM coordination on protected audio. A backend that never touches encrypted content implements them as no-ops.
-- `outputNode` and `analysisNode` are the tap points the kit's `AudioGraphPlugin` chain needs for the equalizer, spectrum and visualizers. See [Equalizer](/nomercy-music-player/tour/equalizer). `analysisNode` is optional: a backend with no separate pre-volume source node omits it, and the plugin falls back to `outputNode`.
+- `fn mediaKeys`, `fn setMediaKeys` and `fn outputProtectionState` exist for EME and DRM coordination on protected audio. A backend that never touches encrypted content implements them as no-ops.
+- `fn outputNode` and `fn analysisNode` are the tap points the kit's `cls AudioGraphPlugin` chain needs for the equalizer, spectrum and visualizers. See [Equalizer](/nomercy-music-player/tour/equalizer). `fn analysisNode` is optional: a backend with no separate pre-volume source node omits it, and the plugin falls back to `fn outputNode`.
 
 ## How to extend it
 
-Provide a `backendFactory` at `setup()`. It receives the resolved kind and the full config, and returns any `IAudioBackend` implementation:
+Pass a `key backendFactory` to `fn setup`. It receives the resolved kind and the whole config, and answers any `cls IAudioBackend`:
 
 ```ts
+import nmplayer from '@nomercy-entertainment/nomercy-music-player';
 import type { AudioBackendFactory } from '@nomercy-entertainment/nomercy-music-player';
-import { AudioElementBackend } from '@nomercy-entertainment/nomercy-music-player/adapters/audio-backend';
+import {
+  AudioElementBackend,
+  WebAudioBackend,
+} from '@nomercy-entertainment/nomercy-music-player/adapters/audio-backend';
 
-const backendFactory: AudioBackendFactory = (kind, config) => {
-  if (kind === 'webaudio') return new MyCustomWebAudioBackend(container);
-  return new AudioElementBackend(container); // fall back to the default for anything else
+const player = nmplayer('player');
+
+// Route every kind through a real backend, and log which one was built.
+const backendFactory: AudioBackendFactory = kind => {
+  console.log(`building the ${kind} backend`);
+
+  if (kind === 'webaudio') return new WebAudioBackend(player.container);
+
+  return new AudioElementBackend(player.container);
 };
 
 player.setup({
-  baseUrl,
-  playlist,
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+  playlist: [],
   backendFactory,
 });
 ```
 
-A custom backend that implements the full `IAudioBackend` contract, crossfade methods included, works with every player-level method unchanged. `crossfadeTo()` never branches on which backend is active.
+A backend implementing the whole contract, crossfade calls included, works with every player-level method unchanged. `fn crossfadeTo` never branches on which one is active.
 
 ## Next steps
 
-- [Adapter: Similarity Engine](/nomercy-music-player/plugins-adapters/adapter-similarity-engine): a reserved port with no default implementation, for a future "find similar tracks" feature.
+- [Adapter: Similarity Engine](/nomercy-music-player/plugins-adapters/adapter-similarity-engine): the other music port, a "find similar tracks" contract with nothing behind it yet.

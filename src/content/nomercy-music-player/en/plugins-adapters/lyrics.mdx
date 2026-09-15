@@ -7,14 +7,14 @@ description: 'LyricsPlugin: fetches item.lyricsUrl on every cursor change, parse
 
 # Plugin: Lyrics
 
-`LyricsPlugin` (id `'lyrics'`) wires a track's synced lyrics to the kit's generic cue machinery.
+`cls LyricsPlugin` (id `str lyrics`) wires a track's synced lyrics to the kit's generic cue machinery.
 
 On every `item` change, the plugin runs its pipeline:
 
 1. Resolves a lyrics URL.
 2. Fetches it through the auth-aware fetch.
-3. Parses it with `resolveCueParser(url)`.
-4. Attaches a `CueTracker` that fires as playback crosses each line's window.
+3. Parses it with the parser `fn resolveCueParser` hands back for that URL.
+4. Attaches a `cls CueTracker` that fires as playback crosses each line's window.
 
 [Lyrics](/nomercy-music-player/tour/lyrics) is the walkthrough. [Recipe: Synced Lyrics UI](/nomercy-music-player/recipes/lyrics-sync) builds a scrolling panel.
 
@@ -22,54 +22,67 @@ On every `item` change, the plugin runs its pipeline:
 
 | Option | Type | Default | Purpose |
 |---|---|---|---|
-| `getLyricsUrl` | `(item: MusicPlaylistItem) => string \| undefined` | reads `item.lyricsUrl` | Custom resolver, for a catalog that derives the lyrics URL rather than storing it directly on the item. |
-| `autoFetch` | `boolean` | `true` | Auto-fetch on the `item` event. Set `false` to drive fetching entirely through the explicit `fetchLyrics(url)` method instead. |
+| `key getLyricsUrl` | `ts (item: MusicPlaylistItem) => string | undefined` | reads `key lyricsUrl` off the item | Custom resolver, for a catalog that derives the lyrics URL rather than storing it on the item. |
+| `key autoFetch` | `ts boolean` | `ts true` | Fetch on the `str item` event. `ts false` still clears the previous track's lines and leaves the fetching to `fn fetchLyrics`. |
 
 ## Events
 
-Namespaced onto the player's own bus as `plugin:lyrics:<event>`:
+The plugin's own events reach the player bus under a `str plugin:lyrics:` prefix, which is the name a listener has to spell out:
+
+```ts
+player.on('plugin:lyrics:lineEnter', (line: { text: string }) => {
+  console.log(line.text);
+});
+```
+
+Every line payload carries `key text` and whatever else the parser put on that cue, which for enhanced LRC is a `key words` array of per-word timings.
 
 | Event | Payload | Fires when |
 |---|---|---|
-| `loaded` | `{ count }` | The cue list is fetched, parsed, and the tracker is attached. `count` is the number of lines. |
-| `line` | `{ text, ...rest }` | Same payload and timing as `lineEnter`, kept as an alias for a listener that doesn't need the enter/exit distinction. |
-| `lineEnter` | `{ text, ...rest }` | A line's timing window starts. |
-| `lineExit` | `{ text, ...rest }` | A line's timing window ends. |
+| `str plugin:lyrics:loaded` | `key count`, the number of lines | The cue list is fetched, parsed, and the tracker is attached. |
+| `str plugin:lyrics:line` | the line payload | A line's window starts. Same payload and instant as `str plugin:lyrics:lineEnter`, for a listener that does not need the enter and exit split. |
+| `str plugin:lyrics:lineEnter` | the line payload | A line's window starts. |
+| `str plugin:lyrics:lineExit` | the line payload | A line's window ends. |
 
 ## Methods
 
-| Method | Signature | Purpose |
+| Method | Answers | Purpose |
 |---|---|---|
-| `current()` | `() => LyricPayload \| undefined` | The active line's payload, `undefined` between lines. |
-| `all()` | `() => ReadonlyArray<Cue<LyricPayload>>` | Every parsed cue for the current track, empty if none loaded. |
-| `clear()` | `() => void` | Tear down the active tracker without disposing the plugin. |
-| `fetchLyrics(url)` | `(url: string) => Promise<CueList<LyricPayload> \| undefined>` | Explicit fetch, takes precedence over auto-fetch, resolves once attached. |
+| `fn current` | the active line's payload, or `ts undefined` | What to show right now. It is `ts undefined` in the gap between two lines. |
+| `fn all` | every parsed cue for the current track | The whole sheet, for a panel that scrolls. Empty when nothing is loaded. |
+| `fn clear` | nothing | Tear down the active tracker without disposing the plugin. |
+| `fn fetchLyrics` | the parsed cue list, or `ts undefined` | Load a URL yourself. It resolves once the tracker is attached, and answers `ts undefined` when the fetch or the parser lookup failed. |
 
 ## Rules & restrictions
 
-- `item.lyricsUrl` is fetched exactly as given. It is **not** resolved against `baseUrl` the way `item.url` is. Store a fully-qualified URL, or resolve it yourself in a `getLyricsUrl` override. See [Lyrics: lyricsUrl isn't resolved against baseUrl](/nomercy-music-player/tour/lyrics#lyricsurl-isnt-resolved-against-baseurl).
-- A missing `item.lyricsUrl`, with no `getLyricsUrl` resolver returning one, clears plugin state quietly. No fetch, no error.
+- `key lyricsUrl` is fetched exactly as given. It is not resolved against `key baseUrl` the way `key url` is. Store a fully-qualified URL, or build one in a `key getLyricsUrl` resolver. See [Lyrics: lyricsUrl isn't resolved against baseUrl](/nomercy-music-player/tour/lyrics#lyricsurl-isnt-resolved-against-baseurl).
+- A track with no `key lyricsUrl`, and no resolver answering for it, clears the previous track's lines and stops there. No fetch, no error.
 
-- A fetch or parse failure reports through the plugin's error channel, `plugin:lyrics/no-parser` or `plugin:lyrics/fetch-failed`, rather than throwing. A bad lyrics file never interrupts playback.
-- Parsing needs a cue parser registered for that URL's format. A `.lrc` file resolves to the built-in parser. A custom format needs its own `ICueParser` registered first, through `player.registerCueParser()`. See [Core: Cue Parsers](/nomercy-player-core/tour/cue-parsers).
-- Add it before `setup()`, like any plugin, so `use()` runs inside the pipeline and the `item` listener is wired before the first track primes.
+- A failed fetch, and a URL no registered parser claims, both go to the plugin's error channel as `str plugin:lyrics/fetch-failed` and `str plugin:lyrics/no-parser`. Neither throws, and playback carries on.
+- A parser that throws on the file it claimed is a different case: `fn parse` runs outside that guard, so the rejection reaches whoever called `fn fetchLyrics`, and an auto-fetch surfaces it as an unhandled rejection. A parser you register yourself answers `ts false` from `fn canParse` for a file it cannot read.
+- Parsing needs a cue parser registered for that URL's format. A `.lrc` file reaches the built-in parser. A format of your own needs its own `cls ICueParser` registered first, through `fn registerCueParser`. See [Core: Cue Parsers](/nomercy-player-core/tour/cue-parsers).
+- Add it before `fn setup`, like any plugin, so its `str item` listener is wired before the first track primes.
 
-- Added after `ready()`, `use()` still runs, inline and fire-and-forget. But the `item` listener attaches too late for the loaded track, so lyrics start on the next `item` change or an explicit `fetchLyrics(url)`.
+- Added after `fn ready`, the listener attaches too late for the track already mounted, so lyrics start at the next `str item` change or at an explicit `fn fetchLyrics` call.
 
 ## How to extend it
 
-`LyricsPlugin` isn't designed for subclassing. Its surface is small enough that most customization goes through `opts.getLyricsUrl`, which lets you route to a different sidecar location or format. You can also register an additional `ICueParser` for a lyrics format the kit doesn't parse out of the box:
+`cls LyricsPlugin` is configured rather than subclassed. `key getLyricsUrl` routes to a different sidecar location or format, and a format the kit does not read joins it as a cue parser of your own:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
 import { LyricsPlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/lyrics';
 
+const MUSIC_BASE = 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music';
+
 const player = nmplayer('player');
 player.addPlugin(LyricsPlugin, {
-  getLyricsUrl: item => item.lyricsUrl ?? `https://lyrics.example.com/${item.id}.lrc`,
+  // The lyrics URL is never resolved against baseUrl, so build the whole thing here.
+  getLyricsUrl: item =>
+    item.lyricsUrl ?? (item.url ? `${MUSIC_BASE}${item.url.replace(/\.mp3$/u, '.lrc')}` : undefined),
 });
 player.setup({
-  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+  baseUrl: MUSIC_BASE,
   playlist: [
     {
       id: 'ketsa-01-where-dreams-drift',
@@ -85,4 +98,4 @@ player.setup({
 
 ## Next steps
 
-- [Plugin: Media Session](/nomercy-music-player/plugins-adapters/media-session): the OS "Now Playing" surface, built from the same track metadata this plugin reads for its own display.
+- [Plugin: Media Session](/nomercy-music-player/plugins-adapters/media-session): the OS "Now Playing" surface, built from the same track's metadata.

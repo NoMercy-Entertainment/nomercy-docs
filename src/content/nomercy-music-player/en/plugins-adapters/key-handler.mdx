@@ -1,6 +1,6 @@
 ---
 title: 'Plugin: Key Handler (music)'
-description: 'KeyHandlerPlugin registration for music: the kit defaults plus n/p/r/s for next, previous, repeat cycling, and shuffle toggling. Full surface lives in core.'
+description: 'The music KeyHandlerPlugin inherits every kit binding and overrides addMediaKeys to add n, p, r and s for next, previous, repeat cycling and shuffle.'
 ---
 
 {/* Source: packages/nomercy-music-player/src/plugins/key-handler/index.ts */}
@@ -9,7 +9,7 @@ description: 'KeyHandlerPlugin registration for music: the kit defaults plus n/p
 
 ## Purpose
 
-`KeyHandlerPlugin` (id `'key-handler'`) is `nomercy-music-player`'s keyboard-binding set. It is a thin subclass of the kit's [`KeyHandlerPlugin`](/nomercy-player-core/plugins-adapters/key-handler): scope resolution, cooldown, input-field awareness, `bind`/`unbind`/`replace`. It inherits every kit default unchanged and overrides only `addMediaKeys()` to add four listening-specific bindings.
+`cls KeyHandlerPlugin` (id `str key-handler`) is the music player's keyboard-binding set. It is a thin subclass of the kit's [`cls KeyHandlerPlugin`](/nomercy-player-core/plugins-adapters/key-handler), which owns scope resolution, the cooldown, input-field awareness and `fn bind`, `fn unbind` and `fn replace`. It inherits every kit default unchanged and overrides one method, `fn addMediaKeys`, to add four listening bindings.
 
 ## Using it
 
@@ -20,40 +20,65 @@ import { KeyHandlerPlugin } from '@nomercy-entertainment/nomercy-music-player/pl
 const player = nmplayer('player');
 
 player.addPlugin(KeyHandlerPlugin);
+player.setup({
+  baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
+  playlist: [
+    {
+      id: 'ketsa-01-where-dreams-drift',
+      name: 'Where Dreams Drift',
+      artist: 'Ketsa',
+      url: '/K/Ketsa/CC.BY.FREE.TO.USE.FOR.ANYTHING.(2025)/01.Where.Dreams.Drift.mp3',
+    },
+  ],
+});
 await player.ready();
 ```
 
-Add your own bindings on top without losing the defaults, call `super` first:
+**Press `n` and the queue moves to the next track.** Register the plugin before `fn setup`, and await `fn ready` before you expect a key to reach the player.
+
+Add your own bindings on top of the inherited ones by calling `super` first:
 
 ```ts
-class MyKeyHandler extends KeyHandlerPlugin {
-	protected override addMediaKeys(): void {
-		super.addMediaKeys(); // keep n/p/r/s and the kit defaults
-		this.bind('l', () => { void this.player.forward(15); }); // custom 15s skip
-	}
+class StudioKeyHandler extends KeyHandlerPlugin {
+  protected override addMediaKeys(): void {
+    super.addMediaKeys();
+    this.bind('l', () => {
+      this.player.forward?.(15);
+    });
+  }
 }
 
-player.addPlugin(MyKeyHandler);
+player.addPlugin(StudioKeyHandler);
 ```
+
+Leave out that `super` call and you drop the kit's hardware media keys as well as the four below, because they are installed by the same method.
 
 ## Reference
 
-This subclass adds no new option fields to `KeyHandlerOptions`. See [Plugin: Key Handler (core)](/nomercy-player-core/plugins-adapters/key-handler) for `scope`, `bindings`, `extend`, `when`, `cooldownMs`, `disableMediaControls`.
+This subclass adds no option fields. See [Plugin: Key Handler (core)](/nomercy-player-core/plugins-adapters/key-handler) for `key scope`, `key bindings`, `key extend`, `key when`, `key cooldownMs` and `key disableMediaControls`.
 
-Inherited unchanged from the kit: `Space` toggles playback, arrow keys seek and adjust volume, `m` toggles mute, the hardware `MediaX` keys work as usual.
+Inherited from the kit, unchanged:
+
+| Key | Action |
+|---|---|
+| the space bar | Toggle playback. The binding is registered under `str ' '`, the value a browser puts on `key key`, so a rebinding of your own spells it the same way rather than `str Space`. |
+| `str ArrowLeft` and `str ArrowRight` | Seek back and forward five seconds. |
+| `str ArrowUp` and `str ArrowDown` | Raise and lower the volume one step. |
+| `str m` | Toggle mute. |
+| the `str Media*` keys | Play, pause, stop, seek and track change from a physical media key, a headphone control or a remote. |
 
 Added by this subclass:
 
-| Keys | Action |
+| Key | Action |
 |---|---|
-| `n` | Next item. |
-| `p` | Previous item. |
-| `r` | Cycle repeat state: off → all → one → off. |
-| `s` | Toggle shuffle on/off. |
+| `str n` | Next item. |
+| `str p` | Previous item. |
+| `str r` | Cycle the repeat state: off, then all, then one, then off. |
+| `str s` | Toggle shuffle. |
 
-`addMediaKeys()` calls `super.addMediaKeys()` first, then adds the four bindings above. Override it again in a further subclass without calling `super`, and you drop the kit's own media-key bindings too, not just these four.
+`key disableMediaControls` silences the hardware `str Media*` keys only. These four keep firing.
 
-`r` and `s` call `repeatState()` / `shuffleState()` directly. They reflect and mutate the same state a UI-driven repeat/shuffle button would. There is no separate "key handler state" to keep in sync.
+`str r` and `str s` call `fn repeatState` and `fn shuffleState` on the player, so they move the same state a repeat or shuffle button in your own UI reads. There is no separate key-handler state to keep in step.
 
 ## Next steps
 

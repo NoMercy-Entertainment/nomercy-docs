@@ -7,29 +7,37 @@ description: 'ScrobblePlugin: threshold-based listen reporting (Last.fm 50%-or-4
 
 # Plugin: Scrobble
 
-`ScrobblePlugin` (id `'scrobble'`) tracks listened time per track, against the player's own `item`, `time` and `ended` events.
+`cls ScrobblePlugin` (id `str scrobble`) tracks listened time per track, against the player's own `str item`, `str time` and `str ended` events.
 
-It reports to a configured {`IScrobbler`} backend: `nowPlaying(item)` once per item on cursor change, and `scrobble(item, context)` once accumulated listened time crosses a threshold.
+It reports to a `cls IScrobbler` backend you supply: `fn nowPlaying` once per item on a cursor change, and `fn scrobble` once accumulated listened time crosses a threshold.
 
-The default scrobbler is a no-op, so the plugin is inert until a real backend is wired in. Time is tracked and never reported. [Recipe: Scrobbling](/nomercy-music-player/recipes/scrobbling) implements one.
+The default scrobbler is a no-op, so the plugin is inert until you pass a real one. Time is tracked and never reported. [Recipe: Scrobbling](/nomercy-music-player/recipes/scrobbling) implements one.
 
 ## Options
 
 | Option | Type | Default | Purpose |
 |---|---|---|---|
-| `scrobbler` | `IScrobbler<MusicPlaylistItem>` | `NoopScrobbler` | The reporting backend. |
-| `thresholdRatio` | `number` | `0.5` | Fraction of the track's duration counted as "listened enough": Last.fm's 50% rule. |
-| `thresholdSeconds` | `number` | `240` | Absolute listened-seconds ceiling. Whichever of this or `thresholdRatio` is reached first wins: Last.fm's 4-minute rule. |
-| `minDurationSeconds` | `number` | `30` | Tracks shorter than this are never scrobbled. |
+| `key scrobbler` | `cls IScrobbler` | `cls NoopScrobbler` | The reporting backend. |
+| `key thresholdRatio` | `ts number` | `ts 0.5` | Fraction of the track's duration counted as listened enough, which is Last.fm's 50% rule. |
+| `key thresholdSeconds` | `ts number` | `ts 240` | Ceiling on the same figure, which is Last.fm's 4-minute rule. The threshold is the smaller of the two, so a long track scrobbles at four minutes rather than at half its length. |
+| `key minDurationSeconds` | `ts number` | `ts 30` | Tracks shorter than this are never scrobbled, and neither is a track whose duration the backend has not reported yet. |
 
 ## Events
 
-Namespaced onto the player's own bus as `plugin:scrobble:<event>`:
+The plugin's own events reach the player bus under a `str plugin:scrobble:` prefix, which is the name a listener has to spell out:
+
+```ts
+player.on('plugin:scrobble:scrobbled', (data: { listenedSeconds: number }) => {
+  console.log(`counted ${Math.round(data.listenedSeconds)}s`);
+});
+```
 
 | Event | Payload | Fires when |
 |---|---|---|
-| `nowPlaying` | `{ item }` | Right after `IScrobbler.nowPlaying()` resolves, once per item. |
-| `scrobbled` | `{ item, listenedSeconds }` | Right after `IScrobbler.scrobble()` resolves, once per item, the first time the threshold is crossed. |
+| `str plugin:scrobble:nowPlaying` | `key item` | `fn nowPlaying` on your backend has resolved, once per item. A backend that omits the optional method still gets the event. |
+| `str plugin:scrobble:scrobbled` | `key item` and `key listenedSeconds` | `fn scrobble` on your backend has resolved, once per item, the first time the threshold is crossed. |
+
+A rejected call emits neither. It goes to the error channel instead.
 
 ## The IScrobbler port
 
@@ -48,44 +56,75 @@ interface ScrobbleContext {
 }
 ```
 
-`nowPlaying` is optional, a backend with no "currently listening" concept can omit it. `NoopScrobbler`, the shipped default, implements both as immediately-resolving no-ops.
+`fn nowPlaying` is optional, so a backend with no "currently listening" concept leaves it out. `cls NoopScrobbler`, the shipped default, implements both as immediately resolving no-ops.
+
+`key source` is declared as three values and the plugin always sends `str user`. Nothing in the published build reports `str auto` or `str radio`, so a backend that branches on it takes one branch.
 
 ## How listened time is tracked
 
-A normal playback tick advances the `time` event by well under a second. Anything 2 seconds or more between ticks counts as a seek or a track change, and it doesn't count toward listened time. This means scrubbing back and forth through a track doesn't inflate the listened total the way naively summing every `time` delta would.
+A normal playback tick advances the `str time` event by well under a second.
+
+A gap of two seconds or more is read as a seek or a track change and adds nothing. A jump backward adds nothing either.
+
+Scrubbing back and forth therefore does not inflate the total, the way summing every `str time` delta would.
 
 ## Methods
 
 `ScrobblePlugin` exposes the tracked state read-only, for a UI that wants to show elapsed listened time or badge a track as scrobbled without waiting on the plugin's own events:
 
-| Method | Signature | Notes |
+| Method | Answers | Notes |
 |---|---|---|
-| `listened()` | `() => number` | Seconds of listened time accumulated for the current item so far, the same running total `scrobble()` is checked against once it crosses the threshold. |
-| `isScrobbled()` | `() => boolean` | Whether the current item already crossed the scrobble threshold. Latches `true` for the rest of that item's playback. |
+| `fn listened` | `ts number` | Seconds of listened time accumulated for the current item, the same running total the threshold is checked against. |
+| `fn isScrobbled` | `ts boolean` | Whether the current item already crossed the threshold. It stays `ts true` for the rest of that item's playback. |
 
 ```ts
 const scrobble = player.getPlugin(ScrobblePlugin);
+
 console.log(scrobble?.listened(), scrobble?.isScrobbled());
 ```
 
+Both read the current item. Neither waits on your backend, so a UI can badge a track the moment the threshold is crossed rather than when the report comes back.
+
 ## Rules & restrictions
 
-- A failed `scrobble()` or `nowPlaying()` never interrupts playback. The plugin catches the rejection and reports it through its own error channel, `plugin:scrobble/scrobble-failed` or `plugin:scrobble/now-playing-failed`.
-- Once a track is scrobbled it stays scrobbled. `isScrobbled()` latches `true` for the rest of that item's playback, so replaying it without advancing does not scrobble again.
-- Tracking resets on every `item` change, including a mid-track `crossfadeTo()`. Listened time never carries across tracks.
+- A rejected `fn scrobble` or `fn nowPlaying` never interrupts playback. The plugin catches it and reports `str plugin:scrobble/scrobble-failed` or `str plugin:scrobble/now-playing-failed` on its error channel.
+- Once a track is scrobbled it stays scrobbled. Replaying it without moving the cursor does not report a second time, because the latch clears only on an `str item` change.
+- Tracking resets on every `str item` change, a mid-track `fn crossfadeTo` included. Listened time never carries across tracks.
 
 ## How to extend it
 
-Implement `IScrobbler` against a real service and pass it as `opts.scrobbler`:
+Implement `cls IScrobbler` against a real service and pass it as `key scrobbler`:
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-music-player';
 import { ScrobblePlugin } from '@nomercy-entertainment/nomercy-music-player/plugins/scrobble';
+import type { IScrobbler } from '@nomercy-entertainment/nomercy-music-player/plugins/scrobble';
+import type { MusicPlaylistItem } from '@nomercy-entertainment/nomercy-music-player';
+
+const token = 'your-listenbrainz-user-token';
+
+const listenBrainz: IScrobbler<MusicPlaylistItem> = {
+  id: 'listenbrainz',
+
+  async scrobble(item, context) {
+    await fetch('https://api.listenbrainz.org/1/submit-listens', {
+      method: 'POST',
+      headers: { 'Authorization': `Token ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        listen_type: 'single',
+        payload: [
+          {
+            listened_at: context.startedAt,
+            track_metadata: { track_name: item.name, artist_name: item.artist ?? '' },
+          },
+        ],
+      }),
+    });
+  },
+};
 
 const player = nmplayer('player');
-player.addPlugin(ScrobblePlugin, {
-  scrobbler: new MyLastFmScrobbler(sessionKey),
-});
+player.addPlugin(ScrobblePlugin, { scrobbler: listenBrainz });
 player.setup({
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
   playlist: [
@@ -99,7 +138,7 @@ player.setup({
 });
 ```
 
-See [Recipe: Scrobbling](/nomercy-music-player/recipes/scrobbling) for a full `IScrobbler` implementation built on the `listened()` / `isScrobbled()` read surface above.
+See [Recipe: Scrobbling](/nomercy-music-player/recipes/scrobbling) for a full `cls IScrobbler` implementation built on `fn listened` and `fn isScrobbled`.
 
 ## Next steps
 

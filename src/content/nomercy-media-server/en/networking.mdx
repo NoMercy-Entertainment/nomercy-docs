@@ -19,7 +19,7 @@ It also opens **7627** for its own health checks. That one is loopback only, so 
 Setup does this without asking you anything. In order, it tries to:
 
 1. **Open a port on your router.** The server asks the router directly, using UPnP, and then asks the NoMercy API to connect to that address from the internet. A router that accepts the request but does not actually forward anything is common, which is why the check runs from outside instead of trusting the reply.
-2. **Use the tunnel assigned to your server.** When the port is not reachable from outside and NoMercy has assigned a named tunnel to your server, traffic goes through that tunnel. It works even when your router allows nothing inbound.
+2. **Use the tunnel assigned to your server.** When the port is not reachable from outside and your server has a named tunnel, traffic goes through that tunnel. It works even when your router allows nothing inbound. A NoMercy subscription assigns a named tunnel to each of your servers on its own, and a server that is running on a quick tunnel moves to it within a minute.
 3. **Open a quick tunnel.** When there is no verified port and no named tunnel, the server opens a free Cloudflare quick tunnel on its own. It needs no account, no token and no router change. Cloudflare hands out a random `trycloudflare.com` address for this run, and your apps get that address from NoMercy the moment it is live. The address changes every time the server starts; your apps follow it without you doing anything.
 
 A port forward that answers from outside always wins, even when a tunnel is assigned to the server. The tunnels are the fallback, not the default. Every server ends up reachable from outside on one of the three, whatever the router allows.

@@ -1,17 +1,17 @@
 ---
 title: 'Plugin: Cast Sender (video)'
-description: 'CastSenderPlugin registration for video: video/mp4 default content type, TvShowMediaMetadata built from show/season/episode/poster. Full surface lives in core.'
+description: 'The video subclass of CastSenderPlugin supplies two things: a video/mp4 default content type, and Cast metadata built from the item title, show, season, episode and poster.'
 ---
 
-{/* Source: packages/nomercy-video-player/src/plugins/cast-sender/index.ts */}
+{/* Source: packages/nomercy-video-player/src/plugins/cast-sender/index.ts, packages/nomercy-player-core/src/plugins/cast-sender/index.ts */}
 
 # Plugin: Cast Sender
 
-## Purpose
+`cls CastSenderPlugin` (id `str cast-sender`) sends the playing video item to a Chromecast receiver and mirrors the receiver's state back onto the player.
 
-`CastSenderPlugin` (id `'cast-sender'`) sends a video item to a Chromecast receiver: session lifecycle, remote-state mirroring, and resume-on-disconnect. It is a two-method specialization of the kit's [`CastSenderPlugin`](/nomercy-player-core/plugins-adapters/cast-sender). This subclass supplies only the two things that differ per medium: the default MIME type, and how a `VideoPlaylistItem` becomes Cast metadata.
+It is a two-method subclass of the kit's [`cls CastSenderPlugin`](/nomercy-player-core/plugins-adapters/cast-sender). Session lifecycle, the transport bridge, the volume conversion, the events and the resume-on-disconnect behavior all live in the base class and are unchanged here. This page covers only what the video subclass decides: the default MIME type, and how a `cls VideoPlaylistItem` becomes Cast metadata.
 
-## Using it
+## Registering it
 
 ```ts
 import nmplayer from '@nomercy-entertainment/nomercy-video-player';
@@ -19,38 +19,57 @@ import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-video-player/pl
 
 const player = nmplayer('player');
 
-player.addPlugin(CastSenderPlugin, { chromecastAppId: 'ABCD1234' });
+player.addPlugin(CastSenderPlugin, { live: true });
+player.setup({ playlist: [] });
 await player.ready();
 
 await player.getPlugin(CastSenderPlugin)?.connect();
 ```
 
-Subclass and override `buildMetadata()` when your items carry fields beyond the canonical `VideoPlaylistItem`, such as a server-specific `name`:
+`fn connect` needs `ts cast.framework` already on the page, and the receiver app id is set on the SDK's own `ts CastContext` before you call it. The receiver is not a plugin option. The core page covers both, along with the separate `fn transferTo` route.
+
+## The default content type
+
+`fn defaultContentType` answers `str video/mp4`. It is the type sent when the item carries neither `key mime` nor `key contentType`, and the `key defaultContentType` option overrides it per registration.
+
+## What the metadata carries
+
+`fn buildMetadata` reads five fields off the canonical `cls VideoPlaylistItem` and nothing else.
+
+| Item field | What it becomes |
+|---|---|
+| `key title` | `key title`, or an empty string when the item has none |
+| `key show`, set to a non-empty string | `ts TvShowMediaMetadata` if the SDK build carries that constructor, otherwise `ts GenericMediaMetadata`, with `key seriesTitle` taken from `key show` |
+| `key season` | `key season`, coerced with `fn Number`, and only on the show path |
+| `key episode` | `key episode`, coerced with `fn Number`, and only on the show path |
+| `key poster` | resolved through `fn resolveUrl` under the `str poster` category, then written as a one-entry `key images` array |
+
+An item with no `key show` gets a plain `ts GenericMediaMetadata` carrying the title and the poster. An item carrying your own fields needs your own override, because the list above is fixed.
+
+## How to extend it
+
+Subclass and call up to the base, which builds the canonical set for you:
 
 ```ts
+import { CastSenderPlugin } from '@nomercy-entertainment/nomercy-video-player/plugins/cast-sender';
+import type { ChromeCastMediaCtors } from '@nomercy-entertainment/nomercy-player-core';
+import type { VideoPlaylistItem } from '@nomercy-entertainment/nomercy-video-player';
+
 class MyCastSenderPlugin extends CastSenderPlugin {
-	protected override async buildMetadata(item, ctors) {
-		const meta = await super.buildMetadata(item, ctors);
-		// add app-specific fields on top of the canonical set super() already built
-		return meta;
-	}
+  protected override async buildMetadata(item: VideoPlaylistItem, ctors: ChromeCastMediaCtors) {
+    const meta = await super.buildMetadata(item, ctors);
+    return meta;
+  }
 }
 ```
 
-## Reference
+Keeping the `str cast-sender` id means the subclass replaces the built-in at registration rather than running beside it.
 
-`defaultContentType` defaults to `'video/mp4'` here, unless you override it explicitly.
+## Translations
 
-`buildMetadata(item, ctors)` reads only fields already on the canonical `VideoPlaylistItem`:
-
-| Item has... | Metadata built |
-|---|---|
-| `item.show` set (non-empty string) | `TvShowMediaMetadata` (falls back to `GenericMediaMetadata` if the SDK build lacks the TV-show constructor), `seriesTitle` from `show`, `season` / `episode` set when present. |
-| `item.show` unset or empty | Plain `GenericMediaMetadata`, `title` only, `subtitle` is not set on this path. |
-| `item.poster` | Resolved through `resolveUrl(item.poster, 'poster')` and set as the metadata's `images`. |
-
-Options, events, browser restrictions, the volume conversion, and the `transferTo('cast')` boundary are unchanged from the kit. See [Plugin: Cast Sender (core)](/nomercy-player-core/plugins-adapters/cast-sender) for the full surface.
+The subclass ships its own bundle for 79 locales, discovered by `fn translationsFromGlob`. The kit's base class ships English and Dutch as an eager literal. Registration walks the prototype chain, so both bundles reach the table with the base's keys first.
 
 ## Next steps
 
-- [Plugin: Media Session](/nomercy-video-player/plugins-adapters/media-session): the same show/season/poster fields feeding the OS lock screen instead of a Chromecast receiver.
+- [Plugin: Cast Sender (core)](/nomercy-player-core/plugins-adapters/cast-sender): options, events, the transport bridge and the browser restrictions.
+- [Plugin: Media Session](/nomercy-video-player/plugins-adapters/media-session): the same title, show and season fields feeding the OS lock screen instead of a receiver.
