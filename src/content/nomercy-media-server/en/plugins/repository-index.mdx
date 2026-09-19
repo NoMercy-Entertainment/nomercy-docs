@@ -29,8 +29,8 @@ The server asks for the URL you gave it and expects this document back.
         {
           "version": "1.2.0",
           "targetAbi": "10.2",
-          "downloadUrl": "https://plugins.example.com/example-plugin/1.2.0/Example.Plugin.dll",
-          "checksum": "sha256-of-the-dll-in-lowercase-hex",
+          "downloadUrl": "https://plugins.example.com/example-plugin/1.2.0/Example.Plugin.zip",
+          "checksum": "sha256-of-the-zip-in-lowercase-hex",
           "changelog": "What changed in this version.",
           "timestamp": "2026-07-30T00:00:00Z"
         }
@@ -75,9 +75,9 @@ below every one that does rather than breaking the entry.
 | Field | Required | What it is |
 |---|---|---|
 | `version` | yes | Dotted numeric, for example `1.2.0`. This is what gets compared. |
-| `downloadUrl` | yes | A direct link to the `.dll`. The server fetches this; a browser never sees it. |
+| `downloadUrl` | yes | A direct link to the package, a `.zip` carrying the manifest and assembly, or a bare `.dll` for something trivial. The server fetches this; a browser never sees it. |
 | `targetAbi` | no | The plugin platform version this build targets. |
-| `checksum` | no | SHA-256 of the file at `downloadUrl`. See below. |
+| `checksum` | no | SHA-256 of the `.zip` at `downloadUrl`, lowercase hex. See below. |
 | `changelog` | no | What changed. |
 | `timestamp` | no | When this version was published. |
 
@@ -85,6 +85,12 @@ below every one that does rather than breaking the entry.
 
 Publish one. The server verifies the file it downloaded against `checksum` before anything
 is copied into the plugins folder, and a mismatch aborts the install.
+
+A checksum has one subject: the `.zip` package, byte for byte as you uploaded it. Hash that
+file, whichever route an owner installs through, so one catalog entry gives the same answer
+everywhere. A checksum published for a bare `.dll` is refused, and the refusal names the
+file the server saw, the file it wanted, and the two ways out: release the version as a
+`.zip` and hash that, or publish the version without a checksum.
 
 A version without a checksum still installs. The catalog marks it unverified and the
 owner is told, in the confirmation prompt, that nothing can be checked before it lands. That
@@ -99,7 +105,8 @@ using the web app can point an install somewhere you did not publish.
 Listing a plugin does not grant it anything. Every plugin still declares its capabilities in
 its own manifest, still installs disabled when it asks for more than the baseline, and still
 waits for the server owner to approve what it asked for. A repository is a place to find
-plugins, not a way to skip consent.
+plugins, not a way to skip consent, and an owner marking your repository
+[trusted](/nomercy-media-server/plugins/trusted-publishers) does not change that.
 
 ## Serving it
 

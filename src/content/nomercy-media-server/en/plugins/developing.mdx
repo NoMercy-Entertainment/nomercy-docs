@@ -45,6 +45,25 @@ Declare the narrowest set that works. A plugin needing only media source, metada
 
 Network access is limited to the hosts you declared. Reaching elsewhere fails unless the owner grants that host.
 
+The set you declare is the set the owner approved. A manifest that asks for more than that, a hook it did not carry before, `rest` or `ws` switched on, or another network host, loads disabled until the owner approves the wider set. Ship the capabilities you need from the first release rather than growing into them.
+
+## Endpoints that ask for a token
+
+Every route your plugin serves carries the server's own authorization, imposed by the host in the same pass that puts your controller under `api/v{version}/plugins/{pluginId}`. An `[AllowAnonymous]` written in plugin code is taken back off, because which endpoints are open is the owner's decision and not yours.
+
+An endpoint that answers a caller with no token is one line in the manifest:
+
+```json
+{
+  "capabilities": {
+    "rest": true,
+    "restAnonymous": true
+  }
+}
+```
+
+`restAnonymous` is off unless the manifest says otherwise, and it applies to every route the plugin serves. The owner reads it beside the rest of your declaration before consenting, which is the point of putting it there. Ask for it only when the caller genuinely cannot hold a token, such as a webhook another service posts to, and say why in your description.
+
 ## Asking at runtime
 
 When you cannot know something in advance, such as a host the user configures themselves, ask for it while running through `IPluginGrants.RequestAsync`. Give a real reason: the owner sees it and decides on it.
@@ -53,7 +72,7 @@ When you cannot know something in advance, such as a host the user configures th
 
 Ship a `.zip` containing your manifest and assembly, or a bare `.dll` for something trivial.
 
-To publish through a repository, list it in a catalog with a download address and a checksum. The server verifies the checksum on install.
+To publish through a repository, list it in a catalog with a download address and a checksum. A published checksum describes one file, the `.zip` as you uploaded it, and a checksum published against anything else is refused with the file it saw, the file it wanted and how to republish. Release as a `.zip` and hash that file. See [Publishing a Plugin Repository](/nomercy-media-server/plugins/repository-index).
 
 ## Compatibility
 

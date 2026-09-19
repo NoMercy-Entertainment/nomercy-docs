@@ -39,6 +39,10 @@ A plugin declares what it needs. A plugin that only reads media, supplies metada
 
 A plugin that wants more, such as reaching the network, adding its own endpoints, or opening a socket, **installs but stays switched off until you allow it**. It cannot switch itself on. You see it listed as waiting for consent, you read what it asked for, and you decide.
 
+Consent is recorded against the exact set the plugin asked for. An update whose manifest asks for more, a hook it did not carry before, its own endpoints or socket, or another network host, loads disabled and waits for you again, with the addition named. Your earlier yes covered the smaller request, so it answers for that one and no other.
+
+Where a plugin came from never answers for you. A repository you marked trusted says the plugin's origin is one you accept, and the plugin still asks you before it runs. See [Repositories and trust](/nomercy-media-server/plugins/trusted-publishers).
+
 Consent can be withdrawn later. Withdrawing it disables the plugin and clears what you granted.
 
 ## Grants
@@ -52,7 +56,8 @@ Each request arrives separately with the reason the plugin gave, and you approve
 Plugins run inside the server, so this is a permission model rather than a wall. The protections that exist are real, and knowing their shape is better than assuming more:
 
 - A plugin only reaches the network hosts it declared or you granted.
-- A plugin needing anything beyond the ordinary set cannot run until you say so.
+- A plugin needing anything beyond the ordinary set cannot run until you say so, and one that later asks for more waits for you again.
+- The endpoints a plugin adds ask the caller for a token, on the server's own terms rather than the plugin author's. A plugin that wants one open to anybody declares it in its manifest, where you read it before you consent.
 - Its version compatibility is checked before it loads, so a plugin built against a different server version is rejected rather than half-loaded.
 - Downloads from a repository are checked against the checksum the repository published.
 
