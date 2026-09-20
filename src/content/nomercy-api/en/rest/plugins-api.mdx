@@ -104,6 +104,27 @@ The telemetry setting is the one choice an owner has: whether crash and
 resource counters leave the server. Refusal counts always leave, and a
 sideloaded plugin is never reported at all.
 
+## What a plugin knows about one person
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/plugins/{id}/users/{userId}/export` | That account, or the owner |
+| DELETE | `/api/v1/dashboard/plugins/{id}/users/{userId}` | That account, or the owner |
+
+Everything a plugin stores under a user capability goes in a folder of its
+own, one per person per plugin. That shape is what makes both of these
+possible: handing somebody everything a plugin holds about them, and removing
+it when they leave.
+
+The export is plain JSON, exactly what is stored.
+
+Deleting a member removes what every plugin on the server held about them, not
+just the ones they installed. One plugin left holding somebody's history is
+the same failure as all of them, and the person who left cannot check.
+
+A plugin never does the removing itself. Erasure that depends on every author
+remembering it is erasure that gets missed.
+
 ## Devices on your own network
 
 Some plugins serve software that cannot sign in: a television tuner, an
