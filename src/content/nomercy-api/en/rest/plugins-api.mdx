@@ -104,6 +104,35 @@ The telemetry setting is the one choice an owner has: whether crash and
 resource counters leave the server. Refusal counts always leave, and a
 sideloaded plugin is never reported at all.
 
+## Devices on your own network
+
+Some plugins serve software that cannot sign in: a television tuner, an
+HDHomeRun client, a media box with no browser. Those get a credential instead.
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/plugins/{id}/lan-devices` | Owner |
+| POST | `/api/v1/dashboard/plugins/{id}/lan-devices` | Owner |
+| DELETE | `/api/v1/dashboard/plugins/{id}/lan-devices/{deviceId}` | Owner |
+| GET | `/api/v1/plugins/{id}/lan/{deviceId}/{credential}` | Nothing |
+
+The last row is the only plugin route in the whole API that carries no token.
+
+Two things guard it. The credential is 32 random bytes the server minted for
+one named device on one plugin, so it opens nothing else. And the route answers
+only to callers on the same network as the server: a request from outside is
+refused exactly as an unknown credential is, so nothing leaks to whoever found
+the address.
+
+A plugin never issues a credential and never sees one.
+
+The credential comes back once, when you add the device. Afterwards the list
+shows the device name and when it was added, never the credential. Revoke it
+and the device stops working straight away; add it again for a new address.
+
+Name each device something you will recognize, because the name is how you
+pick the right one to revoke.
+
 ## What the hub sends
 
 `/pluginHub` carries two server-to-client messages.
