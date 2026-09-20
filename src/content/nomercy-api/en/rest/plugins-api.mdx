@@ -104,6 +104,24 @@ The telemetry setting is the one choice an owner has: whether crash and
 resource counters leave the server. Refusal counts always leave, and a
 sideloaded plugin is never reported at all.
 
+## What the hub sends
+
+`/pluginHub` carries two server-to-client messages.
+
+`PluginMessage` is a plugin pushing to the clients watching it, with
+`pluginId`, `type` and `payload`.
+
+`PluginAccessChanged` is the server telling one account what it may now open,
+with `pluginId` and `access` (`owned`, `shared` or `none`). It arrives when an
+entitlement lands, a revocation lands, a guest install is purged, or the owner
+changes their answer.
+
+It is addressed to the account, so every device that account is signed in on
+gets it, and no device has to ask again. Everyone on the server is told their
+own answer, never each other's.
+
+A client that does not handle the message ignores it.
+
 ## Where to go next
 
 - [Plugins overview](/nomercy-media-server/plugins/overview)
