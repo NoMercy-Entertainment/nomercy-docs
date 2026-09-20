@@ -42,3 +42,20 @@ Some changes need the server restarted before they take effect, and the screen s
 
 - [Plugins overview](/nomercy-media-server/plugins/overview)
 - [Repositories and trust](/nomercy-media-server/plugins/trusted-publishers)
+
+## When a plugin uses too much
+
+The server watches what each plugin uses and acts when one goes past what you allowed it.
+
+A plugin using too much processor is reported and left running, because it is still
+answering and stopping it would lose whatever it was doing. A plugin holding too much memory
+is restarted, because memory is not given back by asking and waiting costs the whole server.
+
+A plugin restarted three times in an hour is turned off instead of restarted again. One that
+breaches every time it comes back is in a loop, and a server that never settles helps
+nobody. Its page says how many restarts it took and how to turn it on again.
+
+On this release the server measures nothing per plugin: a plugin runs inside the server's
+own process, so the runtime knows what the process used, not which plugin used it. The
+ceilings are there and the actions work; what feeds them arrives when plugins run somewhere
+the operating system can count them separately.
