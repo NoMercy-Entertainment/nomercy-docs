@@ -90,3 +90,45 @@ fixed. The server log says what went wrong.
 A plugin's settings live inside the plugin, on the screens it registered. Those appear on
 its page and in the sidebar once it is enabled, and the server hands each screen back to the
 plugin to draw.
+
+## When a build is withdrawn
+
+The server checks a list of withdrawn builds before it runs a plugin. A build on that list
+stops, and the plugin's row says why. The list names one build, not the plugin, so the
+publisher's next release installs normally and you do not have to wait for anything to be
+lifted.
+
+The server keeps the list on disk, so it still knows what it was last told after a restart
+with no connection.
+
+## When the server cannot reach NoMercy
+
+If the server has not been able to refresh that list for more than seven days, it pauses
+every plugin, free ones included. It does this because after a week it can no longer honestly
+say none of them was withdrawn, and answering yes to a question it cannot check is the thing
+this is here to prevent.
+
+Nothing is uninstalled and nothing you approved is lost. The plugins start again on the next
+successful check.
+
+A list that does not carry a valid NoMercy signature is discarded and the one already on the
+server is kept, so nobody who can answer for that address can pause your server or tell it a
+withdrawn build is fine.
+
+## Paid plugins
+
+A paid plugin runs while the account that owns this server holds an entitlement for it. The
+server keeps what it was last told in a signed bundle on disk, so it knows what you own
+after a restart with no connection.
+
+If the server cannot refresh that bundle for more than seven days, a paid plugin goes
+dormant: installed, listed, not running. Nothing is deleted while it is dormant, and it
+starts again on the next successful refresh. Someone whose internet is down has not stopped
+paying.
+
+An owner who never bought a plugin is told to buy it rather than told about the clock, and
+an owner who did is told about the clock rather than sent to a shop they already used.
+
+A bundle that does not carry a valid NoMercy signature is discarded and the one already on
+the server is kept. That applies the same way to a bundle NoMercy pushes as to one the
+server fetched.
