@@ -60,6 +60,50 @@ These are what a client calls to draw plugin screens. A plugin describes its vie
 
 `browse` takes a `surface` so a client asks only for what it can show.
 
+## The pages the server owns
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/plugins/{id}/_/info` | Access to the plugin |
+| GET | `/api/v1/plugins/{id}/_/settings` | Access to the plugin |
+| GET | `/api/v1/plugins/{id}/_/permissions` | Owner |
+| GET | `/api/v1/plugins/{id}/_/update` | Owner |
+| GET | `/api/v1/plugins/{id}/_/health` | Owner |
+
+The server draws these, not the plugin. What a plugin is allowed, what it is
+costing and how to remove it are answers people need to trust, and an answer
+drawn by the thing being asked about is not one.
+
+The `_` prefix is reserved. A plugin that declares a route starting with it
+fails to load, and the message says to rename the route.
+
+`_/settings` answers with every field to the owner, and with only the fields
+the plugin marked per-user to anyone else. A password field never carries a
+value: passwords live in the secret store.
+
+`_/permissions` carries `isolation` and `noticeKey`. On this release the value
+is `in-process`: a plugin runs inside the server, so its permissions are
+checked rather than isolated, and the page says so where an owner decides.
+
+`_/health` carries counts and never content. Crashes, ceiling hits, refusals by
+code, and what the plugin is allowed. No title, file or person appears in it.
+
+## Quotas and telemetry
+
+| Method | Path | Needs |
+|--------|------|-------|
+| GET | `/api/v1/dashboard/plugins/{id}/quotas` | Owner |
+| PUT | `/api/v1/dashboard/plugins/{id}/quotas` | Owner |
+| GET | `/api/v1/dashboard/plugins/telemetry` | Owner |
+| PUT | `/api/v1/dashboard/plugins/telemetry` | Owner |
+
+A quota field at or below zero means unlimited. The answer carries a `warning`
+naming every ceiling that is off.
+
+The telemetry setting is the one choice an owner has: whether crash and
+resource counters leave the server. Refusal counts always leave, and a
+sideloaded plugin is never reported at all.
+
 ## Where to go next
 
 - [Plugins overview](/nomercy-media-server/plugins/overview)
