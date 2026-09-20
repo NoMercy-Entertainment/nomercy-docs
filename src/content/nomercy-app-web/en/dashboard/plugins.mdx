@@ -38,6 +38,35 @@ Some changes need the server restarted before they take effect, and the screen s
 
 ::
 
+## What your server tells NoMercy about plugins
+
+Once an hour your server sends a short report. Here is all of it.
+
+Always, for every plugin you installed from the marketplace:
+
+- Which refusals that plugin hit, by code, and how many times.
+- Nothing else about the plugin, and nothing at all about you.
+
+Only after you turn it on, in plugin settings:
+
+- How many times each plugin crashed.
+- How many times each plugin went past a resource ceiling.
+
+Never, under any setting:
+
+- Anyone's name, account or address.
+- Any title, file, folder or library.
+- Anything about a sideloaded plugin. A plugin you loaded yourself is your own
+  code on your own machine, and your server does not report that it exists, or
+  that you installed, updated or removed it.
+
+Refusal counts go without asking because a plugin refusing the same thing on a
+thousand servers is one plugin with a bug, not a thousand people with a
+problem. Fixing it needs the count and nothing more.
+
+A report that cannot be delivered is dropped rather than kept. A server that
+was offline for a week comes back reporting this hour, not that week.
+
 ## Where to go next
 
 - [Plugins overview](/nomercy-media-server/plugins/overview)
@@ -55,7 +84,33 @@ A plugin restarted three times in an hour is turned off instead of restarted aga
 breaches every time it comes back is in a loop, and a server that never settles helps
 nobody. Its page says how many restarts it took and how to turn it on again.
 
-On this release the server measures nothing per plugin: a plugin runs inside the server's
-own process, so the runtime knows what the process used, not which plugin used it. The
-ceilings are there and the actions work; what feeds them arrives when plugins run somewhere
-the operating system can count them separately.
+On this release the server measures no processor or memory per plugin: a plugin runs inside
+the server's own process, so the runtime knows what the process used, not which plugin used
+it. The ceilings are there and the actions work; what feeds them arrives when plugins run
+somewhere the operating system can count them separately.
+
+## What a plugin is allowed
+
+Every plugin starts with a share of your machine rather than a fixed number, so the same
+plugin suits a laptop and a rack server.
+
+- Processor: a quarter of your processors.
+- Memory: a tenth of your memory, and never less than 256 MB.
+- Disk: 5 GB, the same on every machine. A share of the disk would let a plugin grow into a
+  drive you bought for films.
+- Sending: a quarter of your upload speed. Until your upload speed has been measured, this
+  is unlimited, because a limit worked out from a number the server made up would slow a
+  plugin for no reason.
+- Fetching: unlimited. A plugin fetching spends your line on something you installed on
+  purpose.
+
+Disk and sending are counted where the server hands the bytes over, so both numbers are
+what happened rather than an estimate.
+
+A write that would go past the disk allowance is refused before the bytes land, and the
+plugin is told how much it was allowed. A plugin sending faster than it may is slowed
+rather than stopped: whoever is watching keeps watching, a little behind.
+
+Each plugin's page shows its four allowances and how much disk it is holding. You can raise
+any of them, and clearing a field turns that limit off entirely. The page says plainly what
+you gave up when you do: nothing then stops that plugin taking as much as the server has.
