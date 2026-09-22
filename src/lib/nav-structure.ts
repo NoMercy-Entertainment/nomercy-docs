@@ -16,11 +16,20 @@ export interface NavGroupDef {
 }
 
 import { nmComponentsNav } from './nav-structure.nm';
+import { pluginCapabilityNav } from './nav-structure.plugins';
 
 export const navStructure: Record<string, NavGroupDef[]> = {
   // Generated from the component manifest, so a new component cannot be added
   // to the system and left out of the docs.
   'nm-components': nmComponentsNav,
+
+  // The capability group is generated from the contract, so a capability
+  // cannot enter it and leave its page out of the sidebar.
+  'nomercy-plugins': [
+    { group: "Getting Started", pages: ['overview'] },
+    { group: "Handbook", pages: ['handbook/runtime-and-isolation'] },
+    ...pluginCapabilityNav,
+  ],
 
   'nomercy-media-server': [
     // Reader order: what it is, how to install it, how to claim it. The seven

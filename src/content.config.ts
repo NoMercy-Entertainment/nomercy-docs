@@ -51,6 +51,10 @@ export const collections = {
     loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/nm-components" }),
     schema: pageSchema,
   }),
+  'nomercy-plugins': defineCollection({
+    loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/nomercy-plugins" }),
+    schema: pageSchema,
+  }),
   'nomercy-api': defineCollection({
     loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/nomercy-api" }),
     schema: pageSchema,

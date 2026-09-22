@@ -1,0 +1,53 @@
+---
+title: media.record
+description: schedule and keep recordings of live channels on the owner's disk
+tags: [capability, media-record]
+---
+
+{/* Generated from tools/plugin-contract/contract/capabilities.json. Do not edit. */}
+
+# `media.record`
+
+Schedule and keep recordings of live channels on the owner's disk.
+
+## What it covers
+
+| | |
+| --- | --- |
+| Facade | `IPluginContext.Media.Record` |
+| Scope | library id |
+| Trust | low |
+| Revocable while the plugin runs | no |
+
+The owner grants this without being asked a second time.
+
+Taking this grant away needs the plugin restarted. What it already holds cannot be handed back mid-run.
+
+## Asking for it
+
+Name it in the manifest:
+
+```json
+{
+  "capabilities": [
+    { "name": "media.record", "scope": "*" }
+  ]
+}
+```
+
+The scope is library id. A call outside it is refused with the grant's own name in the message, so the author reads which scope to widen rather than that something went wrong.
+
+## When it refuses
+
+| Code | Severity | What happened |
+| --- | --- | --- |
+| `PLUGIN_RECORDING_DISK_FULL` | blocked | The recording stopped because the disk it writes to is full. |
+
+Every refusal carries what the plugin did, why the server said no, and how to fix it. Read all three before changing code.
+
+
+
+## Related
+
+- [Every capability](/nomercy-plugins/capabilities)
+- [Runtime and isolation](/nomercy-plugins/handbook/runtime-and-isolation)

@@ -1,0 +1,53 @@
+---
+title: library.write
+description: recycle, delete and move inside the library
+tags: [capability, library-write]
+---
+
+{/* Generated from tools/plugin-contract/contract/capabilities.json. Do not edit. */}
+
+# `library.write`
+
+Recycle, delete and move inside the library.
+
+## What it covers
+
+| | |
+| --- | --- |
+| Facade | `IPluginContext.Library.Write` |
+| Scope | library id |
+| Trust | medium |
+| Revocable while the plugin runs | no |
+
+The owner is asked before this is granted, and the grant names its scope.
+
+Taking this grant away needs the plugin restarted. What it already holds cannot be handed back mid-run.
+
+## Asking for it
+
+Name it in the manifest:
+
+```json
+{
+  "capabilities": [
+    { "name": "library.write", "scope": "*" }
+  ]
+}
+```
+
+The scope is library id. A call outside it is refused with the grant's own name in the message, so the author reads which scope to widen rather than that something went wrong.
+
+## When it refuses
+
+| Code | Severity | What happened |
+| --- | --- | --- |
+| `PLUGIN_LIBRARY_IMPORT_DENIED` | blocked | A plugin offered a file to a library it may not write to, or from a path outside one. |
+
+Every refusal carries what the plugin did, why the server said no, and how to fix it. Read all three before changing code.
+
+
+
+## Related
+
+- [Every capability](/nomercy-plugins/capabilities)
+- [Runtime and isolation](/nomercy-plugins/handbook/runtime-and-isolation)

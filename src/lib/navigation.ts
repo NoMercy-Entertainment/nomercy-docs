@@ -27,6 +27,7 @@ export type Product =
   | 'nomercy-video-player'
   | 'nomercy-music-player'
   | 'nomercy-api'
+  | 'nomercy-plugins'
   | 'nm-components';
 
 export interface ProductNavigation {
@@ -48,6 +49,7 @@ const PRODUCTS: Array<{ product: Product; label: string; collection: string; hre
   { product: 'nomercy-player-core',   label: 'Core',      collection: 'nomercy-player-core',    href: '/nomercy-player-core/',    order: 4 },
   { product: 'nomercy-video-player',  label: 'Video',     collection: 'nomercy-video-player',   href: '/nomercy-video-player/',   order: 5 },
   { product: 'nomercy-music-player',  label: 'Music',     collection: 'nomercy-music-player',   href: '/nomercy-music-player/',   order: 6 },
+  { product: 'nomercy-plugins',       label: 'Plugins',   collection: 'nomercy-plugins',        href: '/nomercy-plugins/overview',        order: 3 },
   { product: 'nomercy-api',           label: 'API',       collection: 'nomercy-api',            href: '/nomercy-api/overview',            order: 7 },
   { product: 'nm-components',         label: 'Components', collection: 'nm-components',         href: '/nm-components/overview',          order: 8 },
 ];

@@ -1,0 +1,62 @@
+---
+title: process.spawn
+description: run a bundled or allowlisted binary in the plugin sandbox
+tags: [capability, process-spawn]
+---
+
+{/* Generated from tools/plugin-contract/contract/capabilities.json. Do not edit. */}
+
+# `process.spawn`
+
+Run a bundled or allowlisted binary in the plugin sandbox.
+
+## What it covers
+
+| | |
+| --- | --- |
+| Facade | `IPluginContext.Process` |
+| Scope | binary name |
+| Trust | high |
+| Revocable while the plugin runs | no |
+
+The owner is asked before this is granted, and the prompt says what it exposes.
+
+Taking this grant away needs the plugin restarted. What it already holds cannot be handed back mid-run.
+
+## Asking for it
+
+Name it in the manifest:
+
+```json
+{
+  "capabilities": [
+    { "name": "process.spawn", "scope": "*" }
+  ]
+}
+```
+
+The scope is binary name. A call outside it is refused with the grant's own name in the message, so the author reads which scope to widen rather than that something went wrong.
+
+## When it refuses
+
+| Code | Severity | What happened |
+| --- | --- | --- |
+| `PLUGIN_PROCESS_SPAWN_UNDECLARED` | blocked | The plugin started a process without process.spawn. |
+| `PLUGIN_PROCESS_SPAWN_OUTSIDE_SANDBOX` | blocked | The plugin's child process would have run outside the plugin's own sandbox. |
+
+Every refusal carries what the plugin did, why the server said no, and how to fix it. Read all three before changing code.
+
+
+## What the analyzer catches first
+
+| Rule | What it says |
+| --- | --- |
+| `NMP0004` | Starting a process directly escapes the binary allowlist. Use context.Process.SpawnAsync. |
+
+These fire at build time, so the author sees them before the server ever refuses.
+
+
+## Related
+
+- [Every capability](/nomercy-plugins/capabilities)
+- [Runtime and isolation](/nomercy-plugins/handbook/runtime-and-isolation)

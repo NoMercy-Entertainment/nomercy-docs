@@ -1,0 +1,61 @@
+---
+title: native.code
+description: ship native libraries, which need a manual review
+tags: [capability, native-code]
+---
+
+{/* Generated from tools/plugin-contract/contract/capabilities.json. Do not edit. */}
+
+# `native.code`
+
+Ship native libraries, which need a manual review.
+
+## What it covers
+
+| | |
+| --- | --- |
+| Facade | `IPluginContext.Native` |
+| Scope | (always) |
+| Trust | high |
+| Revocable while the plugin runs | no |
+
+The owner is asked before this is granted, and the prompt says what it exposes.
+
+Taking this grant away needs the plugin restarted. What it already holds cannot be handed back mid-run.
+
+## Asking for it
+
+Name it in the manifest:
+
+```json
+{
+  "capabilities": [
+    { "name": "native.code", "scope": "*" }
+  ]
+}
+```
+
+The scope is (always). A call outside it is refused with the grant's own name in the message, so the author reads which scope to widen rather than that something went wrong.
+
+## When it refuses
+
+| Code | Severity | What happened |
+| --- | --- | --- |
+| `PLUGIN_NATIVE_CODE_UNSIGNED` | blocked | The native library the plugin loads carries no signature this server trusts. |
+
+Every refusal carries what the plugin did, why the server said no, and how to fix it. Read all three before changing code.
+
+
+## What the analyzer catches first
+
+| Rule | What it says |
+| --- | --- |
+| `NMP0007` | Loading a native library yourself skips the signature check. Use context.Native. |
+
+These fire at build time, so the author sees them before the server ever refuses.
+
+
+## Related
+
+- [Every capability](/nomercy-plugins/capabilities)
+- [Runtime and isolation](/nomercy-plugins/handbook/runtime-and-isolation)

@@ -1,0 +1,45 @@
+---
+title: network.discover
+description: mDNS, SSDP and LSD discovery on the owner's network
+tags: [capability, network-discover]
+---
+
+{/* Generated from tools/plugin-contract/contract/capabilities.json. Do not edit. */}
+
+# `network.discover`
+
+MDNS, SSDP and LSD discovery on the owner's network.
+
+## What it covers
+
+| | |
+| --- | --- |
+| Facade | `IPluginContext.Net.Discovery` |
+| Scope | protocol |
+| Trust | medium |
+| Revocable while the plugin runs | no |
+
+The owner is asked before this is granted, and the grant names its scope.
+
+Taking this grant away needs the plugin restarted. What it already holds cannot be handed back mid-run.
+
+## Asking for it
+
+Name it in the manifest:
+
+```json
+{
+  "capabilities": [
+    { "name": "network.discover", "scope": "mdns" }
+  ]
+}
+```
+
+The scope is protocol. A call outside it is refused with the grant's own name in the message, so the author reads which scope to widen rather than that something went wrong.
+
+
+
+## Related
+
+- [Every capability](/nomercy-plugins/capabilities)
+- [Runtime and isolation](/nomercy-plugins/handbook/runtime-and-isolation)

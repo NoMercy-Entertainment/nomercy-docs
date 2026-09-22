@@ -1,0 +1,96 @@
+---
+title: Capabilities
+description: Every capability a plugin can ask for, what it opens, and how far it reaches.
+tags: [capability, reference]
+---
+
+{/* Generated from tools/plugin-contract/contract/capabilities.json. Do not edit. */}
+
+# Capabilities
+
+A plugin reaches nothing by default. It names what it needs in its manifest, the owner grants it, and every call is checked against that grant before it runs.
+
+There are 54 of them. Each has a scope, so a grant says which hosts, which ports, or which folders, not just which kind of thing.
+
+## Granted without a second question
+
+| Capability | What it does | Scope |
+| --- | --- | --- |
+| [`network.fetch`](/nomercy-plugins/capabilities/network-fetch) | outbound HTTP through context.Http | host glob |
+| [`storage.private`](/nomercy-plugins/capabilities/storage-private) | the plugin's own data folder and its SQLite databases | (always) |
+| [`storage.path`](/nomercy-plugins/capabilities/storage-path) | read and write inside a folder the owner picked | folder id |
+| [`storage.temp`](/nomercy-plugins/capabilities/storage-temp) | scratch space the host purges | quota |
+| [`storage.derived`](/nomercy-plugins/capabilities/storage-derived) | the derived audio and video store with LRU eviction | quota |
+| [`library.read`](/nomercy-plugins/capabilities/library-read) | library queries through context.Library | library id or * |
+| [`library.import`](/nomercy-plugins/capabilities/library-import) | register a file, show, movie, album or recording into the library | library id |
+| [`library.watch`](/nomercy-plugins/capabilities/library-watch) | events when the library changes | library id |
+| [`metadata.query`](/nomercy-plugins/capabilities/metadata-query) | ask the server's metadata providers inside its quotas | provider or * |
+| [`metadata.provide`](/nomercy-plugins/capabilities/metadata-provide) | be a metadata provider for a media type | media type |
+| [`media.source`](/nomercy-plugins/capabilities/media-source) | be a media source the scanner asks | (always) |
+| [`media.proxy`](/nomercy-plugins/capabilities/media-proxy) | serve third-party audio, video and images through the server under the app CSP | host glob |
+| [`media.live`](/nomercy-plugins/capabilities/media-live) | publish live channels, EPG and time-shift descriptors the player plays natively | (always) |
+| [`media.transcode`](/nomercy-plugins/capabilities/media-transcode) | ask the server to transcode a proxied stream on the fly | (always) |
+| [`media.remux`](/nomercy-plugins/capabilities/media-remux) | repackage TS into HLS or MP4 with the server's ffmpeg | (always) |
+| [`media.record`](/nomercy-plugins/capabilities/media-record) | schedule and keep recordings of live channels on the owner's disk | library id |
+| [`encoder.profile`](/nomercy-plugins/capabilities/encoder-profile) | override the encode profiles the server uses | (always) |
+| [`encoder.dispatch`](/nomercy-plugins/capabilities/encoder-dispatch) | queue an encode on the server | library id |
+| [`jobs.dispatch`](/nomercy-plugins/capabilities/jobs-dispatch) | queue a server job by kind | job kind |
+| [`jobs.status`](/nomercy-plugins/capabilities/jobs-status) | watch the outcome of a queued job | (always) |
+| [`scheduler`](/nomercy-plugins/capabilities/scheduler) | named cron jobs, one-shot jobs and run-now from the settings page | (always) |
+| [`audio.tools`](/nomercy-plugins/capabilities/audio-tools) | ffmpeg filter graphs and stem splitting | (always) |
+| [`music.analysis.read`](/nomercy-plugins/capabilities/music-analysis-read) | read the BPM, key and stems the server analyzed | (always) |
+| [`music.analysis.write`](/nomercy-plugins/capabilities/music-analysis-write) | write DJ analysis and stems back to the server | (always) |
+| [`player.source`](/nomercy-plugins/capabilities/player-source) | play or enqueue a URL on the caller's player | host glob |
+| [`player.control`](/nomercy-plugins/capabilities/player-control) | play, pause, skip, seek and volume on the caller's player | (always) |
+| [`player.state`](/nomercy-plugins/capabilities/player-state) | read what the caller is playing now | (always) |
+| [`player.queue`](/nomercy-plugins/capabilities/player-queue) | read and edit the caller's queue | (always) |
+| [`cast.send`](/nomercy-plugins/capabilities/cast-send) | cast the caller's session to a device | (always) |
+| [`user.identity`](/nomercy-plugins/capabilities/user-identity) | the caller's id, display name, role and access answer | (always) |
+| [`user.playlists`](/nomercy-plugins/capabilities/user-playlists) | read and edit the caller's playlists | (always) |
+| [`user.preferences`](/nomercy-plugins/capabilities/user-preferences) | read the caller's language, subtitle and audio preferences | (always) |
+| [`notifications.push`](/nomercy-plugins/capabilities/notifications-push) | push a notification to a user or the owner, inside a rate limit | (always) |
+| [`secrets`](/nomercy-plugins/capabilities/secrets) | encrypted key and value storage for the plugin | (always) |
+| [`settings`](/nomercy-plugins/capabilities/settings) | typed read and write of the host-rendered settings page | (always) |
+| [`events.subscribe`](/nomercy-plugins/capabilities/events-subscribe) | server events about the library, playback, users and jobs | topic |
+| [`events.publish`](/nomercy-plugins/capabilities/events-publish) | plugin-scoped events other plugins may subscribe to | (always) |
+| [`hub`](/nomercy-plugins/capabilities/hub) | push to clients over SignalR and receive their calls | (always) |
+| [`rest`](/nomercy-plugins/capabilities/rest) | plugin-owned REST endpoints under the plugin prefix | (always) |
+| [`server.info`](/nomercy-plugins/capabilities/server-info) | version, platform, the paths the owner allowed and free space | (always) |
+| [`ui.mount`](/nomercy-plugins/capabilities/ui-mount) | placements in the slots that kind offers | kind |
+| [`ui.input`](/nomercy-plugins/capabilities/ui-input) | receive typed text, files and folder picks from forms and search | (always) |
+
+## The owner is asked, and the grant names its scope
+
+| Capability | What it does | Scope |
+| --- | --- | --- |
+| [`network.dial`](/nomercy-plugins/capabilities/network-dial) | raw TCP and UDP client sockets through context.Net | host glob |
+| [`network.listen`](/nomercy-plugins/capabilities/network-listen) | listening sockets, inbound connections and UPnP port mapping | port or range |
+| [`network.discover`](/nomercy-plugins/capabilities/network-discover) | mDNS, SSDP and LSD discovery on the owner's network | protocol |
+| [`library.write`](/nomercy-plugins/capabilities/library-write) | recycle, delete and move inside the library | library id |
+| [`user.watch`](/nomercy-plugins/capabilities/user-watch) | the caller's watch history and progress | (always) |
+| [`users.list`](/nomercy-plugins/capabilities/users-list) | list the members of the server on owner-only pages | (always) |
+| [`browser.headless`](/nomercy-plugins/capabilities/browser-headless) | drive the headless browser the platform ships and sandboxes | (always) |
+| [`ui.webview`](/nomercy-plugins/capabilities/ui-webview) | a sandboxed webview for custom UI | origin |
+| [`ui.overlay`](/nomercy-plugins/capabilities/ui-overlay) | a panel inside the player for lyrics, chat or stats | (always) |
+
+## The owner is asked, and the prompt says what it exposes
+
+| Capability | What it does | Scope |
+| --- | --- | --- |
+| [`auth.claims`](/nomercy-plugins/capabilities/auth-claims) | add claims after Keycloak has validated the token | (always) |
+| [`process.spawn`](/nomercy-plugins/capabilities/process-spawn) | run a bundled or allowlisted binary in the plugin sandbox | binary name |
+| [`native.code`](/nomercy-plugins/capabilities/native-code) | ship native libraries, which need a manual review | (always) |
+
+## What a restart costs
+
+9 of the 54 cannot be taken back while the plugin runs. Removing one of these stops the plugin instead of the next call, because what it already holds, a listening socket or a loaded library, cannot be handed back mid-run.
+
+- [`network.listen`](/nomercy-plugins/capabilities/network-listen)
+- [`network.discover`](/nomercy-plugins/capabilities/network-discover)
+- [`storage.path`](/nomercy-plugins/capabilities/storage-path)
+- [`library.write`](/nomercy-plugins/capabilities/library-write)
+- [`library.import`](/nomercy-plugins/capabilities/library-import)
+- [`media.record`](/nomercy-plugins/capabilities/media-record)
+- [`auth.claims`](/nomercy-plugins/capabilities/auth-claims)
+- [`process.spawn`](/nomercy-plugins/capabilities/process-spawn)
+- [`native.code`](/nomercy-plugins/capabilities/native-code)

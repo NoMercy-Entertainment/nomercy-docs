@@ -1,0 +1,53 @@
+---
+title: media.live
+description: publish live channels, EPG and time-shift descriptors the player plays natively
+tags: [capability, media-live]
+---
+
+{/* Generated from tools/plugin-contract/contract/capabilities.json. Do not edit. */}
+
+# `media.live`
+
+Publish live channels, EPG and time-shift descriptors the player plays natively.
+
+## What it covers
+
+| | |
+| --- | --- |
+| Facade | `IPluginContext.Media.Live` |
+| Scope | (always) |
+| Trust | low |
+| Revocable while the plugin runs | yes |
+
+The owner grants this without being asked a second time.
+
+Taking this grant away stops the next call. The plugin keeps running.
+
+## Asking for it
+
+Name it in the manifest:
+
+```json
+{
+  "capabilities": [
+    { "name": "media.live", "scope": "*" }
+  ]
+}
+```
+
+The scope is (always). A call outside it is refused with the grant's own name in the message, so the author reads which scope to widen rather than that something went wrong.
+
+## When it refuses
+
+| Code | Severity | What happened |
+| --- | --- | --- |
+| `PLUGIN_LIVE_LINK_FAILED` | degraded | The live link the plugin published stopped answering. |
+
+Every refusal carries what the plugin did, why the server said no, and how to fix it. Read all three before changing code.
+
+
+
+## Related
+
+- [Every capability](/nomercy-plugins/capabilities)
+- [Runtime and isolation](/nomercy-plugins/handbook/runtime-and-isolation)

@@ -1,0 +1,61 @@
+---
+title: storage.path
+description: read and write inside a folder the owner picked
+tags: [capability, storage-path]
+---
+
+{/* Generated from tools/plugin-contract/contract/capabilities.json. Do not edit. */}
+
+# `storage.path`
+
+Read and write inside a folder the owner picked.
+
+## What it covers
+
+| | |
+| --- | --- |
+| Facade | `IPluginContext.Storage.PathAsync` |
+| Scope | folder id |
+| Trust | low |
+| Revocable while the plugin runs | no |
+
+The owner grants this without being asked a second time.
+
+Taking this grant away needs the plugin restarted. What it already holds cannot be handed back mid-run.
+
+## Asking for it
+
+Name it in the manifest:
+
+```json
+{
+  "capabilities": [
+    { "name": "storage.path", "scope": "*" }
+  ]
+}
+```
+
+The scope is folder id. A call outside it is refused with the grant's own name in the message, so the author reads which scope to widen rather than that something went wrong.
+
+## When it refuses
+
+| Code | Severity | What happened |
+| --- | --- | --- |
+| `PLUGIN_FILE_OUTSIDE_GRANT` | blocked | The plugin read or wrote a folder the owner has not granted. |
+
+Every refusal carries what the plugin did, why the server said no, and how to fix it. Read all three before changing code.
+
+
+## What the analyzer catches first
+
+| Rule | What it says |
+| --- | --- |
+| `NMP0005` | Reading or writing a path directly escapes the granted folders. Use context.Storage. |
+
+These fire at build time, so the author sees them before the server ever refuses.
+
+
+## Related
+
+- [Every capability](/nomercy-plugins/capabilities)
+- [Runtime and isolation](/nomercy-plugins/handbook/runtime-and-isolation)

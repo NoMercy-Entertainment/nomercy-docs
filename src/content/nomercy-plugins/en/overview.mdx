@@ -1,0 +1,47 @@
+---
+title: Plugins
+description: What a NoMercy plugin is, what it can reach, and what the server does before it runs.
+tags: [plugins, overview]
+---
+
+# Plugins
+
+A plugin is a .NET assembly the owner installs on their own server. It adds sources, metadata, media, jobs and screens to a NoMercy install without anyone waiting on a NoMercy release.
+
+## What a plugin gets
+
+One object, `IPluginContext`, handed in at start. Everything a plugin can reach hangs off it: the library, storage, the network, the media pipeline, the scheduler, settings, and the screens it draws.
+
+Nothing on it works by default. A plugin names what it needs in its manifest, the owner grants it, and every call is checked against that grant. See [Capabilities](/nomercy-plugins/capabilities) for the full list and what each one opens.
+
+## What a refusal looks like
+
+A plugin that reaches past its grants is refused, never silently ignored. Every refusal carries three things:
+
+- **What** the plugin did.
+- **Why** the server said no.
+- **How** to fix it, with the page to read.
+
+```
+The plugin fetched https://cdn.other.example/a.ts.
+It declared network.fetch scoped to *.example.com, and that host is outside it.
+Widen the scope in the manifest, or fetch from a host it already names.
+Docs: /nomercy-plugins/capabilities/network-fetch
+```
+
+The build-time analyzer catches most of these before the server ever sees them.
+
+## Screens
+
+A plugin does not ship components. It describes what it wants drawn, and every client, web, phone, TV and cast receiver, renders that description with the components it already has. One description, every screen, and a plugin that never breaks when a client changes.
+
+## Where it runs
+
+A plugin runs either inside the server's process or in one of its own, with an OS sandbox around it. Out of process it holds a memory ceiling, a CPU share and a process count, and it reaches the server through a channel rather than through the server's own heap.
+
+Read [Runtime and isolation](/nomercy-plugins/handbook/runtime-and-isolation) for which one your plugin gets and what changes between them.
+
+## Start here
+
+- [Capabilities](/nomercy-plugins/capabilities): everything a plugin can ask for.
+- [Runtime and isolation](/nomercy-plugins/handbook/runtime-and-isolation): where the code runs and what holds it.

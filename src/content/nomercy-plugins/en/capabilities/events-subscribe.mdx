@@ -1,0 +1,53 @@
+---
+title: events.subscribe
+description: server events about the library, playback, users and jobs
+tags: [capability, events-subscribe]
+---
+
+{/* Generated from tools/plugin-contract/contract/capabilities.json. Do not edit. */}
+
+# `events.subscribe`
+
+Server events about the library, playback, users and jobs.
+
+## What it covers
+
+| | |
+| --- | --- |
+| Facade | `IPluginContext.Events.Subscribe` |
+| Scope | topic |
+| Trust | low |
+| Revocable while the plugin runs | yes |
+
+The owner grants this without being asked a second time.
+
+Taking this grant away stops the next call. The plugin keeps running.
+
+## Asking for it
+
+Name it in the manifest:
+
+```json
+{
+  "capabilities": [
+    { "name": "events.subscribe", "scope": "*" }
+  ]
+}
+```
+
+The scope is topic. A call outside it is refused with the grant's own name in the message, so the author reads which scope to widen rather than that something went wrong.
+
+## When it refuses
+
+| Code | Severity | What happened |
+| --- | --- | --- |
+| `PLUGIN_EVENT_BUS_REMOVED` | blocked | The plugin used the raw event bus. The contract has a topic list instead. |
+
+Every refusal carries what the plugin did, why the server said no, and how to fix it. Read all three before changing code.
+
+
+
+## Related
+
+- [Every capability](/nomercy-plugins/capabilities)
+- [Runtime and isolation](/nomercy-plugins/handbook/runtime-and-isolation)

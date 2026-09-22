@@ -1,0 +1,74 @@
+---
+title: Runtime and isolation
+description: Where plugin code runs, what holds it there, and what changes between in process and out of process.
+tags: [runtime, isolation, sandbox]
+---
+
+# Runtime and isolation
+
+A plugin runs in one of two places: inside the server's own process, or in a process of its own with an operating-system sandbox around it. The owner chooses per plugin.
+
+## In the server's process
+
+The plugin is loaded into its own assembly load context. Calls on `IPluginContext` are ordinary method calls, and every capability is still checked before the call runs.
+
+This is the default. It is the fastest path and the one every facade supports.
+
+## In its own process
+
+The server starts a host process, hands it the plugin, and talks to it over a channel. The plugin holds the same `IPluginContext`. Each facade turns a call into one named message instead of a method call on an object in the same heap.
+
+Three things stay local to the plugin's process, because a round trip for them would make every plugin pay for the boundary on its first line:
+
+- The plugin id.
+- The data folder path.
+- The logger, which writes to standard output and is drained into the server log. A log line has to arrive when the channel is the thing that broke.
+
+### What holds it
+
+| Platform | Mechanism | What it limits |
+| --- | --- | --- |
+| Windows | Job object | Memory ceiling, CPU share, process count. Children die with the server. |
+| Linux | cgroup v2 | `memory.max`, `cpu.max`, `pids.max`. The slice is killed as a unit. |
+| macOS | `sandbox-exec` profile | Which paths are readable and writable, and whether anything may be started. |
+
+The CPU share is a percentage of one processor, not of the machine.
+
+On macOS a child process inherits the profile, so anything the plugin starts is confined for free. On Windows and Linux the child joins the same job object or cgroup as its parent.
+
+### Starting a process
+
+The server does not start the plugin's process for it. It answers which file, and the plugin's own process starts it.
+
+A process the server started would be a child of the server, holding the server's rights and sitting beside the sandbox rather than inside it. Starting it from the plugin's process means the child inherits the job object, the cgroup or the profile that already holds its parent.
+
+Loading a native library works the same way. The server resolves the name against the plugin's bundle and checks the marketplace signature; the plugin's process performs the load, so the library lands in the load context whose `DllImport` declarations are looking for it.
+
+### What crosses the boundary
+
+Twenty of the twenty-three facades cross: secrets, grants, hub, configuration, events, process, server, storage, net, library, libraryWriter, libraryImport, native, media, metadata, notifications, users, scheduler, settings and user.
+
+Three do not: browser, cast and marketplace. They have no implementation on either side yet, so they refuse the same way in the server's own process.
+
+Two members refuse out of process rather than doing nothing quietly:
+
+- `IPluginScheduler.Register` and `StartWorker` hand the server a delegate, and a delegate cannot cross a process boundary.
+- `IPluginSettings.SettingsChanged` refuses when you subscribe, instead of subscribing and never firing.
+
+Both refuse at the point you reach for them, so a plugin never sits there looking healthy while nothing happens.
+
+## Refusals across the boundary
+
+A facade that refuses sends a refusal back over the channel. Thrown across it, the plugin would see a server that stopped answering rather than a reason.
+
+Arguments the server cannot read come back the same way. The refusal names the facade and member, so the author knows which call sent a shape the contract does not declare.
+
+## The ABI
+
+Every plugin names the ABI major it was built against. The server loads a plugin whose major it still supports and refuses the rest with a message that says rebuild.
+
+The usual grace is one major behind: a major normally only removes members, so a plugin that never called them keeps working. That grace does not apply when the SDK assembly or its namespaces are renamed, because a plugin built against the older major then resolves no type at all. Installing it would fail at load with a missing-type error naming nothing its author recognizes, and a refusal that says rebuild is the better answer.
+
+## Choosing
+
+Run out of process when the plugin starts other programs, loads native code, or you want a memory and CPU ceiling on it. Run in process when you want the shortest path and the plugin only reads and writes through facades.

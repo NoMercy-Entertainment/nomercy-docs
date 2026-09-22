@@ -1,0 +1,45 @@
+---
+title: auth.claims
+description: add claims after Keycloak has validated the token
+tags: [capability, auth-claims]
+---
+
+{/* Generated from tools/plugin-contract/contract/capabilities.json. Do not edit. */}
+
+# `auth.claims`
+
+Add claims after Keycloak has validated the token.
+
+## What it covers
+
+| | |
+| --- | --- |
+| Facade | `IAuthPlugin` |
+| Scope | (always) |
+| Trust | high |
+| Revocable while the plugin runs | no |
+
+The owner is asked before this is granted, and the prompt says what it exposes.
+
+Taking this grant away needs the plugin restarted. What it already holds cannot be handed back mid-run.
+
+## Asking for it
+
+Name it in the manifest:
+
+```json
+{
+  "capabilities": [
+    { "name": "auth.claims", "scope": "*" }
+  ]
+}
+```
+
+The scope is (always). A call outside it is refused with the grant's own name in the message, so the author reads which scope to widen rather than that something went wrong.
+
+
+
+## Related
+
+- [Every capability](/nomercy-plugins/capabilities)
+- [Runtime and isolation](/nomercy-plugins/handbook/runtime-and-isolation)
