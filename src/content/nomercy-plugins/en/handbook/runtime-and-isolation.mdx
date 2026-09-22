@@ -42,7 +42,7 @@ The server does not start the plugin's process for it. It answers which file, an
 
 A process the server started would be a child of the server, holding the server's rights and sitting beside the sandbox rather than inside it. Starting it from the plugin's process means the child inherits the job object, the cgroup or the profile that already holds its parent.
 
-Loading a native library works the same way. The server resolves the name against the plugin's bundle and checks the marketplace signature; the plugin's process performs the load, so the library lands in the load context whose `DllImport` declarations are looking for it.
+Loading a native library works the same way. The server resolves the name against the plugin's bundle and checks the marketplace signature. The plugin's process performs the load, so the library lands in the load context whose `DllImport` declarations are looking for it.
 
 ### What crosses the boundary
 
@@ -67,7 +67,9 @@ Arguments the server cannot read come back the same way. The refusal names the f
 
 Every plugin names the ABI major it was built against. The server loads a plugin whose major it still supports and refuses the rest with a message that says rebuild.
 
-The usual grace is one major behind: a major normally only removes members, so a plugin that never called them keeps working. That grace does not apply when the SDK assembly or its namespaces are renamed, because a plugin built against the older major then resolves no type at all. Installing it would fail at load with a missing-type error naming nothing its author recognizes, and a refusal that says rebuild is the better answer.
+The usual grace is one major behind: a major normally only removes members, so a plugin that never called them keeps working. That grace does not apply when the SDK assembly or its namespaces are renamed, because a plugin built against the older major then resolves no type at all.
+
+Installing it would fail at load with a missing-type error naming nothing its author recognizes, and a refusal that says rebuild is the better answer.
 
 ## Choosing
 
