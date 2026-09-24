@@ -54,7 +54,7 @@ addition, not a behavior change to anything live today.
 `src/examples/minimal-player.ts` composes `MinimalPlayer`: extends `EventEmitter<BaseEventMap>`,
 resolves the three-form constructor via `resolvePlayerConstructor` + `initPlayerCoreState` (the
 exact pattern `NMVideoPlayer`'s and `NMMusicPlayer`'s own constructors use, verified against
-`packages/nomercy-video-player/src/index.ts`), then stamps `playerCoreMethods` — the same
+`packages/player-web/nomercy-video-player/src/index.ts`), then stamps `playerCoreMethods` — the same
 aggregate mixin set those two classes compose, not a hand-picked subset — onto the prototype with
 `composeMixins`. Exports `minimalPlayer(id)`, with a usage comment showing `setup()` /
 `ready()` / `phase()` / `dispose()`.

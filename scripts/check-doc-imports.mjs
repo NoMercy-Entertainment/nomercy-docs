@@ -44,7 +44,7 @@ const IMPORT_RE =
 function readExportsKeys(packageName) {
   const dirName = packageName.slice(SCOPE.length + 1);
   const candidates = [
-    path.join(root, '..', '..', 'packages', dirName, 'package.json'),
+    path.join(root, '..', '..', 'packages', 'player-web', dirName, 'package.json'),
     path.join(root, 'node_modules', packageName, 'package.json'),
   ];
   const manifestPath = candidates.find((candidate) => existsSync(candidate));

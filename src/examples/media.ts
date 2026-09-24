@@ -191,7 +191,7 @@ export const anime: VideoPlaylistItem[] = [noRinItem, railWarsItem];
 
 /**
  * Real Free Music Archive tracks from the `nomercy-media` fixture repo, same
- * source the player testbed uses (`tools/player-testbed/src/data/fmaDefaults.ts`).
+ * source the player testbed uses (`testing/nomercy-player-testbed/src/data/fmaDefaults.ts`).
  * `url` carries the baseUrl-relative shape (leading slash, no `MUSIC_BASE`
  * prefix) that `MusicPlayerConfig.baseUrl` resolves against, exactly like
  * `films`/`url` above. `cover` is a full URL rather than baseUrl-relative —

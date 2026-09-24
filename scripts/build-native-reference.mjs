@@ -25,8 +25,8 @@ const CONTRACT_CANDIDATES = [
   // rather than having to reproduce the monorepo's directory layout around a
   // standalone checkout.
   process.env.PLAYER_CONTRACT,
-  path.join(monorepo, 'tools', 'player-contract', 'contract', 'contract.json'),
-  path.join(monorepo, 'packages-native', 'nomercy-player-core-kmp', 'contract', 'contract.json'),
+  path.join(monorepo, 'testing', 'nomercy-player-conformance', 'contract', 'contract.json'),
+  path.join(monorepo, 'packages', 'player-kmp', 'nomercy-player-core-kmp', 'contract', 'contract.json'),
 ].filter(Boolean);
 
 // Which slice of the contract each collection answers for.

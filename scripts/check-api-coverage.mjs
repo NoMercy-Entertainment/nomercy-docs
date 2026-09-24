@@ -24,8 +24,8 @@ const CONTRACT_CANDIDATES = [
   // rather than having to reproduce the monorepo's directory layout around a
   // standalone checkout.
   process.env.PLAYER_CONTRACT,
-  path.join(monorepo, 'tools', 'player-contract', 'contract', 'contract.json'),
-  path.join(monorepo, 'packages-native', 'nomercy-player-core-kmp', 'contract', 'contract.json'),
+  path.join(monorepo, 'testing', 'nomercy-player-conformance', 'contract', 'contract.json'),
+  path.join(monorepo, 'packages', 'player-kmp', 'nomercy-player-core-kmp', 'contract', 'contract.json'),
 ].filter(Boolean);
 
 const COLLECTIONS = [
@@ -52,7 +52,7 @@ function findContract() {
   if (!found) {
     console.error('no contract.json found. Looked in:');
     for (const candidate of CONTRACT_CANDIDATES) console.error(`  ${candidate}`);
-    console.error('Check out tools/player-contract, or run the native conformance gate to vendor one.');
+    console.error('Check out testing/nomercy-player-conformance, or run the native conformance gate to vendor one.');
     process.exit(2);
   }
   return JSON.parse(readFileSync(found, 'utf8'));

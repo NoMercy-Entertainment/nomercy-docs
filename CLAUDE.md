@@ -105,4 +105,4 @@ Code examples must use real, resolvable media — never invented hosts. See the 
 
 ## Accuracy
 
-Documented symbols, methods, options, events, and import paths must match the real package source in `packages/nomercy-player-core/`, `packages/nomercy-video-player/`, `packages/nomercy-music-player/`. `check:examples` and `check:doc-imports` enforce the mechanically checkable part of this rule. If a doc disagrees with the code, fix the doc to match the code — never add a "known broken / not implemented" disclaimer. If the doc reveals an actual code bug, report it; don't paper over it.
+Documented symbols, methods, options, events, and import paths must match the real package source in `packages/player-web/nomercy-player-core/`, `packages/player-web/nomercy-video-player/`, `packages/player-web/nomercy-music-player/`. `check:examples` and `check:doc-imports` enforce the mechanically checkable part of this rule. If a doc disagrees with the code, fix the doc to match the code — never add a "known broken / not implemented" disclaimer. If the doc reveals an actual code bug, report it; don't paper over it.

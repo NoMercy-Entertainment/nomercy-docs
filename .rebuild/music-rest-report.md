@@ -14,11 +14,11 @@ primitive) + `crossfade-gapless`, `lyrics-sync`, `equalizer-presets`, `scrobblin
 `crossfade-gapless` introduces `GaplessTransitionStrategy` (from `nomercy-player-core`, video's
 own default) as music's opt-in true-hard-cut alternative to the default
 `CrossfadeTransitionStrategy`, switchable at runtime via `setTransitionStrategy()` — both are
-medium-neutral kit primitives, verified against `packages/nomercy-player-core/src/adapters/
+medium-neutral kit primitives, verified against `packages/player-web/nomercy-player-core/src/adapters/
 preload/default.ts` and its public export from the kit's `index.ts`.
 
 **Stage 6 — Plugins & Adapters** (`src/content/nomercy-music-player/en/plugins-adapters/`, 9
-pages): one page per real plugin in `packages/nomercy-music-player/src/plugins/` (`scrobble`,
+pages): one page per real plugin in `packages/player-web/nomercy-music-player/src/plugins/` (`scrobble`,
 `auto-advance`, `lyrics`, `media-session`, `key-handler`, `cast-sender`, `v1-compat`) and one per
 real adapter in `src/adapters/` (`adapter-audio-backend`, `adapter-similarity-engine`). No
 invented plugins, cross-checked directory-by-directory against source. `adapter-similarity-engine`

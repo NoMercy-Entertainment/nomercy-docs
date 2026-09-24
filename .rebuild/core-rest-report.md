@@ -157,7 +157,7 @@ No `typescript`/`astro check` package is installed in this repo (this project ru
 built-in type stripping, not a standalone `tsc`), and the `live="false"` snippet convention core
 uses means none of these files are imported by any Astro page for `astro build` to typecheck as a
 side effect. Verified instead with the `typescript@6.0.3` binary already present in the sibling
-`packages/nomercy-player-core/node_modules` (same monorepo, borrowed the compiler only, not its
+`packages/player-web/nomercy-player-core/node_modules` (same monorepo, borrowed the compiler only, not its
 types), run against a standalone project (`target/module ESNext`, `moduleResolution bundler`,
 `strict`, `skipLibCheck`, matching `astro/tsconfigs/strict`'s options) over
 `src/examples/**/*.ts`, resolving `@nomercy-entertainment/nomercy-player-core` from this repo's own

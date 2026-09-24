@@ -1,4 +1,4 @@
-// Generated from tools/plugin-contract/contract/capabilities.json. Do not edit.
+// Generated from server/plugin-contract/contract/capabilities.json. Do not edit.
 //
 // A capability page without a manifest entry fails `npm run check:nav`, so this
 // is generated beside the pages rather than kept by hand.

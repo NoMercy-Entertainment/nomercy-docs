@@ -12,7 +12,7 @@ primitive), `resume-playback`, `keyboard-shortcuts`, `quality-selection`, `playl
 `auth-tokens` (task recipes named directly in the brief).
 
 **Stage 6 — Plugins & Adapters** (`src/content/nomercy-video-player/en/plugins-adapters/`, 15
-pages): one page per real plugin in `packages/nomercy-video-player/src/plugins/` (`desktop-ui`,
+pages): one page per real plugin in `packages/player-web/nomercy-video-player/src/plugins/` (`desktop-ui`,
 `tv-key-handler`, `key-handler`, `cast-sender`, `subtitle-overlay`, `octopus`, `media-session`,
 `drm`, `touch-zones`, `live-transcoding`, `v1-compat`) and one per real adapter in
 `src/adapters/` (`adapter-video-backend`, `adapter-chapter-source`, `adapter-thumbnail-source`,
