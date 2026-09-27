@@ -1,71 +1,68 @@
 ---
 title: 'Upgrading'
-description: 'Move the server to a newer version safely.'
+description: 'What a newer version does to the databases on its first start, and how to recover when it does not start.'
 draft: false
 ---
 
 # Upgrading
 
-Upgrading is a normal update plus a restart. The server handles its own data.
-
-## How to upgrade
-
-It depends on how you installed it.
-
-**Linux packages** upgrade with the rest of your system:
-
-```bash
-sudo apt update && sudo apt upgrade      # Debian and Ubuntu
-sudo dnf upgrade nomercy                 # Fedora, RHEL and CentOS
-sudo pacman -Syu                         # Arch
-```
-
-**Docker** pulls a new image:
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-**Windows and macOS** stage an update through the server itself:
-
-```bash
-nomercy update
-nomercy restart
-```
-
-The download and the interruption are separate steps, so the restart happens when it suits you.
+A newer version brings its database changes with it and applies them itself on its first start.
+You do not run anything.
+Getting the newer version onto the machine depends on how you installed it, and [Updating from the CLI](/nomercy-media-server/cli/update) covers each install type.
 
 ## What happens on the first start
 
-If the new version changes the shape of the database, the server updates it during startup. You do not run anything.
+The server keeps three databases in the `data` folder of its data directory: `app.db`, `media.db` and `queue.db`.
+On every start it checks them in that order, and applies any changes the new version brings before the rest of the server uses them.
+A database that is already up to date is left alone.
 
-Before it makes that change, it takes a snapshot of the databases. That snapshot is what a failed upgrade falls back to, and it is why an upgrade is a low-risk operation rather than a leap.
+For each database that has changes waiting, the server does three things in turn:
 
-## Your content is unaffected
+1. It copies the database into `data/backups`, named after the database and the time in UTC, such as `media.20260927143000.db`.
+2. It removes rows that point at a parent row that no longer exists, and logs how many it removed as a warning.
+3. It applies the changes.
 
-Upgrades change the server, not your library. Your titles stay as they are, watch progress is kept, and nothing needs re-importing.
+The copy in step 1 is the pre-upgrade copy that [Backups](/nomercy-media-server/maintenance/backups) describes.
+A start with no changes waiting takes no copy.
+When the copy fails, the server logs a warning that starts with `WARNING: Could not back up database` and applies the changes anyway.
+
+## When the new version does not start
+
+A change that fails stops the start, and the reason is in the log.
+When the failure is a broken link between rows, the log has a Fatal line that contains `Migration failed on a foreign-key constraint` and lists any orphaned rows it found.
+
+The server writes its log to the `log` folder in its data directory.
+Read the files there when the server is down, because [`nomercy logs`](/nomercy-media-server/cli/logs) asks the running server and cannot reach one that did not start.
+
+To go back to the state before the upgrade:
+
+1. Stop the server.
+2. In `data/backups`, find the newest copy of the database the log named: `AppDbContext` is `app.db`, `MediaContext` is `media.db` and `QueueContext` is `queue.db`.
+3. Copy it over the database of the same name in `data`, such as `data/media.db`.
+4. Start the version you had before the upgrade.
+
+The restored copy matches the version you had before.
+Starting the newer version on it applies the same changes again, so it fails the same way until the cause in the log is fixed.
 
 ::Troubleshooting
 
-**The version has not changed after updating.**
-A staged update applies on restart. Run `nomercy restart`.
+**The server did not come back after `nomercy update`.**
+The command restores the previous version and starts it when the new one does not come back, as [Updating from the CLI](/nomercy-media-server/cli/update) describes.
+Read the log files for the reason the new version stopped.
 
-**The server did not come back.**
-Read the log:
-
-```bash
-nomercy logs --level Error
-```
-
-A version that cannot start records the reason there, and the snapshot taken before the upgrade is in the `backups` folder under the data directory.
+**The log has a warning that a database could not be backed up.**
+The server applied the changes without a pre-upgrade copy of that database.
+Copy the data directory yourself before the next upgrade, as [Backups](/nomercy-media-server/maintenance/backups) describes.
 
 **A container came back empty.**
-The data volume was not mounted. Check the compose file still has the `nomercy-data` volume, then recreate.
+The container keeps its data in the `nomercy-data` volume, mounted at `/data/.local/share/NoMercy`.
+Check that the compose file still mounts that volume, then recreate the container.
+See [Docker](/nomercy-media-server/installation/docker).
 
 ::
 
 ## Where to go next
 
-- [Backups](/nomercy-media-server/maintenance/backups)
 - [Updating from the CLI](/nomercy-media-server/cli/update)
+- [Backups](/nomercy-media-server/maintenance/backups)
+- [Logs](/nomercy-media-server/cli/logs)

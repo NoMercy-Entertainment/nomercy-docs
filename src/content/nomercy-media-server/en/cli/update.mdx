@@ -1,55 +1,137 @@
 ---
 title: 'Updating'
-description: 'Update the server from the terminal.'
+description: 'Move the server to the newest release with the step that fits how you installed it.'
 draft: false
 ---
 
 # Updating
 
+The step that moves a server to the newest release depends on how you installed it.
+Find your install type in the table, then follow its section below.
+
+| Installed with | Update with |
+|----------------|-------------|
+| The standalone server, running from the NoMercy `binaries` folder | `nomercy update` |
+| An installer, with the launcher starting the server | The installer for the newest release |
+| The apt, dnf or pacman package | Your package manager |
+| Docker | A new container image |
+
+What a new version does to your databases on its first start is on [Upgrading](/nomercy-media-server/maintenance/upgrade).
+
+## The update command
+
 ```bash
 nomercy update
 ```
 
-This downloads a new version and stages it. The staged version takes over when the server next restarts:
+On a standalone server this one command does the whole update.
+It downloads the new version, stops the server, swaps the binary and starts the new version.
+There is no separate restart step.
 
-```bash
-nomercy restart
+A successful run prints each stage as it goes:
+
+```text
+Downloading update...
+Update downloaded and staged.
+Stopping server...
+Waiting for server to exit...
+Update applied. Starting server...
+Server is running version <version>.
 ```
 
-Splitting it that way means the download happens while you are watching, and the interruption happens when you choose.
+### What it does, in order
+
+1. The running server downloads the newest release into its `binaries` folder, next to the current binary.
+2. The command stops the server and waits up to 60 seconds for it to exit.
+3. It renames the current binary by adding `.previous` to its name, and moves the new one into its place.
+4. It starts the new version and waits up to 2 minutes for it to answer with its version number.
+5. It deletes the `.previous` copy and prints the version that is running.
+
+If the server does not exit within 60 seconds, the command stops without swapping the binary.
+
+If the new version will not start, or does not answer within 2 minutes, the command rolls back.
+It puts the `.previous` binary back in place, starts it, and exits with an error.
+
+### Where the binary lives
+
+The command swaps the server binary in the `binaries` folder of the server's data directory.
+
+| Platform | Folder |
+|----------|--------|
+| Windows | `%LOCALAPPDATA%\NoMercy\binaries\` |
+| Linux and macOS | `~/.local/share/NoMercy/binaries/` |
+
+## Updating an installer install
+
+When the launcher starts the server from an installed copy, the installer owns updates.
+When a newer release exists, `nomercy update` prints `Run the installer to apply this update.` and stops.
+
+Run the installer for the newest release to update.
 
 ## Updating a package install
 
-A server installed from the apt, rpm or Arch repository updates with the rest of your system instead:
+The apt, rpm and Arch packages are all named `nomercy`, and they update with your package manager:
 
 ```bash
-sudo apt update && sudo apt upgrade      # Debian and Ubuntu
-sudo dnf upgrade nomercy                 # Fedora, RHEL and CentOS
-sudo pacman -Syu                         # Arch
+sudo apt update && sudo apt install --only-upgrade nomercy   # Debian and Ubuntu
+sudo dnf upgrade nomercy                                      # Fedora, RHEL and CentOS
+sudo pacman -Syu                                              # Arch
+```
+
+The package replaces the files under `/opt/nomercy` and does not restart a running server.
+When the server runs as the `nomercymediaserver` user service, restart it to load the new version:
+
+```bash
+systemctl --user restart nomercymediaserver
 ```
 
 ## Updating a container
 
-Pull the image and recreate:
+Pull the new image and recreate the container:
 
 ```bash
 docker compose pull
 docker compose up -d
 ```
 
-Your library, database and settings live in the mounted volume, so they survive this.
+Add the same `-f` file you started it with, such as `-f docker-compose.nvidia.yml`, if you use a GPU variant.
+The compose files require `HOST_IP` to be set, the same as when you first started the container.
+
+The `nomercy-data` volume holds the server's data folder, `/data/.local/share/NoMercy` inside the container, so it survives the new container.
+Your media folders are mounts from the host, so the container does not hold them.
+
+[Docker](/nomercy-media-server/installation/docker) covers the compose files.
+
+Inside a container, `nomercy update` prints `Pull the new container image to apply this update, then recreate the container.` and stops.
+It leaves the running server alone.
 
 ::Troubleshooting
 
-**The update downloaded but the version has not changed.**
-A staged update applies on restart. Run `nomercy restart`.
+**The update says `The server did not stop within 60s.`**
+The command did not swap the binary.
+Check the server with `nomercy status`, and start it with `nomercy start` if it has stopped since.
 
-**The server did not come back after an update.**
-Read the log with `nomercy logs --level Error`. A staged update that cannot start leaves the reason there.
+**The update says `Could not apply the update:` and a reason.**
+The command put the previous binary back, and the server is stopped.
+Start it with `nomercy start`.
+
+**The update says it is rolling back.**
+The new version did not start or did not answer within 2 minutes.
+The command put the previous binary back and started it, without waiting for it to answer.
+
+Check it with `nomercy status`.
+Read the errors with `nomercy logs --level Error`.
+
+**The update says `Could not restore the previous version from` a path.**
+The old binary is still at that path.
+Rename it back to its name without `.previous` in the same folder, then run `nomercy start`.
 
 ::
 
 ## Where to go next
 
-- [Starting and stopping](/nomercy-media-server/cli/start-stop)
 - [Upgrading](/nomercy-media-server/maintenance/upgrade)
+- [Backups](/nomercy-media-server/maintenance/backups)
+- [Starting and stopping](/nomercy-media-server/cli/start-stop)
+- [Logs](/nomercy-media-server/cli/logs)
+- [Docker](/nomercy-media-server/installation/docker)
