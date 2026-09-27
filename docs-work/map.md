@@ -1,6 +1,6 @@
 # Documentation map
 
-**Scope:** the server's Updating and Upgrading pages (Stoney's card pick "Update pages", 2026-09-27). Issue NoMercy-Entertainment/nomercy-docs#17.
+**Scope:** the server's Updating and Upgrading pages (the owner's card pick "Update pages", 2026-09-27). Issue NoMercy-Entertainment/nomercy-docs#17.
 **Excluded:** every other page, including the player trio collections (being worked on elsewhere) and release channels (media-server PR #79 is a draft, so channels are not true yet).
 **Audience:** someone running their own server who wants a newer version.
 **Destination:** the existing Astro site. Pages keep their files, URLs and nav slots (`src/lib/nav-structure.ts`), so no nav edit is needed.
