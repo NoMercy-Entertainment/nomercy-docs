@@ -22,7 +22,7 @@ There is no setup field that installs a backend for you.
 
 ## The shared substrate
 
-`cls MediaElementBackend` is the abstract base for every `HTMLMediaElement` backend.
+`cls MediaElementBackend` is the shared base for an `HTMLMediaElement` backend.
 Core exports it and does not construct one for you.
 Call `super` with the element, whether you own it, and a backend id.
 
@@ -39,7 +39,9 @@ It also holds an auth header provider, DOM bridges, loader pause and resume, and
 
 ## What you still supply
 
-Your subclass still supplies `fn load`, `fn unload`, `fn dispose`, `fn state`, `fn buffered`, and `fn outputProtectionState` for its medium.
+The base does not implement `fn load`, `fn unload`, `fn dispose`, `fn state`, `fn buffered`, or `fn outputProtectionState`.
+Add them when your medium needs them.
+A call the base does not have is a no-op from the player.
 Wire DOM events with `fn attachDomBridges`, or a custom set that still fills the handler list for teardown.
 Override `fn play`, `fn volume`, or `fn mute` only when your medium needs extra work first.
 
