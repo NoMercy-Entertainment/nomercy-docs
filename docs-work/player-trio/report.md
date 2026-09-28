@@ -1,5 +1,26 @@
 # Player trio report
 
+Gate: D5 batch gate, batch 03. INCOMPLETE 28 of 172.
+
+```
+docs-work/player-trio/map.md: 172 page(s), 8 excluded path(s)
+
+    STATUS: INCOMPLETE
+    Pages reviewed: 28 of 172
+    Drafted, not reviewed: 0    Planned, not written: 144
+    Review verdicts: 56 PASS, 0 FAIL, 288 missing
+    Coverage: PASS
+
+    This set is not delivered. Report it as INCOMPLETE, lead with these
+    numbers, and do not describe the work as a finished pass.
+```
+
+This is not a finished pass. Batch 03 adds the ten core handbook pages. The next batch starts at `/nomercy-player-core/build/add-a-plugin`.
+
+Batch 03 site checks that passed: prose clean, density 0 long paragraphs and 133 long sentences, tiers 0 rows over budget, examples and published examples passed, symbols and doc-imports passed, nav ok, links ok, `check:docs` 2 passed and 440 snippet blocks parsed, `astro build` 489 pages.
+
+## Earlier gates, kept below
+
 Gate: D5 batch gate, batch 02. INCOMPLETE 18 of 172.
 
 ```
