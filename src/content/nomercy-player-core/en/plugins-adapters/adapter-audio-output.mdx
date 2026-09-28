@@ -1,51 +1,94 @@
 ---
-title: 'Audio Output'
-description: 'Enumerate output devices, open the browser picker, and route playback to a chosen device with audioOutput().'
+title: 'AudioOutputState'
+description: 'List output devices, open the browser picker, and route playback with the three audio-output methods on IPlayer.'
+tags: [adapter, audio-output, player-core]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/mixins/audio-output.ts */}
+{/* Source: nomercy-player-core/src/core/mixins/audio-output.ts */}
 
-# Audio Output
+# AudioOutputState
 
-Four methods on every player choose which speaker or headset the sound comes out of. They sit on the core, so video and music behave identically.
+`cls AudioOutputState` holds the selected device id on the player.
+Three methods beside it list outputs, open the browser picker, and route sound.
+They live on `cls IPlayer`.
+There is no setup field that replaces them.
 
-| Method | Returns |
+```ts
+import type { IPlayer } from '@nomercy-entertainment/nomercy-player-core';
+```
+
+## Built-in adapter
+
+The built-in surface is those three methods on a composed player.
+`playerCoreMethods` includes them.
+
+| Method | Behavior |
 |---|---|
-| `fn audioOutputs` | `Promise<MediaDeviceInfo[]>` — every output device the browser will name. |
-| `fn selectAudioOutput` | `Promise<MediaDeviceInfo \| null>` — opens the browser's own picker. `str null` when the listener cancels. |
-| `audioOutput()` | `Promise<string \| null>` — the active device id, or `str null` for the system default. |
-| `audioOutput(deviceId)` | `Promise<void>` — routes playback to that device. |
+| `fn audioOutputs` | Resolves to `audiooutput` devices, or `[]` when enumeration is missing. |
+| `fn selectAudioOutput` | Opens the browser picker. Cancel yields `null`. |
+| `fn audioOutput` | Reads the active id, or routes with a `key deviceId`. |
 
-## Permission comes first
+`fn audioOutputs` never throws for a missing API.
+It resolves to an empty array instead.
 
-`fn audioOutputs` returns an empty array until the browser has granted output-device access, and an empty array is also what it returns where the API is missing altogether. Both look the same from the outside.
+`fn selectAudioOutput` throws `cls BrowserPolicyError` with `str core:policy/audioOutputPickerUnsupported` when the picker is absent.
+The throw message names Chrome 105 and later.
+`str AbortError` and `str NotAllowedError` resolve to `null`.
+Any other rejection is rethrown.
 
-`fn selectAudioOutput` is what triggers the grant. Open the picker once, and the enumeration afterwards has real device labels in it.
+`audioOutput(deviceId)` calls `fn setSinkId` on the bound media element, then stores the id.
+An empty string clears the stored id to `null`.
+It throws `cls BrowserPolicyError` with `str core:policy/setSinkIdUnsupported` when the element is missing or has no `fn setSinkId`.
+
+`audioOutput()` with no argument reads the live `key sinkId` when present, else the stored id.
+An empty string reads back as `null`.
+
+## Usage
+
+Type a helper against `cls IPlayer`, then list, pick, and route.
+
+:::snippet{file="core-adapter-audio-output" live="false"}
+:::
+
+## Interface
 
 ```ts
+interface AudioOutputState {
+	_currentAudioOutputId: string | null;
+}
+```
+
+`key _currentAudioOutputId` is written by `audioOutput(deviceId)`.
+The three methods on `cls IPlayer` are:
+
+```ts
+audioOutputs(): Promise<MediaDeviceInfo[]>;
+selectAudioOutput(): Promise<MediaDeviceInfo | null>;
+audioOutput(): Promise<string | null>;
+audioOutput(deviceId: string): Promise<void>;
+```
+
+## Custom implementation
+
+These methods are not a setup adapter.
+You do not pass a replacement object in.
+For tests, `cls StubPlayer` already stubs all three.
+
+```ts
+import { StubPlayer } from '@nomercy-entertainment/nomercy-player-core/testing';
+
+const player = new StubPlayer();
+
+await player.audioOutputs();
 await player.selectAudioOutput();
-const devices = await player.audioOutputs();
+await player.audioOutput();
 ```
 
-## Routing
+`fn audioOutputs` resolves to `[]`.
+`fn selectAudioOutput` and a bare `fn audioOutput` resolve to `null`.
+A write with a `key deviceId` resolves without routing.
 
-`audioOutput(deviceId)` calls `setSinkId` on the media element underneath and resolves once the switch has completed.
+## See also
 
-```ts
-const devices = await player.audioOutputs();
-await player.audioOutput(devices[0].deviceId);
-```
-
-Reading it back prefers the element's live `key sinkId` over the value the player stored, so an id set by something other than this method is still reported correctly.
-
-## Rules & restrictions
-
-- The picker is Chrome 105 and later. Anywhere else `fn selectAudioOutput` throws a `cls BrowserPolicyError` with code `str core:policy/audioOutputPickerUnsupported`.
-- `audioOutput(deviceId)` throws `str core:policy/setSinkIdUnsupported` where `fn setSinkId` is missing, and also when no media element is bound yet. Route after `fn ready`, not before.
-- The empty string means the system default. Passing it clears the stored id, and reading it back gives `str null` rather than `str ""`.
-- Nothing here is persisted. A new session starts on the system default until you route it again.
-
-## Next steps
-
-- [Music: Audio Output](/nomercy-music-player/tour/audio-output): the same four methods with a device switcher built on them.
-- [Volume Memory](/nomercy-player-core/plugins-adapters/volume-memory): the volume half of the same picture, which does persist.
+- [IClock](/nomercy-player-core/plugins-adapters/adapter-clock) is the next catalog entry after audio output.
