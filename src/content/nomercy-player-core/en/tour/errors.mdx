@@ -1,90 +1,87 @@
 ---
 title: 'Errors'
-description: 'The four severities, which one you must handle, and what every failure carries when it reaches you.'
+description: 'Catch typed PlayerError values by class or code, read what they carry, and decide what to show.'
+tags: [tour, errors, PlayerError, severity]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/errors/player.ts, src/errors/severity.ts, src/errors/code.ts */}
+{/* Source: nomercy-player-core/src/errors/player.ts, severity.ts, code.ts, auth.ts, network.ts, media.ts, plugin.ts, policy.ts, drm.ts, not-implemented.ts, index.ts */}
 
 # Errors
 
-Most failures reach you on one of four severity channels, each named after its severity:
+Import the error classes from `@nomercy-entertainment/nomercy-player-core`.
+A typed failure is a `cls PlayerError`, so you can catch by class, by `key code`, or by both.
+That routes a network fault away from a lifecycle fault without parsing free text.
 
-```ts
-player.on('error', ({ error }) => report(error.code, error.context));
-player.on('fatal', ({ error }) => showPlaybackFailed(error.suggestion ?? error.message));
-```
+## When a failure reaches you
 
-Some calls throw instead of emitting.
-`ready()` rejects when a setup stage fails.
-`load()` throws `core:media/missing-url` when the item you passed has no `url`.
+Some call sites throw a `cls PlayerError` subclass you catch with `try` / `catch`.
+Other failures reach listeners as a `PlayerErrorEvent` on `str fatal`, `str error`, `str warning`, or `str info`.
+The event wraps the same error object, so one `instanceof` branch works for both paths.
 
-**Four failures never reach a severity channel.**
-Each has an event of its own: `plugin:failed`, `playlistError`, `auth:failed` and `preloadError`.
-A handler on `error` hears none of the four, so these are wired separately.
+On the event, `fn markHandled`, `fn stopImmediatePropagation`, and `fn preventDefault` set flags.
+Read them back with `fn isHandled`, `fn isPropagationStopped`, and `fn isDefaultPrevented`.
+Listeners on those four channels still all run, because that emit does not read the flags.
 
-## Which one you must handle
+## What every error carries
 
-Two of the four change what a person sees. The other two are for your logs.
+`cls PlayerError` extends `Error`.
+Severity defaults to `str error` when the raise site omits it.
+Match on `key code`, not on `key message`, because the code is the stable id.
 
-| Severity | Means | What it asks of you |
-| --- | --- | --- |
-| `fatal` | Unrecoverable. The play state flips to `ERROR`. | Tell the viewer. The player does nothing further about it. |
-| `error` | Recoverable, such as a playlist that could not be fetched. | Decide whether the feature it broke matters here. |
-| `warning` | Observability only. | Log it. |
-| `info` | Observability only. | Log it. |
+These fields are what you read after a catch or on an event.
 
-**Subscribing to `error` does not give you `fatal` as well.** They are separate channels, so a handler on one hears nothing from the other. Wire both, and treat `fatal` as the one that has to reach the screen.
+`key code` is the stable string id you match and log.
+`key severity` is `str fatal`, `str error`, `str warning`, or `str info`.
+`key scope` names where it came from.
 
-## What every failure carries
+`key context` holds optional diagnostics, often with `key httpStatus`.
+`key suggestion` is an optional hint for your UI.
+`key cause` is an optional underlying value.
 
-The same shape arrives on all four channels.
+`fn isHttp` is true when `key context.httpStatus` falls in that HTTP century.
+Use `error.suggestion ?? error.message` when you need something to show.
+An optional numeric `key id` may sit beside the string code for compact logs.
 
-{/* partial */}
-```ts
-{
-  code: string;                          // the identifier a bug report is searched by
-  severity: 'fatal' | 'error' | 'warning' | 'info';
-  scope: ErrorScope;                     // where it came from
-  message: string;
-  cause?: unknown;                       // the original failure, when there was one
-  context?: Record<string, unknown>;     // the values involved
-  suggestion?: string;                   // present on some codes, not all
-}
-```
+`key scope` is a discriminated union, so branch on `key scope.kind` without matching code prefixes.
+Kinds without an id are `str core`, `str network`, and `str auth`.
+Kinds with an id are `str plugin`, `str backend`, `str stream`, and `str cue`.
 
-**Log the `code`, never the `message`.**
-The message is free text written at the raise site.
-The code is a fixed identifier, which is what makes two reports of one failure look alike.
+## Subclasses you catch
 
-`scope` says which part raised it. It is a discriminated union rather than a string, so branching on `scope.kind` routes a failure without matching on code prefixes.
+Pick the narrowest `instanceof` that fits.
+`cls AuthError` extends `cls NetworkError`, so a network catch also sees auth failures.
 
-There are seven kinds.
+These are the classes you reach for first:
 
-- `core`, `network` and `auth` carry nothing else.
-- `plugin`, `backend`, `stream` and `cue` each carry an `id` naming what raised it.
+| Class | Catch when |
+| --- | --- |
+| `cls PlayerError` | Any typed player failure |
+| `cls NetworkError` | Transport failure, or HTTP status in context |
+| `cls AuthError` | HTTP 401 or 403 |
+| `cls StateError` | Method called in the wrong lifecycle phase |
+| `cls MediaFormatError` | Browser rejects the codec or container |
 
-`suggestion` is populated for some codes and absent for others, so `error.suggestion ?? error.message` is the pattern that always has something to show.
+A 401 may be refreshed before `cls AuthError` is raised.
+A 403 raises it at once.
 
-## Failures during setup arrive twice
+`cls PluginError` covers plugin registration or a plugin throw.
+`cls DrmError`, `cls StreamError`, `cls ResourceError`, `cls BrowserPolicyError`, and `cls NotImplementedError` cover the remaining cases.
+Factories such as `fn stateError`, `fn pluginError`, `fn mediaFormatError`, `fn resourceError`, and `fn browserPolicyError` stamp scope and a default severity for you.
 
-Setup runs as a sequence of named stages, which [Lifecycle](/nomercy-player-core/tour/lifecycle) walks through.
-Most of them announce a failure twice.
+String codes follow patterns like `str core:state/<reason>` and `str core:media/<reason>`.
+The full code list and default retry policy belong on the [errors reference](/nomercy-player-core/reference/errors).
 
-The first event is the stage's name with `Error` on the end, so `authReady` fails as `authReadyError`.
-The bare stage name is the success event, so a listener on `authReady` hears nothing about the failure.
+## Codes and severity helpers
 
-The second is `error`.
-**A stage failure always arrives there, and never on `fatal`.**
+String codes such as `str core:auth/forbidden` are what application code matches on.
+Numeric ids from `fn makeCode` are optional helpers for compact logs.
+`fn parseCode` and `fn formatCode` round-trip that eight-digit form.
+`key SEVERITY` and `key SEVERITY_LEVEL` map the four severity strings to digits 1 through 4.
 
-The stage event tells you where the run stopped.
-The `error` event is the one handler that catches a setup failure alongside every other failure of that severity.
+:::snippet{file="core-tour-errors" live="false"}
+:::
 
-`playlistReady` is the one stage that does not do this.
-It announces a failure on `playlistError` alone, which is why that name is in the list of four above.
+## Next
 
-Listening to both means seeing one failure twice. Pick the one that suits the job.
-
-## Next steps
-
-- [Reference: Errors](/nomercy-player-core/reference/errors) for the `PlayerError` classes, the numeric code schema and the default retry policy.
-- [Lifecycle](/nomercy-player-core/tour/lifecycle) for the stages those setup failures come from.
+[The event bus](/nomercy-player-core/tour/event-bus) is how you subscribe to those severity channels.

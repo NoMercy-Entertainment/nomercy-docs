@@ -1,53 +1,97 @@
 ---
 title: 'Cue Parsers'
-description: 'CueParserRegistry and the built-in VTT, sprite-VTT, and LRC parsers, plus CueList: the time-indexed, binary-searched structure every parser returns.'
+description: 'Turn VTT, LRC, and sprite sheets into time-indexed cue lists, register your own format, and follow cues as playback moves.'
+tags: [tour, cues, parsers, CueList, CueTracker]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/adapters/cue-parser/registry.ts, src/adapters/cue-parser/built-ins.ts, src/core/cues/cue.ts */}
+{/* Source: nomercy-player-core/src/adapters/cue-parser/ICueParser.ts, ICueParserRegistry.ts, built-ins.ts, index.ts, lrc.ts, registry.ts, timestamp.ts, vtt.ts; src/core/cues/cue.ts, tracker.ts; src/core/mixins/cue-parser.ts */}
 
-# Core: Cue Parsers
+# Cue Parsers
 
-Subtitles, lyrics, and sprite-preview thumbnails are all the same shape underneath: timed text or data, looked up by playback position. The kit parses all three into one structure.
+Use cue parsers when timed text, lyrics, or sprite crops need to line up with playback time.
+Each parser returns a cue list you can query, grow, or drive from the player's clock.
 
-## CueList
+Import the helpers from `@nomercy-entertainment/nomercy-player-core`.
 
-`createCueList(cues)` builds an immutable, time-indexed `CueList<T>` from `{ start, end, payload }` entries. Input order does not matter, since it sorts by `start` on construction. Each query on the list does one job:
+## Parse text without a player
 
-| Query | Returns |
+`fn parseVttSubtitles` turns WebVTT into cues with plain `key text` and optional `key markup`.
+Inline `str b`, `str i`, and `str u` tags stay in `key markup`.
+Cue settings map to `key alignment`, `key linePosition`, and `key size` on the payload when present.
+
+`fn parseVtt` keeps each cue body as a raw string.
+`fn parseVttSprite` reads `#xywh=` crops, and joins relative URLs when you pass `key baseUrl`.
+
+`fn parseLrc` reads plain or word-level LRC.
+End times come from the next cue's start, and the last cue lasts five more seconds.
+
+`fn parseTimestamp` turns a WebVTT-style clock into seconds.
+`fn parseDurationSeconds` turns an `H:M:S` or `M:S` string into seconds for item durations.
+
+```ts
+import { parseLrc, parseVttSubtitles } from '@nomercy-entertainment/nomercy-player-core';
+
+const subtitles = parseVttSubtitles(vttText);
+const lyrics = parseLrc(lrcText);
+```
+
+## Query by time
+
+`fn createCueList` builds an immutable list from `{ start, end, payload }` entries.
+Input order does not matter, because the list sorts by `key start`.
+
+These queries answer where you are in that list.
+
+`fn active` with a time returns every cue whose interval contains that time.
+`fn next` returns the nearest cue that starts after it.
+`fn prev` returns the nearest cue that already ended before it.
+
+Overlapping cues stay in `fn active`, so parallel lines and adjacent sprites both work.
+
+## Grow a list, or follow playback
+
+`fn createMutableCueList` starts empty or from an initial array.
+`fn add`, `fn remove`, and `fn clear` keep it sorted and notify `fn subscribe` listeners.
+
+`cls CueTracker` listens to a player's `str time` and `str seek` events.
+It runs your `str enter` and `str exit` handlers as cues activate.
+It also emits `str cue:enter` and `str cue:exit` on the player with `key trackerId` and `key cue`.
+
+```ts
+const tracker = new CueTracker(list, { trackerId: 'lyrics' });
+tracker.on('enter', cue => showLine(cue.payload));
+tracker.attach(player);
+```
+
+## Built-in formats
+
+During `fn setup`, Player Core registers three parsers.
+A later `fn registerCueParser`, or an entry in `key cueParsers` on setup, wins when it matches the same URL first.
+
+Which built-in matches depends on the URL, and sometimes the content type:
+
+| Id | Matches when |
 | --- | --- |
-| `active(time)` | Every cue whose interval contains `time`. Overlapping cues are supported on purpose, for parallel subtitle tracks and adjacent sprite thumbnails. |
-| `next(time)` | The nearest cue after `time`. |
-| `prev(time)` | The nearest cue before `time`. |
+| `str lrc` | The URL has a `.lrc` extension, or content type `application/x-lrc`, `application/x-lyrics`, or `text/lrc` |
+| `str vtt` | The URL has a `.vtt` extension or content type `text/vtt`, unless the URL looks like a sprite sheet |
+| `str sprite-vtt` | The URL contains `sprite.vtt` or `sprites.vtt` |
 
-Every lookup is a binary search.
+## Resolve and register
 
-`createMutableCueList()` gives the same query surface over a live buffer that grows and shrinks at runtime, for streamed-in captions or chapter lists. It notifies `subscribe()`d listeners on every change.
+`cls CueParserRegistry` walks newest first and returns the first parser whose `fn canParse` accepts the URL.
+`fn register` replaces an existing `key id`.
+Pass `prepend: true` to put a parser at the low-priority end.
 
-## Built-in parsers
+On a player, `fn registerCueParser`, `fn unregisterCueParser`, and `fn resolveCueParser` wrap that registry.
+`fn resolveCueParser` takes only a URL.
 
-Three `ICueParser` implementations ship with the kit and auto-register during `setup()`:
+A parser needs `key id`, `fn canParse`, and `fn parse`.
+`fn parse` may receive `{ baseUrl }` so relative sprite paths can resolve.
 
-- `lrcParser`: `.lrc`, plain or word-level enhanced LRC
-- `vttSubtitleParser`: `.vtt`, WebVTT with inline `<b>` / `<i>` / `<u>` tags preserved and cue-setting alignment
-- `spriteVttParser`: sprite-sheet crops via `#xywh=` fragments, only for URLs that hint at sprites
-
-Each has an `id`, a `canParse(url, contentType?)` predicate, and a `parse(raw, opts?)` function.
-
-## The registry
-
-`CueParserRegistry` resolves most-recently-registered first.
-
-`register(parser)` adds one, or replaces an existing entry with the same `id`. `resolve(url, contentType?)` walks the list newest-first and returns the first match.
-
-A real player seeds the registry with the three built-ins during `setup()`. So a parser you register afterwards, or pass as `setup({ cueParsers: [...] })`, wins for the same URL pattern without disabling the built-in.
-
-The runtime wrappers around the same registry are `player.registerCueParser(parser, prepend?)`, `unregisterCueParser(id)` and `resolveCueParser(url)`.
-
-The example below parses real VTT and LRC text directly. `parseVtt`, `parseVttSubtitles`, `parseLrc`, and their sprite counterpart are exported standalone, no player needed. The example then registers a small custom format against a bare registry, to show the extension point in isolation.
-
-:::snippet{file="tour-cue-parsers" live="false"}
+:::snippet{file="core-tour-cue-parsers" live="false"}
 :::
 
-## Next steps
+## Next
 
-- [Typed Errors](/nomercy-player-core/tour/errors): the `PlayerError` hierarchy. Every failure path in this tour surfaces through it, from a rejected `ready()` to a parse failure.
+[Errors](/nomercy-player-core/tour/errors) names the failure types you catch from Player Core.

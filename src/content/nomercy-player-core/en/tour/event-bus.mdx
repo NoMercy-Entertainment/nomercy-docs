@@ -1,170 +1,86 @@
 ---
 title: 'The Event Bus'
-description: 'How the player announces what it is doing, how you subscribe, and how a listener cancels an action before it runs.'
+description: 'Listen on the player with on, once, and off, and see what emit delivers to those handlers.'
+tags: [tour, event-bus, on, emit]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/adapters/event-bus/default.ts, src/adapters/event-bus/index.ts, src/core/dispatch.ts */}
+{/* Source: nomercy-player-core/src/adapters/event-bus/default.ts, src/adapters/event-bus/IEventBus.ts, src/adapters/event-bus/index.ts */}
 
 # The Event Bus
 
-A player announces everything it does as an event.
+Listen on the player you already built.
+`fn on`, `fn once`, `fn off`, and `fn emit` live on that instance.
+There is no separate bus to create or pass into setup.
 
-All of it runs through one class, `cls EventEmitter`, and the player instance is one.
-So `player.on(...)` is the whole subscription surface, with nothing to wire up first.
-
-## Subscribing
-
-```ts
-player.on('play', () => showPauseButton());
-```
+## Subscribe
 
 `fn on` runs your handler on every emit of that name.
-`fn once` runs it on the next emit and then removes it.
-Remove one yourself with `fn off`:
+`fn once` runs it on the next emit, then removes it.
+Keep the same function reference so `fn off` can find it later.
 
 ```ts
-player.off('play', showPauseButton);
+player.on('item', ({ item, index }) => highlightRow(index));
+player.once('item', ({ index }) => console.log(index));
 ```
 
-Pass the same function reference you subscribed with.
-That is also how a `fn once` handler is canceled before it has fired.
-
-Registering one function twice for one event registers it once.
+Registering the same function twice for one event registers it once.
 The second call is not a second subscription.
 
-**`off(name)` with no handler drops every listener for that name.**
+A typed name from the player's event map types the handler payload.
+A bare string also compiles, so names like `str plugin:<id>:<event>` stay callable.
 
-**`off('all')` with no handler drops every listener for every name.**
-Disposal uses that second form, so reach for it only when you are finished with the player.
+## Stop listening
 
-### What the types catch, and what they do not
+`fn off` with the name and the same function removes that one handler.
+It works for both `fn on` and `fn once` registrations.
+Cancel a `fn once` handler before it has fired the same way.
 
-A name from the player's event map hands your handler the right shape:
+`fn off` with a name and no function drops every listener for that name.
+`fn off` with `str all` and no function drops every listener for every name, firehose included.
+
+## Hear a new item
+
+Listen for `str item` when you need the active entry and its index.
 
 ```ts
-player.on('playlistReady', ({ length }) => {
-  // length is a number here.
-});
+player.on('item', ({ item, index }) => highlightRow(index));
 ```
 
-**A name that is not in the map still compiles.**
-A bare string is a valid call, because a plugin's own `plugin:<id>:<event>` names have to be subscribable too.
-So a misspelled name gives you a handler that never runs, rather than a build error.
+`fn on` with `str current` never fires.
+It logs a console warning that points to `str item`.
 
-The runtime covers part of that gap.
-Subscribing to a name the bus knows will never fire logs a console warning naming the one to use instead.
+## What emit delivers
+
+`fn emit` calls named listeners in subscription order, then any firehose listeners.
+It returns at once when nobody is listening for that name or for `str all`.
+
+The listener set is snapshotted before the walk.
+An `fn off` inside a handler applies on the next emit, not this one.
+A throwing handler is caught and logged, and the rest still run.
 
 ## The firehose
 
-```ts
-player.on('all', (event, data) => console.log(event, data));
-```
-
-`str all` calls your handler for every emit, with the name first and the payload second.
+`fn on` with `str all` receives every emit as `(event, data)`.
 That is the debugging hook.
-Remove one with `off('all', fn)`.
+Remove one with `fn off`, `str all`, and the same function.
 
-Firehose listeners are held apart from named ones.
-`hasListeners('all')` is false while one is registered, because it answers about named subscriptions only.
+Firehose listeners sit apart from named ones.
+`fn hasListeners` ignores them, so it stays false when only `str all` is registered.
 
-## What an emit guarantees
+## Check before you build a payload
 
-`hasListeners(name)` exists for a payload that costs something to build:
+`fn hasListeners` is true when a named event has at least one handler.
+Use it before you build a payload that costs something to create.
+`fn listenerCount` counts every live handler, firehose included.
 
-```ts
-if (player.hasListeners('debug:frame'))
-  player.emit('debug:frame', buildFrameReport());
-```
+When a name gains its first listener or loses its last, the bus emits `str listeners-changed`.
+The payload is `key name` and `key count`.
+It arrives on a microtask, not inside your `fn on` call.
 
-Three things hold on every dispatch.
-
-- Handlers run in subscription order, synchronously.
-- The listener set is snapshotted first, so an `off()` inside a handler takes effect on the next emit rather than this one.
-- A handler that throws is caught and logged, and the remaining handlers still run.
-
-That last one is why one broken listener cannot stop the player telling everybody else what happened.
-
-Whenever a name gains its first listener or loses its last, the bus emits `str listeners-changed` with `{ name, count }`.
-It arrives on a microtask, not inside your `on()` call.
-
-`cls EventEmitter` is exported on its own, so every mechanic above can be driven with no player around it.
-
-:::snippet{file="tour-event-bus" live="false"}
+:::snippet{file="core-tour-event-bus" live="false"}
 :::
 
-## Canceling an action
+## Next
 
-An action the player is about to take announces itself first, on an event named `before` plus the action.
-Eighteen events in the core map work this way, `beforePlay`, `beforeSeek` and `beforeLoad` among them.
-
-A handler for one of those receives an event object rather than the payload:
-
-```ts
-player.on('beforeSeek', (event) => {
-  if (isAdPlaying())
-    event.preventDefault();
-});
-```
-
-`preventDefault()` cancels the action.
-The player skips the work and the event that would have followed it, and emits `<action>Prevented` in its place:
-
-```ts
-player.on('seekPrevented', ({ reason }) => console.log(reason));
-```
-
-`event.data` is the payload, and it is writable.
-The player reads it back, so a handler can change what the action does rather than stopping it:
-
-```ts
-player.on('beforeSeek', (event) => {
-  event.data.time = clampToChapter(event.data.time);
-});
-```
-
-`stopImmediatePropagation()` skips the handlers subscribed after yours.
-It cancels nothing on its own, so combine it with `preventDefault()` when you mean both.
-
-## Holding an action open
-
-`delay(promise)` makes the player wait before it acts:
-
-```ts
-player.on('beforePlay', (event) => {
-  event.delay(refreshCredentials());
-});
-```
-
-Several handlers may delay one action, and their promises are awaited together.
-
-The wait is capped, and the cap is 10000 ms.
-Set your own with `key beforeEventTimeoutMs` in the setup config.
-
-A delayed promise that rejects cancels the action.
-So does running out of time.
-
-`key reason` on the `<action>Prevented` payload says which of four cases you are in.
-
-| `key reason` | The action stopped because |
-| --- | --- |
-| `str listener-prevented` | A handler called `preventDefault()`. |
-| `str delay-rejected` | A delayed promise rejected. The rejection arrives beside it as `key cause`. |
-| `str delay-timeout` | The delays outlasted the cap. |
-| `str backend-refused` | The browser or the backend declined the call itself. |
-
-`str backend-refused` is the one no handler causes.
-A browser blocking autoplay is the case you will actually meet.
-
-**Order decides whether a delay is honored.**
-Every handler runs to the end before any promise is awaited.
-So a handler that stops propagation silences a later handler's `delay()`.
-
-The action then goes ahead unwaited.
-
-`player.dispatching()` returns the names being dispatched right now, innermost last.
-Reach for it when a handler needs to know which chain it is inside.
-
-## Next steps
-
-- [Reference: Events](/nomercy-player-core/reference/events) for every event name and the payload it carries.
-- [Adapter: Event Bus](/nomercy-player-core/plugins-adapters/adapter-event-bus) for `cls IEventBus`, the type to write your own code against.
+[i18n](/nomercy-player-core/tour/i18n) is how the player turns translation keys into text.

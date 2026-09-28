@@ -1,5 +1,26 @@
 # Player trio report
 
+Gate: D5 batch gate, batch 02. INCOMPLETE 18 of 172.
+
+```
+docs-work/player-trio/map.md: 172 page(s), 8 excluded path(s)
+
+    STATUS: INCOMPLETE
+    Pages reviewed: 18 of 172
+    Drafted, not reviewed: 0    Planned, not written: 154
+    Review verdicts: 36 PASS, 0 FAIL, 308 missing
+    Coverage: PASS
+
+    This set is not delivered. Report it as INCOMPLETE, lead with these
+    numbers, and do not describe the work as a finished pass.
+```
+
+This is not a finished pass. Batch 02 adds the eleven remaining core tour pages. The next batch starts at the first planned core row after the tour, `/nomercy-player-core/handbook/anatomy`.
+
+Batch 02 site checks that passed after the table-row trim: `check:prose` clean, `check:density` 0 long paragraphs and 139 long sentences, `check:tiers` 0 rows over budget, `check:nav` ok, `check:links` ok, `check:docs` 2 passed and 431 snippet blocks parsed, `astro build` 489 pages. Atlas `reviews` still fails only on rows that are planned. Atlas `links` still fails only on `native/` targets.
+
+## Pilot gate, kept below
+
 Gate: D5 batch gate, pilot. INCOMPLETE 7 of 172.
 
 ```

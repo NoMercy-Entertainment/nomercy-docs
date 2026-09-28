@@ -1,104 +1,56 @@
 ---
 title: 'i18n'
-description: 'What t() looks up, which language it resolves in, where the kit strings come from, and how a plugin ships its own.'
+description: 'Set the active language, look up string keys, and merge your own translations into the live table.'
+tags: [tour, i18n, language, t]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/mixins/i18n.ts, src/adapters/translator/translator.ts, src/adapters/language-matcher/bcp47.ts, src/i18n/en.ts, src/kit-translations.ts, src/core/mixins/lifecycle.ts */}
+{/* Source: nomercy-player-core/src/core/mixins/i18n.ts, nomercy-player-core/src/i18n/en.ts */}
 
 # i18n
 
-Every string the kit puts on screen is a key first.
+Use these methods when UI text must follow a language tag, or when you add strings of your own.
+Reading a key and switching language are separate calls.
+Merge your strings before you look them up, so the first `fn t` already sees them.
 
-`t(key)` turns that key into text in the language the reader is in.
+## Look up a key
 
-A key that resolves to nothing comes back as itself, so a gap in a bundle shows a legible label rather than an empty control.
-
-## Looking a key up
+`fn t` takes a key and returns the string for the active language.
+A miss returns the key itself, so a gap stays readable instead of blank.
 
 ```ts
 player.t('core.state.queueEmpty'); // 'There is nothing in the queue.'
 ```
 
-Placeholders come from a second argument.
+Pass a second map when the template has `{name}` placeholders.
+Each name in the map replaces its `{name}` in the stored string.
 
 ```ts
 player.t('core.a11y.playing', { title: 'Big Buck Bunny' }); // 'Playing Big Buck Bunny'
 ```
 
-The stored template is `'Playing {title}'`.
-Every `{name}` in it is replaced from the map you pass.
+The class form of `fn t` takes a plugin class, then a short key.
+It looks under `plugin.<id>.` for you, so plugins never hand-write that prefix.
 
-A name the map does not carry stays in the string as `{name}`, which is what makes a missed variable visible instead of silent.
+## Set the language
 
-**A key with no value anywhere returns the key.**
-`t('demo.missing')` gives you back `'demo.missing'`.
-
-Give `setup` an `onMissingTranslation(key, lang)` and it runs before that fallback, so a dev-time overlay or a telemetry counter can sit between the miss and the key.
-
-## Which language a key resolves in
-
-`language()` with no argument reads the active BCP-47 tag.
+`fn language` with no argument returns the active BCP-47 tag.
 
 ```ts
 player.language(); // 'en'
 ```
 
-A lookup walks that tag down its parents, then to English.
-`str pt-BR` is tried, then `str pt`, then `str en`.
-
-So a regional bundle only has to carry what it changes, and the parent covers the rest.
-
-**`language(tag)` is the same method with an argument, and it hands back a promise.**
-Await it.
-It resolves once the bundles for the new tag and its parents are loaded, and every registered plugin's bundles are part of that wait.
+Pass a tag to switch.
+Await the promise, because bundles for that tag and its parents finish loading before it resolves.
 
 ```ts
 await player.language('pt-BR');
 ```
 
-A switch announces itself before it happens.
-`beforeLanguage` carries the requested tag, and a listener may call `preventDefault()` to keep the current language, which then emits `languagePrevented`.
+English core strings are ready without a fetch.
+Other built-in bundles load for the language you switch to, and stay out of memory until then.
 
-A listener that writes to `data.lang` instead redirects the switch to the tag it wrote.
-`language` fires afterward with the tag that won.
-
-### The language it starts in
-
-Three sources, first one that answers: the `key language` config field, then `navigator.language`, then `str en`.
-
-The player makes that opening call itself, after its plugins have registered.
-
-**Call `language(tag)` yourself before `ready()` resolves and the player leaves your choice alone.**
-The startup call is skipped rather than run late, which is what stops it overwriting the switch you just made.
-
-## Where the kit strings come from
-
-The kit carries 30 `core.*` keys, covering network, auth, browser policy, media, DRM, player state, accessibility announcements and chapter titles.
-
-Two more keys sit outside that namespace.
-`str plugin.tab-leader.lost` and `str plugin.media-session.unsupported` are what two kit plugins put on screen, so `enTranslations` holds 32 entries in total.
-
-English is compiled in and merged synchronously, so `t('core.*')` answers before any load has run.
-
-The other 78 tags are one file each, fetched the first time `language()` switches to one.
-A reader who wants Dutch never downloads Chinese.
-
-Your own bundles win a collision.
-`key translations` is merged over the kit English key by key, and your `key loadTranslations` result is merged over whatever the kit loader returned for the same tag.
-
-Four `setup` fields seed all of it:
-
-| Field | Does |
-| --- | --- |
-| `key language` | The tag to start in. |
-| `key translations` | Bundles by tag, merged during setup. |
-| `key loadTranslations` | Async loader for a tag not yet fetched. |
-| `key onMissingTranslation` | Runs before a miss falls back to the key. |
-
-A fifth field, `key translator`, replaces the lookup engine outright rather than feeding it.
-[Adapter: Translator](/nomercy-player-core/plugins-adapters/adapter-translator) is where that swap belongs.
-
-The English bundle is also an ordinary import, for spreading into your own:
+You can import the English map to spread into your own setup:
 
 ```ts
 import { defaultTranslations, enTranslations } from '@nomercy-entertainment/nomercy-player-core';
@@ -107,50 +59,45 @@ import { defaultTranslations, enTranslations } from '@nomercy-entertainment/nome
 `enTranslations` is the flat key-to-string map.
 `defaultTranslations` wraps it as `{ en: enTranslations }`, which is the shape `key translations` takes.
 
-## A plugin brings its own strings
+A switch announces itself first as `str beforeLanguage` with the requested tag.
+A listener may call `preventDefault()` to keep the current language, which then emits `str languagePrevented`.
+Writing `data.lang` redirects the switch to that tag instead.
 
-Plugin keys live under `plugin.<id>.`, and nothing hand-writes that prefix.
+`str language` fires afterward with the tag that won.
 
-The class-typed form of `t()` builds the prefix from the class you pass:
+## Add your own strings
+
+`fn addTranslations` merges a map of tag to key/value pairs into the live table.
+Existing keys are overwritten.
+Keys you omit stay put.
 
 ```ts
-player.t(CastSenderPlugin, 'action.connect'); // 'Cast'
+player.addTranslations({
+  en: { 'demo.welcome': 'Welcome, {name}!' },
+  nl: { 'demo.welcome': 'Welkom, {name}!' },
+});
 ```
 
-`cls CastSenderPlugin` declares its `key id` as `str cast-sender`, so the key actually looked up is `str plugin.cast-sender.action.connect`.
-A plugin calling its own scoped `t()` gets the same prefix without naming itself.
+`fn translation` with a tag and key reads one stored entry.
+Pass a third argument to write that one entry for the player's lifetime.
 
-There are two ways a plugin ships bundles.
-A `static translations` field is merged when the plugin registers, and an instance `loadTranslations(lang)` hook is called on each switch to a tag it has not answered for yet.
+`fn removeTranslations` drops every key that starts with a prefix.
+Pass a tag to limit the wipe to one language, or omit it to clear across all.
 
-Keys the hook returns are namespaced under `plugin.<id>.` for you.
+These methods are how you seed demo copy, override a built-in line, or clear a plugin namespace after you dispose it.
+
+## Plugin bundles on a switch
+
+Registered plugins can ship their own strings.
+A static `key translations` field loads for each tag in the BCP-47 chain that is not loaded yet.
+An instance `fn loadTranslations` hook runs for the target tag when that plugin has not answered it yet.
+
+Keys from the hook are namespaced under `plugin.<id>.` for you.
 Each plugin and tag pair is asked at most once per player.
 
-**Disposal only clears the namespace when the class declares `static translations`.**
-A plugin that ships bundles through the hook alone leaves its keys in the table after it goes.
-
-[Build a Player: Add i18n](/nomercy-player-core/build/add-i18n) is the walkthrough for shipping a bundle with a plugin and loading one at runtime.
-
-## Keys are American English
-
-The bundle is written in American English, and that runs through the key names as well as the strings.
-
-```ts
-player.t('core.drm.licenseFailed'); // 'Could not get a license for this content.'
-player.t('core.drm.licenceFailed'); // 'core.drm.licenceFailed'
-```
-
-A British spelling is not a variant of a key.
-It is a different key, and it resolves to itself.
-
-Match the American form when you add your own, or one spelling ends up overriding nothing.
-
-## All of it together
-
-:::snippet{file="tour-i18n" live="false"}
+:::snippet{file="core-tour-i18n" live="false"}
 :::
 
-## Next steps
+## Next
 
-- [Build a Player: Add i18n](/nomercy-player-core/build/add-i18n) for shipping translations with a plugin.
-- [Adapter: Translator](/nomercy-player-core/plugins-adapters/adapter-translator) for replacing the lookup engine with i18next, FormatJS, or your own.
+[Lifecycle](/nomercy-player-core/tour/lifecycle)
