@@ -1,164 +1,162 @@
 ---
 title: 'Transport'
-description: 'Play, pause, stop and move through the queue, what each call announces, and how a listener stops one before it happens.'
+description: 'Play, pause, stop, seek, and load: when each call is safe, what it announces, and how the backend does the real work.'
+tags: [tour, transport, play, load]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/mixins/transport.ts, src/core/mixins/player-state.ts */}
+{/* Source: nomercy-player-core/src/core/mixins/transport.ts, nomercy-player-core/src/core/mixins/loading.ts */}
 
 # Transport
 
-Every transport call runs the same three steps.
+Use transport when you need `fn play`, `fn pause`, `fn stop`, seek steps, or `fn load`.
+Player Core does not decode media itself.
+Each call forwards to the backend your player supplies.
 
-It announces the intent, gives your listeners a chance to stop it, and only then changes state and calls the backend.
+Import the shared mixins from `@nomercy-entertainment/nomercy-player-core` and compose them onto your class.
+The public methods then live on the instance.
 
-That shape is what makes the events predictable, and it is what lets a plugin veto an action instead of undoing it afterward.
+Call them only after `fn setup` has left `str idle`, and never after `fn dispose`.
+Before that, the call throws `str core:player/not-ready`.
+After dispose, it throws `str core:player/disposed`.
 
-## What each call announces
+## Shared shape
 
-| Call | Announces first | Emits when it runs |
+Every call in the table below checks readiness first.
+It then announces a `before*` event so a listener can cancel.
+Only when that passes does it change state and talk to the backend.
+
+This table pairs each call with the events it uses.
+
+| Call | Announces | Emits when it runs |
 | --- | --- | --- |
-| `play()` | `beforePlay` | `play` |
-| `pause()` | `beforePause` | `pause` |
-| `stop()` | `beforeStop` | `stop` |
-| `next()` | `beforeNext` | `next`, or `queue:exhausted` |
-| `previous()` | `beforePrevious` | `previous` |
+| `fn play` | `str beforePlay` | `str play` |
+| `fn pause` | `str beforePause` | `str pause` |
+| `fn stop` | `str beforeStop` | `str stop` |
+| `fn load` | `str beforeLoad` | `str mediaReady` on success |
+| `fn rewind` / `fn forward` / `fn restart` | `str beforeSeek` | `str seek`, then `str seeked` |
 
-`togglePlayback()` announces nothing of its own.
-It reads the current play state and calls `pause()` when it is playing, `play()` otherwise, so one of the pairs above fires instead.
+`fn next` and `fn previous` announce `str beforeNext` and `str beforePrevious`.
 
-`rewind()`, `forward()` and `restart()` announce on `beforeSeek`, then emit `seek` and `seeked`.
+`fn togglePlayback` announces nothing of its own.
+It calls `fn pause` while playing, and `fn play` otherwise.
 
-## Stopping one before it happens
+## Play, pause, and stop
 
-A `before*` listener receives an event object rather than the payload.
-Calling `preventDefault()` on it cancels the action:
+`fn play` marks the player as playing, may move to `str starting`, emits `str play`, then awaits the backend `play`.
+Await it when you need to know the backend accepted.
+
+If the backend refuses, state rolls back to paused and `str playPrevented` fires with `str backend-refused`.
+The refusal is rethrown, so an unawaited `fn play` becomes an unhandled rejection.
+
+`fn pause` and `fn stop` do not await the backend, so they cannot fail that way.
+`fn pause` moves to `str paused` from `str playing` or `str starting`.
+`fn stop` always moves to `str stopped` and asks the backend to stop.
+
+Pass `key silent: true` on these options when a restore must skip the `before*` guard and the plain event.
+
+```ts
+await player.play();
+await player.pause();
+await player.stop();
+```
+
+## Load an item
+
+`fn load` mounts one item into the backend.
+It needs `key url` on the item, and a wired backend, or it throws.
+
+A listener can cancel with `str beforeLoad`; then `str loadPrevented` fires and nothing mounts.
+After the guard passes, play state becomes `str loading` while the backend mounts.
+
+From `str ready`, `str playing`, `str paused`, `str starting`, or `str ended`, the phase also flashes `str loading`.
+On success it settles to `str ready`, play state becomes `str paused` unless a transport call already owned it, and `str mediaReady` fires.
+
+Await `fn load` before `fn play` when you chose the item yourself.
+Editing the queue does not start playback.
+`fn play` must wait until the new item has loaded.
+
+`key startAt` is a start offset in seconds for engines that honor it.
+`key fadeIn` ramps volume up over that many seconds after the mount.
+A faster second `fn load` wins; the older continuation stops quietly.
+
+`fn loadQueue` fetches a playlist URL, replaces the queue, and emits `str playlistReady` on success.
+
+```ts
+await player.load(item, { startAt: 12 });
+await player.play();
+```
+
+## Seek by a step
+
+`fn rewind` and `fn forward` move relative to the current position.
+Both default to 5 seconds.
+
+`fn rewind` clamps at 0.
+`fn forward` has no upper clamp; the backend snaps past the end if it must.
+
+`fn restart` seeks to 0, then plays.
+A prevented seek skips that play, because restart is one intent.
+
+`str beforeSeek` carries the delta for rewind and forward, and `0` for restart.
+`str seek` and `str seeked` carry the absolute target instead.
+
+The seeking phase round-trip runs only from `str playing`, `str paused`, or `str starting`.
+Earlier seeks emit no phase flash, so a restored position does not flicker seeking in the UI.
+
+```ts
+await player.forward(10);
+await player.rewind();
+await player.restart();
+```
+
+## Next and previous
+
+`fn next` follows the repeat mode.
+`str one` reloads the current item without moving the cursor.
+`str all` wraps to the first item when there is no next.
+`str off` emits `str queue:exhausted` when there is no next.
+
+An empty queue emits `str queue:exhausted` under every mode.
+`fn previous` at the start returns quietly and emits nothing.
+
+Both move the queue cursor before the media switches when there is a neighbor to select.
+That cursor move emits `str item`.
+Awaiting `fn next` means the load finished, not that playback started.
+
+Playback starts without being awaited, so a refused play emits `str playPrevented` while `fn next` still resolves.
+
+## Cancel before it runs
+
+A `before*` listener receives an event object.
+Call `preventDefault` on it to stop the action.
 
 ```ts
 player.on('beforePlay', (event) => {
-  if (event.data.source === 'remote')
-    event.preventDefault();
+	if (event.data.source === 'remote')
+		event.preventDefault();
 });
 ```
 
-**A canceled action changes nothing.**
-No state moves, the plain event never fires, and the backend is never called.
+A canceled call changes no state and never reaches the backend.
+The matching `*Prevented` event carries `key reason`, often `str listener-prevented`, and optional `key cause`.
 
-What fires instead is `<action>Prevented`, carrying a `key reason` and, when there was one, a `key cause`:
+## Attribute the caller
 
-```ts
-player.on('playPrevented', ({ reason }) => {
-  console.log('play blocked:', reason);
-});
-```
-
-`key reason` is `str listener-prevented` when a listener canceled it.
-
-## `play` is not proof that playback started
-
-`play()` sets the play state and emits `play` before it asks the backend to play.
-
-**When the backend refuses, the `play` event has already fired.**
-The refusal you will actually meet is a browser declining autoplay without a gesture.
-
-The player then rolls the state back to paused, emits `playPrevented` with reason `str backend-refused`, and rethrows.
-
-So an unawaited `play()` becomes an unhandled rejection, and it needs catching even though the event already told you:
+Every call accepts `key source` on its options.
+Whatever you pass is stamped onto the events that follow.
+Nothing fills one in when you omit it.
 
 ```ts
-player.on('playPrevented', ({ reason }) => {
-  if (reason === 'backend-refused')
-    showTapToPlay();
-});
-
-try {
-  await player.play();
-}
-catch {
-  // Already reported through playPrevented.
-}
-```
-
-`pause()` and `stop()` cannot fail this way, because neither awaits its backend call.
-
-## Seeking by a delta
-
-`rewind(seconds)` and `forward(seconds)` move relative to the current position, and both default to 5.
-
-`rewind()` clamps at 0, so rewinding past the start lands on the start.
-`forward()` has no upper clamp, and a backend that cannot seek past the end snaps there itself.
-
-`restart()` seeks to 0 and then plays.
-A prevented seek skips the play as well, because restart is one intent rather than a seek followed by a play.
-
-**These three tell `beforeSeek` the delta, not the destination.**
-A `forward(10)` listener sees `time: 10`, a `rewind(10)` listener sees `-10`, and `restart()` sends `0`.
-
-The `seek` and `seeked` events that follow carry the absolute target instead.
-
-**Rewriting `event.data.time` in a `beforeSeek` listener does not move any of the three.**
-They work out their target before the dispatch and keep it, and only `key source` is read back off the event.
-
-Seeking to a position you name belongs to [Time](/nomercy-player-core/tour/time).
-
-## The seeking phase
-
-A seek moves the player into the `str seeking` phase and back to the phase it was in.
-
-**That round trip only happens from `str playing`, `str paused` or `str starting`.**
-A seek before playback has started emits no phase change at all, which is what keeps a restored position from flashing a seeking state through your interface.
-
-A prevented seek changes no phase either.
-
-## Moving through the queue
-
-`next()` reads the repeat mode, set with `repeatState()`, and does one of three things.
-
-- `str one` reloads the current item. The queue cursor does not move.
-- `str all` wraps to the first item once there is no next one.
-- `str off` emits `queue:exhausted` once there is no next one.
-
-An empty queue emits `queue:exhausted` under all three.
-
-`previous()` at the start of the queue does nothing, and says nothing.
-Going back past the first item is a common gesture rather than a failure worth announcing.
-
-Both move the queue cursor before they switch the media, so a title, a poster and a playlist highlight update while the incoming item is still loading.
-
-**Awaiting `next()` means the item loaded, not that it is playing.**
-Playback is started without being awaited, so a refusal there emits `playPrevented` and leaves the `next()` promise resolved.
-
-A load that fails is the other way round: `next()` does await the load, so that failure rejects.
-
-## Attributing an action
-
-Every call on this page takes an options object with a `key source` on it.
-
-Whatever you put there is stamped onto the event that follows, and nothing fills one in when you leave it out.
-
-```ts
-player.on('play', ({ source }) => {
-  if (source !== 'remote')
-    broadcastToOtherDevices();
-});
-
 await player.play({ source: 'remote' });
 ```
 
-That is what lets a plugin syncing playback across devices tell its own echo apart from a real press.
+`str seek` carries a source.
+`str seeked` does not.
 
-A `before*` listener can rewrite `event.data` too, and the plain event carries what the listener left behind.
-`seek` carries a source as well.
-`seeked` does not.
+:::snippet{file="core-tour-transport" live="false"}
+:::
 
-## Before setup and after disposal
+## Next
 
-Every method on this page checks the player is usable before anything else.
-
-Called before `setup()` it throws `str core:player/not-ready`, and after `dispose()` it throws `str core:player/disposed`.
-
-Neither is preventable and neither emits, because the check runs ahead of the dispatch.
-
-## Next steps
-
-- [Time](/nomercy-player-core/tour/time) for seeking to a position you name, and for the playback rate.
-- [Reference: Events](/nomercy-player-core/reference/events) for every payload named here.
+[Anatomy of a plugin](/nomercy-player-core/handbook/anatomy) is the next page in this tour.

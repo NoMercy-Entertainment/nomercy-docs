@@ -1,159 +1,139 @@
 ---
 title: 'Lifecycle'
-description: 'The nine stages between your setup call and a usable player, what each one announces, and where your own code belongs.'
+description: 'Call setup to start the async pipeline, await ready before you use the player, and dispose when you are done.'
+tags: [tour, lifecycle, setup, ready, dispose]
+draft: false
 ---
+
+{/* Source: nomercy-player-core/src/core/mixins/lifecycle.ts, nomercy-player-core/src/core/mixins/activity.ts */}
 
 # Lifecycle
 
-`setup()` returns straight away. The player is not usable yet.
+Call `fn setup` once after you compose your class.
+It returns right away, before the player is usable.
+Await `fn ready` before you read the queue or start playback.
 
-What happens between that return and a usable player is a fixed sequence of stages, each of which announces itself.
+## Start setup
 
-The sequence is what tells you where your own code belongs.
-It is also why a call that works in one place returns nothing in another.
+```ts
+player.setup(config);
+```
 
-## The sequence
+`fn setup` takes a `cls BasePlayerConfig` object.
+It snapshots that object onto `key options` and seeds internal slots from it.
+It adds the `str nomercyplayer` class on the container.
 
-Nine stages, always in this order:
+It emits `str beforeSetup` and moves into the `str setup` phase.
+Then it starts the async pipeline that ends at `str ready`.
+
+A second `fn setup` throws `str core:lifecycle/already-setup`, including after `fn dispose`.
+Dispose does not make this instance accept setup again.
+Build a new instance when you need another player.
+
+## Wait until ready
+
+```ts
+await player.ready();
+```
+
+`fn ready` resolves when the pipeline reaches the `str ready` phase.
+If the player is already ready, it resolves at once.
+If the player is disposing or disposed, it rejects with `str core:player/disposed`.
+
+Repeated calls share the same promise.
+When a plugin is still registering after setup, `fn ready` waits for that too.
+
+Handle a rejected `fn ready` like any other failed promise.
+A stage that throws emits that stage's error event and either `str error` or `str fatal`.
+Then it rejects `fn ready`, so later stages do not run.
+
+## The setup sequence
+
+Stages run in a fixed order.
+Each successful stage emits an event with the same name.
 
 ```
 setupStart → configResolved → pluginsRegistering → pluginsRegistered
   → streamsReady → authReady → playlistReady → mediaReady → ready
 ```
 
-Each stage emits an event named after itself. Subscribing to one is how you hang your own work off a point in the sequence rather than guessing at a delay:
+Hang your own work off a stage event when you need that point, not a delay.
 
-```ts
-// The queue is populated here, which is the earliest point a
-// "restore where they left off" call has anything to act on.
-player.on('playlistReady', ({ length }) => {
-  if (length > 0)
-    restoreLastPosition(player);
-});
-```
+These stages are the ones you usually wait on.
 
-One extra event appears only when the playlist has to be fetched.
-A config that hands the player a URL instead of an array emits `playlistResolving` with that URL, between `authReady` and `playlistReady`.
-
-## What each stage settles
-
-The names describe what has finished, not what is starting.
-
-| Stage | True once it has fired |
+| Stage | Settled when it fires |
 | --- | --- |
-| `configResolved` | `player.options` is final. Your config object has been taken as given. |
-| `pluginsRegistered` | Every plugin has constructed and its `use()` has returned. |
-| `streamsReady` | The stream factories are registered, so a URL can be matched. |
-| `authReady` | Credentials are in place, so a media request can be signed. |
-| `playlistReady` | The queue is populated. The payload carries `length`. |
+| `str configResolved` | `key options` holds the config snapshot. |
+| `str pluginsRegistered` | Plugins queued for setup have finished registering. |
+| `str streamsReady` | Built-in stream factories are registered when missing. |
+| `str authReady` | The auth stage has passed in the sequence. |
+| `str playlistReady` | The queue is seeded, or `key length` is `0`. |
 
-Two of the nine are the wrong hook to reach for, and both look right by their name.
+`str mediaReady` fires when that stage runs, and its work body is empty.
 
-**By the time `setupStart` fires, the config is normalized, state is seeded and the adapters are wired.**
-Some fields have been read by then and some have not, so an edit there lands for `playlist` and is ignored for whatever was already consumed.
-Pass config to `setup()` and you never have to know which is which.
+`str setupStart` carries the container.
+A playlist URL also emits `str playlistResolving` with that URL between `str authReady` and `str playlistReady`.
 
-**`mediaReady` fires twice.**
-The stage of that name has an empty body and fires whether or not media loaded.
+A playlist fetch failure emits `str playlistError` and still emits `str playlistReady` with `length: 0`.
+The pipeline continues to `str ready`.
 
-The load path emits it again once the backend really holds an item.
+Pass `key plugins` on the config, or register before `fn setup`, so they drain during `str pluginsRegistering`.
+Each registration is bounded by `key pluginInitTimeoutMs`, which defaults to `30000`.
 
-Listen for it after `ready()` resolves and you get that second one.
+## Check where you are
 
-## Waiting for it
+`fn phase` returns the fine-grained phase string, such as `str idle`, `str setup`, or `str ready`.
+`fn setupState` returns a coarser `cls SetupState`: `str not-setup`, `str setup`, `str ready`, or `str disposed`.
 
-```ts
-await player.ready();
-```
+Use `fn setupState` when you only need to know whether the player is usable yet.
 
-**Past that line every method is safe to call.** Restoring a saved position, selecting a track, reading the queue: all of it belongs after `ready()` resolves and none of it before.
+## Viewer activity
 
-Calling `ready()` on a player that has already reached the ready phase resolves immediately, so it is safe in a code path that may run twice.
-
-**A stage that throws stops the sequence.** It emits two events, a `<stage>Error` naming the stage and a general `error`, and then rethrows. No later stage runs, `ready` never fires, and the promise `ready()` handed you rejects.
-
-So `ready()` is where a setup failure surfaces, and it needs handling like any other rejection:
+After `fn setup`, the player watches the container for pointer, touch, and key input.
+It emits `str activity` with `key active` set to `true` or `false`.
 
 ```ts
-try {
-  await player.ready();
-}
-catch (error) {
-  showPlaybackUnavailable(error);
-}
+player.on('activity', ({ active }) => showControls(active));
+player.bumpActivity();
 ```
 
-A player left in that state has not been disposed. Call `dispose()` yourself before building another one.
+Controls start visible because setup bumps activity once.
+While playing, inactivity after `key inactivityMs` (default `4000`) emits `active: false`.
+Leaving the container while playing hides the controls at once.
 
-**One failure deliberately does not stop the run, and it is the one you will actually meet.** A playlist that cannot be fetched emits `playlistReady` with `length: 0` and the sequence carries on to `ready`. A queue that is unexpectedly empty after `ready()` resolves is that failure, not a bug in your own code.
+Hide runs only while `fn playState` is `str playing`.
+Any other play state leaves the controls up.
+`fn bumpActivity` marks the viewer active and re-arms that countdown.
+Call it after input the container cannot see, such as a remote command.
 
-## Where a plugin fits
+`fn activityTracking` with no argument returns whether the built-in tracker owns `str activity`.
+Pass `false` when your UI takes over emission; the countdown clears and the listeners stand down.
+Set `key inactivityMs` to `0` to skip wiring the built-in tracker at setup.
 
-Plugins queued before `setup()` are constructed during `pluginsRegistering`, the third stage.
-
-**Registering later still works, and the difference is when.**
-A plugin added after the player is ready is registered on the spot rather than as part of the sequence, so it comes up against a live player instead of a half-built one.
-
-Register before `setup()` when the plugin needs to watch the setup stages happen, which is what a plugin drawing an interface wants.
-
-Each plugin goes through the same four steps, in order:
-
-1. **Construct.** The class is instantiated with no arguments.
-2. **Initialize.** The runtime hands it the player, its options, and the registry that will dispose whatever it opens.
-3. **Merge translations.** Any translations declared on the class join the player's bundle.
-4. **Call `use()`.** `use()` is the one method a plugin author writes to do setup work, and the runtime awaits it here.
-
-**`use()` is bounded by a timeout, and the default is 30 seconds.** A plugin whose `use()` never resolves would otherwise hold the whole sequence open, so the timeout is what guarantees `ready` still arrives.
-
-Raise or lower it on the player config, in milliseconds:
-
-{/* partial */}
-```ts
-player.setup({
-  pluginInitTimeoutMs: 5_000,
-  ...
-});
-```
-
-A plugin that throws, or times out, is torn back down rather than left half-installed. Anything that declared a dependency on it is disabled, and the player itself keeps going.
-
-That failure is announced, so your own code can react to a missing capability rather than discovering it later:
-
-```ts
-player.on('plugin:failed', ({ id, error }) => {
-  console.warn(`${id} did not install`, error);
-});
-```
-
-## Disposal runs the other way
+## Tear down
 
 ```ts
 await player.dispose();
 ```
 
-**Nothing is still listening**, and the video element is gone if the player created it.
+`fn dispose` is safe to call twice; the second call does nothing.
 
-A `<video>` you put in the container yourself is left in place, and the `nomercyplayer` class stays on the container either way.
-The instance is dead afterwards, so a later player means constructing a new one.
+It first dispatches `str beforeDispose`.
+A listener may call `fn preventDefault` to cancel.
+When a listener cancels, the player emits `str disposePrevented` and stays fully alive.
 
-What happens in between is worth knowing, because you can stop it.
+Otherwise plugins dispose in reverse registration order.
+Then the cleanup callbacks from setup run.
+`str dispose` fires next.
 
-`beforeDispose` fires first, and a listener can stop it by calling `preventDefault()` on the event it receives:
+The phase becomes `str disposed`, and every listener is removed.
 
-```ts
-player.on('beforeDispose', (event) => {
-  if (hasUnsavedProgress())
-    event.preventDefault();
-});
-```
+If `fn ready` had not resolved yet, dispose rejects it with `str core:player/disposed`.
+The instance is dead afterward; construct a new player for a fresh setup.
 
-Nothing is torn down when one does, so holding a player open until you have flushed state is a legitimate use of it.
+:::snippet{file="core-tour-lifecycle" live="false"}
+:::
 
-A listener that needs to finish asynchronous work first calls `event.delay(promise)` instead. Disposal waits for it, and a promise that rejects prevents the disposal rather than letting it proceed half-done.
+## Next
 
-Otherwise every plugin is disposed in reverse registration order, and then the kit drops every listener it holds. The backend and the element are torn down after that, by the player library wrapped around the kit.
-
-## Next steps
-
-- [Errors](/nomercy-player-core/tour/errors) for the severities those stage failures arrive at.
-- [Plugins](/nomercy-player-core/tour/plugin-base) for what a plugin is and what it may do in `use()`.
+[Plugin base](/nomercy-player-core/tour/plugin-base) is how a plugin runs while that registration stage drains.

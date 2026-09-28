@@ -13,3 +13,15 @@ Source: `nomercy-player-core/src/core/mixins/queue.ts` emits `item`. `current` i
 Lead: after `item`, `time()` and `duration()` still belong to the outgoing item until `mediaReady`.
 
 Source: on cursor change the queue mixin zeroes internal time and duration before it emits `item`. The cursor still moves before the media element switches, but an `item` listener does not observe the outgoing end position.
+
+## Activity hide while buffering
+
+Lead in `activity.ts`: paused, stopped, buffering, and ended keep the controls up.
+
+Source: `_maybeHide` returns early only when `playState` is not `playing`. Buffering does not change that state, and there is no `ended` play state. The lifecycle page states the code.
+
+## Setup after dispose
+
+Lead in the `setup` JSDoc: after dispose, `setup` throws `core:player/disposed`.
+
+Source: `_guardSetup` checks `_setupCalled` first and never clears it. A second `setup` after `dispose` throws `core:lifecycle/already-setup`. The disposed branch runs only when the phase is already disposed and setup never set the flag.
