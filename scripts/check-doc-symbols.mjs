@@ -137,7 +137,10 @@ fs.writeFileSync(tsconfig, JSON.stringify({
 let output = '';
 let failed = false;
 try {
-	execFileSync('npx', ['tsc', '-p', tsconfig], { cwd: ROOT, encoding: 'utf8', stdio: 'pipe', shell: true });
+	// Invoke tsc.js directly. `npx tsc -p <path>` with shell:true splits a path that
+	// contains spaces, and tsc then reports TS5042 (project mixed with source files).
+	const tscJs = path.join(ROOT, 'node_modules', 'typescript', 'lib', 'tsc.js');
+	execFileSync(process.execPath, [tscJs, '-p', tsconfig], { cwd: ROOT, encoding: 'utf8', stdio: 'pipe' });
 }
 catch (error) {
 	failed = true;
