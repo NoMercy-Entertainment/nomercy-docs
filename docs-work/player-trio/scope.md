@@ -1,0 +1,3 @@
+The owner, 2026-09-28: the three player trio collections on the docs site, `src/content/nomercy-player-core/en/`, `src/content/nomercy-video-player/en/` and `src/content/nomercy-music-player/en/`, checked against each package's `master` at the commit recorded in toolchain.md. Every existing page is audited. A stale or wrong page is rewritten. A missing page is added.
+Excluded: every `native/` folder (the native reference is generated from the player contract, and the native guides document the Kotlin ports, which are not in scope); every other collection; the packages nomercy-media-session and eslint-plugin-player.
+The owner, 2026-09-28: atlas is loaded from NoMercyLabs/skills at the commit recorded in toolchain.md.

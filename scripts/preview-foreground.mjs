@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const port = Number(
 	process.argv.includes('--port')
@@ -20,7 +21,9 @@ const port = Number(
 // race between this gate's own spec files; this closes it against the rest of
 // the tree.
 const OUT_DIR = 'dist-e2e';
-const root = new URL(`../${OUT_DIR}/`, import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1');
+// fileURLToPath decodes %20. A pathname left encoded misses dist-e2e when the
+// checkout path contains spaces, and every request 404s.
+const root = fileURLToPath(new URL(`../${OUT_DIR}/`, import.meta.url));
 
 const TYPES = {
 	'.html': 'text/html; charset=utf-8',
