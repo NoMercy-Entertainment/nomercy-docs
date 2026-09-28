@@ -1878,4 +1878,14 @@ docs-work\player-trio\slices\core-types-errors.md:108
 docs-work\player-trio\slices\core-types-errors.md:307
 
 3. Player source: git status --short in nomercy-player-core, nomercy-video-player, and nomercy-music-player printed no lines.
-4. Docs tree: recorded after the commit that adds this report. Until that commit, the done-set edits are still unstaged. The five line-ending noise files stay unstaged: src/lib/mdx/recma.ts, src/lib/remToPx.ts, src/lib/stores/code-preferences.ts, src/lib/stores/mobile-navigation.ts, src/pages/api/search.js.
+4. Docs tree after 06df60f, git status --short:
+
+```
+ M src/lib/mdx/recma.ts
+ M src/lib/remToPx.ts
+ M src/lib/stores/code-preferences.ts
+ M src/lib/stores/mobile-navigation.ts
+ M src/pages/api/search.js
+```
+
+Those five files are the line-ending noise from A8. Nothing else is modified.
