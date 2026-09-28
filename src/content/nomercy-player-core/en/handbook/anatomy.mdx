@@ -1,170 +1,60 @@
 ---
-title: 'Anatomy of a Plugin'
-description: 'The Plugin class shape: what the three generics buy you, the static contract fields, the initialize, use, dispose order, enable and disable, and the scoped logger and storage every subclass receives.'
+title: 'Anatomy'
+description: 'Spread the shared method modules onto your class, then read or set baseUrl and read audioContext on the instance.'
+tags: [handbook, anatomy, playerCoreMethods, baseUrl]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/plugin/base.ts, src/core/mixins/plugin-registration.ts */}
+{/* Source: nomercy-player-core/src/core/index.ts, nomercy-player-core/src/core/mixins/base-url-audio-context.ts */}
 
-# Core: Anatomy of a Plugin
+# Anatomy
 
-Every plugin is a subclass of one class. This page walks its full shape: the generics, the static contract, the lifecycle order, and the scoped instances the player hands you.
+Use this page when you need the shape of Player Core under a composed class.
+The shared modules ship as one ordered tuple.
+Two early accessors hold a URL prefix and a shared audio context.
 
-For the quick tour of the same class, see [The Plugin Base](/nomercy-player-core/tour/plugin-base). This page goes deeper.
+## The shared tuple
 
-## The three generics
+`playerCoreMethods` is every shared mixin in one `as const` list.
+Spread it into `fn composeMixins` on your prototype.
+Video and music players take the same list.
 
-{/* partial */}
 ```ts
-class Plugin<
-	P extends IPlayer<BaseEventMap> & DispatchTarget = IPlayer & DispatchTarget,
-	O = unknown,
-	E extends Record<string, any> = Record<string, never>,
->
+composeMixins(MyPlayer.prototype, ...playerCoreMethods);
 ```
 
-Each slot buys you a different kind of type safety.
+Lifecycle and the base URL accessors come early in that list.
+Adding a new shared mixin means appending it to that same list.
+The core layer also re-exports the constructor helper, state seed, error helpers, and each mixin on its own.
 
-`P` is the player type. It feeds `PlayerEventMap<P>`, so `this.on('...')` autocompletes the full event map of the player you target. Type against a concrete player class and you see its events, not just the base set.
+## Base URL and audio context
 
-`O` is the options type. It types `this.opts`, and it flows through to consumers: `player.addPlugin(YourPlugin, opts)` type-checks the inline options literal against `O` with no cast at the call site.
+After composition, `fn baseUrl` and `fn audioContext` live on the instance.
 
-`E` is the plugin's own event map. It types `this.emit(...)` inside the plugin, and it is what other plugins see through `on(YourPluginClass, 'event', fn)`. The class carries it on a phantom `__events__` property, so it costs nothing at runtime.
-
-## The static contract
-
-Static fields describe the plugin to the registration pipeline before any instance exists.
-
-{/* partial */}
-```ts
-static readonly id: string;                                        // required
-static readonly description: string;                               // required
-static readonly version: string;                                   // defaults to '0.0.0'
-static readonly minCoreVersion?: string;
-static readonly requires?: ReadonlyArray<RequireSpec>;
-static readonly replaces?: string;
-static readonly priority: number;                                  // defaults to 0
-static readonly translations?: Translations;
-```
-
-Each field describes something different about the plugin:
-
-| Field | What it does |
+| Call | Role |
 | --- | --- |
-| `id` | Names the plugin everywhere: event namespaces, storage keys, logger prefix, mount classes, error scopes. Vendored ids (`'fillz:viz'`) are the rule outside our own packages. |
-| `description` | One human-readable line. Plugin listings and error messages show it. |
-| `version` | A semver string. Dependency version checks read it. |
-| `minCoreVersion` | The lowest kit version the plugin runs on. Registration throws `core:plugin/incompatible-core-version` when the running kit is older. |
-| `replaces` | Opts in to a same-id swap. Without it, a duplicate id throws `core:plugin/duplicate-id`. With it, the player disposes the existing plugin with that id first. |
-| `priority` | Orders plugins, default zero. `enabledPlugins()` sorts descending, so higher-priority plugins dispatch first. Ties keep registration order. See [Listening](/nomercy-player-core/handbook/listening) for what this means for handlers. |
-| `translations` | Ships static i18n bundles under `plugin.<id>.*`. The player merges them in on register and removes them on dispose. For bundles loaded at runtime, override `loadTranslations(lang)` instead. |
+| `fn baseUrl` with no argument | Returns the prefix, or `undefined` |
+| `fn baseUrl` with a string | Stores that prefix |
+| `fn audioContext` | Returns the shared context, or `undefined` |
 
-`requires` lists dependencies as class references. The plain form is a class. The object form adds `optional` or `minVersion`:
+`fn baseUrl` does not need another `fn setup`.
+A string argument replaces the stored prefix.
+With no argument, you only read.
 
-{/* partial */}
+`fn audioContext` is read-only on the player.
+Something else writes the context with `fn setPlayerAudioContext`.
+Until that write, the getter returns `undefined`.
+Plugins that need the Web Audio graph should read this instead of creating their own.
+
 ```ts
-static readonly requires = [
-	AudioGraphPlugin,
-	{ plugin: MediaSessionPlugin, optional: true },
-	{ plugin: SpectrumPlugin, minVersion: '2.1.0' },
-];
+player.baseUrl();
+player.baseUrl('https://api.example.com/files');
+player.audioContext();
 ```
 
-Each dependency check has its own outcome:
-
-| Check | Result |
-| --- | --- |
-| Missing required dependency | Throws `core:plugin/missing-dep` at registration. |
-| Missing optional dependency | Logs a debug warning. The plugin runs anyway. |
-| Version below `minVersion` | Throws `core:plugin/version-mismatch`. |
-
-## The lifecycle order
-
-A plugin lives through exactly three steps: `initialize`, then `use`, then `dispose`.
-
-### initialize()
-
-{/* partial */}
-```ts
-initialize(player: P, opts: O, lifecycle: LifecycleRegistry): void
-```
-
-The player calls this right after constructing your class. You never call it yourself, and you rarely override it. It wires `this.player`, `this.opts`, and `this.lifecycle`, then builds the scoped `this.logger` and `this.storage` (details below).
-
-Nothing of yours should run here. Constructors and `initialize` are for wiring, not behavior.
-
-### use()
-
-{/* partial */}
-```ts
-use(): void | Promise<void>
-```
-
-This is your setup hook. Wire listeners, claim mount points, start fetches. Everything is available: the player, the options, the logger, the storage, and every helper on the base class.
-
-`use()` may return a promise. The player awaits it before emitting `ready`, bounded by `pluginInitTimeoutMs`. A `use()` that throws or times out fails the registration: the player emits `plugin:failed`, tears the instance down, and disables any plugin that requires yours.
-
-### dispose()
-
-{/* partial */}
-```ts
-dispose(): void
-```
-
-Override this only for resources the lifecycle registry cannot track: third-party library instances, custom WebGL contexts, non-standard observers.
-
-Everything registered through the helpers is released after your `dispose()` body returns: listeners, timers, animation-frame loops, observers, abort controllers, mount nodes. All of it is still live while `dispose()` runs, so the body can read its own DOM and its own subscriptions on the way out.
-
-The kit calls `dispose()` when the player itself disposes, or when the plugin is removed with `player.removePlugin(PluginClass)`.
-
-## enable, disable, enabled
-
-{/* partial */}
-```ts
-enabled(): boolean
-enable(): void
-disable(reason?: string): void
-```
-
-Each method does one job:
-
-| Method | What it does |
-| --- | --- |
-| `enabled()` | Reads the current state. Starts as `true`. |
-| `disable(reason?)` | Turns the plugin off without unloading it. |
-| `enable()` | Turns the plugin back on. |
-
-Both `enable()` and `disable()` are idempotent. Both emit paired events: `plugin:enabled` / `plugin:disabled` on the bare channel and on the id-namespaced channel (`plugin:<id>:disabled`), with the id and the optional reason in the payload.
-
-Disabling does not detach your listeners. They stay subscribed in either state. Guard your own handlers with `this.enabled()` so a disabled plugin stops reacting.
-
-The kit also disables plugins for you in one case: when a plugin fails to register, every plugin that requires it is disabled with a `dep-failed:<id>` reason, cascading through the dependency tree.
-
-## Where player, opts, logger, and storage come from
-
-`initialize()` assigns all four before `use()` runs. Each one holds something different:
-
-| Property | What it holds |
-| --- | --- |
-| `this.player` | The player instance that registered you, typed as `P`. |
-| `this.opts` | Whatever the consumer passed to `addPlugin(YourPlugin, opts)`, typed as `O`. |
-| `this.logger` | A child of the player's configured logger. Output carries the prefix `[nmplayer][<id>]`. |
-| `this.storage` | The player's configured storage backend, with a fixed key prefix. |
-
-Everything the consumer configured at `setup()` time is readable through `this.player.options`. The seek-preview tutorial reads `this.player.options.baseUrl` to resolve sprite URLs the same way the player itself does. Prefer the player's methods where one exists (`this.player.baseUrl()` style accessors), and reach into `options` for config that has no accessor.
-
-Read `this.opts` in `use()`. Change it later through `options(partial)`, which shallow-merges and emits `opts:changed`.
-
-Every key you read or write through `this.storage` becomes `nmplayer-<id>-<key>` in the backing store, so plugins never collide with each other or with player-level keys.
-
-## A complete skeleton
-
-The example below declares the full static contract, uses each lifecycle step for what it is for, and reacts to `disable`.
-
-:::snippet{file="handbook-anatomy" live="false"}
+:::snippet{file="core-handbook-anatomy" live="false"}
 :::
 
-## Next steps
+## Next
 
-- [Building DOM](/nomercy-player-core/handbook/building-dom): mount points and the element helpers.
-- [Listening](/nomercy-player-core/handbook/listening): the memory-safe event surface.
-- [Timing](/nomercy-player-core/handbook/timing): timers, frames, and observers that clean up after themselves.
+[Building DOM](/nomercy-player-core/handbook/building-dom) is how you create elements for player UI.

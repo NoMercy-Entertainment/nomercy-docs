@@ -1,90 +1,91 @@
 ---
-title: 'Network Helpers'
-description: 'Plugin.fetch(): the auth pipeline, response typing, the parser callback, and dispose-time aborts. Plugin.websocket(): the IRealtimeChannel contract and factory resolution.'
+title: 'Network'
+description: 'How one authenticated fetch attempt is classified, how the body is decoded, and how the retry loop spends its budget.'
+tags: [handbook, network, authFetch]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/plugin/fetch.ts, src/core/auth-fetch/, src/core/plugin/base.ts, src/adapters/realtime/ */}
+{/* Source: nomercy-player-core/src/core/auth-fetch/attempt.ts, decode.ts, index.ts, orchestrator.ts, prepare.ts, types.ts */}
 
-# Core: Network Helpers
+# Network
 
-A plugin talks to servers through two helpers: `fetch()` for HTTP and `websocket()` for a realtime channel. Both are bound to the plugin's lifecycle, so a disposed plugin leaves no request or socket behind.
+Use `fn authFetch` when a request needs auth headers, typed decoding, and a bounded retry loop.
+Playlist URL loads share this same pipeline.
+The [auth fetch recipe](/nomercy-player-core/recipes/auth-fetch) shows how to call it from your own code.
 
-## `fetch<T>(url, options?)`
+Import `fn authFetch`, `fn isAuthError`, and `fn isNetworkError` from `@nomercy-entertainment/nomercy-player-core`.
+Every call needs `key url` and a required `key signal`.
+`key auth` is optional.
 
-{/* partial */}
-```ts
-protected fetch<T = string>(url: string, options?: FetchOptions<T>): Promise<T>;
-```
+## What one attempt does
 
-Auth-aware HTTP. It runs the same `authFetch` pipeline the kit uses for playlist URLs, lyrics, and subtitles, so a plugin's requests carry the consumer's credentials without any wiring. Auth is applied automatically; you never build the header yourself.
+Each loop pass builds one `Request`, races it against an optional `key timeoutMs`, then classifies the result.
+There is no default HTTP timeout.
+Omit `key timeoutMs`, or pass `0` or less, and only the abort signal can stop a hung fetch.
 
-The auth source is live. The helper reads the player's current `AuthConfig` at call time, falling back to the `setup({ auth })` value, so a rotated token is picked up. [Recipe: Use authFetch](/nomercy-player-core/recipes/auth-fetch) has the fixed per-attempt order and the failure-by-failure retry table.
+A thrown fetch with an aborted signal ends as `str core:network/aborted`.
+A timeout or offline throw becomes a retry outcome and stashes a terminal error.
 
-A failure throws `AuthError` or `NetworkError`. Both extend `PlayerError`. Narrow with `isAuthError` or `isNetworkError` to tell the two apart.
+HTTP `401` refreshes once when that hook is set and the refresh budget is open, then retries without spending a retry slot.
+A `401` with no budget left throws `str core:auth/unauthenticated`.
+A `403` throws `str core:auth/forbidden` at once.
 
-Every call registers a fresh `AbortController` with the lifecycle registry. On `dispose()`, in-flight requests abort; the promise rejects with `core:network/aborted` instead of resolving into a dead plugin.
+Other `4xx` statuses throw a matching network code with no retry.
+A `5xx` status becomes a retry outcome and stashes the matching server code.
+Success hands the response to the decoder.
 
-### Response typing and the `parser` callback
+These are the fixed `4xx` codes other than auth:
 
-`responseType` decides how the body is decoded:
-
-| `responseType` | Resolves to |
+| Status | Code |
 | --- | --- |
-| `'text'` (default) | The raw string. |
-| `'json'` | `response.json()`, typed as `T`. |
-| `'arrayBuffer'` | Binary data. |
+| `404` | `str core:network/not-found` |
+| `408` | `str core:network/request-timeout` |
+| `410` | `str core:network/gone` |
+| `429` | `str core:network/rate-limited` |
 
-Only `'text'` accepts a `parser`. The callback receives the raw string and returns `T`.
+Any other client error uses `str core:network/client-error`.
 
-A parser that throws surfaces as `core:network/parse-failed`.
+## How the body is decoded
 
-{/* partial */}
-```ts
-const ids = await this.fetch<string[]>('/api/queue/ids.txt', {
-	parser: raw => raw.split('\n').filter(Boolean),
-});
-```
+`key responseType` chooses the decode path after a successful status.
+Omit it, or pass `str text`, and the body is the response string.
+Pass `key parser` only on that text path; the callback turns the string into `T`.
+`str json` calls `response.json()` and casts to `T`.
+`str arrayBuffer` returns the binary buffer.
 
-### Telemetry scope
+A thrown `key parser` or invalid JSON surfaces as `str core:network/parse-failed`.
 
-`options.scope` picks where `fetch:start`, `fetch:retry`, and `fetch:complete` fire:
+## How the retry loop spends its budget
 
-| `scope` | Where the events land |
-| --- | --- |
-| `'plugin'` (default) | `plugin:<id>:fetch:*` |
-| `'player'` | The player-global `fetch:*` names, for a telemetry pipe watching one bus. |
-| `'silent'` | Nowhere. |
+The retry loop keeps calling until a value returns, a throw ends the call, or the attempt budget is gone.
+`cls RetryConfig` defaults to `{ attempts: 0 }`, so `maxAttempts` is `1`.
+With that default, a retryable failure still waits the backoff, then throws the stashed error.
 
-Reach for `'silent'` on a request that repeats. The seek-preview tutorial uses it for sprite fetches, which would otherwise flood the bus.
+Backoff is linear unless you set `key backoff` to `str exponential`.
+`key baseMs` defaults to `500`.
+`key maxMs` defaults to `30_000`.
 
-Bypassing the helper with global `fetch` loses the auth pipeline, the retry policy, the structured errors, and the dispose-time abort. The lint pack flags the call.
+A refresh retry uses `0` delay and does not consume an attempt slot.
+The refresh budget is at most one, and only when `key refreshOnUnauthenticated` is set and `key retryAfterRefresh` is not `0`.
 
-## `websocket(url, opts?)`
+## Where fetch events land
 
-{/* partial */}
-```ts
-protected websocket(url: string, opts?: RealtimeFactoryOptions): IRealtimeChannel;
-```
+Pass `key emit` when you want `str fetch:start`, `str fetch:retry`, and `str fetch:complete` on a bus.
+Without `key emit`, those names are silent no-ops.
 
-Opens a realtime channel and returns it as `IRealtimeChannel`, bound to the plugin's lifecycle the same way `fetch()` is. [Adapter: Realtime Channel](/nomercy-player-core/plugins-adapters/adapter-realtime-channel) has the interface, the factory resolution order, and the `RealtimeFactoryOptions` table.
+`key scope` picks the name shape when emit is present: `str plugin` with a plugin id, `str player` for the global names, or `str silent` for nowhere.
+When `key pluginId` is set and `key scope` is omitted, the default is `str plugin`.
+Otherwise the default is `str player`.
 
-The channel is registered with the lifecycle registry. On `dispose()`, the kit calls `close()` unless the channel is already closing or closed. You keep the reference only if you need to `send()` later; the teardown is not your job.
+## Narrow a failure
 
-Handing a plugin a raw `new WebSocket(url)` skips both the factory swap and the dispose-time close, so the socket outlives the plugin.
+Thrown values are `cls AuthError` or `cls NetworkError`.
+`fn isAuthError` and `fn isNetworkError` are the type guards.
+Check auth first when you need to tell the two apart.
 
-{/* partial */}
-```ts
-const channel = this.websocket('wss://example.test/markers');
-channel.on('message', data => this.logger.debug('frame', data));
-```
-
-## Worked example
-
-`ChapterSyncPlugin` loads typed JSON, parses a plain-text body with `parser`, distinguishes auth failures from network failures, and streams markers over a channel that closes with the plugin.
-
-:::snippet{file="handbook-network" live="false"}
+:::snippet{file="core-handbook-network" live="false"}
 :::
 
-## Next steps
+## Next
 
-- [Plugin i18n](/nomercy-player-core/handbook/i18n): translated strings for whatever the network gave you.
+[Registration](/nomercy-player-core/handbook/registration) is how plugins join the player after these requests.

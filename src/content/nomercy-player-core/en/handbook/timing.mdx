@@ -1,150 +1,96 @@
 ---
 title: 'Timing'
-description: 'Timers, animation-frame loops, abort controllers, and observers that the lifecycle registry cancels for you: timeout, interval, frame, abortable, and lifecycle.observe.'
+description: 'Volume is a 0 to 100 slider position, mute keeps that level, and a square-law curve turns the position into gain.'
+tags: [handbook, timing, volume]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/plugin/base.ts, src/adapters/lifecycle-registry/default.ts */}
+{/* Source: nomercy-player-core/src/core/mixins/volume.ts, nomercy-player-core/src/core/volume-curve.ts */}
 
-# Core: Timing
+# Timing
 
-Anything time-based a plugin starts must stop when the plugin does. Five helpers guarantee that: each one registers itself with the lifecycle registry, and a single dispose cancels them all.
+Playback seconds live on [Time](/nomercy-player-core/tour/time).
+Here, timing means when the level changes: the position you set, mute, and the curve that becomes gain.
 
-## timeout()
+## Read and set the level
 
-{/* partial */}
+`fn volume` with no argument returns the current position on a 0 to 100 scale.
+While muted, that read is `0`, even when a level is stored for unmute.
+
+Pass a number to set the position.
+The value clamps to 0 through 100.
+The setter returns a `Promise` you can await for the full cycle.
+
 ```ts
-protected timeout(fn: () => void, ms: number): number
+player.volume();
+await player.volume(50);
 ```
 
-Schedules a one-shot callback. Wraps `setTimeout` with two additions: the timer is canceled automatically on dispose, and an error thrown inside `fn` is caught and logged instead of escaping into the player.
+`fn volumeUp` and `fn volumeDown` move by five points by default.
+Pass your own step when you need a different size.
+Neither returns a promise to await.
 
-Returns the numeric timer id, the same shape `setTimeout` returns. Keep it only when you may need `clearTimeout` early; most callers discard it. After dispose, the call returns `-1` and schedules nothing.
-
-{/* partial */}
 ```ts
-override use(): void {
-	this.on('play', () => {
-		this.timeout(() => this.hideOverlay(), 3_000);
-	});
-}
+player.volumeDown();
+player.volumeUp(10);
 ```
 
-A raw `setTimeout` fires after the plugin is gone. The callback then touches disposed state, or throws into whatever code happens to be on the stack.
+A listener can cancel through `str beforeVolume`.
+Then `str volumePrevented` fires and the level stays put.
+Otherwise the player emits `str volume` with `key level`, and hands the backend the position divided by 100.
 
-## interval()
+## The curve into gain
 
-{/* partial */}
-```ts
-protected interval(fn: () => void, ms: number): number
+`fn perceptualGain` maps a linear 0 to 1 position to a 0 to 1 gain by squaring it.
+Values outside that range clamp first.
+
+```
+gain = position²
 ```
 
-Schedules a repeating callback. Wraps `setInterval`, canceled automatically on dispose. Errors are caught per tick, so a single failing run logs and the interval keeps going.
+| Position | Gain |
+| --- | --- |
+| 1 | 1 |
+| 0.5 | 0.25 |
+| 0.3 | 0.09 |
+| 0.1 | 0.01 |
+| 0 | 0 |
 
-Returns the numeric interval id for early cancellation; `-1` after dispose.
+Loudness is heard on a log scale.
+A straight map packs most of the audible change into the bottom of the slider.
+The square-law taper spreads that change across the travel.
 
-{/* partial */}
+The public `fn volume` API always speaks in positions.
+The curve runs where a backend writes gain, not inside the getter.
+So a control bound to `fn volume` stays on the 0 to 100 scale.
+
+## Mute without losing the level
+
+`fn mute` silences output and keeps the stored position.
+`fn unmute` restores that stored level and writes it to the backend again.
+`fn toggleMute` picks mute or unmute from the current state.
+It does not return a promise.
+
 ```ts
-override use(): void {
-	this.interval(() => {
-		this.storage.setJSON('progress', this.snapshot());
-	}, 30_000);
-}
+await player.mute();
+await player.unmute();
+player.toggleMute();
 ```
 
-A raw `setInterval` is the worst version of the timer leak: it never stops, ticking against a dead plugin for the life of the page.
+A listener can cancel through `str beforeMute`.
+Then `str mutePrevented` fires and nothing changes.
+Otherwise `str mute` fires with `key muted` set to the new flag.
 
-## frame()
+Calling mute when already muted is a no-op.
+The same holds for unmute when already unmuted.
+No dispatch and no event in those cases.
 
-{/* partial */}
-```ts
-protected frame(fn: (deltaMs: number, time: number) => void): () => void
-```
+Set a level above 0 while muted and the player unmutes itself.
+That matches a slider drag that means turn the sound back on.
 
-Starts an auto-canceled `requestAnimationFrame` loop. You write the render callback; the kit owns the loop, the delta accounting, and the cancellation. Visualization plugins use this exclusively.
-
-The callback receives two arguments each frame. `deltaMs` is the elapsed milliseconds since the previous frame, so animation speed stays correct across display refresh rates. `time` is the frame timestamp, the same value `requestAnimationFrame` hands its callback.
-
-The return value is a stop function. Calling it cancels this one loop and nothing else: other frame loops keep running, and the registry stays alive. Dispose cancels every outstanding loop anyway, so the stop function is only for ending one loop early.
-
-A thrown frame is caught and logged; the loop continues. In an environment without `requestAnimationFrame` (Node, SSR), no loop starts and the returned stop function is a no-op.
-
-{/* partial */}
-```ts
-private stopSpin?: () => void;
-
-override use(): void {
-	let angle = 0;
-	this.stopSpin = this.frame((deltaMs) => {
-		angle = (angle + deltaMs * 0.09) % 360;
-		this.render(angle);
-	});
-
-	this.on('pause', () => this.stopSpin?.());
-}
-```
-
-A hand-rolled RAF loop needs its own cancellation flag, its own delta math, and its own dispose wiring, and forgetting any of the three burns CPU on a player that no longer exists.
-
-## abortable()
-
-{/* partial */}
-```ts
-protected abortable(): AbortController
-```
-
-Creates an `AbortController` whose signal fires automatically on dispose. Pass `controller.signal` to any abort-aware API.
-
-The plugin's own `fetch()` helper already wires this internally; reach for `abortable()` when integrating third-party or platform APIs that accept a signal but know nothing about the plugin lifecycle.
-
-Called after dispose, it returns a controller that is already aborted, so downstream APIs refuse to start instead of running unowned.
-
-{/* partial */}
-```ts
-override use(): void {
-	const controller = this.abortable();
-
-	thirdPartyDecoder.start({
-		signal: controller.signal,
-	});
-}
-```
-
-Without it, the in-flight work you started keeps running after teardown, and its completion callback lands on a disposed plugin.
-
-## lifecycle.observe()
-
-{/* partial */}
-```ts
-observe<O extends { disconnect(): void }>(observer: O): O
-```
-
-Registers a `ResizeObserver`, `MutationObserver`, `IntersectionObserver`, or any object with a `disconnect()` method, and disconnects it on dispose. This one lives on `this.lifecycle` directly rather than as a wrapper method on the plugin.
-
-It returns the observer unchanged, so the registration chains straight into the observe call:
-
-{/* partial */}
-```ts
-override use(): void {
-	const root = this.mount('overlay');
-
-	this.lifecycle.observe(new ResizeObserver((entries) => {
-		this.relayout(entries[0]?.contentRect);
-	})).observe(root);
-}
-```
-
-After dispose the call still returns the observer, but registers nothing.
-
-An unregistered observer keeps watching its targets forever. A `ResizeObserver` on the player container holds the container, the callback, and the plugin in memory after every other reference is gone.
-
-## Example
-
-One plugin exercising all five: a delayed overlay hide, a periodic save, a frame loop with its stop function, an abortable signal, and a resize observer.
-
-:::snippet{file="handbook-timing" live="false"}
+:::snippet{file="core-handbook-timing" live="false"}
 :::
 
-## Next steps
+## Next
 
-- [Listening](/nomercy-player-core/handbook/listening): the event surface these timers usually drive.
-- [The Plugin Base](/nomercy-player-core/tour/plugin-base): the one-page overview of every helper.
+[Add a plugin](/nomercy-player-core/build/add-a-plugin) is where you register extra behavior on top of these methods.

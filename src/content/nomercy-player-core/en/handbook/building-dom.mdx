@@ -1,145 +1,72 @@
 ---
 title: 'Building DOM'
-description: 'How a plugin builds UI with the DOM helpers: mount points on the player container, the fluent element factory, accessible buttons, SVG, and class utilities.'
+description: 'Build nodes with createElement, createButton, and createSVG, then toggle classes with addClasses and removeClasses.'
+tags: [handbook, building-dom, createElement, createButton]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/plugin/base.ts, src/adapters/element-factory/dom.ts */}
+{/* Source: nomercy-player-core/src/adapters/element-factory/dom.ts, nomercy-player-core/src/adapters/element-factory/index.ts */}
 
-# Core: Building DOM
+# Building DOM
 
-A plugin that draws UI builds it from six helpers on the base class. One claims space on the player container. The rest construct and style elements.
+Build UI nodes with five helpers from Player Core.
+They create elements, set attributes, and toggle classes.
+You choose where each node lives in the tree.
 
-The pattern is always the same: claim a mount point, build elements into it, and let dispose remove the mount point with everything inside it.
+Import them from the `adapters/element-factory` path.
 
-## mount()
+## createElement
 
-{/* partial */}
-```ts
-protected mount(name: string): HTMLDivElement
-```
+`fn createElement` takes a tag name, an `key id`, and an optional `key unique` flag.
+It returns a fluent builder.
+Chain `fn addClasses`, `fn setAttribute`, `fn setProperty`, `fn appendTo`, or `fn prependTo`, then call `fn get` for the node.
 
-Claims a `<div>` on the player container and returns it. This is the root every plugin hangs its UI from.
+`fn setProperty` writes a CSS custom property on the inline style.
+`fn appendTo` appends the node and returns a shorter chain with `fn get` and `fn addClasses`.
+`fn prependTo` inserts before the parent's first child the same way.
 
-The node is namespaced per plugin: a plugin with id `'message'` claiming `'toast'` gets a `<div>` with class `nmplayer-message-toast`. Two plugins can claim the same name without colliding.
-
-`mount()` is idempotent per instance. The same `name` returns the same cached node on every call, so helper methods can each call `mount('overlay')` and share one root.
-
-On dispose, the kit removes the node from the document and clears the cache entry. Everything you appended inside it goes with it. That is the whole cleanup story for plugin DOM: build inside a mount, and teardown is free.
-
-Appending your own `<div>` to `player.container` instead skips the namespaced class and stays in the document after the plugin is gone.
-
-Mount points are always `<div>` elements. A plugin that needs a different root element builds its own and appends it under a mount node.
-
-{/* partial */}
-```ts
-	override use(): void {
-		const root = this.mount('overlay'); // <div class="nmplayer-badge-overlay">
-		root.textContent = this.t('greeting');
-	}
-```
-
-## createElement()
-
-{/* partial */}
-```ts
-protected createElement<K extends keyof HTMLElementTagNameMap>(
-	type: K,
-	id: string,
-	unique?: boolean,
-): CreateElement<HTMLElementTagNameMap[K]>
-```
-
-Creates an element of `type`, assigns it `id`, and returns a fluent builder. The builder chains `addClasses`, `setAttribute`, `setProperty` (a CSS custom property on the inline style), `appendTo`, `prependTo`, and ends with `.get()` to take the element.
-
-With `unique: true`, an existing element with the same id is reused instead of creating a duplicate. Singleton overlays that may be rebuilt use this.
-
-The element itself is not tracked for cleanup. Append it under a `mount()` node and it disappears with the mount on dispose. Append it anywhere else and you own its removal.
+Pass `unique: true` to reuse an existing node with that id instead of creating another.
+The lookup uses `document.querySelector` with a CSS-escaped id.
+When the found node already has an id, that id is left alone.
 
 ```ts
-	const label = this.createElement('span', 'badge-label')
-		.addClasses(['badge-label'])
-		.setAttribute('data-state', 'live')
-		.appendTo(root)
-		.get();
-	label.textContent = 'LIVE';
+const label = createElement('span', 'badge-label')
+	.addClasses(['badge-label'])
+	.setAttribute('data-state', 'live')
+	.appendTo(root)
+	.get();
 ```
 
-Raw `document.createElement` works, but you lose the id assignment, the `unique` reuse, and the fluent chain, and you gain nothing.
+## Buttons and SVG
 
-## createButton()
+`fn createButton` returns a ready `<button>`.
+It sets `type` to `str button`, copies `label` onto `aria-label` and `title`, and attaches the click handler.
 
-{/* partial */}
-```ts
-protected createButton(id: string, label: string, onClick: (event: Event) => void): HTMLButtonElement
-```
+`fn createSVG` returns an `<svg>` in the SVG namespace with `id`, `viewBox`, and `xmlns` set.
+Append path or use children yourself.
+There is no fluent builder on that return value.
 
-Creates an accessible `<button>` ready to insert: `type="button"` (so it never submits a form), `aria-label` and `title` both set to `label`, and the click handler attached.
+## Classes
 
-Cleanup rides on the DOM: place the button under a mount node and dispose removes it, click handler and all. A button element removed from the document is collectable together with its listener.
+`fn addClasses` adds names to an element and skips empty strings.
+It returns a fluent builder so you can keep chaining.
 
-```ts
-	const closeBtn = this.createButton('badge-close', this.t('button.close'), () => {
-		this.removeClasses(root, ['badge-visible']);
-	});
-	root.appendChild(closeBtn);
-```
+`fn removeClasses` removes names the same way and returns the element.
+Removal is terminal: there is no builder after it.
 
-A hand-rolled `<button>` without `aria-label` fails the accessibility bar every NoMercy UI holds; this helper exists so the accessible form is also the shortest one.
+These are the five helpers:
 
-## createSVG()
+| Helper | Returns |
+| --- | --- |
+| `fn createElement` | Fluent builder, then `fn get` for the node |
+| `fn createButton` | An accessible `HTMLButtonElement` |
+| `fn createSVG` | An `SVGSVGElement` |
+| `fn addClasses` | Fluent builder on the same element |
+| `fn removeClasses` | The element itself |
 
-{/* partial */}
-```ts
-protected createSVG(id: string, viewBox: string): SVGSVGElement
-```
-
-Creates an `<svg>` element in the SVG namespace with `id`, `viewBox`, and `xmlns` set, and returns it directly (no builder). You append `path`, `symbol`, or `use` children yourself.
-
-Same cleanup rule as the other element helpers: parent it under a mount node.
-
-```ts
-	const icon = this.createSVG('badge-icon', '0 0 24 24');
-	root.appendChild(icon);
-```
-
-The namespace is the point. `document.createElement('svg')` produces an HTML element that renders nothing; the SVG namespace call is easy to forget and this helper carries it for you.
-
-## addClasses()
-
-{/* partial */}
-```ts
-protected addClasses<T extends Element>(el: T, names: string[]): AddClasses<T>
-```
-
-Adds class names to `el`, skipping empty strings, and returns a fluent builder so you can keep chaining (`appendTo`, `setAttribute`, more classes). Safe with an empty array.
-
-No cleanup involved: classes live and die with their element.
-
-```ts
-	this.addClasses(root, ['badge-visible']);
-```
-
-## removeClasses()
-
-{/* partial */}
-```ts
-protected removeClasses<T extends Element>(el: T, names: string[]): T
-```
-
-Removes class names from `el`, skipping empty strings, and returns the element itself. Removal is terminal: there is no builder to chain from.
-
-```ts
-	this.removeClasses(root, ['badge-visible']);
-```
-
-## Everything together
-
-The example builds a small badge overlay from all six helpers.
-
-:::snippet{file="handbook-building-dom" live="false"}
+:::snippet{file="core-handbook-building-dom" live="false"}
 :::
 
-## Next steps
+## Next
 
-- [Styling](/nomercy-player-core/handbook/styling): getting CSS onto the elements you just built.
-- [Listening](/nomercy-player-core/handbook/listening): reacting to player events and DOM events without leaking.
+[Emitting](/nomercy-player-core/handbook/emitting) is how player code raises events after a change.

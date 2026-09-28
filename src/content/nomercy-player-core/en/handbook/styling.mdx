@@ -1,115 +1,95 @@
 ---
 title: 'Styling'
-description: 'How a plugin ships CSS: appendStyles for a stylesheet URL, appendInlineStyles for CSS text, and the styleId contract that makes both safe to call twice.'
+description: 'Ship your own CSS from a plugin, react to container state classes, and read or patch subtitle style values.'
+tags: [handbook, styling, CSS, Plugin, subtitleStyle]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/plugin/base.ts */}
+{/* Source: nomercy-player-core/src/index.ts; Plugin style helpers; containerClassEmitMethods; SubtitleStyle */}
 
-# Core: Styling
+# Styling
 
-A plugin ships its CSS through two helpers. One links a stylesheet by URL. The other injects CSS text directly. Both land in `document.head`, and both dedupe on a `styleId` you choose.
+This package ships no stylesheet.
+Your CSS enters the page through plugin helpers, and the player stamps state classes on its container.
 
-## appendStyles()
+## Put CSS in the document
 
-{/* partial */}
+From a `cls Plugin` subclass, call `fn appendStyles` or `fn appendInlineStyles` in `fn use`.
+Both write into `document.head`.
+Both take a `key styleId` you choose.
+
+`fn appendStyles` adds a stylesheet link for a URL.
+When the class sets `key moduleUrl`, a relative URL resolves against it.
+Otherwise it resolves against `document.baseURI`.
+
+`fn appendInlineStyles` writes a style element whose text is the CSS you pass.
+The rules are in the document as soon as the call returns.
+You do not wait on a stylesheet request.
+
 ```ts
-protected appendStyles(href: string, styleId: string): void
+this.appendInlineStyles(
+  '.nmplayer-badge-root { position: absolute; inset-block-start: 1rem; }',
+  'plugin-badge-inline',
+);
 ```
 
-Appends a `<link rel="stylesheet">` to `document.head` with `id` set to `styleId` and `href` resolved to an absolute URL.
+If `document` is missing, both calls return without writing.
 
-Resolution order: when the plugin declares `static moduleUrl`, the `href` resolves against it. Otherwise it resolves against `document.baseURI`. Pass a pre-resolved absolute URL and resolution changes nothing.
+## One id wins
 
-Dedupe: before touching the DOM, the helper looks up `document.getElementById(styleId)`. If any element with that id exists, the call is a no-op. First call wins; a second call with the same `styleId` does nothing, even with a different `href`.
+Before writing, each helper looks up `key styleId` in the document.
+When that id already exists, the call does nothing.
+The first call wins, even if a later call passes different CSS or a different URL.
 
-Nothing is registered for cleanup. The `<link>` stays in `document.head` after the plugin disposes. That is deliberate: stylesheets are cheap, plugin class names are namespaced, and the dedupe means a plugin registered again on a new player finds the sheet already present.
+Choose a stable, plugin-specific id such as `plugin-<id>-styles`.
+Reuse another plugin's id and the dedupe check silences your own sheet.
 
-In an environment without `document` (Node, SSR), the call returns without doing anything.
+Neither helper removes its node when the plugin disposes.
+A later registration finds the id already present and skips the write.
 
-For Vite builds, the literal expression matters. Vite's static analyzer only emits and hashes the CSS asset when the `new URL(...)` expression appears in the plugin source file itself:
+## Classes on the container
 
-{/* partial */}
-```ts
-override use(): void {
-	this.appendStyles(new URL('./styles.css', import.meta.url).href, 'plugin-myplugin-styles');
-}
-```
+After `fn setup`, the container carries `nomercyplayer`.
+Emitted player events keep further classes in sync, so your CSS can follow state without script.
 
-Passing `static moduleUrl` or any runtime variable as the base does not trigger asset emission.
+| Class | Meaning |
+| --- | --- |
+| `playing` `paused` `stopped` `ended` `loading` `buffering` | Play and load presentation |
+| `active` `inactive` | User activity; exactly one is present |
+| `muted` | Mute is on |
+| `fullscreen` `pip` `theater` | Display mode is on |
 
-A raw `document.head.appendChild(link)` without the id check stacks a duplicate `<link>` every time the plugin registers, one per player instance on the page.
-
-## appendInlineStyles()
-
-{/* partial */}
-```ts
-protected appendInlineStyles(cssText: string, styleId: string): void
-```
-
-Injects `cssText` into `document.head` as a `<style>` element with `id` set to `styleId`.
-
-Same contract as `appendStyles` on every other point: the `getElementById(styleId)` dedupe, no removal on dispose, and the silent return when `document` is missing.
-
-The difference is timing. A `<style>` element applies before the next paint. A `<link>` waits for a network round trip. Inline styles are how a plugin guarantees its UI never renders an unstyled frame.
-
-{/* partial */}
-```ts
-override use(): void {
-	this.appendInlineStyles(`
-		.nmplayer-badge-overlay { position: absolute; inset-block-start: 1rem; }
-	`, 'plugin-badge-inline');
-}
-```
-
-## URL or inline: which to use
-
-Write the URL form in source when the CSS lives in a sibling file. The dev server, the testbed, and vitest serve the file directly, and published dist builds are rewritten by `scripts/inline-css-assets.mjs`: the `appendStyles(new URL(...))` call in source becomes `appendInlineStyles('<embedded css>', id)` in dist. You get file-based CSS while developing and zero-round-trip styles in production, from one call site.
-
-Write the inline form directly for small rule sets that belong next to the code: a handful of rules for one overlay, styles computed at runtime, or a plugin that ships as a single file.
-
-Choose a `styleId` that is stable and plugin-specific (`plugin-<id>-styles`). Reusing another plugin's id silences your own styles through the dedupe check.
-
-## Styling against player state
-
-The player stamps its state onto the container element as plain CSS classes, so a stylesheet can react to playback without a single line of JavaScript. The container always carries `nomercyplayer`, plus:
-
-| Class | Meaning | Driven by |
-| --- | --- | --- |
-| `playing` / `paused` / `stopped` / `ended` / `buffering` | One resting play state at a time; `waiting` and `stalled` add `buffering`, `canplay` and an advancing `time` clear it | `play`, `playing`, `pause`, `stop`, `ended`, `waiting`, `stalled`, `canplay`, `time` |
-| `loading` | The phase system's load state, swapped by `phase` events | `phase` |
-| `active` / `inactive` | User activity, exactly one present | `activity` |
-| `muted` | Toggled with the mute state | `mute` |
-| `fullscreen` / `pip` / `theater` | Each toggled with its display state | `fullscreen`, `pip`, `theater` |
-
-Selectors ride these directly. Plain CSS:
+`buffering` arrives from `waiting` or `stalled`.
+`canplay` or an advancing `time` clears it.
+The first time the phase becomes `loading`, the container can gain that class.
+After the first `ready`, a later `loading` phase leaves the classes alone.
 
 ```css
-.nomercyplayer.inactive .my-overlay {
-	opacity: 0;
+.nomercyplayer.inactive .nmplayer-badge-root {
+  opacity: 0;
 }
 ```
 
-With Tailwind, mark the container as a `group` and use the arbitrary group variant. This is the pattern every step of the video build tutorial rides for its show and hide behavior:
+## Names on your elements
+
+`fn addClasses` and `fn removeClasses` add or drop class names on a node you already hold.
+`fn mount` claims a div under the container and sets its class to `nmplayer-<id>-<name>`.
+Point your rules at that class so mount points stay unique across plugins.
+
+## Subtitle style values
+
+`fn subtitleStyle` with no argument returns the current `cls SubtitleStyle` object.
+Pass a partial object to merge fields and emit `str subtitleStyle` with the result.
+The event carries that merged object.
 
 ```ts
-this.player.container.classList.add('group');
-this.addClasses(overlay, [
-	'opacity-0',
-	'group-[&.nomercyplayer.active]:opacity-100',
-	'transition-opacity',
-]);
+player.subtitleStyle({ fontSize: 120 });
+player.subtitleStyle();
 ```
 
-The class swap is the player's own contract, not a plugin convention: reacting to `inactive` in CSS costs nothing per frame, where a `listen` handler doing the same work runs script on every activity flip.
-
-## Example
-
-The example injects inline rules for a mount point, then shows that a second call with the same `styleId` changes nothing.
-
-:::snippet{file="handbook-styling" live="false"}
+:::snippet{file="core-handbook-styling" live="false"}
 :::
 
-## Next steps
+## Next
 
-- [Building DOM](/nomercy-player-core/handbook/building-dom): the elements these styles target.
-- [Anatomy of a Plugin](/nomercy-player-core/handbook/anatomy): where `moduleUrl` and the other statics live.
+[Timing](/nomercy-player-core/handbook/timing) is the volume position, mute, and the curve that becomes gain.
