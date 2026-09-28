@@ -1,39 +1,77 @@
 ---
-title: 'Build a Player: Wire a Backend Contract'
-description: 'Step 2 of 4: add a backend() method, the exact integration point NMVideoPlayer and NMMusicPlayer use, so play/pause/seek/volume have something to drive.'
+title: 'Backend Contract'
+description: 'Meet the shared media-element surface a custom backend must satisfy so transport, time, and volume have something to drive.'
+tags: [build, backend, MediaElementBackend, bridgeBackendPlayState]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/mixins/player-state.ts, src/core/mixins/transport.ts, src/core/mixins/time.ts, src/core/mixins/volume.ts, src/types/player.ts */}
+{/* Source: nomercy-player-core/src/adapters/media-element/MediaElementBackend.ts, nomercy-player-core/src/adapters/media-element/backend-lifecycle-bridge.ts, nomercy-player-core/src/adapters/media-element/backend-state.ts, nomercy-player-core/src/adapters/media-element/helpers.ts, nomercy-player-core/src/adapters/media-element/index.ts */}
 
-# Build a Player: Wire a Backend Contract
+# Backend Contract
 
-Step 1 composed a player with every kit capability except one: something for transport, time, and volume to actually drive. This step adds it.
+Use this when you write your own media backend, or when you need the shared element surface Player Core exports.
+Player Core does not decode picture or sound.
+Transport, time, and volume call whatever `fn backend` returns on your instance.
 
-## What the kit is looking for
+## How the player finds it
 
-Every transport, time and volume mixin reaches the active backend through optional chaining, never a hard dependency. `this._resolveBackend()?.play?.()`, `?.currentTime?.(seconds)`, `?.volume?.(level)`, and so on.
+Add `fn backend` on your class.
+The shared methods reach it with optional chaining.
+A missing method is a safe no-op.
+There is no setup field that installs a backend for you.
 
-With no backend, each of those is a safe no-op. That is exactly the state [Step 1](/nomercy-player-core/build/compose-methods)'s player was in.
+## The shared substrate
 
-The kit finds your backend by calling a `backend()` method on your player instance. It is the optional method `IPlayer` declares, and the one `NMVideoPlayer` implements for its `<video>` element.
+`cls MediaElementBackend` is the abstract base for every `HTMLMediaElement` backend.
+Core exports it and does not construct one for you.
+Call `super` with the element, whether you own it, and a backend id.
 
-There is no config option or factory for this. You add the method, the kit calls it.
+It already forwards play, pause, stop, time, rate, mute, and volume.
+A volume write clamps to 0 through 1, then applies a square-law gain to the element.
+It also holds an auth header provider, DOM bridges, loader pause and resume, and element capability helpers.
 
-## Adding it
+| Area | What the base covers |
+| --- | --- |
+| Transport | `fn play`, `fn pause`, `fn stop` |
+| Time | `fn currentTime`, `fn duration`, ranges, rate |
+| Level | `fn volume`, `fn mute`, `fn unmute` |
+| Element | `fn mediaElement`, stream, sink, keys |
 
-`FakeBackend` below is not a mock. It is the same minimal shape a real backend satisfies: `play`, `pause`, `currentTime`, `volume`.
+## What you still supply
 
-An in-memory call log stands in for "a frame decoded" or "a gain node changed", so the wiring is provable without a DOM.
+Your subclass still supplies `fn load`, `fn unload`, `fn dispose`, `fn state`, `fn buffered`, and `fn outputProtectionState` for its medium.
+Wire DOM events with `fn attachDomBridges`, or a custom set that still fills the handler list for teardown.
+Override `fn play`, `fn volume`, or `fn mute` only when your medium needs extra work first.
 
-`KitPlayer` gains one private field and one method. Nothing about the composition from Step 1 changes.
+## Backend state
 
-:::snippet{file="build-2-backend-contract" live="false"}
+`BACKEND_STATE` names `str idle`, `str loading`, `str ready`, `str playing`, `str paused`, and `str error`.
+DOM bridges map loadstart, loadedmetadata, play, pause, ended, and error onto those values.
+A pause bridge leaves `str idle` and `str error` alone.
+
+`fn bridgeBackendPlayState` copies play, playing, and pause onto your player's play flag.
+By default, `str loadstart` resets that flag.
+Pass `key resetEvents` or `key pauseGuard` when your medium needs different gating.
+
+## Auth for each request
+
+`cls AuthHeaderProvider` takes the request URL and returns an Authorization header value, or nothing.
+It must stay synchronous.
+Read from a store or ref.
+Do not fetch inside it.
+
+## Helpers you can reuse
+
+Use `fn isHls` and `fn supportsNativeHls` to choose a pipeline.
+`fn attachHlsOrFallback` attaches hls.js, or sets `src` when that engine is unsupported.
+Pass your own hls config.
+The helper does not merge defaults.
+`fn resolveOrCreateMediaElement` finds or creates the tag.
+`fn resetMediaElement` clears a previous source before a new one.
+
+:::snippet{file="core-build-backend-contract" live="false"}
 :::
 
-Once `backend()` returns something, `play()`, `time(seconds)`, and `volume(level)` stop being no-ops. Each still dispatches its cancellable `before*` event exactly as it always did (see [Transport Contract](/nomercy-player-core/tour/transport)). Then each forwards the result to whatever `backend()` returns.
+## Next
 
-The public API surface a consumer calls is unchanged. This step only fills in what happens after the dispatch.
-
-## Next steps
-
-- [Step 3: Add a Plugin](/nomercy-player-core/build/add-a-plugin): register a `Plugin` subclass that reacts to the events this backend wiring now actually fires.
+[Compose the Methods](/nomercy-player-core/build/compose-methods) is how those shared methods land on your class.

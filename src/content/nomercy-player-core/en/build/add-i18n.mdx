@@ -1,53 +1,49 @@
 ---
-title: 'Build a Player: Add i18n'
-description: 'Step 4 of 4: pass language and translations straight into setup(), the same config object that carries logLevel and everything else, to finish the player this tutorial builds.'
+title: 'Add i18n'
+description: 'Use the English core strings that ship with the package, and ship plugin labels with static translations on the class.'
+tags: [build, i18n, translations, Plugin]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/mixins/i18n.ts, src/types/config.ts, src/kit-translations.ts, src/core/mixins/lifecycle.ts */}
+{/* Source: nomercy-player-core/src/i18n/en.ts, nomercy-player-core/src/core/plugin/base.ts */}
 
-# Build a Player: Add i18n
+# Add i18n
 
-The last step. Step 3 left a player with a real backend and a registered plugin. This step adds translations, and the class that comes out the other end is the complete one this tutorial was building toward.
+Use this when you need status text after compose, or when a plugin ships its own labels.
+English `core.*` strings are already on the player after `fn setup`.
+Day-to-day lookups stay on the [i18n tour](/nomercy-player-core/tour/i18n).
 
-## Config, not a separate call
+## English that ships
 
-[i18n](/nomercy-player-core/tour/i18n) showed `addTranslations()` merging a bundle into an already-running player. That's the right tool for translations that arrive after setup, loaded from a network bundle or registered by a plugin.
+`key enTranslations` is the flat English map.
+`key defaultTranslations` wraps it as `{ en: enTranslations }`.
+Import either from `@nomercy-entertainment/nomercy-player-core`.
 
-Here, the translations are known upfront. So they go straight into `setup()` alongside `logLevel` and everything else. `language` and `translations` are ordinary `BasePlayerConfig` fields.
+The map covers network, auth, browser policy, media, DRM, queue state, accessibility, and chapter titles.
+Keys use the shape `core.<feature>.<message>`.
+The same map also holds a few `plugin.<id>.*` strings for built-in plugin messages.
 
-The kit ships its own `core.*` strings, so a player has working error and status text before you write a single key. These strings cover:
+Pass `key language` and `key translations` on `fn setup` when you add or override strings up front.
+Your English keys win over matching defaults.
+Spread `key defaultTranslations` when you want that map as the base for other tags.
 
-- Network announcements.
-- Auth announcements.
-- DRM announcements.
-- Accessibility announcements.
+## Plugin strings
 
-English is seeded eagerly at `setup()`, underneath whatever `translations.en` you pass. So `t('core.*')` resolves immediately. A key you do not override falls back to the kit's English.
+Put a static `key translations` on your `cls Plugin` subclass.
+Keys inside must already use the `plugin.<id>.` prefix.
+Registration merges that map into the live table.
+`fn t` on the plugin prepends `plugin.<id>.` for you, so pass the short key only.
 
-Passing your own static `translations.nl`, as above, seeds that tag directly. [Plugin i18n](/nomercy-player-core/handbook/i18n) covers how a plugin's own bundles load lazily and how a custom `translator` engine changes that merge.
+| Piece | Role |
+| --- | --- |
+| `key enTranslations` | Flat English key-to-string map |
+| `key defaultTranslations` | `{ en: ... }` shape for setup |
+| `key translations` on `cls Plugin` | Bundles merged at registration |
+| `fn t` on the plugin | Short-key lookup under your id |
 
-## Adding it
-
-Structurally, `KitPlayer` from Step 3 does not change. It gains two `declare`s, one each for `t()` and `language()`. The `setup()` call gains two config fields.
-
-:::snippet{file="build-4-add-i18n" live="false"}
+:::snippet{file="core-build-add-i18n" live="false"}
 :::
 
-## What you built
+## Next
 
-Four steps, one class.
-
-Each step added one piece:
-
-| Step | What it added |
-| --- | --- |
-| `composeMixins` | Every shared method. |
-| `backend()` | Something for transport and volume to drive. |
-| `addPlugin` | Behavior layered on without touching the class. |
-| `translations` in `setup()` | The config, finished. |
-
-Every piece is the same code `nomercy-video-player` and `nomercy-music-player` run. This tutorial built it one capability at a time instead of taking it from a single import.
-
-## Next steps
-
-- [Recipes](/nomercy-player-core/recipes/swap-an-adapter): task-sized walkthroughs for real kit jobs, swapping an adapter, registering a cue parser, calling `authFetch`, and providing a custom URL resolver.
+[Backend contract](/nomercy-player-core/build/backend-contract) is how transport reaches a media element.

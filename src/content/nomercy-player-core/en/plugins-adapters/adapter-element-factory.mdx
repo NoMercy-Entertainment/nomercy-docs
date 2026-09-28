@@ -1,0 +1,178 @@
+---
+title: 'CreateElement'
+description: 'Type a fluent DOM builder with CreateElement, and call the five helpers when you need nodes.'
+tags: [adapter, element-factory, player-core]
+draft: false
+---
+
+{/* Source: nomercy-player-core/src/adapters/element-factory/dom.ts, nomercy-player-core/src/adapters/element-factory/index.ts */}
+
+# CreateElement
+
+Use `cls CreateElement` when you want to type the fluent builder `fn createElement` returns.
+`cls AddClasses` and `cls AppendTo` are the later stages of that same chain.
+[Building DOM](/nomercy-player-core/handbook/building-dom) teaches the helpers.
+This page is the contract.
+
+There is no setup option that swaps this surface.
+You import the helpers, or call them from a plugin base method.
+
+```ts
+import {
+	addClasses,
+	createButton,
+	createElement,
+	createSVG,
+	removeClasses,
+} from '@nomercy-entertainment/nomercy-player-core/adapters/element-factory';
+import type {
+	AddClasses,
+	AppendTo,
+	CreateElement,
+} from '@nomercy-entertainment/nomercy-player-core/adapters/element-factory';
+```
+
+The helpers and the three types also ship from the package root.
+The `adapters/element-factory` path is the dedicated export.
+
+## Built-in adapter
+
+Five functions are the built-in surface.
+`fn createElement` returns `cls CreateElement`.
+`fn addClasses` returns `cls AddClasses`.
+The other three return ready nodes or the element itself.
+
+| Helper | Returns |
+|---|---|
+| `fn createElement` | A `cls CreateElement` builder |
+| `fn createButton` | An `HTMLButtonElement` |
+| `fn createSVG` | An `SVGSVGElement` |
+| `fn addClasses` / `fn removeClasses` | An `cls AddClasses` builder / the element |
+
+`fn createButton` sets `type` to `str button`, copies the label onto `aria-label` and `title`, and attaches the click handler.
+`fn createSVG` sets `id`, `viewBox`, and `xmlns` on an SVG-namespace node.
+Empty class names are skipped by `fn addClasses` and `fn removeClasses`.
+`fn removeClasses` is terminal: it returns the element, not a builder.
+
+A plugin base exposes the same five as protected methods.
+They forward to these functions.
+
+## Usage
+
+Type a helper against `cls CreateElement`, or call the helpers directly.
+
+:::snippet{file="core-adapter-element-factory" live="false"}
+:::
+
+## Interface
+
+```ts
+interface CreateElement<T extends Element> {
+	get: () => T;
+	addClasses: (names: string[]) => AddClasses<T>;
+	appendTo: (parent: Element) => AppendTo<T>;
+	prependTo: (parent: Element) => AppendTo<T>;
+	setAttribute: (name: string, value: string) => AddClasses<T>;
+	setProperty: (name: string, value: string) => AddClasses<T>;
+}
+
+interface AddClasses<T extends Element> {
+	get: () => T;
+	appendTo: (parent: Element) => AppendTo<T>;
+	prependTo: (parent: Element) => AppendTo<T>;
+	addClasses: (names: string[]) => AddClasses<T>;
+	setAttribute: (name: string, value: string) => AddClasses<T>;
+	setProperty: (name: string, value: string) => AddClasses<T>;
+}
+
+interface AppendTo<T extends Element> {
+	get: () => T;
+	addClasses: (names: string[]) => AddClasses<T>;
+}
+```
+
+`fn setProperty` writes a CSS custom property when the node is an `HTMLElement`.
+Otherwise it leaves the style alone.
+Pass `unique: true` to `fn createElement` to reuse a node with that id.
+
+## Custom implementation
+
+Implement `cls CreateElement` when a test needs a fake builder, or when you wrap your own node factory.
+You still cannot pass that object into `setup`.
+
+```ts
+import type {
+	AddClasses,
+	AppendTo,
+	CreateElement,
+} from '@nomercy-entertainment/nomercy-player-core/adapters/element-factory';
+
+function wrapElement<T extends Element>(el: T): CreateElement<T> {
+	const asAddClasses = (): AddClasses<T> => ({
+		get: () => el,
+		appendTo: (parent) => {
+			parent.appendChild(el);
+			return asAppendTo();
+		},
+		prependTo: (parent) => {
+			parent.insertBefore(el, parent.firstChild);
+			return asAppendTo();
+		},
+		addClasses: (names) => {
+			for (const name of names) {
+				if (name) el.classList.add(name);
+			}
+			return asAddClasses();
+		},
+		setAttribute: (name, value) => {
+			el.setAttribute(name, value);
+			return asAddClasses();
+		},
+		setProperty: (name, value) => {
+			if (el instanceof HTMLElement) el.style.setProperty(name, value);
+			return asAddClasses();
+		},
+	});
+
+	const asAppendTo = (): AppendTo<T> => ({
+		get: () => el,
+		addClasses: (names) => {
+			for (const name of names) {
+				if (name) el.classList.add(name);
+			}
+			return asAddClasses();
+		},
+	});
+
+	return {
+		get: () => el,
+		addClasses: (names) => {
+			for (const name of names) {
+				if (name) el.classList.add(name);
+			}
+			return asAddClasses();
+		},
+		appendTo: (parent) => {
+			parent.appendChild(el);
+			return asAppendTo();
+		},
+		prependTo: (parent) => {
+			parent.insertBefore(el, parent.firstChild);
+			return asAppendTo();
+		},
+		setAttribute: (name, value) => {
+			el.setAttribute(name, value);
+			return asAddClasses();
+		},
+		setProperty: (name, value) => {
+			if (el instanceof HTMLElement) el.style.setProperty(name, value);
+			return asAddClasses();
+		},
+	};
+}
+```
+
+## See also
+
+- [Building DOM](/nomercy-player-core/handbook/building-dom) walks through the five helpers with examples.
+- [IEventBus](/nomercy-player-core/plugins-adapters/adapter-event-bus) is the next adapter in this section.
