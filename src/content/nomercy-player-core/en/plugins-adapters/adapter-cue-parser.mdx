@@ -1,19 +1,60 @@
 ---
-title: 'Adapter: Cue Parser'
-description: 'ICueParser is id, canParse and parse. CueParserRegistry resolves newest-first, WebVTT, sprite VTT and LRC ship registered, and a format of your own joins them at setup or after ready.'
+title: 'ICueParser'
+description: 'Type a cue-format parser with ICueParser, use CueParserRegistry to resolve newest-first, and register your own format at setup or at runtime.'
+tags: [adapter, cue-parser, player-core]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/adapters/cue-parser/ICueParser.ts, src/adapters/cue-parser/registry.ts, src/adapters/cue-parser/built-ins.ts, src/core/mixins/cue-parser.ts, src/core/mixins/lifecycle.ts */}
+{/* Source: nomercy-player-core/src/adapters/cue-parser/ICueParser.ts, src/adapters/cue-parser/registry.ts, src/adapters/cue-parser/built-ins.ts, src/adapters/cue-parser/lrc.ts, src/adapters/cue-parser/vtt.ts, src/core/mixins/cue-parser.ts, src/core/mixins/lifecycle.ts */}
 
-# Adapter: Cue Parser
+# ICueParser
 
-`cls ICueParser` turns a timed-text file into cues the player can follow. WebVTT, sprite VTT and LRC ship registered, so a `.vtt` and an `.lrc` are already claimed.
+Use `cls ICueParser` when timed text arrives in a format you need to claim.
+Each parser has an `key id`, a `fn canParse` gate, and a synchronous `fn parse` that returns a cue list.
 
-Write one when your content arrives in a shape the kit does not read: SRT, TTML, a house caption format, a lyrics feed of your own.
+```ts
+import {
+	CueParserRegistry,
+	createCueList,
+	parseLrc,
+} from '@nomercy-entertainment/nomercy-player-core';
+import type { ICueParser } from '@nomercy-entertainment/nomercy-player-core';
+```
 
-[Cue Parsers](/nomercy-player-core/tour/cue-parsers) introduces the idea and [Recipe: Register a Custom Cue Parser](/nomercy-player-core/recipes/custom-cue-parser) builds one. This page is the reference for the port itself.
+`cls CueParserRegistry` and the parse helpers also live on the `adapters/cue-parser` path.
+`cls ICueParser` is on the package root and on that path.
 
-## The interface
+## Built-in adapter
+
+`cls CueParserRegistry` is the ordered list you construct yourself, or that the player owns.
+Resolution walks newest first.
+`fn register` with the same `key id` replaces that entry.
+Pass `prepend: true` to park a parser at the low-priority end.
+
+During `fn setup`, Player Core seeds three parsers by id.
+You do not import those parser objects.
+You address them with `fn unregisterCueParser` and by registering the same `key id` again.
+
+| Id | Claims |
+|---|---|
+| `str lrc` | `.lrc`, or content type `application/x-lrc`, `application/x-lyrics`, or `text/lrc` |
+| `str vtt` | `.vtt` or `text/vtt`, unless the URL looks like a sprite sheet |
+| `str sprite-vtt` | A URL that contains `sprite.vtt` or `sprites.vtt` |
+
+The package exports `fn parseLrc`, `fn parseVttSubtitles`, `fn parseVttSprite`, and `fn parseVtt` so a custom parser can reuse those readers.
+
+On a player, `fn registerCueParser`, `fn unregisterCueParser`, and `fn resolveCueParser` wrap that registry.
+`fn resolveCueParser` takes a URL only.
+Pass `key cueParsers` at setup, or call `fn registerCueParser` at runtime, to outrank a seeded parser for the same URL.
+
+## Usage
+
+Register a format on a bare registry, or reuse an exported reader inside `fn parse`.
+
+:::snippet{file="core-adapter-cue-parser" live="false"}
+:::
+
+## Interface
 
 ```ts
 interface ICueParser<T = unknown> {
@@ -23,62 +64,43 @@ interface ICueParser<T = unknown> {
 }
 ```
 
-## Shipped implementations
+`fn canParse` returning `true` is a commitment.
+The registry returns the first match and does not fall through.
+`fn parse` receives the full file as a string.
+Fetching is the caller's job.
+Optional `key baseUrl` helps relative references inside cue bodies.
 
-| Id | Claims | Payload |
-|---|---|---|
-| `str vtt` | `.vtt`, and `str text/vtt` as a content type. Stands aside for a sprite URL. | Plain `key text` plus a `key markup` field keeping `<b>`, `<i>` and `<u>`, with the cue's own `align`, `line` and `size` settings. |
-| `str sprite-vtt` | A URL ending `.sprite.vtt` or `.sprites.vtt`. | The `#xywh=` crop off each cue: `key url`, `key x`, `key y`, `key w`, `key h`. |
-| `str lrc` | `.lrc`, and `str application/x-lrc`, `str application/x-lyrics` or `str text/lrc` as a content type. | `key text`, plus a `key words` array for enhanced LRC carrying per-word timestamps. |
+## Custom implementation
 
-Each one is addressed by that id rather than by an import. `player.unregisterCueParser('vtt')` drops it, and registering a parser whose `key id` is `str vtt` replaces it.
-
-The functions behind them carry their own exports, so a parser of yours can reuse one. `fn parseVttSubtitles`, `fn parseVttSprite`, `fn parseVtt` and `fn parseLrc` all come from the package root and from `./adapters/cue-parser`.
-
-## Who asks the registry
-
-`player.resolveCueParser(url)` is the lookup, and it hands the registry a URL with no content type. The music player's lyrics plugin calls it for every lyrics file it loads, and your own code can call it for anything else.
-
-Sidecar captions, the chapter track and the desktop UI's seek preview each call a WebVTT function directly, so those three read WebVTT whichever parsers are registered.
-
-## Registration order
-
-`fn setup` seeds the three built-ins, then registers whatever `key cueParsers` carried. The registry resolves newest-first, so either route below wins a URL a built-in also claims:
+Any object with the three members is a parser.
+Hand it to `fn setup` through `key cueParsers`, or call `fn registerCueParser` later.
 
 ```ts
-player.setup({ cueParsers: [myParser] });
+import { createCueList } from '@nomercy-entertainment/nomercy-player-core';
+import type { ICueParser } from '@nomercy-entertainment/nomercy-player-core';
 
-await player.ready();
-player.registerCueParser(myParser);
-```
-
-A parser registered before `fn setup` is the older entry, and it still serves any URL the built-ins leave alone. `player.registerCueParser(parser, true)` puts one deliberately below the built-ins.
-
-## Rules & restrictions
-
-- Answering `true` from `fn canParse` is a commitment. The registry hands back the first match and never revisits the walk, so a `fn parse` that throws propagates to whoever asked rather than falling through.
-- Re-registering an id replaces that entry and moves it to the front of the walk. `player.resolveCueParser(url)` answers `ts undefined` when nothing claims the URL, which is the caller's decision to make rather than an error.
-- `fn parse` is synchronous and receives the whole file as a string. Fetching is the caller's job.
-- The optional `key baseUrl` in `fn parse` exists for cue bodies holding a relative reference, which is how the sprite parser turns a cue into an absolute image URL.
-
-## How to extend it
-
-Any object with the three members is a parser. This one converts SRT timings into WebVTT and hands the rest to the built-in reader:
-
-```ts
-import { parseVttSubtitles } from '@nomercy-entertainment/nomercy-player-core';
-import type { ICueParser, VTTSubtitlePayload } from '@nomercy-entertainment/nomercy-player-core';
-
-const srtParser: ICueParser<VTTSubtitlePayload> = {
-	id: 'srt',
-	canParse: url => url.endsWith('.srt'),
-	parse: raw => parseVttSubtitles(`WEBVTT\n\n${raw.replace(/(\d\d:\d\d:\d\d),(\d\d\d)/gu, '$1.$2')}`),
+const beats: ICueParser<{ label: string }> = {
+	id: 'demo:beats',
+	canParse: url => url.endsWith('.beats'),
+	parse: (raw) => {
+		const rows = raw.split(/\r?\n/).filter(Boolean);
+		return createCueList(
+			rows.map((row) => {
+				const [at, ...rest] = row.split(/\s+/);
+				const start = Number(at);
+				return {
+					start,
+					end: start,
+					payload: { label: rest.join(' ') },
+				};
+			}),
+		);
+	},
 };
 
-player.setup({ cueParsers: [srtParser] });
+player.setup({ cueParsers: [beats] });
 ```
 
-## Next steps
+## See also
 
-- [Recipe: Register a Custom Cue Parser](/nomercy-player-core/recipes/custom-cue-parser): the same port with a full parser written out.
-- [Adapter: Preload Strategy](/nomercy-player-core/plugins-adapters/adapter-preload-strategy): when and what to prefetch before the outgoing item ends.
+- [Adapter: Element Factory](/nomercy-player-core/plugins-adapters/adapter-element-factory): next adapter in the catalogue.

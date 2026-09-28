@@ -1,48 +1,56 @@
 ---
 title: 'Recipe: Provide a Custom URL Resolver'
-description: 'Replace IUrlResolver at setup() to sign media URLs per category while delegating everything else to ctx.defaultResolve, then swap it again at runtime.'
+description: 'Pass your own urlResolver at setup to sign media URLs by category, then read or replace it later with urlResolver().'
+tags: [recipes, url-resolver, resolveUrl]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/adapters/url-resolver/IUrlResolver.ts */}
+{/* Source: nomercy-player-core/src/adapters/url-resolver/IUrlResolver.ts, nomercy-player-core/src/core/mixins/auth.ts */}
 
 # Recipe: Provide a Custom URL Resolver
 
-`authFetch` (previous recipe) covers URLs your own code fetches. Not every URL goes through `fetch`. These need a final string handed to them directly, with no chance to attach an `Authorization` header:
-
-- a `<video>.src`
-- a Cast receiver
-- a Worker
-- CSS `url()`
-
-`IUrlResolver` is the extension point for that case.
+Use `cls IUrlResolver` when a consumer needs a finished URL string and cannot take an `Authorization` header.
+The [auth fetch recipe](/nomercy-player-core/recipes/auth-fetch) covers requests your own code fetches.
+This recipe covers the cases that only accept a URL.
 
 ## The task
 
-A CDN needs a signed `token` query parameter on media URLs specifically. Poster images and subtitles are served unsigned from the same host.
+Your media host needs a signed `token` query on media URLs.
+Poster and subtitle URLs from the same host stay unsigned.
 
-`setup({ urlResolver })` replaces the resolver wholesale. `ctx.category` tells the custom function which kind of URL it's looking at. `ctx.defaultResolve` is the built-in behavior (`auth.transformUrl` + structured parse) for the categories the custom logic doesn't touch.
+Pass `key urlResolver` into `fn setup`.
+That replaces the built-in resolve for later `fn resolveUrl` calls.
+`key category` on the context names the consumer.
+Call `key defaultResolve` for every category you leave alone.
 
-:::snippet{file="recipe-custom-url-resolver" live="false"}
+:::snippet{file="core-recipes-custom-url-resolver" live="false"}
 :::
+
+The host in the sample stands for your own backend.
 
 ## Reading the result
 
-`player.resolveUrl(url, category)` is what a plugin or your own UI calls to get a `ResolvedUrl`:
+`fn resolveUrl` returns a `cls ResolvedUrl`.
 
 | Field | What it does |
 | --- | --- |
-| `href` | The final string. |
-| `searchParams` | Inspects the query. |
-| `ext` | Gates on file type. |
+| `key href` | The final string. |
+| `key searchParams` | Reads the query. |
+| `key ext` | Gates on file type. |
 
-Prefer `ext` over splitting on `.`. The `ext` field survives query strings and fragments.
+Prefer `key ext` over splitting on a dot.
+The extension survives query strings and fragments.
 
-`relative` is `true` when the input was relative and no `baseUrl` was configured to absolutize against. Assert on it in a test and a missing `baseUrl` fails there, rather than shipping a broken URL.
+`key relative` is `true` when the input stayed relative and no base URL could absolutize it.
+A `true` value means the string you got is not an absolute URL.
 
-## Swapping again later
+## Swap it later
 
-`urlResolver()` reads the active custom resolver back (`undefined` when the built-in pipeline is active); `urlResolver(fn)` replaces it, and `urlResolver(undefined)` reverts to the default. This is the runtime escape hatch for CDN credentials that rotate without a full `setup()` re-run.
+`fn urlResolver` with no argument returns the active custom resolver, or `undefined` when the built-in path is active.
+Pass a function to replace it.
+Pass `undefined` to revert.
+The change applies on the next `fn resolveUrl` call.
 
-## Next steps
+## Next
 
-- [Plugins & Adapters](/nomercy-player-core/plugins-adapters/audio-graph): purpose, options, and restrictions for every shared plugin and adapter port the kit ships.
+[Swap an adapter](/nomercy-player-core/recipes/swap-an-adapter) is the same setup-time replace shape for any other port.

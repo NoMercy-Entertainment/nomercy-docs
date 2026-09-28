@@ -1,47 +1,62 @@
 ---
-title: 'Build a Player: Add a Plugin'
-description: 'Step 3 of 4: register a Plugin subclass before setup() and react to the events the backend wiring from step 2 now actually fires.'
+title: 'Add a Plugin'
+description: 'Ship a Plugin subclass with static id and description, override use to subscribe, then register it before setup.'
+tags: [build, plugin, Plugin, addPlugin]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/plugin/base.ts, src/core/mixins/plugin-registration.ts */}
+{/* Source: nomercy-player-core/src/core/plugin/base.ts */}
 
-# Build a Player: Add a Plugin
+# Add a Plugin
 
-Step 2 gave the player something real to drive. This step adds behavior on top of it, without touching `KitPlayer` itself: a plugin.
+A plugin is extra behavior you add to a player, such as counting each play.
+Use this page when you want a class you can ship onto a composed player.
+[Plugins](/nomercy-player-core/tour/plugin-base) covers subclassing and lifecycle.
+[Registration](/nomercy-player-core/handbook/registration) covers timing, checks, and removal.
 
-## Why the player class doesn't change
+## What you ship
 
-A plugin extends the player from the outside.
+Subclass `cls Plugin`.
+Set a static `key id` and `key description`.
+Add `key version` when you want a semver string on the class.
+Override `fn use` to subscribe and start the work.
+Pass that class to `fn addPlugin`, with options when the plugin needs them.
+You do not construct the instance yourself.
 
-`addPlugin(PluginClass, opts)` queues the plugin before `setup()` runs. Register after `setup()` and the plugin misses its own `use()` call during the pipeline.
+| Piece | Role |
+| --- | --- |
+| `key id` | Stable name for events and storage |
+| `key description` | One-line listing and error text |
+| `fn use` | Subscribe and start the behavior |
+| options on `fn addPlugin` | Config for that install |
 
-In return the plugin gets:
+Inside `fn use`, use the protected helpers.
+`fn on` listens on the player or on another plugin by class.
+`fn emit` fires under `plugin:<id>:`.
+`fn dispose` is only for resources those helpers never tracked.
 
-- A scoped logger.
-- Namespaced storage.
-- Auto-cleaned listeners.
+## Register, then set up
 
-[The Plugin Base](/nomercy-player-core/tour/plugin-base) has the full list, and the [Plugin Handbook](/nomercy-player-core/handbook/anatomy) teaches every helper on it in depth.
+Call `fn addPlugin` before `fn setup` so install runs in the setup pipeline.
+After setup, the same call still installs, and `fn ready` waits for it.
 
-`KitPlayer`'s composition from steps 1 and 2 needs no change for this. `addPlugin` and `getPlugin` are already in `playerCoreMethods`, stamped onto every kit composition whether you call them or not.
+```ts
+player.addPlugin(PlayCounterPlugin, { everyNPlays: 2 });
+player.setup({ logLevel: 'info', baseUrl: FILMS_BASE });
+```
 
-## Adding one
+`key plugins` on setup is sugar over that same `fn addPlugin` path.
+Pass a class, or `{ plugin, opts }` when the plugin takes options.
 
-`PlayCounterPlugin` listens for the same `play` event that Step 2's backend wiring now triggers. Every N plays, it emits a namespaced milestone.
+## Hear what it emits
 
-The `KitPlayer` class below is identical to Step 2's, plus three small additions. Two `declare`s expose the methods a plugin-registering consumer needs, `addPlugin` and `getPlugin`. The third addition is the plugin registration call itself.
+A consumer listens on the player for the namespaced name.
+For id `play-counter` and event `milestone`, that name is `str plugin:play-counter:milestone`.
+`fn getPlugin` returns the live typed instance, or `undefined` when it is missing.
 
-:::snippet{file="build-3-add-a-plugin" live="false"}
+:::snippet{file="core-build-add-a-plugin" live="false"}
 :::
 
-At the end, `player.backend().calls` still shows the transport calls from Step 2 (`['play', 'pause', 'play']`). That proves the plugin is additive. It observes the same event stream. It never intercepts or replaces the backend wiring underneath it.
+## Next
 
-Real players have a declarative shortcut: `setup({ plugins: [PlayCounterPlugin] })`, or `{ plugin: PlayCounterPlugin, opts: {...} }` when it takes options.
-
-That runs through this same `addPlugin()` path at the same moment. It is sugar over the two calls above, not a second mechanism.
-
-`KitPlayer` builds `playerCoreMethods` by hand here for teaching, so this step spells `addPlugin()` out. Both real players support the declarative form.
-
-## Next steps
-
-- [Step 4: Add i18n](/nomercy-player-core/build/add-i18n): the last step, translations wired in at `setup()` time.
+[Add i18n](/nomercy-player-core/build/add-i18n) is how translations go into `fn setup`.

@@ -1,27 +1,49 @@
 ---
 title: 'Recipe: Swap an Adapter'
-description: 'Swap the storage port for IndexedDBBackend at setup() and prove a plugin storage read persists through it, without changing a single call site.'
+description: 'Replace the default storage backend at setup with IndexedDBBackend so plugins keep using this.storage unchanged.'
+tags: [recipes, adapter, storage, IndexedDBBackend]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/adapters/storage/IStorage.ts, src/adapters/storage/indexed-db.ts */}
+{/* Source: nomercy-player-core/src/index.ts */}
 
 # Recipe: Swap an Adapter
 
-[Adapters & Dependency Injection](/nomercy-player-core/tour/adapters) covers the mechanism: every non-lifecycle behavior is a named interface with a working default, swapped by naming the field in `setup()`. This recipe is a real task built on that mechanism. The default `LocalStorageBackend` is synchronous and capped around 5-10 MB per origin, a real ceiling for cached metadata or an offline queue.
+Use this recipe when one built-in adapter should change for the whole player.
+You name the field on `fn setup` and pass an instance the package already exports.
+This walkthrough replaces storage with `cls IndexedDBBackend`.
 
-## The swap
+## What you import
 
-`IndexedDBBackend` implements the same five-method `IStorage` interface as the default, so nothing that already calls `this.storage` (inside a plugin) or reads through the port needs to change. Only the `setup()` call does.
+Import the backend from `@nomercy-entertainment/nomercy-player-core`.
+The package root also exports `cls LocalStorageBackend` and `cls MemoryStorageBackend`.
+Omit `key storage` and plugins get `cls LocalStorageBackend`.
 
-:::snippet{file="recipe-swap-an-adapter" live="false"}
+| Export | Role |
+| --- | --- |
+| `cls LocalStorageBackend` | Default. Sync. Falls back to memory when blocked. |
+| `cls IndexedDBBackend` | Opt-in. Async. Opens the database on the first call. |
+| `cls MemoryStorageBackend` | In memory. Values are lost on reload. |
+
+## Make the swap
+
+Pass `key storage` on `fn setup` with `new IndexedDBBackend(...)`.
+Plugins call `fn this.storage` and do not name which backend is active.
+Each plugin gets a namespaced wrapper, so keys stay separate.
+
+All three backends share the same five methods: `fn get`, `fn set`, `fn remove`, `fn getJSON`, and `fn setJSON`.
+Await them in plugin code either way.
+Sync backends resolve at once under `await`.
+
+:::snippet{file="core-recipes-swap-an-adapter" live="false"}
 :::
 
-`RecentlyPlayedPlugin` never checks which backend is active. It calls `this.storage.getJSON()` / `setJSON()` exactly as it would against the default. The swap happens once, at the boundary, so every consumer downstream is unaffected.
+The sample plugin writes and reads JSON through that same surface.
+You do not change call sites inside the plugin when the backend changes.
 
-## Other ports swap the same way
+When IndexedDB is missing, `cls IndexedDBBackend` rejects with `str core:policy/indexedDBUnsupported`.
+Use `cls LocalStorageBackend` or `cls MemoryStorageBackend` in that environment.
 
-Every port in the [adapter table](/nomercy-player-core/tour/adapters#the-adapter-ports) takes the identical shape: name the field, pass an instance. `platform` additionally supports a partial override (`{ ...browserPlatform, wakeLock: myWakeLock }`) for interfaces that bundle several sub-controllers. Everything else is a full replace.
+## Next
 
-## Next steps
-
-- [Recipe: Register a Custom Cue Parser](/nomercy-player-core/recipes/custom-cue-parser): the same "swap at setup" shape, applied to a registry instead of a single interface.
+[Audio output](/nomercy-player-core/plugins-adapters/adapter-audio-output) is how you choose which device the sound comes from.
