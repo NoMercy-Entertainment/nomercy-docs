@@ -4,32 +4,20 @@ Verdict: PASS
 
 Reviewed: src/content/nomercy-player-core/en/reference/testing.mdx
 
-Reviewed-SHA: e82f928a5e2a36d7
+Reviewed-SHA: b6f10bb62fb780ab
 
-## Same-voice comparison
+Same-voice comparison: skipped (not requested for this review).
 
-Skipped. There is no approved reference page yet for this section.
+## Rubric
 
-## Snippet
+**Import path.** The page says helpers are not on the package root and names `@nomercy-entertainment/nomercy-player-core/testing`. The opening block lists the symbols and matches that path. A newcomer can import without guessing.
 
-No example file is wired to this page. The opening import block is the only inline sample.
+**Tables.** Each table has a lead-in sentence that states its purpose: construction exports and stub-only methods under StubPlayer; author-facing API for `describePlugin` and `describePluginAgainst`; the suite registration table for `runIPlayerContract`; leak harness exports; mockFetch types; and the cast shape for `PlayerTestInternals`.
 
-## Reader notes (JavaScript background, first visit)
+**Internal source files.** Nothing in reader-facing prose tells you to open repo paths such as `packages/player-web/...`. Usage stays on the public `/testing` import and the helpers described on the page.
 
-The page states up front that testing helpers live on a separate subpath, not on the package root. It names the exact import: `@nomercy-entertainment/nomercy-player-core/testing`, with a full `import { ... } from '...'` block. That is enough to install the package and pull symbols without guessing paths.
+## Reader notes
 
-The Vitest note is practical: `describePlugin`, `describePluginAgainst`, and `runIPlayerContract` expect globals on `globalThis`, so `test.globals: true` is required. That matches how many Vitest projects are configured and avoids a silent "describe is not defined" surprise.
+Section order runs from `StubPlayer` through plugin harnesses, `runIPlayerContract`, listener-leak helpers, `mockFetch`, and `PlayerTestInternals`. Stub limits (`getPlugin` / `addPlugin`) and the Vitest `test.globals: true` requirement are called out before you hit failing tests. The link to the event bus adapter explains why leak checks need `listenerCount()`.
 
-Section order walks from the in-memory `StubPlayer` double through plugin harnesses, the shared `IPlayer` contract suite, listener-leak helpers, `mockFetch`, and the internal-only `PlayerTestInternals` cast type. Each major helper gets a short job description before its tables. Stub limitations (`getPlugin` always undefined, `addPlugin` no-op) are spelled out, which matters when writing tests that mirror production registration.
-
-Cross-links to the event bus adapter page for `listenerCount()` give a place to read why leak checks need that method.
-
-As a catalog reference, the "One job" column plus surrounding prose is enough for me to pick the right export without opening TypeScript sources first.
-
-## Why PASS
-
-Under this review's rubric, pass when the import path is clear and every table has a sentence immediately before it that says what that table is for.
-
-The import path passes: root re-export is denied, `./testing` is named, and the sample import matches.
-
-Every table now has a lead-in: construction exports and stub-only methods under StubPlayer; author-facing API lines for `describePlugin` and `describePluginAgainst`; "This table is the function that registers that suite" before `runIPlayerContract`; leak harness and mockFetch intros; and "This table is the shape of that cast" before `PlayerTestInternals`. The earlier gap on the last two sections is closed.
+As a first visit, this is enough to choose an export from the tables and wire imports without opening TypeScript sources first.

@@ -1,9 +1,9 @@
 # Fact check: /nomercy-player-core/reference/testing
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/reference/testing.mdx
-Reviewed-SHA: e82f928a5e2a36d7
+Reviewed-SHA: b6f10bb62fb780ab
 
-Source: `packages/player-web/nomercy-player-core` (`src/testing/*`, `package.json` `exports["./testing"]`, `src/index.ts`). Method: read page and source; no site build. Em dash / en dash scan (U+2013, U+2014) over the page: none. Word `kit`: none on the page. Lead-in sentences before tables are accurate framing; no signature drift.
+Source: `packages/player-web/nomercy-player-core` (`src/testing/*`, `package.json` `exports["./testing"]`, `src/index.ts`). Method: read page and source; no site build. Em dash / en dash scan (U+2013, U+2014) over the page: none. Old library nickname: none on the page. Lead-in sentences before tables are accurate framing; no signature drift.
 
 ## Gate checks
 
@@ -13,8 +13,8 @@ Source: `packages/player-web/nomercy-player-core` (`src/testing/*`, `package.jso
 | Documented import list matches `src/testing/index.ts` re-exports | Pass |
 | Every table signature matches source | Pass |
 | Table lead-ins match section intent | Pass |
-| `listenerCount` on `IEventBus` (EventEmitter implements it) | Pass (`IEventBus.ts:35`; `leak-harness.ts:30-44`) |
-| No `kit` on page | Pass |
+| `listenerCount` on EventEmitter; missing method throws `TypeError` | Pass (`leak-harness.ts:30-44`) |
+| Old library nickname on page | none |
 | No em dash / en dash on page | Pass |
 
 ## Claim table
@@ -35,7 +35,7 @@ Source: `packages/player-web/nomercy-player-core` (`src/testing/*`, `package.jso
 | Real player: `addPlugin`, `getPlugin`, `removePlugin`, dispose unless custom `teardown` | `describe-plugin-against.ts:115-161` | Supported |
 | `runIPlayerContract` opts signature | `contract.ts:92-96` | Supported |
 | Contract covers identity, events, phase/`dispatching`, `baseUrl`, `audioContext`, experimental, i18n, cue parsers | `contract.ts:117-325` | Supported |
-| Leak harness uses `player.listenerCount()`; missing method throws `TypeError` | `leak-harness.ts:30-44`; declared on `IEventBus.ts:35` | Supported |
+| Leak harness uses `player.listenerCount()`; missing method throws `TypeError` | `leak-harness.ts:30-44` | Supported |
 | `countAllListeners`, `assertNoListenerLeak`, `assertNoListenerLeakOverCycles` (default cycles `5`), `LeakAssertionResult` | `leak-harness.ts:16-22,30,76-82,130-138` | Supported |
 | `mockFetch`, `MockFetch`, `MockFetchCall`, `MockFetchResponse`; empty queue resolves `undefined as T` | `mock-fetch.ts:26-51,71-94` | Supported |
 | `PlayerTestInternals` fields; cast via `as unknown as`, never `as any` | `player-test-internals.ts:20-35` | Supported |

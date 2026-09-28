@@ -9,22 +9,26 @@ draft: false
 
 # What is Player Core
 
-Install `@nomercy-entertainment/nomercy-player-core` on its own only when you are writing a plugin, or when you are building a player of your own.
-If you want to play video, use the [video player](/nomercy-video-player).
-If you want to play music, use the [music player](/nomercy-music-player).
+Install `@nomercy-entertainment/nomercy-player-core` on its own only in two cases.
+A plugin is extra behavior you add to a player, such as counting each play, and writing one is the first case.
+The second is building a player yourself: you write the class, instead of using the video or music player.
 
-Those packages already depend on Player Core, so you do not install it again.
-Player Core is the engine they share: the queue, signed requests, plugins, and typed events.
+If you only want to play video, use the [video player](/nomercy-video-player).
+If you only want to play music, use the [music player](/nomercy-music-player).
+Those packages already include Player Core, so you do not install it again.
+
+Player Core is the engine those two players share.
+It keeps the ordered list of things to play, it can add a token to requests your server requires, and you can subscribe to what it does.
 It does not draw a picture or play sound by itself.
 
-Video and music need that same engine.
-Keeping it in one package means a fix lands once, for both.
-A player you build starts the same way: compose this engine, then add the piece that is specific to your medium.
+Video and music both need that list, those requests, and those subscriptions.
+Keeping them in one package means a fix lands once, for both.
+When you build your own player, you attach those methods to your class, then add only what is specific to your medium.
 
 Nothing runs until you ask for it.
-No plugin is active until you add it.
-You can pass your own storage, logger, or similar piece into `setup`, and everything you leave out keeps its default.
+A plugin stays off until you add it.
+You can pass your own storage or logger into `setup`, and anything you skip keeps the default.
 
 ## Next
 
-[Quickstart](/nomercy-player-core/quickstart) composes that class.
+[Quickstart](/nomercy-player-core/quickstart) shows how to attach the engine to a class.

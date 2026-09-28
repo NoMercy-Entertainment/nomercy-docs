@@ -5,7 +5,7 @@
 **Audience:** a web developer installing Player Core, the video player, or the music player.
 **Destination:** `src/content/nomercy-player-core/en/`, `src/content/nomercy-video-player/en/`, and `src/content/nomercy-music-player/en/`.
 **Conventions:** `DOCS-CONTRACT.md`, `CLAUDE.md`, and the player-trio brief.
-**Reference pages:** none yet. The pilot is not approved.
+**Reference pages:** introduce `/nomercy-player-core`, quickstart `/nomercy-player-core/quickstart`, tour `/nomercy-player-core/tour/queue`, build `/nomercy-player-core/build/compose-methods`, recipes `/nomercy-player-core/recipes/auth-fetch`, catalog `/nomercy-player-core/plugins-adapters/adapter-event-bus`, reference `/nomercy-player-core/reference/testing`. Core pages have no live player. Live players belong only on the quickstart and build pages of video and music.
 
 ## Excluded
 

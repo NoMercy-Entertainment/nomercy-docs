@@ -1,9 +1,9 @@
 # Fact check: /nomercy-player-core/recipes/auth-fetch
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/recipes/auth-fetch.mdx
-Reviewed-SHA: 6153dd1f0498e28c
+Reviewed-SHA: d76c9e1f22ccbea6
 
-Source: `packages/player-web/nomercy-player-core/src/core/auth-fetch/` (`orchestrator.ts`, `prepare.ts`, `attempt.ts`, `decode.ts`, `types.ts`, `index.ts`) and `src/core/mixins/auth.ts`; plugin path `src/core/plugin/fetch.ts` / `base.ts`. Example: `src/examples/core-recipes-auth-fetch.ts`. Media header wiring checked in `nomercy-video-player` / `nomercy-music-player` `setAuthHeaderProvider`. Method: read page, example, and source; no site build. Em dash / en dash scan (U+2013, U+2014) over the page and example: none. Word `kit`: none on the page or in the example. Package name appears as plain backticks, not inside a `str` tag.
+Source: `packages/player-web/nomercy-player-core/src/core/auth-fetch/` (`orchestrator.ts`, `prepare.ts`, `attempt.ts`, `decode.ts`, `types.ts`, `index.ts`) and `src/core/mixins/auth.ts`; plugin path `src/core/plugin/fetch.ts` / `base.ts`. Example: `src/examples/core-recipes-auth-fetch.ts`. Media header wiring checked in `nomercy-video-player` / `nomercy-music-player` `setAuthHeaderProvider`. Method: read page, example, and source; no site build. Em dash / en dash scan (U+2013, U+2014) over the page and example: none. Old library nickname: none on the page or in the example. Package name appears as plain backticks, not inside a `str` tag.
 
 ## Gate checks
 
@@ -12,8 +12,8 @@ Source: `packages/player-web/nomercy-player-core/src/core/auth-fetch/` (`orchest
 | `authFetch` vs `this.fetch` | Pass (`authFetch` public; `Plugin.fetch` -> `pluginFetch` -> `authFetch` with live auth, lifecycle signal, plugin scope) |
 | `bearerToken` vs `mediaAuthorization` | Pass (pipeline uses `bearerToken` only; media path is separate `AuthConfig.mediaAuthorization`) |
 | Status-code behavior (401 / 403 / other 4xx / 5xx-network-timeout) | Pass (`attempt.ts`, `orchestrator.ts`, `prepare.ts` default retry) |
-| Package name not inside a `str` tag | Pass (line 14: `@nomercy-entertainment/nomercy-player-core` in plain backticks) |
-| No `kit` on page or example | Pass |
+| Package name not inside a `str` tag | Pass (line 16: `@nomercy-entertainment/nomercy-player-core` in plain backticks) |
+| Old library nickname on page or example | none |
 | No em dash / en dash on page or example | Pass |
 
 ## Claim table
@@ -37,6 +37,6 @@ Source: `packages/player-web/nomercy-player-core/src/core/auth-fetch/` (`orchest
 | `this.fetch` reads raw config at call time | `plugin/fetch.ts:63-64` (`_rawAuth`) | Supported |
 | `responseType` text (default + optional parser) / json / arrayBuffer | `decode.ts:19-64`; `types.ts:58-62` | Supported |
 | Thrown parser or invalid JSON -> `core:network/parse-failed` | `decode.ts:36-40,53-57` | Supported |
-| Narrow with `isAuthError` / `isNetworkError` | `auth-fetch/index.ts:26-32`; example `:43-48` | Supported |
+| Narrow with `isAuthError` / `isNetworkError` | `auth-fetch/index.ts`; example `:43-48` | Supported |
 | Example: `AuthConfig` + `authFetch` + required signal + json | Example `:22-39`; matches API | Supported |
 | Next link Event Bus path | Path shape only; not re-verified against nav | Supported (path as written) |

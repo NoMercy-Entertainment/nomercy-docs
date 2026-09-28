@@ -4,36 +4,37 @@ Verdict: PASS
 
 Reviewed: src/content/nomercy-player-core/en/quickstart.mdx
 
-Reviewed-SHA: 96af8a7012c0b5d6
+Reviewed-SHA: 98dbd955d5a28b32
 
-## Same-voice comparison
+Same-voice comparison: skipped (not requested for this review).
 
-Skipped. There is no approved reference page yet for this section.
+## Can you compose the class from the page?
 
-## Snippet
+Yes. The numbered block under **Compose the class** is a complete recipe, and the embedded snippet is the code the page shows.
 
-`core-quickstart.ts` (via `:::snippet{file="core-quickstart" live="false"}` in the Compose the class section).
+| Step in the doc | What you do in JavaScript |
+| --- | --- |
+| Extend `EventEmitter` | `class CorePlayer extends EventEmitter<BaseEventMap>` |
+| `resolvePlayerConstructor` | Call it in the constructor with an instances map, the string `'CorePlayer'`, and the optional id |
+| `initPlayerCoreState` with the same class name | `initPlayerCoreState(this, { className: 'CorePlayer' })` after you know you are creating a new instance |
+| `composeMixins` with `playerCoreMethods` | `composeMixins(CorePlayer.prototype, ...playerCoreMethods)` after the class body |
 
-## Reader notes (JavaScript background, first visit)
+The snippet fills in behavior the four bullets do not spell out: handling `resolved.kind === 'existing'`, assigning `playerId` and `container`, storing in the map, `declare` lines for TypeScript, a small `corePlayer()` factory, and a demo mount plus `setup`, `ready`, and `dispose`. None of that contradicts the steps; it is the natural implementation of step 2 and 3 inside a constructor.
 
-I read Install, then Compose the class (numbered steps plus the expanded snippet), and stopped once I had a class that extends the package `EventEmitter`, runs `resolvePlayerConstructor` and `initPlayerCoreState` in the constructor, and calls `composeMixins` on the prototype with `playerCoreMethods`. I did not use player source.
+Install is one package; the prose matches `npm install @nomercy-entertainment/nomercy-player-core` and the imports in the snippet.
 
-Install is one command and the page states that it is the only package to install. That is enough to start.
+**Mount and set up** ties step 2 to the DOM: string id looks up a `div`, wrong or missing nodes throw the named errors, and the sample creates a labeled `div` and passes its id. That is enough to run the bottom of the snippet without guessing mount rules.
 
-The three numbered steps name the same exports the snippet imports and match the order of work in the constructor and the post-class `composeMixins` call. The snippet is a full composition sample, not a fragment: instance map, class body, factory export, and the `declare` lines for methods that mixins add at runtime. The inline comment on those `declare` lines tells me why they exist without opening the library.
+## List item sentence rule
 
-I could copy the Compose section into a project and have a composed class without inventing API shapes. The prose after the snippet (`composeMixins` copies descriptors, later modules win on duplicate keys, `playerCoreMethods` is what the real players spread) reinforces why the spread in `composeMixins(CorePlayer.prototype, ...playerCoreMethods)` is there even though step 3 does not say "spread" explicitly.
+Each of the four numbered items under **Compose the class** is a single sentence. No FAIL on this rule.
 
-## Friction (does not fail the rubric)
+## Gaps and friction (not FAIL)
 
-The sample is TypeScript (`declare`, type-only imports). The page never labels it as TypeScript. As a JavaScript-only reader I would drop types and the `declare` block and keep the same structure; that is familiar JS tooling friction, not a missing library step.
+- The steps do not say that `composeMixins` runs once on the prototype after the class definition, but step 4 wording ("onto the prototype") plus the snippet make that obvious.
+- Generic `BaseEventMap` on `EventEmitter` appears only in the snippet, not in step 1; you copy it from the example import block.
+- The paragraph after the snippet explains mixin order (later bundle wins) and what `playerCoreMethods` includes; helpful context, not required to wire the class.
 
-Step 1 says extend `EventEmitter` before the snippet shows it comes from the same package (not Node `events`). I would not fail on that because the snippet sits in the same section and lists the import.
+## Summary
 
-The numbered list alone is not enough to write the constructor (no mention of the instance `Map`, the `'CorePlayer'` label argument, or the `existing` return path). The page assumes I use the snippet as the canonical code, which matches the directive treating `core-quickstart.ts` as what the page shows.
-
-Mount and set up explains `resolvePlayerConstructor` ids and DOM rules for when I run the sample; that is after composition. The snippet also includes mount, `setup`, top-level `await`, and `dispose`, which are runtime/demo lines, not required to understand how the class is composed.
-
-## Why PASS
-
-Under the rubric (install through a composed class without guessing), the page gives a clear install line, a step list tied to real export names, and a complete composition example I can follow without reading implementation code. I know what to install, what to import, how to wire the constructor, and where to call `composeMixins`.
+A JavaScript reader can install Core, follow the four compose steps, use the snippet as the canonical shape, and mount with a `div` id as described. Verdict remains **PASS**.

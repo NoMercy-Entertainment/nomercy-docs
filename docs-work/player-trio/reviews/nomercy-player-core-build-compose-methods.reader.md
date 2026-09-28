@@ -4,32 +4,39 @@ Verdict: PASS
 
 Reviewed: src/content/nomercy-player-core/en/build/compose-methods.mdx
 
-Reviewed-SHA: a19b03f824aed51d
+Reviewed-SHA: a807aaf9a3c8cf11
 
-## Same-voice comparison
+Same-voice comparison skipped (not requested for this pass).
 
-Skipped. No approved reference page was requested for this review.
+## First read
 
-## Snippet
+The page splits into two jobs: stamp shared methods with `composeMixins`, then decide mount versus reuse with `resolvePlayerConstructor`. The opening paragraph states both goals before the sections, which helped me know what to look for.
 
-`core-build-compose.ts` (via `:::snippet{file="core-build-compose" live="false"}`). It matches the page: shared `Map` registry, `resolvePlayerConstructor` with a fixed class name string, mount path with `initPlayerCoreState(this, { className: 'ComposedPlayer' })` aligned to that string, assignment of `playerId` and `container`, registration, early return on `existing`, and post-class `composeMixins(ComposedPlayer.prototype, ...playerCoreMethods)`. The demo mount and lifecycle calls illustrate non-media behavior only.
+## List items (one sentence each)
 
-## Reader notes (JavaScript background, first visit)
+Under **Mount or reuse**, every bullet is a single sentence. None use a second period or read like two independent statements glued together.
 
-I read only the MDX prose first, without opening the example file or library source.
+## Mount versus reuse, including className
 
-`composeMixins` and `resolvePlayerConstructor` are documented with signatures, behavior, and error cases. The mount versus existing split is explicit. On mount, the page now states that `initPlayerCoreState` must receive `{ className }` matching the `className` argument to `resolvePlayerConstructor`, then bind `playerId` and `container`, then register the instance. On existing, return the registered instance. That closes the gap from the prior review where a reader could call `initPlayerCoreState(this)` with no options and still follow the bullets.
+From the prose alone I could follow the id cases in the bullet list (no id, empty registry, number index, known string, new string with DOM lookup, errors).
 
-`playerCoreMethods` is named as the exported tuple real players spread, with a one-line `composeMixins(MyPlayer.prototype, ...playerCoreMethods)` example. The closing paragraph names the four structural moves: extend `EventEmitter`, resolve the constructor, seed state, stamp the aggregate.
+The two closing sentences in that section spell out the constructor outcome:
 
-From that text I can wire a working class: hold a `Map<string, C>` for the second argument to `resolvePlayerConstructor`, use a stable class name string in both resolver and `initPlayerCoreState`, branch on `resolved.kind`, and call `composeMixins` on the prototype after the class declaration. I would still call `super()` in the constructor as usual for a subclass; the page does not spell that out, but it is not a library-specific hidden step.
+- New mount: call `initPlayerCoreState` with `{ className }` matching the third argument to `resolvePlayerConstructor`, then store id, `div`, and register.
+- Reuse: if the id is already registered, return the existing player.
 
-## Friction (does not fail the rubric)
+The snippet (`core-build-compose.ts`) mirrors that: pass `'ComposedPlayer'` into `resolvePlayerConstructor`, branch on `resolved.kind === 'existing'`, otherwise `initPlayerCoreState(this, { className: 'ComposedPlayer' })` and register in the map. I did not need to guess that className must stay aligned across those two calls.
 
-The prose does not list imports, TypeScript `declare` lines for mixin methods, or a `get id()` accessor. The snippet carries those details. For a JavaScript-only reader, dropping types and `declare` while keeping the constructor and `composeMixins` call is enough.
+## Snippet as the page code
 
-The page does not define the instance map in a dedicated sentence; the `resolvePlayerConstructor` signature requires `instances: Map<string, C>`, which is sufficient to introduce one.
+The live snippet matches the example file: constructor resolution, `initPlayerCoreState`, `composeMixins` on the prototype, and a minimal mount demo. That tied the API section to something I could trace line by line.
 
-## Why PASS
+## Minor newcomer notes (not failures)
 
-Under the rubric (fail when a required step between signatures and a working composed class is missing from the prose), the mount checklist now includes the `initPlayerCoreState` options object and its alignment with `resolvePlayerConstructor`. Together with the API sections and the `playerCoreMethods` usage line, a newcomer can construct the class from the page text without guessing a required library argument.
+I had to connect `resolvePlayerConstructor` to "your constructor" myself; the page describes the helper and the mount/reuse rules but does not label a `constructor()` block in the MDX. The snippet closed that gap.
+
+Undefined id behavior ("Nothing returns the first player you already created") assumes I already created at least one player; the empty-registry bullet covers the opposite case.
+
+## Summary
+
+PASS: list discipline holds, and mount versus reuse plus className is explicit in **Mount or reuse** and confirmed by the snippet.

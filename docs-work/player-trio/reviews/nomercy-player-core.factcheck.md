@@ -1,37 +1,29 @@
 # Fact check: /nomercy-player-core
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/introduction.mdx
-Reviewed-SHA: 1f7b25194b199e57
+Reviewed-SHA: 3e10f4a927156e16
 
-Source: `packages/player-web/nomercy-player-core` (`package.json` description, `src/index.ts`, `src/base-player.ts`, and the mixin or adapter each sentence names). Method: read page and those sources; recompute SHA; no site build. Em dash / en dash scan (U+2013, U+2014) over the page: none. Word `kit`: none on the page. Word `headless`: none on the page.
+Source: `packages/player-web/nomercy-player-core` (`package.json`, `README.md`, `src/index.ts`, `src/base-player.ts`, auth/plugin/lifecycle surfaces named below). Method: read the rewritten page and those sources; recompute SHA; no site build. Byte scan of the page for U+2013, U+2014, and the old library nickname: none.
 
 ## Gate checks
 
 | Gate | Result |
 | --- | --- |
-| No `kit` on page | Pass |
-| No `headless` on page | Pass |
-| No em dash / en dash on page | Pass |
+| Old library nickname on page | none |
+| No em dash or en dash on page | Pass |
 
 ## Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |
-| Frontmatter: shared spine for music and video players: queue, transport, time, volume, events, plugins, adapters | `package.json:5` (shared spine for nomercy-music-player and nomercy-video-player); mixins/adapters below | Supported |
-| Package `@nomercy-entertainment/nomercy-player-core` is Player Core | `package.json:2` (`name`); `package.json:5` (NoMercy player core) | Supported |
-| Shared logic that `nomercy-music-player` and `nomercy-video-player` are built from | `package.json:5`; `index.ts:183-185`; `base-player.ts:9-12` | Supported |
-| Not a music player or a video player by itself | `index.ts:183-185` (composed onto NMMusicPlayer + NMVideoPlayer); `base-player.ts:9-12` | Supported |
-| `nomercy-music-player` / `nomercy-video-player` are the music and video libraries; each adds medium playback; shared behavior lives here | `base-player.ts:9-12` (neither library); `index.ts:183-185`; `package.json:5` | Supported |
-| Queue is the ordered list of items, and which item is current | `core/mixins/queue.ts` (`queueMethods`, `_queueList`); `adapters/media-list/default.ts:30-41,93-95` (cursor-aware ordered list, `current()`) | Supported |
-| Transport is play, pause, and seek | `core/mixins/transport.ts:90-91,130,175` (`play` / `pause` / seek scaffolding); re-export `base-player.ts:49` | Supported |
-| Time is the playback position and the duration | `core/mixins/time.ts:67-69` (`time()`), `:99-100` (`duration()`); re-export `base-player.ts:48` | Supported |
-| Volume is loudness on a scale from 0 to 100 | `core/mixins/volume.ts:18-19,75-83` (0..100 API); re-export `base-player.ts:50` | Supported |
-| Events are messages the player emits (e.g. phase change) that you subscribe to | `adapters/event-bus/default.ts:61,108` (`EventEmitter`, `on`); `core/mixins/player-state.ts:91-104` (`emit('phase', { from, to })`); `index.ts:41` | Supported |
-| Plugins are extra behavior you register on the player | `core/mixins/plugin-registration.ts:508` (`addPlugin`); `index.ts:199,250`; `package.json:5` (Plugin runtime) | Supported |
-| Adapters are swappable pieces (events delivery or stream open) | `adapters/event-bus/` (`EventEmitter` / `IEventBus`); `adapters/stream/` (`StreamRegistry`, HLS); `index.ts` adapter exports; `package.json` `./adapters/*` exports | Supported |
-| Package ships helpers around that spine; lifecycle helpers are `setup`, `ready`, and `dispose` | `package.json:5`; `core/mixins/lifecycle.ts:115,161,207`; re-export `base-player.ts:37` (`lifecycleMethods`) | Supported |
-| Streams are how a media address is opened, including HLS | `adapters/stream/registry.ts:19,28` (built-in `native`, `hls`); `adapters/stream/hls.ts`; `index.ts:151-164`; `package.json:5` | Supported |
-| A cue is a timed span with start, end, and payload | `core/cues/cue.ts:9-13` (`Cue`: `start`, `end`, `payload`); `index.ts:228-233` | Supported |
-| Errors are named failures such as a missing mount element | `core/constructor.ts:99` (`core:player/element-missing`); `index.ts:267-289` (error exports); `package.json:5` | Supported |
-| Auth is optional credentials on requests the player makes | `core/mixins/auth.ts:26,51-60` (`_authConfig` optional); `types/config.ts:41-69,208` (`AuthConfig`, `auth?`); `index.ts:187,218` | Supported |
-| Next link path `/nomercy-player-core/quickstart` | Path as written on the page | Supported (path as written) |
+| Install `@nomercy-entertainment/nomercy-player-core` alone only when writing a plugin or building your own player; otherwise use video or music | Owner rule; package `README.md` (install alone only for plugin or new player package; pull video or music otherwise) | Supported |
+| Package name `@nomercy-entertainment/nomercy-player-core` | `package.json` `name` | Supported |
+| A plugin is extra player behavior (example: counting each play) | `README.md` `PlayCountPlugin` / `addPlugin`; `Plugin` base and `pluginRegistrationMethods` | Supported |
+| Video and music packages already include Player Core; do not install it again | `nomercy-video-player/package.json` and `nomercy-music-player/package.json` both depend on `@nomercy-entertainment/nomercy-player-core` | Supported |
+| Player Core is the shared engine: ordered play list, token on requests, subscriptions | `queueMethods` / `MediaList`; `authMethods` / `authFetch` bearer token on requests; typed `EventEmitter` event bus (`index.ts`, README) | Supported |
+| It does not draw a picture or play sound by itself | README (nothing renders a UI / medium on its own); `base-player.ts` (shared logic for NMMusicPlayer and NMVideoPlayer, not either library) | Supported |
+| Video and music need that list, those requests, and those subscriptions; one package so a fix lands once | `package.json` description (shared spine); `base-player.ts` comment (change lands once); both consumer packages depend on core | Supported |
+| Build your own player by attaching those methods to your class, then adding only the medium-specific piece | README quick start (`composeMixins`); `src/core/compose.ts`; video/music add the medium backend | Supported |
+| Nothing runs until you ask; a plugin stays off until you add it | README (everything opt-in; no plugin until `addPlugin`); `plugin-registration.ts` `addPlugin`; config plugins use the same path | Supported |
+| Pass your own storage or logger into `setup`; omitted pieces keep defaults | `types/config.ts` (`storage?`, `logger?`); `lifecycle.ts` (`options.logger ?? new Logger`); Plugin root storage `config.storage ?? new LocalStorageBackend()`; README adapters via `setup()` | Supported |
+| Next link: Quickstart shows how to attach the engine to a class at `/nomercy-player-core/quickstart` | `en/quickstart.mdx` exists and documents `composeMixins` / stamping `playerCoreMethods` onto a class | Supported |

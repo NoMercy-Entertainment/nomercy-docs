@@ -360,7 +360,7 @@ Files opened: 12
 | plugin `name` | `'nomercy:translations-from-glob'` | Vite plugin registry | nomercy-player-core/src/vite-plugin.ts:93 |
 | plugin `enforce` | `'pre'` (as `as const`) | Vite plugin ordering | nomercy-player-core/src/vite-plugin.ts:96 |
 | transform `map` | `null` | Vite (no sourcemap for the rewrite) | nomercy-player-core/src/vite-plugin.ts:124 |
-| kit translation glob | `'./i18n/*.ts'` | `translationsFromGlob` in this file; `getLazyTranslationLoader(kitTranslations)` in `core/mixins/lifecycle.ts` | nomercy-player-core/src/kit-translations.ts:24 |
+| core translation glob | `'./i18n/*.ts'` | `translationsFromGlob` in this file; `getLazyTranslationLoader(kitTranslations)` in `core/mixins/lifecycle.ts` | nomercy-player-core/src/kit-translations.ts:24 |
 | `assertNoListenerLeakOverCycles` `cycles` | `5` | `for (let i = 0; i < cycles; i++)` | nomercy-player-core/src/testing/leak-harness.ts:138 |
 | plugin `id` fallback | `'plugin'` | `describe(\`Plugin: ${id}\`)` / `describe(\`Plugin (real-player): ${id}\`)` and leak error `scope.id` | nomercy-player-core/src/testing/describe-plugin.ts:109; nomercy-player-core/src/testing/describe-plugin-against.ts:99 |
 | `DescribePluginOptions.skipLeakAssertion` | unset (`undefined`), treated as run-the-assertion | `if (!opts?.skipLeakAssertion)` | nomercy-player-core/src/testing/describe-plugin.ts:158 |
@@ -418,7 +418,7 @@ Files opened: 12
 
 | Behavior | Why it surprises | File:line |
 |---|---|---|
-| Root barrel omits `kitTranslations`. | `src/kit-translations.ts` exports it and lifecycle loads it, but `src/index.ts` does not re-export it and `package.json` has no `./kit-translations` key. A consumer cannot import the kit glob map from `@nomercy-entertainment/nomercy-player-core`. | nomercy-player-core/src/kit-translations.ts:24; nomercy-player-core/src/index.ts:1-413 |
+| Root barrel omits `kitTranslations`. | `src/kit-translations.ts` exports it and lifecycle loads it, but `src/index.ts` does not re-export it and `package.json` has no `./kit-translations` key. A consumer cannot import the core glob map from `@nomercy-entertainment/nomercy-player-core`. | nomercy-player-core/src/kit-translations.ts:24; nomercy-player-core/src/index.ts:1-413 |
 | `base-player.ts` exports mixins that `index.ts` does not. | `abrMethods`, `activityMethods`, `audioOutputMethods`, `castMethods`, `deviceMethods`, `loadingMethods`, `mediaTracksMethods`, `normalizeLanguage`, `metricsMethods`, `streamRegistrationMethods` are on the façade. They are not in the root export list, and there is no `./base-player` exports key. | nomercy-player-core/src/base-player.ts:25-47; nomercy-player-core/src/index.ts:186-213 |
 | Root barrel ships `audioGraphPlugin`/`canvasPlugin`/etc. factory plus class, but only `VisualizationPlugin` for visualization. | Copying the neighboring `export { fooPlugin, FooPlugin }` pattern for visualization fails. There is no `visualizationPlugin` on `"."`. | nomercy-player-core/src/index.ts:307-348 |
 | Root barrel does not export tab-leader, key-handler, media-session, or message plugins. | Those plugins live under `src/plugins/` and have `package.json` subpaths, so reading `index.ts` as the full plugin catalog misses them. | nomercy-player-core/src/index.ts:304-350 |

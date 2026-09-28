@@ -58,7 +58,7 @@ For a runnable example: `npm run check:examples` (`tsc -p tsconfig.examples.json
 
 Checked against the source, not assumed.
 
-- Docs still call the base library "the kit". `src/content/nomercy-player-core/en/tour/time.mdx` line 10 says every time value the kit reports is a number of seconds. The package is `@nomercy-entertainment/nomercy-player-core`. Source comments drifted the same way: `src/i18n/en.ts` lines 10-12 say the English bundle ships with the kit, and `src/core/state.ts` line 437 calls `Internals` a kit-private type. The drift pattern is a rename the words did not follow.
+- Unwritten pages still use the old library nickname. `src/content/nomercy-player-core/en/tour/time.mdx` line 10 uses it for time values, which are a number of seconds. The package is `@nomercy-entertainment/nomercy-player-core`. Source comments drifted the same way: `src/i18n/en.ts` lines 10-12 and `src/core/state.ts` line 437. The drift pattern is a rename the words did not follow.
 - `nomercy-video-player/package.json` `description` says the package has no UI and the reader builds their own. The same file's `exports` map publishes `./plugins/desktop-ui`, and `src/plugins/desktop-ui/` is in the tree. The description denies a surface the package ships.
 
 ## Docs site
