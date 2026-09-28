@@ -22,4 +22,6 @@ The pilot batch, one core page per arc stage, each with a fact-check and a reade
 
 Site checks through `npm run check:docs`, `npm run build:search`, and `npx astro build` passed after the pilot edits. Atlas `links` reports only `native/` targets, which are out of scope. Atlas `reviews` fails on the 165 rows still planned. None of those lines are a pilot page.
 
-The quickstart and compose samples use `live="false"` because the site island only mounts the video or music player. That question is in `questions.md`.
+The owner, after reading the pilot, asked for a rewrite before approval.
+The seven pages now follow "Write for the reader, not about the source" in the brief.
+The verdict files above this note still stamp the previous text, so they are stale until the next review.

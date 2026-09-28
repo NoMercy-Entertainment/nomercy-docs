@@ -1,6 +1,6 @@
 ---
 title: 'IEventBus'
-description: 'Typed event-bus contract mirrored by EventEmitter. A type to write against, not a setup slot.'
+description: 'Type a listener with IEventBus, and construct EventEmitter when you need a bus of your own.'
 tags: [adapter, event-bus, player-core]
 draft: false
 ---
@@ -9,38 +9,30 @@ draft: false
 
 # IEventBus
 
-`cls IEventBus` is the listening surface every player and plugin exposes.
-You came from [Use authFetch](/nomercy-player-core/recipes/auth-fetch).
-This page is the contract those `fn on` and `fn emit` calls satisfy.
-
-Use it to type a wrapper, a test fake, or a helper that accepts anything you can listen to.
-It is not a setup field.
-There is no `key eventBus` option.
+Use `cls IEventBus` when you want to type a helper that can listen to any player or plugin.
+`fn on` and `fn emit` are that surface.
+There is no `key eventBus` option in `setup`.
+You do not pass a replacement bus in.
+You listen on the player you already have.
 
 ```ts
 import { EventEmitter } from '@nomercy-entertainment/nomercy-player-core';
 import type { IEventBus } from '@nomercy-entertainment/nomercy-player-core/adapters/event-bus';
 ```
 
-`cls EventEmitter` is also available from the `./adapters/event-bus` subpath.
-`cls IEventBus` lives only on that subpath.
+`cls EventEmitter` is the implementation you construct when you need a bus of your own.
+Import it from `@nomercy-entertainment/nomercy-player-core`, or from the `adapters/event-bus` path.
+`cls IEventBus` is only on that second path.
 
 ## Built-in adapter
 
-`cls EventEmitter` is the shipped implementation.
-Player Core exports the class from the package root.
-Inside `nomercy-player-core`, `cls MediaList`, `cls MediaElementBackend`, and `cls StubPlayer` extend it.
-
-Nothing in setup constructs a separate bus to inject.
-Classes that need the surface inherit `cls EventEmitter` themselves.
-
-`cls EventEmitter` is a superset of the interface.
-These behaviors are on the class and not on `cls IEventBus`.
+`cls EventEmitter` is what you get when you construct a bus.
+These three behaviors are on the class and not on `cls IEventBus`.
 
 | Extra | Behavior |
 |---|---|
 | `str all` | `fn on` with `str all` calls the handler for every emit as `(event, data)`. |
-| `str listeners-changed` | Fired on a microtask when an event goes from empty to non-empty or back. Payload has `key name` and `key count`. |
+| `str listeners-changed` | Fires on a microtask when an event goes from empty to non-empty or back, with `key name` and `key count`. |
 | `str current` | `fn on` with `str current` logs a console warning that points to `str item`. |
 
 A throwing handler does not stop the rest of the dispatch.
@@ -87,9 +79,8 @@ Dynamic names such as `str plugin:<id>:<event>` type-check through that overload
 
 ## Custom implementation
 
-Implement `cls IEventBus` when you need a fake or a forwarding wrapper.
-You cannot pass it through setup.
-Nothing in Player Core constructs a replaceable bus instance.
+Implement `cls IEventBus` when a test needs a fake, or when you want to forward events somewhere else.
+You still cannot pass that object into `setup`.
 
 ```ts
 import type { IEventBus } from '@nomercy-entertainment/nomercy-player-core/adapters/event-bus';
@@ -152,4 +143,4 @@ class RecordingBus implements IEventBus<DemoEvents> {
 
 ## See also
 
-- [Testing](/nomercy-player-core/reference/testing): `cls StubPlayer` extends `cls EventEmitter`, and the leak harness reads `fn listenerCount`.
+- [Testing](/nomercy-player-core/reference/testing) uses `fn listenerCount` to catch subscriptions a plugin forgot to drop.

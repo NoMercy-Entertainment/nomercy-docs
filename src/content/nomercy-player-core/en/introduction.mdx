@@ -1,6 +1,6 @@
 ---
 title: 'What is Player Core'
-description: 'The shared spine for the NoMercy music and video players: queue, transport, time, volume, events, plugins, and adapters.'
+description: 'Install Player Core only when you write a plugin or build your own player.'
 tags: [introduction, player-core]
 draft: false
 ---
@@ -9,36 +9,22 @@ draft: false
 
 # What is Player Core
 
-`@nomercy-entertainment/nomercy-player-core` is Player Core.
-It is the shared logic that `nomercy-music-player` and `nomercy-video-player` are built from.
-It is not a music player or a video player by itself.
+Install `@nomercy-entertainment/nomercy-player-core` on its own only when you are writing a plugin, or when you are building a player of your own.
+If you want to play video, use the [video player](/nomercy-video-player).
+If you want to play music, use the [music player](/nomercy-music-player).
 
-`nomercy-music-player` is the music library.
-`nomercy-video-player` is the video library.
-Each one adds the playback for its own medium.
+Those packages already depend on Player Core, so you do not install it again.
+Player Core is the engine they share: the queue, signed requests, plugins, and typed events.
+It does not draw a picture or play sound by itself.
 
-The behavior they share lives in this package.
+Video and music need that same engine.
+Keeping it in one package means a fix lands once, for both.
+A player you build starts the same way: compose this engine, then add the piece that is specific to your medium.
 
-These names are the pieces of that shared spine.
+Nothing runs until you ask for it.
+No plugin is active until you add it.
+You can pass your own storage, logger, or similar piece into `setup`, and everything you leave out keeps its default.
 
-The queue is the ordered list of items, and which item is current.
-Transport is play, pause, and seek.
-Time is the playback position and the duration.
+## Next
 
-Volume is the loudness, on a scale from 0 to 100.
-Events are messages the player emits, such as a phase change, that you subscribe to.
-Plugins are extra behavior you register on the player.
-
-Adapters are swappable pieces, such as how events are delivered or how a stream is opened.
-
-The package also ships the helpers around that spine.
-Lifecycle helpers are `setup`, `ready`, and `dispose`.
-Streams are how a media address is opened, including HLS.
-
-A cue is a timed span with a start, an end, and a payload.
-Errors are named failures the player raises, such as a missing mount element.
-Auth is optional credentials on requests the player makes.
-
-## Next steps
-
-[Quickstart](/nomercy-player-core/quickstart) shows how to compose a minimal player from Player Core.
+[Quickstart](/nomercy-player-core/quickstart) composes that class.

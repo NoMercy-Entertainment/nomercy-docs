@@ -1,31 +1,32 @@
 ---
 title: 'Compose the Methods'
-description: 'Stamp shared player methods with composeMixins and resolve the three-form constructor with resolvePlayerConstructor.'
+description: 'Compose the shared player methods onto your class, and decide whether a constructor call mounts a new player or returns one you already have.'
 tags: [build, compose, composeMixins]
 draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/compose.ts, src/core/constructor.ts, src/core/index.ts */}
+{/* Source: nomercy-player-core/src/core/compose.ts, nomercy-player-core/src/core/constructor.ts */}
 
 # Compose the Methods
 
-Stamp shared methods onto a class prototype and resolve mount versus reuse the same way `NMVideoPlayer` and `NMMusicPlayer` do.
+Use this when your class should behave like the video and music players: shared methods on the prototype, and a constructor that either mounts a `div` or hands back a player you already created.
 
-## composeMixins
+## Add the methods
 
 ```ts
 function composeMixins<T extends object>(prototype: T, ...modules: object[]): void;
 ```
 
-`composeMixins` copies each module's own property descriptors onto `prototype` with `Object.getOwnPropertyDescriptors` and `Object.defineProperty`.
-Getters and setters land as accessors.
-They are not triggered during the copy.
+Call `fn composeMixins` with your prototype and the bundles you want.
+Getters and setters are copied as accessors.
+They do not run during the copy.
 
-Later modules win when two modules export the same key.
-List more specific modules after more general ones.
-Calling the same module twice is safe; the second call overwrites with identical descriptors.
+When two bundles export the same name, the later bundle wins.
+Put the more specific bundle after the more general one.
+Calling the same bundle twice is safe.
+The second call writes the same descriptors again.
 
-## resolvePlayerConstructor
+## Mount or reuse
 
 ```ts
 function resolvePlayerConstructor<C>(
@@ -33,40 +34,40 @@ function resolvePlayerConstructor<C>(
 	instances: Map<string, C>,
 	className: string,
 ): PlayerCtorResolution<C>;
-
-type PlayerCtorResolution<C>
-	= | { kind: 'existing'; instance: C }
-		| { kind: 'mount'; id: string; div: HTMLDivElement };
 ```
 
-Pass the same three forms the video and music factories accept: a string id, a numeric registry index, or `undefined`.
+Pass a string id, a number, or nothing.
 
-- **`undefined`**: returns the first registered instance. Throws `core:player/no-element` when the registry is empty.
-- **A number**: indexes insertion order. Throws `core:player/not-found` when the index is out of range.
-- **A string**: returns `existing` when that id is already registered. Otherwise resolves `document.getElementById(id)`, requires a `<div>`, and returns `mount`. Throws `core:player/element-missing` or `core:player/element-not-div`.
+- Nothing returns the first player you already created.
+- An empty registry throws `str core:player/no-element`.
+- A number selects by the order you created players.
+- An index past the end throws `str core:player/not-found`.
+- A known string returns that player.
+- A new string finds `document.getElementById` and requires a `div`.
+- A missing element throws `str core:player/element-missing`.
+- A node that is not a `div` throws `str core:player/element-not-div`.
+- Any other id type throws `str core:player/invalid-id-type`.
 
-The `document` lookup is guarded for SSR.
-An invalid id type throws `core:player/invalid-id-type`.
+The document lookup is skipped when there is no `document`, so the same call can run during server render.
 
-On `mount`, call `initPlayerCoreState` with `{ className }` set to the same string you passed to `resolvePlayerConstructor`.
-Then bind `playerId` and `container`, and register the instance.
-On `existing`, return the registered instance.
+On a new mount, call `fn initPlayerCoreState` with `{ className }` set to the same string you passed to `fn resolvePlayerConstructor`.
+Then store the id and the `div`, and register the instance.
+If that id was already registered, return the existing player instead.
 
-## playerCoreMethods
+## What you pass in
 
-`playerCoreMethods` is exported from `@nomercy-entertainment/nomercy-player-core`.
-It is the `as const` tuple both real players spread into `composeMixins`.
-
-It includes, in order: `lifecycleMethods`, `baseUrlAudioContextMethods`, `experimentalDescriptor`, `i18nMethods`, `cueParserMethods`, `transportMethods`, `timeMethods`, `volumeMethods`, `stateMethods`, `playerStateMethods`, `queueMethods`, `playQueueMethods`, `pluginRegistrationMethods`, `authMethods`, `streamRegistrationMethods`, `mediaTracksMethods`, `deviceMethods`, `audioOutputMethods`, `castMethods`, `abrMethods`, `metricsMethods`, `loadingMethods`, `containerClassEmitMethods`, `activityMethods`, and `preloadStrategyMethods`.
+`playerCoreMethods` is the set you spread into `fn composeMixins`.
+It adds the shared behavior: lifecycle, queue, transport, time, volume, plugins, and auth.
 
 ```ts
 composeMixins(MyPlayer.prototype, ...playerCoreMethods);
 ```
 
-The class below extends `EventEmitter`, resolves the constructor, seeds state, and stamps that aggregate.
-It has no media backend.
+The class below does that, and it still has no picture or sound of its own.
 
 :::snippet{file="core-build-compose" live="false"}
 :::
 
-When you need auth-aware fetches outside a plugin, continue with [Auth Fetch](/nomercy-player-core/recipes/auth-fetch).
+## Next
+
+[Auth fetch](/nomercy-player-core/recipes/auth-fetch) is how that player sends a request with a token.

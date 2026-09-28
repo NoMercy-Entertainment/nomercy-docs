@@ -1,15 +1,16 @@
 ---
 title: 'Quick Start'
-description: 'Install Player Core and compose a player class with EventEmitter, resolvePlayerConstructor, initPlayerCoreState, and composeMixins.'
+description: 'Install Player Core and compose your own player class when you are not using the video or music player.'
 tags: [quickstart, compose]
 draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/index.ts, src/core/compose.ts, src/core/constructor.ts, src/core/state.ts */}
+{/* Source: nomercy-player-core/src/index.ts, nomercy-player-core/src/core/compose.ts, nomercy-player-core/src/core/constructor.ts, nomercy-player-core/src/core/state.ts */}
 
 # Quick Start
 
-Compose a player class from `@nomercy-entertainment/nomercy-player-core`.
+Compose your own player class when you are building a player, not when you only want to play a file.
+The video and music players already do this for you.
 
 ## Install
 
@@ -17,39 +18,38 @@ Compose a player class from `@nomercy-entertainment/nomercy-player-core`.
 npm install @nomercy-entertainment/nomercy-player-core
 ```
 
-That is the only package this page installs.
+That is the only install on this page.
+Do not add a second package for streaming.
+Core already brings it.
 
 ## Compose the class
 
-Three exports from the package root do the work:
+You wire the class in four steps.
 
-1. Extend `EventEmitter` so `.on()` and `.emit()` work.
-2. Resolve the constructor with `resolvePlayerConstructor`, then seed state with `initPlayerCoreState`.
-3. Stamp `playerCoreMethods` onto the prototype with `composeMixins`.
+1. Extend `cls EventEmitter` so `fn on` and `fn emit` work.
+2. Resolve the constructor with `fn resolvePlayerConstructor`.
+3. Seed the player with `fn initPlayerCoreState`, using the same class name.
+4. Stamp `playerCoreMethods` onto the prototype with `fn composeMixins`.
 
 :::snippet{file="core-quickstart" live="false"}
 :::
 
-`composeMixins` copies each module's own property descriptors onto the prototype, including getters and setters.
-
-Later modules override earlier ones when two modules export the same key.
-
-`playerCoreMethods` is the aggregate both `NMVideoPlayer` and `NMMusicPlayer` spread into that call.
+`fn composeMixins` copies each bundle onto the prototype, including getters and setters.
+When two bundles use the same name, the later one wins.
+`playerCoreMethods` is the same set the video and music players compose, so your class gets the queue, transport, time, volume, plugins, and auth.
 
 ## Mount and set up
 
-`resolvePlayerConstructor` takes a string id, a numeric index into the registry, or `undefined`.
+Pass a string id, a number, or nothing.
 
-A string that is not yet registered looks up `document.getElementById(id)` and requires a `<div>`.
+A new string looks up `document.getElementById` and requires a `div`.
+A missing element throws `str core:player/element-missing`.
+A node that is not a `div` throws `str core:player/element-not-div`.
 
-Missing elements throw `core:player/element-missing`.
-A non-div throws `core:player/element-not-div`.
-
-The sample creates a labeled `<div>` and passes its id to `corePlayer`.
-
-This class has no media backend, so transport methods have nothing to drive.
-`setup()`, `ready()`, and `dispose()` run without one.
+The sample creates a labeled `div` and passes its id.
+This class has no picture or sound of its own, so play has nothing to drive.
+`fn setup`, `fn ready`, and `fn dispose` still run.
 
 ## Next
 
-Continue with [the queue](/nomercy-player-core/tour/queue).
+[The queue](/nomercy-player-core/tour/queue) is how you give that player more than one item.

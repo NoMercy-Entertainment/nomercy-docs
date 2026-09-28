@@ -9,15 +9,17 @@ draft: false
 
 # Recipe: Use authFetch
 
-Call the auth-aware HTTP pipeline from outside a plugin with `fn authFetch`, or from inside a plugin with `fn this.fetch`.
+Use `fn authFetch` when your own code, outside a plugin, needs a request that can attach a bearer token and retry.
+Inside a plugin, call `fn this.fetch` instead.
+It runs the same pipeline and already has the player's auth, the abort signal, and the plugin's scope.
 
-`fn authFetch` is exported from `@nomercy-entertainment/nomercy-player-core`.
-You pass `key url`, optional `cls AuthConfig`, and a required `key signal`.
-Inside a plugin, `fn this.fetch` wraps the same pipeline and supplies auth, signal, and plugin scope for you.
+Import `fn authFetch` from `@nomercy-entertainment/nomercy-player-core`.
+You pass `key url`, an optional `cls AuthConfig`, and a required `key signal`.
+You own the `AbortController`.
 
-Media headers are a separate choice on `cls AuthConfig`.
-Set `key mediaAuthorization` when a media backend should send an `Authorization` value for a given URL.
-Leave it unset and media requests send no token.
+Media requests are a separate choice.
+Set `key mediaAuthorization` when a media URL should send an `Authorization` value.
+Leave it unset and those requests send no token.
 
 ## What `fn authFetch` applies
 
@@ -33,15 +35,14 @@ When those fields are present, the order is fixed.
 4. `key signRequest` runs last when supplied.
 
 `key signal` is required on every `fn authFetch` call.
-You own the `AbortController`.
 
 Each failure class has its own path.
 
 | Failure | What happens |
 | --- | --- |
 | 401 | Calls `key refreshOnUnauthenticated` once when that hook is set and `key retryAfterRefresh` is not `0`, then retries without consuming a retry slot. |
-| 403 | Throws `str core:auth/forbidden`. No refresh, no retry. |
-| Other 4xx | Throws the matching `str core:network/*` code. No retry. |
+| 403 | Throws `str core:auth/forbidden`, with no refresh and no retry. |
+| Other 4xx | Throws the matching `str core:network/*` code, with no retry. |
 | 5xx, network, timeout | Retries per the call's `cls RetryConfig`. The default is `{ attempts: 0 }`. |
 
 Configure live player auth with `fn auth` on the composed player from [Compose the Methods](/nomercy-player-core/build/compose-methods).
@@ -59,7 +60,7 @@ The host in the sample stands for your own backend.
 
 | `key responseType` | Resolves to |
 | --- | --- |
-| `str text` (default) | The response string. Optional `key parser` turns that string into `T`. |
+| `str text` (default) | The response string, or whatever `key parser` returns from that string. |
 | `str json` | `response.json()` cast to `T`. |
 | `str arrayBuffer` | `response.arrayBuffer()`. |
 
@@ -68,4 +69,4 @@ Narrow caught errors with `fn isAuthError` and `fn isNetworkError`.
 
 ## Next steps
 
-[Event Bus](/nomercy-player-core/plugins-adapters/adapter-event-bus) is the adapter port for wiring custom event delivery on top of the same composed player.
+[Listen and emit](/nomercy-player-core/plugins-adapters/adapter-event-bus) is the next piece: the events that player fires.
