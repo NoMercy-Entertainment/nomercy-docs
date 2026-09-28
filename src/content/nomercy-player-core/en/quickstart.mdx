@@ -1,11 +1,15 @@
 ---
 title: 'Quick Start'
-description: 'Compose a minimal player straight from nomercy-player-core: extend EventEmitter, resolve the three-form constructor, and stamp the shared mixins onto the prototype.'
+description: 'Install Player Core and compose a player class with EventEmitter, resolvePlayerConstructor, initPlayerCoreState, and composeMixins.'
+tags: [quickstart, compose]
+draft: false
 ---
 
-# Core: Quick Start
+{/* Source: packages/player-web/nomercy-player-core/src/index.ts, src/core/compose.ts, src/core/constructor.ts, src/core/state.ts */}
 
-This is the shortest path to composing a player from the kit. No media backend, no UI. You use the same three ingredients `nomercy-video-player` and `nomercy-music-player` are built from. Everything below is real, published code, not pseudocode.
+# Quick Start
+
+Compose a player class from `@nomercy-entertainment/nomercy-player-core`.
 
 ## Install
 
@@ -13,56 +17,39 @@ This is the shortest path to composing a player from the kit. No media backend, 
 npm install @nomercy-entertainment/nomercy-player-core
 ```
 
-You will not normally install this package directly. `nomercy-video-player` and `nomercy-music-player` already depend on it and re-export everything you need day to day. Install it yourself only when you're composing your own player, as below.
+That is the only package this page installs.
 
-## Compose a minimal player
+## Compose the class
 
-Three ingredients, in order:
+Three exports from the package root do the work:
 
-1. Extend `EventEmitter` so `.on()` / `.emit()` work.
-2. Resolve the three-form constructor with `resolvePlayerConstructor` plus `initPlayerCoreState`. An id, an index, or `undefined` then all do the right thing.
-3. Stamp every shared mixin onto the prototype in one `composeMixins` call.
+1. Extend `EventEmitter` so `.on()` and `.emit()` work.
+2. Resolve the constructor with `resolvePlayerConstructor`, then seed state with `initPlayerCoreState`.
+3. Stamp `playerCoreMethods` onto the prototype with `composeMixins`.
 
-:::snippet{file="minimal-player" live="false"}
+:::snippet{file="core-quickstart" live="false"}
 :::
 
-`playerCoreMethods` is not a cut-down subset picked for this example. It is the same aggregate `NMVideoPlayer` and `NMMusicPlayer` compose onto their own prototypes. `MinimalPlayer` is missing exactly one thing they have: a media backend.
+`composeMixins` copies each module's own property descriptors onto the prototype, including getters and setters.
 
-Everything else is the identical code running underneath both real players:
+Later modules override earlier ones when two modules export the same key.
 
-- `setup()`, `ready()`, `dispose()`
-- The phase machine
-- The queue
-- Volume
-- i18n
-- Plugin registration
-- Auth
+`playerCoreMethods` is the aggregate both `NMVideoPlayer` and `NMMusicPlayer` spread into that call.
 
-## Mounting it
+## Mount and set up
 
-The constructor's three-form resolution is what `nmplayer(id)` does in the real libraries. When an instance is already registered under the string id you pass, the constructor returns that instance. Otherwise it resolves `document.getElementById(id)` and requires the element to be a `<div>`.
+`resolvePlayerConstructor` takes a string id, a numeric index into the registry, or `undefined`.
 
-```html
-<div id="player-container"></div>
-```
+A string that is not yet registered looks up `document.getElementById(id)` and requires a `<div>`.
 
-```ts
-const player = minimalPlayer('player-container');
+Missing elements throw `core:player/element-missing`.
+A non-div throws `core:player/element-not-div`.
 
-player.setup({ logLevel: 'info' });
-await player.ready();
+The sample creates a labeled `<div>` and passes its id to `corePlayer`.
 
-console.log(player.phase()); // 'ready'
-player.dispose();
-```
+This class has no media backend, so transport methods have nothing to drive.
+`setup()`, `ready()`, and `dispose()` run without one.
 
-`setup()` runs the same fixed pipeline described in [What is nomercy-player-core](/nomercy-player-core#the-setup-then-freedom-model). With no media backend attached, `MinimalPlayer` reaches `ready` without ever loading or playing anything. That's exactly the point: everything up to and including `ready()` is kit behavior, proven independently of any specific medium.
+## Next
 
-## Want a player that actually plays something?
-
-`nomercy-video-player` and `nomercy-music-player` compose this same kit and add a real media backend on top. Their own quickstarts get you a working player in a few lines: [Video Player: Quick Start](/nomercy-video-player/quickstart) or [Music Player: Quick Start](/nomercy-music-player/quickstart).
-
-## Next steps
-
-- [Guided Tour: Lifecycle](/nomercy-player-core/tour/lifecycle): how `setup()` walks the phase pipeline to `ready()`, the first stop on the kit's internals.
-- [Build a Player](/nomercy-player-core/build/compose-methods): assemble a real player from the kit, one capability at a time.
+Continue with [the queue](/nomercy-player-core/tour/queue).

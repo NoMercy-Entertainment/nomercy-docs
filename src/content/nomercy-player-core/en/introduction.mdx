@@ -1,101 +1,44 @@
 ---
-title: 'What is nomercy-player-core'
-description: 'The shared kit nomercy-video-player and nomercy-music-player are built on: lifecycle, plugins, queue, adapters, i18n, and auth, ready to compose into your own player.'
+title: 'What is Player Core'
+description: 'The shared spine for the NoMercy music and video players: queue, transport, time, volume, events, plugins, and adapters.'
+tags: [introduction, player-core]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/index.ts */}
+{/* Source: nomercy-player-core/src/index.ts, nomercy-player-core/src/base-player.ts */}
 
-# What is nomercy-player-core
+# What is Player Core
 
-`nomercy-player-core` is not a player. It is the kit both NoMercy players are built from.
+`@nomercy-entertainment/nomercy-player-core` is Player Core.
+It is the shared logic that `nomercy-music-player` and `nomercy-video-player` are built from.
+It is not a music player or a video player by itself.
 
-It holds the lifecycle machine, the plugin runtime, the queue, the event bus, i18n, auth, and every swappable adapter a media player needs before it can play a frame.
+`nomercy-music-player` is the music library.
+`nomercy-video-player` is the video library.
+Each one adds the playback for its own medium.
 
-`nomercy-video-player` and `nomercy-music-player` each add one thing on top: a media backend, and a few methods for their own medium. The rest they get from here.
+The behavior they share lives in this package.
 
-## Who it's for
+These names are the pieces of that shared spine.
 
-Building a player for something the trio does not cover:
+The queue is the ordered list of items, and which item is current.
+Transport is play, pause, and seek.
+Time is the playback position and the duration.
 
-- A podcast player.
-- A live radio player.
-- A custom streaming protocol.
+Volume is the loudness, on a scale from 0 to 100.
+Events are messages the player emits, such as a phase change, that you subscribe to.
+Plugins are extra behavior you register on the player.
 
-You get the lifecycle, queue, plugin and auth machinery already written and already tested, instead of writing it a third time.
+Adapters are swappable pieces, such as how events are delivered or how a stream is opened.
 
-If you want to play video or music for end users, use [`nomercy-video-player`](/nomercy-video-player) or [`nomercy-music-player`](/nomercy-music-player) instead. They have done this work.
+The package also ships the helpers around that spine.
+Lifecycle helpers are `setup`, `ready`, and `dispose`.
+Streams are how a media address is opened, including HLS.
 
-## Why it exists
-
-Video and music playback differ in one place: how a frame is decoded, and how a UI reacts to it.
-
-Everything else is the same:
-
-- Queueing the next track.
-- Tracking phase.
-- Running plugins.
-- Resolving auth headers.
-- Switching language.
-
-A movie and a song need identical machinery.
-
-So it lives once. Both players compose it rather than reimplementing it, and a fix here reaches both in the same release.
-
-## Setup is strict, the rest is yours
-
-Call `setup(config)` once. The kit then walks a fixed pipeline:
-
-```text
-config snapshot
-  -> cross-cutting policies (visibility, network, wake lock, metrics)
-  -> pluginsRegistering -> streamsReady -> authReady
-  -> playlistReady -> mediaReady
-  -> ready()
-```
-
-Calling `setup()` twice, or calling it after `dispose()`, throws. There is one way in. A half-configured instance is not it.
-
-Above that, nothing is prescribed. The kit ships no UI, no DOM beyond a container, and no opinion about what your play button looks like.
-
-Every behavior outside the lifecycle is a named interface with a working default. Any of them can be replaced:
-
-- `IStorage`
-- `IPlatform`
-- `IStreamSource`
-- `IUrlResolver`
-- `ITranslator`
-- `ICueParser`
-- `IPreloadStrategy`
-- `ITransitionStrategy`
-- `IShuffleStrategy`
-- `RealtimeFactory`
-
-Plugins extend behavior without forking anything. Through the cancellable `before*` pipeline a plugin can veto, delay or rewrite a mutation before it lands.
-
-## What you get
-
-- **Lifecycle**: `setup()` / `ready()` / `dispose()` and a phase machine (`idle` → `setup` → `ready` → `playing`/`paused` → `disposed`) that every mixin and plugin can trust.
-- **Shared playback primitives**: transport, time, volume, queue, and backlog methods, composed once and reused by both real players instead of hand-copied.
-- **Plugin runtime**: a `Plugin` base class, typed registration, and a cancellable `before*` dispatch pipeline (`preventDefault()`, `delay(promise)`) for behavior that shouldn't require forking the player.
-- **Adapter ports**: swappable interfaces, each with a working default. They cover the media backend, stream source, storage, event bus, cue parsing, translation, platform capabilities (wake lock, network, visibility, fullscreen, pip), the realtime channel, and the preload, transition, and shuffle strategies.
-- **Auth-aware fetch**: one `authFetch` pipeline (401 refresh-and-retry, 403 propagates, never conflated) used by every kit-internal request and available to plugins via `Plugin.fetch`.
-- **i18n engine**: a translator with the kit's own `core.*` strings built in. English loads eagerly, every other kit locale loads lazily on demand. Consumers add their own async-loadable bundles, plus title-token interpolation for per-library tokens like season/episode.
-- **Cue parsing**: built-in VTT, sprite-VTT, and LRC parsers behind a registry you can add your own formats to.
-- **Typed errors**: a `PlayerError` hierarchy (`AuthError`, `DrmError`, `MediaFormatError`, `NetworkError`, `StateError`, `StreamError`, ...) with severity, scope, and a retry policy, instead of raw thrown strings.
-- **Composition primitives**: `composeMixins`, `resolvePlayerConstructor`, and `initPlayerCoreState`, the exact three functions `NMVideoPlayer` and `NMMusicPlayer` use to become players. [Quickstart](/nomercy-player-core/quickstart) shows them composing a real, minimal one.
-
-## Where it sits
-
-<LayerStack layers={[
-  { n: 2, name: 'Your player library', pkg: 'e.g. a podcast or live-radio player', knows: 'Its own domain methods, events, and a media backend.' },
-  { n: 2, name: 'nomercy-video-player / nomercy-music-player', pkg: 'Reference implementations', knows: 'Video- or music-specific methods and events on top of the same kit.' },
-  { n: 1, name: 'nomercy-player-core', pkg: 'You are here', knows: 'Lifecycle, transport, queue, time, volume, plugins, i18n, auth, adapter ports.' },
-]} />
-
-Both rows at layer 2 sit on the same foundation and never talk to each other.
-
-They do not share code because one imports the other. They share it because both are composed from this kit.
+A cue is a timed span with a start, an end, and a payload.
+Errors are named failures the player raises, such as a missing mount element.
+Auth is optional credentials on requests the player makes.
 
 ## Next steps
 
-- [Quickstart](/nomercy-player-core/quickstart): compose a minimal player from the kit and mount it, in real, typechecked code.
+[Quickstart](/nomercy-player-core/quickstart) shows how to compose a minimal player from Player Core.

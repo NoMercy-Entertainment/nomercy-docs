@@ -1,119 +1,71 @@
 ---
 title: 'Recipe: Use authFetch'
-description: 'Call the kit auth-aware fetch pipeline directly from data-layer code, with the same 401-refresh-and-retry and 403-propagates behavior Plugin.fetch wraps.'
+description: 'Call the auth-aware fetch pipeline from data-layer code with authFetch, or use this.fetch inside a plugin.'
+tags: [recipes, auth-fetch, auth]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/auth-fetch/index.ts, src/core/auth-fetch/types.ts, src/core/plugin/fetch.ts */}
+{/* Source: nomercy-player-core/src/core/auth-fetch/, src/core/mixins/auth.ts */}
 
 # Recipe: Use authFetch
 
-[Network Helpers](/nomercy-player-core/handbook/network) covers `this.fetch()`, the auth-aware HTTP helper every plugin gets bound to its own lifecycle. `authFetch` is the same pipeline underneath, exported standalone. It is for code that isn't a plugin: a data layer, a prefetch routine, anything that needs the kit's auth handling without a player around it.
+Call the auth-aware HTTP pipeline from outside a plugin with `fn authFetch`, or from inside a plugin with `fn this.fetch`.
 
-## What it does that a raw `fetch` doesn't
+`fn authFetch` is exported from `@nomercy-entertainment/nomercy-player-core`.
+You pass `key url`, optional `cls AuthConfig`, and a required `key signal`.
+Inside a plugin, `fn this.fetch` wraps the same pipeline and supplies auth, signal, and plugin scope for you.
 
-The order is fixed.
+Media headers are a separate choice on `cls AuthConfig`.
+Set `key mediaAuthorization` when a media backend should send an `Authorization` value for a given URL.
+Leave it unset and media requests send no token.
 
-1. `auth.transformUrl(url)` runs.
-2. `Authorization: Bearer <token>` is set from a resolved `bearerToken`. That can be a string, a sync getter or an async getter, so a Vue ref or a reactive store works directly.
-3. `auth.headers` merges in; per-call `headers` win on collision.
-4. `auth.signRequest(request)` runs last, the escape hatch for HMAC or sigv4.
+## What `fn authFetch` applies
 
-Each kind of failure gets its own treatment:
+`fn authFetch` builds one `Request` per attempt, then runs a bounded retry loop.
+Fields on `cls AuthConfig` are optional.
+When `key auth` is omitted, or `key bearerToken` is unset, no `Authorization` header is added.
 
-| Failure | What `authFetch` does |
+When those fields are present, the order is fixed.
+
+1. `key transformUrl` rewrites the URL when supplied.
+2. `Authorization: Bearer <token>` is set only when `key bearerToken` resolves to a non-empty string.
+3. `key headers` merge in; per-call `key headers` win on collision.
+4. `key signRequest` runs last when supplied.
+
+`key signal` is required on every `fn authFetch` call.
+You own the `AbortController`.
+
+Each failure class has its own path.
+
+| Failure | What happens |
 | --- | --- |
-| 401 | Calls `auth.refreshOnUnauthenticated()` once, then retries the original request with freshly resolved credentials. |
-| 403 | Propagates immediately. Never retried, never refreshed. |
-| 5xx, network | Retries per `RetryConfig`. |
+| 401 | Calls `key refreshOnUnauthenticated` once when that hook is set and `key retryAfterRefresh` is not `0`, then retries without consuming a retry slot. |
+| 403 | Throws `str core:auth/forbidden`. No refresh, no retry. |
+| Other 4xx | Throws the matching `str core:network/*` code. No retry. |
+| 5xx, network, timeout | Retries per the call's `cls RetryConfig`. The default is `{ attempts: 0 }`. |
 
-[Typed Errors](/nomercy-player-core/tour/errors) has the default retry policy table.
+Configure live player auth with `fn auth` on the composed player from [Compose the Methods](/nomercy-player-core/build/compose-methods).
+`fn auth()` returns a redacted snapshot with `key bearerToken` stripped.
+`fn this.fetch` reads the raw config at call time.
 
-`signal` is required, not optional. Every call site owns its own `AbortController`, so cancellation is explicit. There is no implicit "cancel when some object is garbage collected" behavior to reason about.
-
-:::snippet{file="recipe-auth-fetch" live="false"}
+:::snippet{file="core-recipes-auth-fetch" live="false"}
 :::
+
+The host in the sample stands for your own backend.
 
 ## Response typing
 
-`responseType` discriminates how the body decodes. Only one variant accepts a transform callback.
+`key responseType` chooses how the body is decoded.
 
-This is `FetchOptions<T>`, the shape `Plugin.fetch()` / `this.fetch()` accepts, defined in `core/plugin/fetch.ts`. `authFetch()` itself takes the lower-level `AuthFetchOptions<T>` (`core/auth-fetch/types.ts`). That type has the same three-way `responseType` split, plus `url`, `auth`, and `signal`. `Plugin.fetch()` fills those three in for you from the plugin's own lifecycle:
-
-```ts
-type FetchOptions<T>
-	= | { responseType?: 'text'; parser?: (raw: string) => T }
-		| { responseType: 'json' }
-		| { responseType: 'arrayBuffer' };
-```
-
-Each `responseType` resolves differently:
-
-| `responseType` | Resolves to |
+| `key responseType` | Resolves to |
 | --- | --- |
-| `'text'` (default) | The raw response string (`T = string`) when no `parser` is given. The only variant that accepts a `parser`. |
-| `'json'` | `response.json()`. Invalid JSON throws `core:network/parse-failed`, the same error a failing `parser` throws. |
-| `'arrayBuffer'` | `response.arrayBuffer()`. |
+| `str text` (default) | The response string. Optional `key parser` turns that string into `T`. |
+| `str json` | `response.json()` cast to `T`. |
+| `str arrayBuffer` | `response.arrayBuffer()`. |
 
-Neither `'json'` nor `'arrayBuffer'` accepts a `parser`.
-
-### The `parser` callback
-
-`parser` receives the raw response body as a string and returns the `T` that `Plugin.fetch<T>()` (or `authFetch<T>()`) resolves to. Reach for it for any body that isn't JSON:
-
-- a newline- or comma-delimited list
-- a custom sidecar format
-- anything your own endpoint returns as plain text
-
-```ts
-class QueueSyncPlugin extends Plugin {
-	// The endpoint returns one queue item id per line as text/plain.
-	async loadRemoteQueueIds(): Promise<string[]> {
-		try {
-			return await this.fetch<string[]>('/api/queue/ids.txt', {
-				parser: raw => raw.split('\n').map(line => line.trim()).filter(Boolean),
-			});
-		}
-		catch (err) {
-			if (isNetworkError(err) && err.code === 'core:network/parse-failed') {
-				this.logger.warn('queue id list came back malformed, keeping the current queue');
-				return [];
-			}
-			throw err;
-		}
-	}
-}
-```
-
-A `parser` that throws surfaces exactly like a malformed `'json'` body. The error is `core:network/parse-failed`, a `NetworkError` caught with `isNetworkError()`. It never escapes the fetch pipeline as an uncaught exception.
-
-For a body that's already JSON, skip `parser` and set `responseType: 'json'` instead:
-
-```ts
-interface QueueSnapshot {
-	ids: string[];
-	updatedAt: string;
-}
-
-class QueueSyncPlugin extends Plugin {
-	async loadRemoteQueueSnapshot(): Promise<QueueSnapshot> {
-		return this.fetch<QueueSnapshot>('/api/queue', { responseType: 'json' });
-	}
-}
-```
-
-The type flows differently through the two branches:
-
-| Branch | How `T` is determined |
-| --- | --- |
-| `'text'` | Inferred from the `parser`'s return type. Write `{ parser: (raw): string[] => ... }` and the fetch resolves to `Promise<string[]>` on its own; the explicit `<string[]>` above is optional. |
-| `'json'`, `'arrayBuffer'` | No callback to infer from. You name `T` yourself, as `fetch<QueueSnapshot>`, and the kit casts the decoded body to it unchecked, the same as writing `response.json() as T` by hand. Nothing validates the shape at runtime. |
-
-The `'text'` branch can infer the type because the parser is the one place your code runs to produce the value, so the compiler can hold you to its return type.
-
-Keep the explicit type parameter for bodies you trust. Reach for a `parser` when you want the transform itself type-checked.
-
-`isAuthError()` and `isNetworkError()` are the same type guards `Plugin.fetch()` callers use to branch a `catch` block without an `instanceof` import.
+A thrown `key parser` or invalid JSON surfaces as `str core:network/parse-failed`.
+Narrow caught errors with `fn isAuthError` and `fn isNetworkError`.
 
 ## Next steps
 
-- [Recipe: Provide a Custom URL Resolver](/nomercy-player-core/recipes/custom-url-resolver): for URLs handed to something that isn't `fetch` at all, a `<video>.src`, a Cast receiver, a Worker.
+[Event Bus](/nomercy-player-core/plugins-adapters/adapter-event-bus) is the adapter port for wiring custom event delivery on top of the same composed player.

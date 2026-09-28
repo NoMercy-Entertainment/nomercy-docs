@@ -1,217 +1,144 @@
 ---
 title: 'The Queue'
-description: 'How a playlist becomes a queue, where the cursor lives, and every method that moves the list or the cursor.'
+description: 'Read and mutate the play queue, move the cursor with item and seekToIndex, and start playback after load with autoplay.'
+tags: [tour, queue, play-queue, item, playNow]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/core/mixins/queue.ts, src/core/mixins/play-queue.ts, src/adapters/media-list/default.ts, src/core/mixins/lifecycle.ts */}
+{/* Source: packages/player-web/nomercy-player-core/src/core/mixins/queue.ts, src/core/mixins/play-queue.ts */}
 
 # The Queue
 
-A queue is two things: an ordered list of items, and a cursor pointing at one of them.
+Move an ordered playlist and its cursor without racing `fn play` ahead of the loaded source.
 
-Every method on this page moves one or the other.
-The kit keeps both in a single `cls MediaList` per player, so there is no second copy of the list to fall out of step.
+You finished [Quick Start](/nomercy-player-core/quickstart), so `composeMixins` has already stamped method bundles onto your class.
+A mixin is one of those bundles.
 
-## The playlist becomes the queue
+`queueMethods` is the bundle that reads and edits the list.
+`playQueueMethods` is the bundle that moves the cursor and starts playback.
 
-`setup({ playlist })` seeds the queue during the ready pipeline.
+## Read and replace the list
 
-Pass an array and the items go straight in.
-Pass a string and the player fetches it, expects a JSON array, and puts that in instead.
+`fn queue` with no argument returns the live playlist as a read-only array.
+Pass an array to replace the whole list.
+The first call also wires the list events onto the player event emitter, the same surface `fn on` listens to.
 
-A fetch that fails, or a body that is not an array, emits `str playlistError` and then `str playlistReady` with `length: 0`.
-Setup still reaches `str ready`, with an empty queue.
-`str playlistReady` fires even when you configured no playlist at all, so a listener can rely on it.
-
-The array form only seeds when the queue is still empty.
-
-{/* partial */}
-```ts
-player.setup({ playlist: items });
-player.queue(myAlreadyResolvedItems);
-await player.ready();
-```
-
-Your `queue()` call wins there.
-The config array is skipped rather than clobbering what you put in.
-
-After ready, `loadQueue(url, parser?)` fetches a queue the same way.
-It throws on failure, unlike the setup path, and emits `str playlistResolveError` and `str error` first.
-
-## Reading and replacing the list
-
-{/* partial */}
 ```ts
 const items = player.queue();
 player.queue(newItems);
 ```
 
-`queue()` hands back the player's own array, not a copy.
-Its type says read-only, and that is the contract to honor: change the list through the methods below, never by writing into what you were handed.
+`fn queueAppend`, `fn queuePrepend`, and `fn queueInsert` add one item or an array.
+`fn queueRemove` takes an `key id`.
+`fn queueRemoveAt`, `fn queueMove`, `fn queueClear`, `fn queueShuffle`, and `fn queueSort` mutate in place.
 
-Replacing the list keeps the cursor on the same item when an item with that `key id` is still in the new array.
-Otherwise the cursor goes to the first item, or to nothing when the new array is empty.
+`fn queueLength` returns how many items are present.
+`fn queueIndexOf` returns the zero-based index for an `key id`, or `-1` when missing.
+`fn peekNext` and `fn peekPrevious` return the neighbor without moving the cursor.
 
 ## Every item is ingested on the way in
 
-`queue()`, `queueAppend()`, `queuePrepend()` and `queueInsert()` all run each item through three steps before it lands.
+Ingest is the step that turns an incoming value into a stored playlist item.
+`fn queue`, `fn queueAppend`, `fn queuePrepend`, and `fn queueInsert` run each entry through ingest before it lands.
 
-1. `fn normalizePlaylistItem`, your player class's optional hook, where a library adapts a wire format of its own.
-2. `key transformPlaylistItem`, your config callback, on the normalized result.
-3. Title token resolution, on the item's `key title`.
+Optional `fn normalizePlaylistItem` on the player adapts a wire format first.
+Optional `key transformPlaylistItem` from config runs next on that result.
+A string `key title` then resolves registered title tokens.
 
-A title token is `%` plus a letter plus digits, such as `str %S2`.
-`registerTitleTokens({ S: 'some.translation.key' })` maps the letter to a translation key, and the digits arrive as `cls number` for the translation to place.
-An unregistered letter is left exactly as written, so a player that registers nothing changes no titles.
+`fn registerTitleTokens` merges letter-to-translation-key pairs into the player's registry.
+Later calls merge; they do not clear earlier ones.
+Player Core ships an empty registry until a library or you register tokens.
 
-Token resolution leaves nothing behind for a second pass to find, and the kit expects your two callbacks to behave the same way.
-Putting an already-queued item back into the queue then costs nothing.
+## The cursor
 
-## Where the cursor is
+`fn item` with no argument returns the active item, or `undefined` when the queue is empty.
+`fn index` returns its zero-based position, or `-1` when empty.
 
-{/* partial */}
+`fn item(target, opts?)` moves the cursor to an item reference, `key id`, zero-based index, or predicate.
+It fires `str beforeMutation` with method `str current` first, so a listener can cancel the move.
+When the cursor moves, the player emits `str item` with the item and its index.
+
+The cursor moves and `str item` fires before the media element switches.
+Before that emit, the mixin zeroes the internal time and duration when the new `key id` differs from the mounted one.
+An `item` listener therefore does not read the outgoing end position.
+
 ```ts
-player.item();   // the item it points at, or undefined
-player.index();  // its position, or -1 on an empty queue
-```
-
-`peekNext()` and `peekPrevious()` read the neighbors without moving anything.
-Both are `undefined` at their respective end of the list.
-
-`queueLength()` counts the items and `queueIndexOf(id)` finds one, returning `-1` when there is no such item.
-
-## Changing the list under the cursor
-
-Nine methods change the list: `fn queueAppend`, `fn queuePrepend`, `fn queueInsert`, `fn queueRemove`, `fn queueRemoveAt`, `fn queueMove`, `fn queueClear`, `fn queueShuffle` and `fn queueSort`.
-
-`fn queueInsert`, `fn queueRemoveAt` and `fn queueMove` take zero-based indices.
-`fn queueRemove` takes an item's `key id`.
-`fn queueSort` takes the same comparator `ts Array.prototype.sort` takes.
-
-The cursor is adjusted on every one of them so it keeps pointing at the item it was on.
-
-| What you do | What the cursor does |
-| --- | --- |
-| Add items before it | Moves up by that many positions. |
-| Remove an item before it | Moves down one position. |
-| Remove the item it is on | Stays put, so it now points at the following item. On the last item it clamps to the new final position. |
-| Move, shuffle or sort | Follows its item to the item's new position. |
-| Clear the queue | Goes to `-1`, and `item()` is empty. |
-
-`fn queueRemoveAt` and `fn queueMove` ignore an index outside the list.
-Nothing moves, and nothing is emitted.
-`queueMove(2, 2)` and `queueShuffle()` on a one-item queue are silent for the same reason.
-
-**`fn queueInsert` is the exception.** It clamps the index into `ts [0, length]` and inserts anyway.
-So `queueInsert(item, 99)` on a three-item queue appends the item, and a negative index puts it at the front.
-
-## Moving the cursor
-
-`item(target)` moves the cursor and starts playing what it lands on.
-
-{/* partial */}
-```ts
+player.item();
 player.item('episode-3');
-player.item(2);
+player.item(2, { autoplay: false });
 ```
 
-A target is an item, its `key id`, a zero-based integer index, or a predicate.
-A target that resolves to nothing leaves the cursor where it was.
+During `str setup`, if the queue is still empty, `fn item` parks the target as a pending selection instead of dropping it.
+The ready pipeline applies that selection once the playlist exists.
+In `str idle`, `str disposing`, or `str disposed`, a write stops after moving or parking the cursor.
 
-**Only a whole number is read as an index.** A fractional number is matched against `key id` instead.
+Otherwise the write loads the active item.
+It then plays when `key autoplay` is not `false`.
+Pass `autoplay: false` to move the cursor without starting playback.
 
-**Playing is the default.** Pass `autoplay: false` to move the cursor without starting playback.
+## Play after the source is set
 
-{/* partial */}
-```ts
-player.item('episode-3', { autoplay: false });
-```
+`fn item` starts `fn load` and does not return a promise for you to await.
+A separate `fn play` on the next line can run before the backend has set the element source.
+That race is why a bare `item` plus `play` pair is unsafe.
 
-**`item()` returns nothing to await.** It starts a load and does not wait for it, so a `play()` on the next line runs against the source that is still mounted.
+Pass `{ autoplay: true }`, or omit `key autoplay`, so `fn play` runs only inside the resolved `fn load` continuation.
+That is the race-free path to start a new item.
+`fn playItem(target, opts?)` is the same path with `key autoplay` forced to `true`.
 
-`playItem(target, opts?)` is that call with `autoplay: true` already set.
-`playNow(items, start?, opts?)` replaces the queue and plays from `start`, or from the first item when you omit it.
-Both route through `item()` internally, which is what keeps the `play()` inside the load's own continuation rather than racing it.
+`fn playNow(items, start?, opts?)` replaces the queue, then plays from `start` or from the first item when `start` is omitted.
+An empty `items` array is a silent no-op: no replacement, no cursor move.
+`fn playNow` does not stop or unload the current item first; the following `fn item` load interrupts it.
 
-`playNow([])` does nothing at all: no replacement, no cursor move.
+`key source` and `key startAt` on those options thread through to load and play the same way as on `fn item`.
 
-`next()` and `previous()` move this same cursor, and both resolve once the new item has loaded.
+## Move by ordinal without loading
 
-## Moving by ordinal
+`fn seekToIndex(position)` counts from 1.
+`seekToIndex(1)` selects the first item.
+`seekToIndex(player.queueLength())` selects the last.
 
-`seekToIndex(position)` counts from 1, so `seekToIndex(1)` is the first item and `seekToIndex(queueLength())` is the last.
-
-{/* partial */}
 ```ts
 player.seekToIndex(1);
 ```
 
-**It moves the cursor and loads nothing.** That is the difference from `item()`, and it is what makes it the call for repositioning a list without interrupting what is playing.
+It fires the same `str beforeMutation` method `str current` as `fn item`.
+It only moves the cursor.
+It does not call `fn load` or `fn play`.
 
-A position past the end is ignored silently.
-A position that is zero, negative or fractional throws a `cls RangeError`.
+A position past the end is ignored.
+A value that is not a positive integer throws `cls RangeError`.
 
-## Stopping a cursor move
+## What the list announces
 
-Both `item(target)` and `seekToIndex(position)` fire `str beforeMutation` first, with `key method` set to `str current`.
+These are the list and cursor events this mixin wires.
 
-{/* partial */}
-```ts
-player.on('beforeMutation', (event) => {
-  if (event.data.method === 'current' && isLocked())
-    event.preventDefault();
-});
-```
+A list change emits `str queue`.
+Append, prepend, and insert emit `str queue:append`, `str queue:prepend`, and `str queue:insert`.
+Remove, move, and clear emit `str queue:remove`, `str queue:move`, and `str queue:clear`.
 
-A prevented move emits `str mutationPrevented` carrying the same `key method`, and the cursor does not move.
+Shuffle and sort emit `str queue:shuffle` and `str queue:sort`.
+The cursor emits `str item` when it selects a new queue item.
 
-## What the queue announces
-
-Each list method has an event of its own: `str queue:append`, `str queue:prepend`, `str queue:insert`, `str queue:remove`, `str queue:move`, `str queue:clear`, `str queue:shuffle` and `str queue:sort`.
-Each one is followed by `str queue`, which carries the whole list as its payload.
-A cursor move emits `str item`, carrying the item and its index.
-
-{/* partial */}
 ```ts
 player.on('queue', items => renderList(items));
 player.on('item', ({ item, index }) => highlightRow(index));
 ```
 
-**Replacing the list emits `str queue` and not `str item`**, even though the cursor lands on the first item.
-Read the cursor yourself after a replacement rather than waiting for an event.
-
-A method that changes nothing emits nothing, so an out-of-range remove is silent.
-
 ## The backlog
 
-A second list runs alongside the queue, reached through `backlog()`, `backlogAppend()`, `backlogRemove()` and `backlogClear()`.
-It emits `str backlog`, `str backlog:append`, `str backlog:remove` and `str backlog:clear` in the same shapes.
+`fn backlog` reads or replaces a second list beside the queue.
+`fn backlogAppend`, `fn backlogRemove`, and `fn backlogClear` mutate it.
 
-**Nothing fills it for you.** Playing past an item does not put it there, and `previous()` never reads it.
+It emits `str backlog`, `str backlog:append`, `str backlog:remove`, and `str backlog:clear`.
+This mixin does not drive the cursor from the backlog; you populate it yourself.
+Backlog writes skip the ingest pipeline above.
 
-It is raw storage for a history your own code keeps.
-Its contents skip the ingest pipeline above.
+## See the safe play path
 
-## Choosing an item before the queue exists
-
-Calling `item(target)` between `setup()` and `ready()` addresses a queue that has not been seeded yet.
-
-The choice is parked rather than dropped.
-The pipeline applies it the moment the playlist lands, which is still inside `ready()`, so a deep link into episode four arrives in time.
-
-## Shuffle order
-
-`queueShuffle()` and shuffle mode both reorder through a strategy object, which defaults to a Fisher-Yates shuffle.
-
-Replace it with `setup({ shuffleStrategy })` to decide the order yourself.
-[Shuffle strategy](/nomercy-player-core/plugins-adapters/adapter-shuffle-strategy) has the contract.
-
-## The whole surface at work
-
-:::snippet{file="tour-queue" live="false"}
+:::snippet{file="core-tour-queue" live="false"}
 :::
 
-## Next steps
+## Next
 
-- [Reference: Types](/nomercy-player-core/reference/types) for `cls BasePlaylistItem`, `cls LoadOptions` and the rest of the shapes named here.
-- [Shuffle strategy](/nomercy-player-core/plugins-adapters/adapter-shuffle-strategy) for deciding the order a shuffle produces.
+Continue with [Compose the Methods](/nomercy-player-core/build/compose-methods).
