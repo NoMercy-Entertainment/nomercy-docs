@@ -24,7 +24,9 @@ Pass it to `fn setup` as `key platform`.
 Each field wraps a browser API, and each read of a field builds a new controller.
 A spread such as `{ ...browserPlatform }` reads every field once, so the copy holds one controller per field.
 
-Without `window` or `document`, the monitors return safe values and never throw.
+Without `window` or `document`, `fn isOnline`, `fn isVisible` and each `fn subscribe` return safe values.
+`fn type`, `fn downlinkMbps` and `fn rttMs` read `navigator` directly and throw where it is missing.
+
 `fn acquire` on the wake lock throws `str core:policy/wakeLockUnsupported` where the browser has no wake lock API.
 `fn enter` on fullscreen and picture in picture throws the matching `str core:policy/` error where the API is missing.
 
@@ -61,7 +63,10 @@ Read the default bundle directly when you need an answer before the player exist
 
 Each `fn subscribe` returns a function that removes the subscription.
 `fn type` returns one of `str wifi`, `str cellular`, `str ethernet`, `str none` or `str unknown`.
-The player emits `str network:slow` when `fn downlinkMbps` reports more than 0 and less than 1.5.
+
+When the network monitor reports a change while online, the player emits `str network:slow` once if `fn downlinkMbps` is more than 0 and less than 1.5.
+With `key onOffline` set to `str ignore`, it never does.
+`fn networkState` returns slow on the same rule at any time.
 
 ## Custom implementation
 

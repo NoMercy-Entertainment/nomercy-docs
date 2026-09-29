@@ -25,6 +25,7 @@ The cursor is `-1` on an empty list and `0` once items arrive.
 Every change that shifts positions also shifts the cursor, so it stays on the same item.
 
 Each change fires its own event, then `str change` with the full `key items` array.
+`fn set` fires only `str change`.
 `fn setCurrent` fires `str item` with `key item` and `key index`.
 
 | Event | Payload |
@@ -39,6 +40,7 @@ Each change fires its own event, then `str change` with the full `key items` arr
 
 Removing the current item fires `str remove`, not `str item`.
 The cursor keeps its index, so the next item becomes current without an `str item` event.
+When the removed item was the last one, the new last item becomes current.
 
 ## Usage
 
@@ -53,7 +55,7 @@ The table lists every member of `cls IMediaList`.
 
 | Member | Behavior |
 |---|---|
-| `fn get` | The items in order. The array is live, so change it only through the methods. |
+| `fn get` | The items in order. This is the list's own array: do not change it, and call `fn get` again after `fn set`, `fn clear` or `fn shuffle`. |
 | `fn set` | Replaces the items. The cursor follows the old current item by `key id`, or resets to the first. |
 | `fn length` | The number of items. |
 | `fn current`, `fn currentIndex` | The current item and its index. |
@@ -64,7 +66,7 @@ The table lists every member of `cls IMediaList`.
 | `fn remove`, `fn removeAt` | Remove by `key id` or by index. |
 | `fn move` | Moves one item to a new index. |
 | `fn clear` | Empties the list. |
-| `fn shuffle`, `fn sort` | Reorder in place and keep the cursor on its item. |
+| `fn shuffle`, `fn sort` | Reorder the items and keep the cursor on its item. |
 | `fn dispose` | Empties the list and removes every listener. |
 
 `fn setCurrent` treats an integer as an index and any other number as an `key id`.

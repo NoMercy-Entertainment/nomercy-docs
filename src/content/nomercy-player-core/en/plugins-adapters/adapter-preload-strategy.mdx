@@ -30,7 +30,8 @@ With no assets, the player emits `str preloadStart` and then `str preloadComplet
 
 ## Usage
 
-The player asks `fn shouldPreload` on every `str time` event while a next item is queued.
+The player asks `fn shouldPreload` on every `str time` event until the first yes.
+`key nextItem` is `null` when nothing is queued, and a yes then starts nothing.
 After the first yes, it stops asking until the current item changes.
 Then it calls `fn assetsToPreload` once and requests each asset.
 
@@ -61,6 +62,7 @@ The table lists every member of `cls IPreloadStrategy`.
 
 A `cls PreloadContext` holds `key currentTime` and `key duration` in seconds, and `key nextItem` or `null`.
 A `cls PreloadAsset` holds a `key url`, a `key category` string, and an optional `key mode`.
+The player does not read `key mode` yet ([#18](https://github.com/NoMercy-Entertainment/nomercy-player-core/issues/18)).
 
 ## Custom implementation
 
