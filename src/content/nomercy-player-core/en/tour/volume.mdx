@@ -1,0 +1,98 @@
+---
+title: 'Volume'
+description: 'Volume is a 0 to 100 slider position, mute keeps that level, and a square-law curve turns the position into gain.'
+tags: [tour, volume, mute, perceptualGain]
+draft: false
+---
+
+{/* Source: nomercy-player-core/src/core/mixins/volume.ts, nomercy-player-core/src/core/volume-curve.ts */}
+
+# Volume
+
+Volume on the player is a slider position from 0 to 100.
+Mute keeps that position, and a curve turns it into the gain a backend writes.
+
+## Read and set the level
+
+`fn volume` with no argument returns the current position on a 0 to 100 scale.
+While muted, that read is `0`, even when a level is stored for unmute.
+
+Pass a number to set the position.
+The value clamps to 0 through 100.
+The setter returns a `Promise` you can await for the full cycle.
+
+:::snippet{file="core-tour-volume" lines="86-88" live="false"}
+:::
+
+## Step up and down
+
+`fn volumeUp` and `fn volumeDown` move by five points by default.
+Pass your own step when you need a different size.
+Neither returns a promise to await.
+
+:::snippet{file="core-tour-volume" lines="90-91" live="false"}
+:::
+
+## Volume events
+
+A listener can cancel a change through `str beforeVolume`.
+Then `str volumePrevented` fires and the level stays put.
+Otherwise the player emits `str volume` with `key level`, and hands the backend the position divided by 100.
+
+:::snippet{file="core-tour-volume" lines="78-80" live="false"}
+:::
+
+## The curve into gain
+
+`fn perceptualGain` maps a linear 0 to 1 position to a 0 to 1 gain.
+The gain is the position squared.
+Values outside that range clamp first.
+
+:::snippet{file="core-tour-volume" lines="16,20,25,93-95" live="false"}
+:::
+
+The table shows the gain at a few positions.
+
+| Position | Gain |
+| --- | --- |
+| 1 | 1 |
+| 0.5 | 0.25 |
+| 0.3 | 0.09 |
+| 0.1 | 0.01 |
+| 0 | 0 |
+
+Loudness is heard on a log scale.
+A straight map packs most of the audible change into the bottom of the slider.
+The square-law taper spreads that change across the travel.
+
+The public `fn volume` API always speaks in positions.
+The curve runs where a backend writes gain, not inside the getter.
+So a control bound to `fn volume` stays on the 0 to 100 scale.
+
+## Mute without losing the level
+
+`fn mute` silences output and keeps the stored position.
+`fn unmute` restores that stored level and writes it to the backend again.
+`fn toggleMute` picks mute or unmute from the current state.
+It does not return a promise.
+
+:::snippet{file="core-tour-volume" lines="97-102" live="false"}
+:::
+
+A listener can cancel through `str beforeMute`.
+Then `str mutePrevented` fires and nothing changes.
+Otherwise `str mute` fires with `key muted` set to the new flag.
+
+:::snippet{file="core-tour-volume" lines="82-84" live="false"}
+:::
+
+Calling mute when already muted is a no-op.
+The same holds for unmute when already unmuted.
+No dispatch and no event in those cases.
+
+Set a level above 0 while muted and the player unmutes itself.
+That matches a slider drag that means turn the sound back on.
+
+## Next
+
+[Transport](/nomercy-player-core/tour/transport) is where play, pause, and relative seeks live.

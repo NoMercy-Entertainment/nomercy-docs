@@ -7,8 +7,8 @@
 // -----------------------------------------------------------------------------
 
 /**
- * All five auto-cleaned timing primitives in one plugin: timeout() for a
- * delayed hide, interval() for a periodic save, frame() with its deltaMs
+ * All five auto-cleaned timer helpers in one plugin: timeout() for a
+ * delayed state change, interval() for a periodic save, frame() with its deltaMs
  * argument and stop function, abortable() for a signal-accepting API, and
  * lifecycle.observe() for a ResizeObserver. One dispose cancels everything.
  */
@@ -29,11 +29,15 @@ class PulsePlugin extends Plugin<IPlayer<BaseEventMap>> {
 		const root = this.mount('ring');
 
 		// One-shot: cancelled on dispose if it has not fired yet.
+		let settle = -1;
 		this.on('play', () => {
-			this.timeout(() => {
+			settle = this.timeout(() => {
 				root.dataset.state = 'settled';
 			}, 3_000);
 		});
+
+		// The handle cancels one timer early, before dispose.
+		this.on('pause', () => clearTimeout(settle));
 
 		// Repeating: cancelled on dispose; a throwing tick is caught and logged.
 		this.interval(() => {
@@ -49,9 +53,12 @@ class PulsePlugin extends Plugin<IPlayer<BaseEventMap>> {
 		this.on('pause', () => this.stopSpin?.());
 
 		// Aborted automatically on dispose. For signal-accepting APIs outside
-		// the plugin's own fetch(), which wires this internally.
+		// the plugin's own fetch(), which wires this internally. A lock request
+		// still waiting when dispose runs rejects instead of running later.
 		const controller = this.abortable();
-		controller.signal.addEventListener('abort', () => {
+		navigator.locks.request('pulse-save', { signal: controller.signal }, () => {
+			this.storage.setJSON('pulse-state', { angle: this.angle });
+		}).catch(() => {
 			root.dataset.state = 'stopped';
 		});
 
@@ -64,7 +71,7 @@ class PulsePlugin extends Plugin<IPlayer<BaseEventMap>> {
 	}
 }
 
-const player = tourPlayer('handbook-timing');
+const player = tourPlayer('handbook-timers');
 player.addPlugin(PulsePlugin);
 
 player.setup({ logLevel: 'info' });

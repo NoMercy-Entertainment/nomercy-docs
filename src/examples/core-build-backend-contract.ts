@@ -86,7 +86,7 @@ class ContractPlayer extends EventEmitter<BaseEventMap> {
 			const element = document.createElement('video');
 			this._backend = new ContractBackend(element);
 			const auth: AuthHeaderProvider = (url) =>
-				url.startsWith('https://api.example.com') ? 'Bearer demo' : undefined;
+				new URL(url, location.href).origin === 'https://api.example.com' ? 'Bearer demo' : undefined;
 			this._backend.setAuthHeaderProvider(auth);
 			bridgeBackendPlayState(this._backend, {
 				isPlaying: () => this._playing,
