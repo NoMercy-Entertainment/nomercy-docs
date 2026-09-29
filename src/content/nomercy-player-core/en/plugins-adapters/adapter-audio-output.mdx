@@ -1,5 +1,5 @@
 ---
-title: 'AudioOutputState'
+title: 'Audio output'
 description: 'List output devices, open the browser picker, and route playback with the three audio-output methods on IPlayer.'
 tags: [adapter, audio-output, player-core]
 draft: false
@@ -7,16 +7,11 @@ draft: false
 
 {/* Source: nomercy-player-core/src/core/mixins/audio-output.ts */}
 
-# AudioOutputState
+# Audio output
 
-`cls AudioOutputState` holds the selected device id on the player.
-Three methods beside it list outputs, open the browser picker, and route sound.
-They live on `cls IPlayer`.
+Three methods on `cls IPlayer` list outputs, open the browser picker, and route sound.
+The player keeps the chosen device id itself; you never touch that state.
 There is no setup field that replaces them.
-
-```ts
-import type { IPlayer } from '@nomercy-entertainment/nomercy-player-core';
-```
 
 ## Built-in adapter
 
@@ -48,29 +43,19 @@ An empty string reads back as `null`.
 
 Type a helper against `cls IPlayer`, then list, pick, and route.
 
-:::snippet{file="core-adapter-audio-output" live="false"}
+:::snippet{file="core-adapter-audio-output" lines="15,18-37" live="false"}
 :::
 
 ## Interface
 
-```ts
-interface AudioOutputState {
-	_currentAudioOutputId: string | null;
-}
-```
+The three methods on `cls IPlayer`:
 
-`key _currentAudioOutputId` is written by `audioOutput(deviceId)`.
-The three methods on `cls IPlayer` are:
-
-```ts
-interface IPlayer {
-	// ...
-	audioOutputs(): Promise<MediaDeviceInfo[]>;
-	selectAudioOutput(): Promise<MediaDeviceInfo | null>;
-	audioOutput(): Promise<string | null>;
-	audioOutput(deviceId: string): Promise<void>;
-}
-```
+| Member | Returns |
+|---|---|
+| `audioOutputs()` | `Promise<MediaDeviceInfo[]>` |
+| `selectAudioOutput()` | `Promise<MediaDeviceInfo \| null>` |
+| `audioOutput()` | `Promise<string \| null>` |
+| `audioOutput(deviceId: string)` | `Promise<void>` |
 
 ## Custom implementation
 
@@ -78,15 +63,8 @@ These methods are not a setup adapter.
 You do not pass a replacement object in.
 For tests, `cls StubPlayer` already stubs all three.
 
-```ts
-import { StubPlayer } from '@nomercy-entertainment/nomercy-player-core/testing';
-
-const player = new StubPlayer();
-
-await player.audioOutputs();
-await player.selectAudioOutput();
-await player.audioOutput();
-```
+:::snippet{file="core-adapter-audio-output" lines="16,39-46" live="false"}
+:::
 
 `fn audioOutputs` resolves to `[]`.
 `fn selectAudioOutput` and a bare `fn audioOutput` resolve to `null`.

@@ -13,6 +13,7 @@
  */
 
 import type { IPlayer } from '@nomercy-entertainment/nomercy-player-core';
+import { StubPlayer } from '@nomercy-entertainment/nomercy-player-core/testing';
 
 async function listOutputs(player: IPlayer): Promise<MediaDeviceInfo[]> {
 	return player.audioOutputs();
@@ -33,4 +34,13 @@ export async function demoAudioOutput(player: IPlayer): Promise<void> {
 
 	const active = await pickAndRoute(player);
 	console.log(active);
+}
+
+export async function stubAudioOutput(): Promise<void> {
+	const player = new StubPlayer();
+
+	console.log(await player.audioOutputs()); // []
+	console.log(await player.selectAudioOutput()); // null
+	console.log(await player.audioOutput()); // null
+	await player.audioOutput('speakers'); // resolves, routes nothing
 }
