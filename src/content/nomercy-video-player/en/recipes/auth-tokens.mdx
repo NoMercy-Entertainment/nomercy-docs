@@ -43,16 +43,16 @@ auth: {
 
 ## Reaching the HLS backend
 
-`Authorization: Bearer <token>` is not only for `fetch()`-based calls (subtitles, chapters, thumbnails). `nomercy-video-player`'s HTML5 backend wires the same resolved bearer value into `hls.js`'s own manifest and segment requests automatically. There is nothing extra to configure for adaptive streaming specifically. Set `auth` once, and every request path (kit-level `fetch`, `hls.js`, image resolution) uses it.
+`authorization: Bearer <token>` is not only for `fetch()`-based calls (subtitles, chapters, thumbnails). `nomercy-video-player`'s HTML5 backend wires the same resolved bearer value into `hls.js`'s own manifest and segment requests automatically. There is nothing extra to configure for adaptive streaming specifically. Set `auth` once, and every request path (kit-level `fetch`, `hls.js`, image resolution) uses it.
 
 ## Handling a 401
 
 Each response code gets its own treatment:
 
-| Response | What happens |
-| --- | --- |
-| 401 | Calls `refreshOnUnauthenticated()` once. After it resolves, the original request retries once with freshly-resolved `bearerToken` / `headers`. |
-| 403 | Propagates immediately. The kit assumes a 403 means "not allowed", not "token expired", so it never refreshes or retries. |
+| Response | What happens | Code |
+| --- | --- | --- |
+| 401 | Calls `refreshOnUnauthenticated()` once. After it resolves, the original request retries once with freshly-resolved `bearerToken` / `headers`. | `str core:auth/refresh-failed` when the handler throws, `str core:auth/unauthenticated` when the retry gets a 401 again |
+| 403 | Propagates immediately. The kit assumes a 403 means "not allowed", not "token expired", so it never refreshes or retries. | `str core:auth/forbidden` |
 
 {/* partial: an AuthConfig property to graft onto the setup() call above, not a standalone program */}
 

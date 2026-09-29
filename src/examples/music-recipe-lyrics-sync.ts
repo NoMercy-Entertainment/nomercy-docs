@@ -21,6 +21,7 @@ import { firstSong, MUSIC_BASE } from './media';
 
 const config: MusicPlayerConfig = {
 	baseUrl: MUSIC_BASE,
+	controls: true,
 	playlist: [firstSong],
 };
 
@@ -88,8 +89,9 @@ function onReady(player: IMusicPlayer, container: HTMLElement): () => void {
 	player.on('plugin:lyrics:lineEnter', onLineEnter);
 	player.on('plugin:lyrics:lineExit', onLineExit);
 
-	void player.mute();
-	player.item(0, { autoplay: true });
+	// Loaded, not started: the browser's bar (`controls: true`) plays and
+	// stops it, so the page never makes sound on its own.
+	void player.item(0, { autoplay: false });
 
 	return () => {
 		player.off('plugin:lyrics:loaded', renderLines);

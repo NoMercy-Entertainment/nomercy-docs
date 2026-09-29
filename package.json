@@ -8,7 +8,7 @@
 	},
 	"scripts": {
 		"dev": "astro dev --host",
-		"build": "npm run build:native-reference && npm run check:doc-imports && npm run check:symbols && npm run check:examples && npm run check:examples:published && npm run check:api-coverage && npm run check:docs && npm run check:prose && npm run check:density && npm run check:tiers && npm run check:nav && npm run check:links && npm run build:search && astro build",
+		"build": "npm run build:native-reference && npm run check:directives && npm run check:doc-imports && npm run check:symbols && npm run check:examples && npm run check:examples:published && npm run check:api-coverage && npm run check:docs && npm run check:prose && npm run check:density && npm run check:tiers && npm run check:nav && npm run check:links && npm run build:search && astro build",
 		"preview": "npm run build:search && astro build && astro preview --host",
 		"astro": "astro",
 		"build:search": "node scripts/build-search-index.js",
@@ -21,11 +21,13 @@
 		"check:tiers": "node scripts/check-tiers.mjs",
 		"check:symbols": "node scripts/check-doc-symbols.mjs",
 		"check:doc-imports": "node scripts/check-doc-imports.mjs",
-		"check:examples": "tsc -p tsconfig.examples.json",
+		"check:directives": "node --test scripts/remark-directives.test.mjs",
+		"check:examples": "tsc -p tsconfig.examples.json && node scripts/check-autoplay.mjs",
 		"check:examples:published": "tsc -p tsconfig.examples-published.json",
 		"check:links": "node scripts/check-links.js",
 		"check:nav": "node scripts/check-nav.js",
-		"check:snippets": "node scripts/check-snippet-syntax.mjs"
+		"check:snippets": "node scripts/check-snippet-syntax.mjs",
+		"snippets:lock": "node scripts/snippet-ranges-lock.mjs"
 	},
 	"dependencies": {
 		"@algolia/autocomplete-core": "^1.19.2",
@@ -57,7 +59,7 @@
 		"react-highlight-words": "^0.21.0",
 		"remark-directive": "^4.0.0",
 		"remark-gfm": "^4.0.1",
-		"sharp": "^0.35.0",
+		"sharp": "^0.35.4",
 		"shiki": "^3.23.0",
 		"tailwindcss": "^4.1.15",
 		"unist-util-visit": "^5.0.0",
@@ -75,13 +77,21 @@
 	"overrides": {
 		"picomatch": "^2.3.2",
 		"esbuild": "^0.28.1",
-		"svgo": "^4.0.2",
-		"sharp": "^0.35.0",
+		"svgo": "^4.1.0",
+		"sharp": "^0.35.4",
 		"postcss": "^8.5.18",
 		"astro": {
-			"js-yaml": "^4.3.0"
+			"js-yaml": "^4.3.2"
 		},
-		"brace-expansion": "^2.1.2"
+		"brace-expansion": "^2.1.2",
+		"browserslist": "^4.28.7",
+		"smol-toml": "^1.7.1",
+		"baseline-browser-mapping": "^2.11.0",
+		"devalue": "^5.9.2",
+		"undici": "^8.10.2",
+		"gray-matter": {
+			"js-yaml": "^3.15.2"
+		}
 	},
 	"packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

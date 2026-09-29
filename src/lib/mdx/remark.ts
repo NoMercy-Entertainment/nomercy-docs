@@ -8,6 +8,7 @@ import { remarkRowCol } from './remark-row-col';
 import { remarkProperties } from './remark-properties';
 import { remarkCodeGroup } from './remark-code-group';
 import { remarkSnippet } from './remark-snippet';
+import { remarkDirectiveFallback } from './remark-directive-fallback';
 import { remarkIconCards } from './remark-icon-cards';
 import { remarkHero } from './remark-hero';
 import { remarkCallout } from './remark-callout';
@@ -36,6 +37,7 @@ function remarkExtractCodeTitle() {
 export const remarkPlugins = [
   mdxAnnotations.remark,
   remarkDirective, // parse :::name{attrs} directive syntax (consumed by remarkSnippet)
+  remarkDirectiveFallback, // every directive except snippet back to its source text, so ::Name blocks and "4:3" survive
   remarkButton, // transform ::button {{ ... }} to Button
   remarkProperties, // transform ::properties / ::property to Properties/Property
   remarkCodeGroup, // transform ::code-group to CodeGroup

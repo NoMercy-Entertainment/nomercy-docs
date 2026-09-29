@@ -85,7 +85,7 @@ Method conventions mirror the player class itself:
 | Backend | `key kind` | Signal path | Use for |
 |---|---|---|---|
 | `cls AudioElementBackend` | `str audio-element` | Plain `cls HTMLAudioElement`. Lazily creates a `cls MediaElementAudioSourceNode` only the first time a plugin requests the analyser graph, so a consumer without an equalizer or spectrum plugin pays zero Web Audio cost. | The default, the safe fallback for environments where Web Audio is restricted or undesired. |
-| `cls WebAudioBackend` | `str webaudio` | `<audio>` → `cls MediaElementAudioSourceNode` → `cls AnalyserNode` → destination, routed through a real `cls AudioContext`. When `cls AudioContext` is unavailable, it throws `cls BrowserPolicyError` immediately at construction. It never silently degrades to a no-op graph. | Sample-accurate crossfades, or when a plugin needs full Web Audio graph access. |
+| `cls WebAudioBackend` | `str webaudio` | `el audio` → `cls MediaElementAudioSourceNode` → `cls AnalyserNode` → destination, routed through a real `cls AudioContext`. When `cls AudioContext` is unavailable, it throws `cls BrowserPolicyError` immediately at construction. It never silently degrades to a no-op graph. | Sample-accurate crossfades, or when a plugin needs full Web Audio graph access. |
 
 Pick one at `fn setup` with `key backend`, or swap at runtime:
 
@@ -125,7 +125,7 @@ Precision differs by backend.
 
 ## Auth on manifest and segment requests
 
-On an HLS audio stream, hls.js makes its own manifest and segment requests. `fn setAuthHeaderProvider` is how `Authorization: Bearer <token>` reaches those requests, not just the kit's `fn fetch` calls.
+On an HLS audio stream, hls.js makes its own manifest and segment requests. `fn setAuthHeaderProvider` is how `authorization: Bearer <token>` reaches those requests, not just the kit's `fn fetch` calls.
 
 The player wires the provider onto every backend it builds, reading the `key auth` block of your setup config. It resolves the bearer value on each request rather than capturing it once, so a getter backed by a store stays live.
 

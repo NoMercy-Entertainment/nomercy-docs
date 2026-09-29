@@ -18,19 +18,19 @@ You pass `key url`, an optional `cls AuthConfig`, and a required `key signal`.
 You own the `AbortController`.
 
 Media requests are a separate choice.
-Set `key mediaAuthorization` when a media URL should send an `Authorization` value.
+Set `key mediaAuthorization` when a media URL should send an `key authorization` value.
 Leave it unset and those requests send no token.
 
-## What `fn authFetch` applies
+## What authFetch applies
 
 `fn authFetch` builds one `Request` per attempt, then runs a bounded retry loop.
 Fields on `cls AuthConfig` are optional.
-When `key auth` is omitted, or `key bearerToken` is unset, no `Authorization` header is added.
+When `key auth` is omitted, or `key bearerToken` is unset, no `key authorization` header is added.
 
 When those fields are present, the order is fixed.
 
 1. `key transformUrl` rewrites the URL when supplied.
-2. `Authorization: Bearer <token>` is set only when `key bearerToken` resolves to a non-empty string.
+2. `authorization: Bearer <token>` is set only when `key bearerToken` resolves to a non-empty string.
 3. `key headers` merge in; per-call `key headers` win on collision.
 4. `key signRequest` runs last when supplied.
 
@@ -38,12 +38,22 @@ When those fields are present, the order is fixed.
 
 Each failure class has its own path.
 
-| Failure | What happens |
-| --- | --- |
-| 401 | Calls `key refreshOnUnauthenticated` once when that hook is set and `key retryAfterRefresh` is not `0`, then retries without consuming a retry slot. |
-| 403 | Throws `str core:auth/forbidden`, with no refresh and no retry. |
-| Other 4xx | Throws the matching `str core:network/*` code, with no retry. |
-| 5xx, network, timeout | Retries per the call's `cls RetryConfig`. The default is `{ attempts: 0 }`. |
+| Failure | What happens | Code |
+| --- | --- | --- |
+| 401 | Calls `key refreshOnUnauthenticated` once when that hook is set and `key retryAfterRefresh` is not `0`, then retries without consuming a retry slot. A hook that throws ends the call. A second 401 throws. | `str core:auth/refresh-failed` when the hook throws, `str core:auth/unauthenticated` when no refresh is left |
+| 403 | Throws at once, with no refresh and no retry. | `str core:auth/forbidden` |
+| 404 | Throws, with no retry. | `str core:network/not-found` |
+| 408 | Throws, with no retry. | `str core:network/request-timeout` |
+| 410 | Throws, with no retry. | `str core:network/gone` |
+| 429 | Throws, with no retry. | `str core:network/rate-limited` |
+| Other 4xx | Throws, with no retry. | `str core:network/client-error` |
+| 500 | Retries per the call's `cls RetryConfig`, then throws. The default is `{ attempts: 0 }`. | `str core:network/server-error` |
+| 502 | Retries, then throws. | `str core:network/bad-gateway` |
+| 503 | Retries, then throws. | `str core:network/service-unavailable` |
+| 504 | Retries, then throws. | `str core:network/gateway-timeout` |
+| Other 5xx | Retries, then throws. | `str core:network/server-error-other` |
+| No response within `key timeoutMs` | Retries, then throws. | `str core:network/timeout` |
+| Network failure | Retries, then throws. | `str core:network/offline` |
 
 Configure live player auth with `fn auth` on the composed player from [Compose the Methods](/nomercy-player-core/build/compose-methods).
 `fn auth()` returns a redacted snapshot with `key bearerToken` stripped.
@@ -60,7 +70,7 @@ The host in the sample stands for your own backend.
 
 | `key responseType` | Resolves to |
 | --- | --- |
-| `str text` (default) | The response string, or whatever `key parser` returns from that string. |
+| `str text` (default) | The response body as a string. With `key parser` set, the value `key parser` returns for it. |
 | `str json` | `response.json()` cast to `T`. |
 | `str arrayBuffer` | `response.arrayBuffer()`. |
 

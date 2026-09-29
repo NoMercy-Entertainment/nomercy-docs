@@ -89,7 +89,7 @@ function paint(timeSeconds: number): void {
 }
 ```
 
-## Where `previewSpriteUrl` comes from
+## Where previewSpriteUrl comes from
 
 Set it on the item directly, and the field is used as it stands. An item that arrives in the server wire format gets it filled at queue ingest instead, from the `key tracks` entry whose `key kind` is `str thumbnails`. Both shapes end up in the same field.
 
@@ -102,7 +102,7 @@ The field holds whatever you put in it, and `cls VttSpriteThumbnailSource` fetch
 - `fn load` answers `false` and never rejects. A missing `key previewSpriteUrl`, a response the server does not answer with a success status, and a manifest whose cues carry no `#xywh` fragment all take that branch.
 - The parser keeps only cues carrying that fragment. A manifest of one standalone image per cue produces no frames, so a source of full-size stills is a custom implementation rather than a differently written manifest.
 - The default caches one item at a time, and `fn load` clears the previous set before it starts. Call it again on every item change.
-- The fetch is a plain `fn fetch` with no `str Authorization` header and no URL resolver behind it. Against a server that requires a credential, implement the port over your own fetch instead.
+- The fetch is a plain `fn fetch` with no `key authorization` header and no URL resolver behind it. Against a server that requires a credential, implement the port over your own fetch instead.
 - `cls DesktopUiPlugin` runs its own sprite path, through the plugin's authenticated fetch, and paints into its own bubble. Its preview and this port are independent, so register the plugin and you already have the feature. See [Plugin: Desktop UI](/nomercy-video-player/plugins-adapters/desktop-ui).
 
 ## How to extend it

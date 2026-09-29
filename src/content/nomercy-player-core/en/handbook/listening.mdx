@@ -15,19 +15,15 @@ This page is the plugin surface: `fn listen`, plus the two-form helpers that reg
 
 ## DOM events
 
-`fn listen` is the drop-in for `addEventListener` on an `cls EventTarget`.
+`fn listen` is the drop-in for `fn addEventListener` on an `cls EventTarget`.
 It records the target, event name, handler, and options.
 Dispose removes each listener with those same options.
 After dispose, further `fn listen` calls do nothing.
 
-```ts
-this.listen(document, 'visibilitychange', () => {
-	if (document.hidden)
-		this.logger.debug('tab hidden');
-});
-```
+:::snippet{file="core-handbook-listening" lines="63-66" live="false"}
+:::
 
-A raw `addEventListener` is not in that registry.
+A raw `fn addEventListener` is not in that registry.
 Dispose will not remove it for you.
 
 ## Player and other plugins
@@ -39,21 +35,18 @@ That resolves to `plugin:<id>:<event>` on the player bus.
 
 | Form | What it wires |
 | --- | --- |
-| `on` / `once` | Player string, or other plugin by class |
-| `off` | Same forms, early detach |
-| `hasListeners` | Same forms, pure read |
+| `fn on` / `fn once` | Player string, or other plugin by class |
+| `fn off` | Same forms, early detach |
+| `fn hasListeners` | Same forms, pure read |
 
 Both `fn on` and `fn once` call the player bus, then record cleanup that runs `fn off` on dispose.
 You do not unsubscribe by hand unless you want to stop early.
 If `fn once` never fires, dispose still clears it.
 
-```ts
-this.on('item', ({ item, index }) => highlightRow(index));
-this.on(BeatPlugin, 'beat', ({ at }) => pulse(at));
-this.once('play', () => this.logger.info('first play'));
-```
+:::snippet{file="core-handbook-listening" lines="51-61" live="false"}
+:::
 
-Do not call `this.player.on` from a plugin.
+Do not call `fn this.player.on` from a plugin.
 That skips the cleanup registration.
 
 ## Stop early
@@ -63,17 +56,17 @@ Pass the same function reference you subscribed with.
 Most plugins never call it.
 Dispose already removes what these helpers registered.
 
+:::snippet{file="core-handbook-listening" lines="46-50,68-70" live="false"}
+:::
+
 ## Check before you work
 
 `fn hasListeners` reports whether any named listener is present.
 Use it when building a payload costs something.
 Skip the work when nobody subscribed.
 
-```ts
-if (!this.hasListeners(BeatPlugin, 'beat'))
-	return;
-this.emit('beat', { at: Date.now() });
-```
+:::snippet{file="core-handbook-listening" lines="32-34" live="false"}
+:::
 
 ## Priority order
 
@@ -83,7 +76,7 @@ Ties keep registration order.
 That list order does not reorder handlers on one bus event.
 Handlers still run in subscription order.
 
-:::snippet{file="core-handbook-listening" live="false"}
+:::snippet{file="core-handbook-listening" lines="39-40,44,71,133" live="false"}
 :::
 
 ## Next

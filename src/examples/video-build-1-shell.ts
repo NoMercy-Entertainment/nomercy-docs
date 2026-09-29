@@ -114,12 +114,12 @@ const config: VideoPlayerConfig = {
 	baseUrl: FILMS_BASE,
 	baseImageUrl: 'https://image.tmdb.org/t/p',
 	muted: true,
-	// The bars key off `.active` / `.paused`, so a permanently paused clip
-	// pins them open and the fade this step teaches never happens. Muted
-	// autoplay is allowed by every browser and is what makes the contract
-	// visible.
-	autoPlay: true,
-	controls: false,
+	// The bars key off `.active` / `.paused`, so a paused clip pins them open
+	// and the fade this step teaches only shows while it plays. Step 2 builds
+	// the play button; until then the browser's own bar starts and stops it.
+	// No autoplay: a demo never plays without a way to stop it.
+	autoPlay: false,
+	controls: true,
 	playlist: [bigBuckBunnyItem],
 };
 

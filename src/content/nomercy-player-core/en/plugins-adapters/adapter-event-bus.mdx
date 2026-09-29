@@ -11,7 +11,7 @@ draft: false
 
 Use `cls IEventBus` when you want to type a helper that can listen to any player or plugin.
 `fn on` and `fn emit` are that surface.
-There is no `key eventBus` option in `setup`.
+There is no `key eventBus` option in `fn setup`.
 You do not pass a replacement bus in.
 You listen on the player you already have.
 
@@ -21,7 +21,7 @@ import type { IEventBus } from '@nomercy-entertainment/nomercy-player-core/adapt
 ```
 
 `cls EventEmitter` is the implementation you construct when you need a bus of your own.
-Import it from `@nomercy-entertainment/nomercy-player-core`, or from the `adapters/event-bus` path.
+Import it from `@nomercy-entertainment/nomercy-player-core`, or from the `str adapters/event-bus` path.
 `cls IEventBus` is only on that second path.
 
 ## Built-in adapter
@@ -37,7 +37,7 @@ These three behaviors are on the class and not on `cls IEventBus`.
 
 A throwing handler does not stop the rest of the dispatch.
 `fn emit` snapshots listeners before iterating.
-Registering the same function twice for one event registers it once.
+`fn on` with a function it already holds for that event adds nothing: the handlers for one event are a set.
 
 `fn once` stores a wrapper so `fn off` with your original function still removes it.
 `fn listenerCount` is the total across every event, including firehose listeners.
@@ -80,7 +80,7 @@ Dynamic names such as `str plugin:<id>:<event>` type-check through that overload
 ## Custom implementation
 
 Implement `cls IEventBus` when a test needs a fake, or when you want to forward events somewhere else.
-You still cannot pass that object into `setup`.
+You still cannot pass that object into `fn setup`.
 
 ```ts
 import type { IEventBus } from '@nomercy-entertainment/nomercy-player-core/adapters/event-bus';

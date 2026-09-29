@@ -103,6 +103,17 @@ Code examples must use real, resolvable media — never invented hosts. See the 
 - `api.example.com`, `license.example.com`, `wss://…`, `yoursite.com` are legitimate "your own backend" placeholders — leave them. `protected.cdn.your-domain.com` is the one allowed media placeholder, for auth examples.
 - Banned: `cdn.example.com/<media>`, `media.nomercy.tv`, TV-show paths like `/foundation/…` (the catalogue has no TV shows).
 
+## Examples show only what the section explains
+
+Stoney's rule (2026-09-29). An example teaches the thing the text above it explains, in the context where it is used. Nothing else.
+
+- **Truncate, from the real example file.** Never hand-write the block. Show the lines the section is about with `:::snippet{file="x" lines="12-18,40-42" live="false"}`: only those line ranges of `src/examples/x.ts` render, and each gap between ranges shows as `// ...`. The example file stays one compiled program. After adding or changing a range, run `npm run snippets:lock` and read the first and last line it prints for every range. If an edit to an example file moves a range, the build fails with the page and range; fix the numbers and lock again.
+- **No scaffolding.** Core pages never build a player class to host the lesson. Core has no media backend of its own; a plugin lives on whatever player the reader already has.
+- **Data only when it is the subject.** Show a playlist, subtitles, chapters or artwork only when the section talks about them. Everywhere else a playlist is `// ...` or one short item.
+- **Complete, copy-paste-ready programs belong on the tutorial and recipe pages** (the `build/` series, the quickstarts and `recipes/`): a reader applies those straight away, so the code must run as pasted. Handbook, tour and reference pages do not end with a full program. The real-media rule above applies to those complete programs.
+- **No autoplay without a way to stop it** (Stoney, 2026-09-29). An example never starts playback on load (`autoPlay: true`, or `item(..., { autoplay: true })` in `onReady`) unless the reader can start and stop it: `controls: true` or its own play/pause. `scripts/check-autoplay.mjs` enforces this inside `check:examples`.
+- The `src/examples/*.ts` files stay as compiled checks (`check:examples`) even when a page no longer renders them.
+
 ## Accuracy
 
 Documented symbols, methods, options, events, and import paths must match the real package source in `packages/player-web/nomercy-player-core/`, `packages/player-web/nomercy-video-player/`, `packages/player-web/nomercy-music-player/`. `check:examples` and `check:doc-imports` enforce the mechanically checkable part of this rule. If a doc disagrees with the code, fix the doc to match the code — never add a "known broken / not implemented" disclaimer. If the doc reveals an actual code bug, report it; don't paper over it.

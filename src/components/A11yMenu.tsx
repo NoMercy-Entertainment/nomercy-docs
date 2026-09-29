@@ -1,10 +1,13 @@
 'use client';
 
-import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import { CloseButton, Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 
-// Reading settings, owned the same way ThemeToggle owns `theme`: each Astro
+import { t } from '../lib/i18n';
+import { readAloudSupported, useReadAloud } from './ReadAloud';
+
+// Reading settings, light and dark included: each Astro
 // island is its own React root, so a provider in one never reaches a button in
 // another. Every setting is one attribute on <html> plus one localStorage key,
 // and the no-flash script in MarkdownLayout applies them before first paint.
@@ -16,6 +19,23 @@ const FONTS: Option[] = [
   { value: 'hyperlegible', label: 'Hyperlegible', hint: 'Letters shaped to be told apart' },
   { value: 'lexend', label: 'Lexend', hint: 'Wider spacing, reduced crowding' },
   { value: 'mono', label: 'Monospace', hint: 'Even letter widths throughout' },
+];
+
+const TEXT_SIZES: Option[] = [
+  { value: 'default', label: '100%', hint: 'The site default' },
+  { value: 'large', label: '112%', hint: 'One step larger' },
+  { value: 'larger', label: '125%', hint: 'Two steps larger' },
+  { value: 'largest', label: '150%', hint: 'Half again as large' },
+];
+
+const SPACINGS: Option[] = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'wide', label: 'Wide', hint: 'More room between letters, words, lines and paragraphs' },
+];
+
+const WIDTHS: Option[] = [
+  { value: 'full', label: 'Full' },
+  { value: 'narrow', label: 'Narrow', hint: 'Shorter lines, easier to follow to the next one' },
 ];
 
 const THEMES: Option[] = [
@@ -78,7 +98,10 @@ function Group({
       <legend className="block px-1.5 pt-3.5 pb-2 text-[11px]/4 font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
         {label}
       </legend>
-      <div className={clsx('gap-0.5', row ? 'grid grid-cols-3' : 'flex flex-col')}>
+      <div
+        className={clsx('gap-0.5', row ? 'grid' : 'flex flex-col')}
+        style={row ? { gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` } : undefined}
+      >
         {options.map(option => (
           <button
             key={option.value}
@@ -130,10 +153,14 @@ function Toggle({
             on ? 'bg-(--color-accent)' : 'bg-zinc-300 dark:bg-zinc-600',
           )}
         >
+          {/* The dark theme's accent is a pale mint, and a white knob on it
+              all but vanished, so the "on" state was hard to read. On that
+              track the knob turns dark; on the light theme's deep green it
+              stays white. */}
           <span
             className={clsx(
-              'block h-4 w-4 rounded-full bg-white transition',
-              on && 'translate-x-4',
+              'block h-4 w-4 rounded-full bg-white shadow-sm transition',
+              on && 'translate-x-4 dark:bg-zinc-900',
             )}
           />
         </span>
@@ -158,6 +185,31 @@ function useScrollLock(locked: boolean): void {
   }, [locked]);
 }
 
+function ReadAloudStart() {
+  const start = useReadAloud(s => s.start);
+  return (
+    <div className="px-2 py-2.5">
+      <CloseButton
+        type="button"
+        title={t('readAloud.hint')}
+        onClick={start}
+        className="flex w-full items-center gap-2.5 rounded-md px-1.5 py-1 text-left text-sm/5 text-zinc-700 transition hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-white/5"
+      >
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-5 w-5 shrink-0">
+          <path
+            d="M3.5 8v4h3l4 3.5v-11L6.5 8zM13.5 7.5a3.5 3.5 0 0 1 0 5M15.5 5a7 7 0 0 1 0 10"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        {t('readAloud.start')}
+      </CloseButton>
+    </div>
+  );
+}
+
 function Panel({ open, children }: { open: boolean; children: React.ReactNode }) {
   useScrollLock(open);
   return (
@@ -176,12 +228,20 @@ export function A11yMenu() {
   const [theme, setTheme] = useState('system');
   const [syntax, setSyntax] = useState('vitesse');
   const [inline, setInline] = useState(true);
+  const [wrap, setWrap] = useState(false);
+  const [size, setSize] = useState('default');
+  const [spacing, setSpacing] = useState('normal');
+  const [width, setWidth] = useState('full');
 
   useEffect(() => {
+    setSize(read('text-size', 'default'));
+    setSpacing(read('text-spacing', 'normal'));
+    setWidth(read('reading-width', 'full'));
     setFont(read('reading-font', 'system'));
     setTheme(read('theme', 'system'));
     setSyntax(read('syntax-theme', 'vitesse'));
     setInline(read('inline-syntax', 'on') !== 'off');
+    setWrap(read('code-wrap', 'off') === 'on');
     setMounted(true);
   }, []);
 
@@ -220,11 +280,33 @@ export function A11yMenu() {
       <Panel open={open}>
         {mounted && (
           <>
+            {readAloudSupported() && <ReadAloudStart />}
             <Group
-              label="Text"
+              label="Text size"
+              options={TEXT_SIZES}
+              row
+              value={size}
+              onChange={next => set('text-size', 'data-text-size', next, setSize)}
+            />
+            <Group
+              label="Font"
               options={FONTS}
               value={font}
               onChange={next => set('reading-font', 'data-font', next, setFont)}
+            />
+            <Group
+              label="Spacing"
+              options={SPACINGS}
+              row
+              value={spacing}
+              onChange={next => set('text-spacing', 'data-spacing', next, setSpacing)}
+            />
+            <Group
+              label="Reading width"
+              options={WIDTHS}
+              row
+              value={width}
+              onChange={next => set('reading-width', 'data-reading-width', next, setWidth)}
             />
             <Group
               label="Appearance"
@@ -251,6 +333,17 @@ export function A11yMenu() {
                 const value = next ? 'on' : 'off';
                 document.documentElement.setAttribute('data-inline-syntax', value);
                 write('inline-syntax', value);
+              }}
+            />
+            <Toggle
+              label="Wrap long code lines"
+              hint="Off keeps each line whole and scrolls sideways"
+              on={wrap}
+              onChange={(next) => {
+                setWrap(next);
+                const value = next ? 'on' : 'off';
+                document.documentElement.setAttribute('data-code-wrap', value);
+                write('code-wrap', value);
               }}
             />
           </>

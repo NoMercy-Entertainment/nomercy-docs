@@ -6,7 +6,7 @@
 //  SPDX-License-Identifier: Apache-2.0
 // -----------------------------------------------------------------------------
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { format as prettierFormat } from 'prettier';
@@ -37,8 +37,8 @@ type SnippetLang = 'ts' | 'tsx' | 'kotlin' | 'swift';
  * :::
  *
  * Reads `src/examples/<file>.ts` at build time and replaces the directive
- * with a fenced `ts` code block holding that file's exact source, followed
- * by a live `<PlayerExample>` island bound to the same file. The rendered
+ * with a live `<PlayerExample>` island bound to the same file, followed by
+ * a fenced `ts` code block holding that file's exact source. The rendered
  * code block and the mounted player both come from the same tested source
  * file, so the docs can never drift from working code — a rename or
  * deletion of the example file fails the build instead of silently going
@@ -491,6 +491,90 @@ async function toDisplaySource(source: string, runnable: boolean, lang: SnippetL
   return `${body}\n\n${out.slice(cut + MOUNT_SEP.length)}`;
 }
 
+// A page section shows the lines it explains, not the whole example file.
+// `:::snippet{file="x" lines="12-18,40-42"}` shows only those 1-based,
+// inclusive line ranges of the example file; each gap between two ranges
+// shows as one `// ...` line. The file stays one real program that
+// `check:examples` compiles, with nothing added to it for the docs.
+//
+// Line numbers move when the example file is edited, and a moved range would
+// quietly show the wrong code. `snippet-ranges.lock.json` records the first and
+// last line of every range; a range whose lines no longer match fails the
+// build. After checking that the page shows the right lines, refresh the
+// lock with `npm run snippets:lock`.
+export const RANGES_LOCK_PATH = path.join(examplesDir, 'snippet-ranges.lock.json');
+
+type RangeLock = Record<string, { first: string; last: string }>;
+
+let rangesLockCache: { mtime: number; lock: RangeLock } | null = null;
+
+// Re-read when the file changes: the dev server lives across a
+// `snippets:lock` run and must see the refreshed ranges.
+function rangesLock(): RangeLock {
+  if (!existsSync(RANGES_LOCK_PATH)) return {};
+  const mtime = statSync(RANGES_LOCK_PATH).mtimeMs;
+  if (rangesLockCache?.mtime !== mtime) {
+    rangesLockCache = { mtime, lock: JSON.parse(readFileSync(RANGES_LOCK_PATH, 'utf8')) as RangeLock };
+  }
+  return rangesLockCache.lock;
+}
+
+export function parseRanges(spec: string, file: string): [number, number][] {
+  return spec.split(',').map((part) => {
+    const m = /^\s*(\d+)\s*(?:-\s*(\d+))?\s*$/.exec(part);
+    if (!m) throw new Error(`:::snippet{file="${file}" lines="${spec}"} — "${part}" is not a line or a range like 12-18.`);
+    const start = Number(m[1]);
+    const end = Number(m[2] ?? m[1]);
+    if (end < start) throw new Error(`:::snippet{file="${file}" lines="${spec}"} — range ${part} ends before it starts.`);
+    return [start, end];
+  });
+}
+
+export function rangeKey(file: string, [start, end]: [number, number]): string {
+  return `${file}:${start}-${end}`;
+}
+
+function extractLines(source: string, spec: string, file: string): string {
+  const lines = source.split('\n');
+  const ranges = parseRanges(spec, file);
+  const lock = rangesLock();
+  const out: string[] = [];
+  ranges.forEach(([start, end], i) => {
+    if (end > lines.length) {
+      throw new Error(`:::snippet{file="${file}" lines="${spec}"} — line ${end} is past the end of the file (${lines.length} lines).`);
+    }
+    const key = rangeKey(file, [start, end]);
+    const locked = lock[key];
+    const first = lines[start - 1]!.trim();
+    const last = lines[end - 1]!.trim();
+    // A range that starts or ends on an empty line is almost always a
+    // mis-counted number; the lock would only record the mistake.
+    if (!first || !last) {
+      throw new Error(`:::snippet range ${key} starts or ends on an empty line. Check the line numbers against the example file.`);
+    }
+    if (!locked) {
+      throw new Error(`:::snippet range ${key} is not in snippet-ranges.lock.json. Check the page shows the right lines, then run npm run snippets:lock.`);
+    }
+    if (locked.first !== first || locked.last !== last) {
+      throw new Error(
+        `:::snippet range ${key} moved: expected it to start with "${locked.first}" and end with "${locked.last}", ` +
+          `found "${first}" … "${last}". Fix the line numbers on the page, then run npm run snippets:lock.`,
+      );
+    }
+    if (i > 0) {
+      const gapFirst = lines.slice(ranges[i - 1]![1], start - 1).find((l) => l.trim()) ?? lines[start - 1]!;
+      out.push(`${/^\s*/.exec(gapFirst)![0]}// ...`);
+    }
+    out.push(...lines.slice(start - 1, end));
+  });
+  // One indent style on the page: tabs become two spaces (the repo's Prettier
+  // width), then the common indent goes so the snippet starts at column 0.
+  const joined = out.join('\n').replace(/^\t+/gm, (t) => '  '.repeat(t.length));
+  const indents = joined.split('\n').filter((l) => l.trim()).map((l) => /^ */.exec(l)![0].length);
+  const cut = Math.min(...indents);
+  return joined.split('\n').map((l) => l.slice(cut)).join('\n');
+}
+
 interface PendingSnippet {
   parent: any;
   index: number;
@@ -498,6 +582,7 @@ interface PendingSnippet {
   resolved: { path: string; lang: SnippetLang };
   live: boolean;
   runnable: boolean;
+  lines?: string;
 }
 
 export function remarkSnippet() {
@@ -532,14 +617,24 @@ export function remarkSnippet() {
         // media backend. `:::snippet{file="..." runnable="false"}` opts a
         // directive out for the rare case raw source is the point.
         const runnable = node.attributes?.runnable !== 'false';
-        pending.push({ parent, index, file, resolved: resolveExampleFile(file), live, runnable });
+        const lines: string | undefined = node.attributes?.lines || undefined;
+        pending.push({ parent, index, file, resolved: resolveExampleFile(file), live, runnable, lines });
       },
     );
 
     const replacements: { parent: any; index: number; nodes: any[] }[] = [];
 
-    for (const { parent, index, file, resolved, live, runnable } of pending) {
+    for (const { parent, index, file, resolved, live, runnable, lines } of pending) {
       const source = readFileSync(resolved.path, 'utf8');
+
+      // A line range is a fragment of a program: no media inlining, no
+      // Prettier (it cannot parse class members on their own), no live island.
+      if (lines) {
+        const codeNode: any = { type: 'code', lang: resolved.lang, value: extractLines(source, lines, file) };
+        replacements.push({ parent, index, nodes: [codeNode] });
+        continue;
+      }
+
       const codeValue = await toDisplaySource(source, runnable, resolved.lang);
 
       const codeNode: any = { type: 'code', lang: resolved.lang, value: codeValue };
@@ -562,10 +657,11 @@ export function remarkSnippet() {
         children: [],
       };
 
-      // Code, then the player. A reader meets the program before its result,
-      // so the running picture below is the answer to something already read
-      // rather than a demo the code underneath has to be matched back to.
-      replacements.push({ parent, index, nodes: [codeNode, playerElement] });
+      // The player, then the code. The steps above already taught each part;
+      // the reader wants the result straight under the heading, and the
+      // complete program below it to copy. Code first pushed the player to
+      // the bottom of a long listing (Stoney, 2026-09-29).
+      replacements.push({ parent, index, nodes: [playerElement, codeNode] });
     }
 
     // Apply in reverse order so earlier indices stay valid.

@@ -9,7 +9,7 @@ description: 'IUrlResolver turns a raw URL into a ResolvedUrl for a consumer tha
 
 `cls IUrlResolver` turns a raw URL into one that carries its own credentials.
 
-Reach for it wherever the fetch pipeline cannot help you. Four consumers send the request themselves and accept no `Authorization` header: a `<video>.src`, a Cast receiver, a Worker, a CSS `url()`. A resolver moves the credential into the URL instead.
+Reach for it wherever the fetch pipeline cannot help you. Four consumers send the request themselves and accept no `key authorization` header: a `<video>.src`, a Cast receiver, a Worker, a CSS `url()`. A resolver moves the credential into the URL instead.
 
 [Recipe: Provide a Custom URL Resolver](/nomercy-player-core/recipes/custom-url-resolver) walks a signed-CDN example through from setup to a runtime swap. This page is the reference for the port itself.
 
@@ -55,7 +55,7 @@ The token is the part a resolver most often needs and the one part `key auth` do
 
 - The built-in resolve is `auth.transformUrl(url)`, then the base prefix for a URL still relative, then the parse. `key baseUrl` and `key baseImageUrl` are prefixes rather than URL bases, so a leading slash on the path keeps the base's own path segment.
 - A resolver that answers with anything but an object carrying a string `key href` is ignored, and the built-in answers instead. A resolver that throws is not caught, and the rejection reaches whoever called `fn resolveUrl`.
-- This port is for URLs handed to something that is not `fetch()`. When you make the request yourself, use [authFetch](/nomercy-player-core/recipes/auth-fetch), which sets the `Authorization` header rather than writing the credential into the URL.
+- This port is for URLs handed to something that is not `fetch()`. When you make the request yourself, use [authFetch](/nomercy-player-core/recipes/auth-fetch), which sets the `key authorization` header rather than writing the credential into the URL.
 
 ## How to extend it
 

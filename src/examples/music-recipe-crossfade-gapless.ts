@@ -25,6 +25,7 @@ import { MUSIC_BASE, songs } from './media';
 
 const config: MusicPlayerConfig = {
 	baseUrl: MUSIC_BASE,
+	controls: true,
 	playlist: songs,
 	crossfadeDefaults: { duration: 4, curve: 'equal-power' },
 };
@@ -90,8 +91,9 @@ function configure(player: IMusicPlayer): void {
 }
 
 function onReady(player: IMusicPlayer): void {
-	void player.mute();
-	player.item(0, { autoplay: true });
+	// Loaded, not started: the browser's bar (`controls: true`) plays and
+	// stops it, so the page never makes sound on its own.
+	void player.item(0, { autoplay: false });
 }
 
 export default { config, configure, onReady, player: 'music' as const };

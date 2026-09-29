@@ -20,12 +20,14 @@ There is no separate bus to create or pass into setup.
 Keep the same function reference so `fn off` can find it later.
 
 ```ts
-player.on('item', ({ item, index }) => highlightRow(index));
+const onItem = ({ index }) => highlightRow(index);
+
+player.on('item', onItem);
 player.once('item', ({ index }) => console.log(index));
 ```
 
-Registering the same function twice for one event registers it once.
-The second call is not a second subscription.
+`fn on` with a function it already holds for that event adds nothing.
+Calling `ts player.on('item', onItem)` a second time still runs `var onItem` once per emit.
 
 A typed name from the player's event map types the handler payload.
 A bare string also compiles, so names like `str plugin:<id>:<event>` stay callable.

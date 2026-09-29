@@ -112,6 +112,7 @@ export const bigBuckBunnyItem: VideoPlaylistItem = {
   image: '/w780/xtdybjRRZ15mCrPOvEld305myys.jpg',
   duration: 596,
   year: 2008,
+  previewSpriteUrl: '/Big.Buck.Bunny.(2008)/thumbs_320x178.vtt',
   // Real chapter marks from the fixture's own `chapters.vtt`, in seconds.
   chapters: [
     { index: 0, start: 0, end: 65, title: 'Opening' },

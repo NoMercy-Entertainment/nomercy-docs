@@ -13,8 +13,7 @@ import {
 import { A11yMenu } from './A11yMenu';
 import { PackageManagerMenu } from './PackageManagerMenu';
 import { MobileSearch, Search } from './Search';
-import { ThemeToggle } from './ThemeToggle';
-import { CloseButton } from '@headlessui/react';
+import { CloseButton, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
 
 // Navigation types
 interface NavLink {
@@ -60,12 +59,77 @@ function TopLevelNavItem({
           'text-sm/5 transition',
           isActive
             ? 'text-(--color-accent)'
-            : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
+            : 'text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white',
         )}
       >
         {children}
       </Link>
     </li>
+  );
+}
+
+function ChevronIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" {...props}>
+      <path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// The eight product links need about 480px. In a header under 90rem, next to
+// the logo, search and tools, they pushed the reading-settings button off the
+// screen (1024-1250px, and wider once the reader enlarges the text). There
+// they fold into one menu whose trigger names the current product.
+function ProductsMenu({ navigation, pathname }: { navigation: NavSection[]; pathname: string }) {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+
+  const isActive = (section: NavSection) => pathname.startsWith('/' + section.href.split('/')[1]);
+  const current = navigation.find(isActive);
+  const triggerClassName =
+    'flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-sm/5 whitespace-nowrap text-zinc-700 transition hover:bg-zinc-900/5 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/5 dark:hover:text-white';
+  const label = (
+    <>
+      {current?.title ?? 'Documentation'}
+      <ChevronIcon className="h-3.5 w-3.5" />
+    </>
+  );
+
+  // Static trigger until hydration, as in PackageManagerMenu: the anchored
+  // Menu's positioning hooks are client-only.
+  if (!mounted) {
+    return (
+      <button type="button" className={triggerClassName} aria-label="Documentation sections">
+        {label}
+      </button>
+    );
+  }
+
+  return (
+    <Menu as="div" className="relative">
+      <MenuButton className={triggerClassName} aria-label="Documentation sections">
+        {label}
+      </MenuButton>
+      <MenuItems
+        anchor="bottom end"
+        className="z-50 w-44 rounded-lg bg-white p-1 shadow-lg ring-1 ring-zinc-900/5 [--anchor-gap:0.5rem] focus:outline-none dark:bg-zinc-800 dark:ring-white/10"
+      >
+        {navigation.map((section) => (
+          <MenuItem key={section.href}>
+            <a
+              href={section.href}
+              aria-current={isActive(section) ? 'page' : undefined}
+              className={clsx(
+                'block rounded-md px-2 py-1.5 text-sm transition data-focus:bg-zinc-900/5 dark:data-focus:bg-white/5',
+                isActive(section) ? 'text-(--color-accent)' : 'text-zinc-700 dark:text-zinc-300',
+              )}
+            >
+              {section.title}
+            </a>
+          </MenuItem>
+        ))}
+      </MenuItems>
+    </Menu>
   );
 }
 
@@ -97,7 +161,7 @@ export const Header = forwardRef<
       ref={ref}
       className={clsx(
         className,
-        'fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between gap-8 px-4 transition sm:px-6 lg:gap-12 lg:px-8',
+        '@container fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between gap-8 px-4 transition sm:px-6 lg:gap-12 lg:px-8',
         !isInsideMobileNavigation && 'backdrop-blur-xs dark:backdrop-blur-sm',
         isInsideMobileNavigation
           ? 'bg-white dark:bg-zinc-900'
@@ -132,8 +196,15 @@ export const Header = forwardRef<
           <Logo className="h-6" />
         </CloseButton>
       </div>
-      <div className="flex items-center gap-5">
-        <nav aria-label="Product sections" className="hidden md:block">
+      <div className="flex shrink-0 items-center gap-5">
+        {/* A container query, not a 2xl media query: rem in a container
+            query follows the reader's text size, so at 150% the links wait
+            for a header 1.5 times as wide instead of pushing the reading
+            settings off the right edge. */}
+        <div className="hidden md:block @min-[90rem]:hidden">
+          <ProductsMenu navigation={navigation} pathname={pathname} />
+        </div>
+        <nav aria-label="Product sections" className="hidden @min-[90rem]:block">
           <ul role="list" className="flex items-center gap-5">
             {navigation.map((section) => (
               <TopLevelNavItem
@@ -151,7 +222,6 @@ export const Header = forwardRef<
           <MobileSearch />
           <PackageManagerMenu />
           <A11yMenu />
-          <ThemeToggle />
         </div>
       </div>
     </motion.header>
