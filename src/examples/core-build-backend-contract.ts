@@ -17,6 +17,7 @@
 
 import {
 	type AuthHeaderProvider,
+	type BackendState,
 	type BaseEventMap,
 	type BasePlayerConfig,
 	type MinimalBackendEventPayload,
@@ -32,7 +33,7 @@ import {
 } from '@nomercy-entertainment/nomercy-player-core';
 
 class ContractBackend extends MediaElementBackend<HTMLVideoElement, MinimalBackendEventPayload> {
-	private _backendState = BACKEND_STATE.IDLE;
+	private _backendState: BackendState = BACKEND_STATE.IDLE;
 
 	constructor(element: HTMLVideoElement) {
 		super(element, true, 'html5');

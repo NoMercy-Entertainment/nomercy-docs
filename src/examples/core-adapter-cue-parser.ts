@@ -64,10 +64,10 @@ console.log(registry.resolve('track.beats')?.id); // 'demo:beats'
 console.log(registry.resolve('song.lyrics.txt')?.id); // 'demo:plain-as-lrc'
 console.log(registry.resolve('captions.vtt')); // undefined
 
-const beatCues = registry.resolve('track.beats')!.parse('12.5 Drop\n24 Chorus\n');
+const beatCues = beats.parse('12.5 Drop\n24 Chorus\n');
 console.log(beatCues.cues.length); // 2
 console.log(beatCues.active(12.5)[0]?.payload.label); // 'Drop'
 
-const lyricCues = registry.resolve('song.lyrics.txt')!.parse('First line\nSecond line\n');
+const lyricCues = plainAsLrc.parse('First line\nSecond line\n');
 console.log(lyricCues.cues.length); // 2
 console.log(lyricCues.active(1)[0]?.payload.text); // 'First line'
