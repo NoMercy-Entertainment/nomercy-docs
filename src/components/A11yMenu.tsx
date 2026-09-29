@@ -1,8 +1,11 @@
 'use client';
 
-import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
+import { CloseButton, Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
+
+import { t } from '../lib/i18n';
+import { readAloudSupported, useReadAloud } from './ReadAloud';
 
 // Reading settings, light and dark included: each Astro
 // island is its own React root, so a provider in one never reaches a button in
@@ -182,6 +185,31 @@ function useScrollLock(locked: boolean): void {
   }, [locked]);
 }
 
+function ReadAloudStart() {
+  const start = useReadAloud(s => s.start);
+  return (
+    <div className="px-2 py-2.5">
+      <CloseButton
+        type="button"
+        title={t('readAloud.hint')}
+        onClick={start}
+        className="flex w-full items-center gap-2.5 rounded-md px-1.5 py-1 text-left text-sm/5 text-zinc-700 transition hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-white/5"
+      >
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-5 w-5 shrink-0">
+          <path
+            d="M3.5 8v4h3l4 3.5v-11L6.5 8zM13.5 7.5a3.5 3.5 0 0 1 0 5M15.5 5a7 7 0 0 1 0 10"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        {t('readAloud.start')}
+      </CloseButton>
+    </div>
+  );
+}
+
 function Panel({ open, children }: { open: boolean; children: React.ReactNode }) {
   useScrollLock(open);
   return (
@@ -252,6 +280,7 @@ export function A11yMenu() {
       <Panel open={open}>
         {mounted && (
           <>
+            {readAloudSupported() && <ReadAloudStart />}
             <Group
               label="Text size"
               options={TEXT_SIZES}

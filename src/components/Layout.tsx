@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { Footer } from './Footer';
 import { Header } from './Header';
 import { Navigation } from './Navigation';
+import { ReadAloudBar } from './ReadAloud';
 import { SectionProvider, type Section } from './SectionProvider';
 
 // Navigation types
@@ -88,6 +89,7 @@ export function Layout({
               </div>
               <main id="main-content" className="flex-auto">{children}</main>
               <Footer />
+              <ReadAloudBar />
             </div>
           </div>
         </SectionProvider>
@@ -127,6 +129,7 @@ export function Layout({
           <div className="relative flex h-full flex-col px-4 pt-14 sm:px-6 lg:px-8">
             <main id="main-content" className="flex-auto">{children}</main>
             <Footer />
+            <ReadAloudBar />
           </div>
         </div>
       </SectionProvider>
