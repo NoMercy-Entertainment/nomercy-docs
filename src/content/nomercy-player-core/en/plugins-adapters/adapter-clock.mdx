@@ -1,0 +1,72 @@
+---
+title: 'IClock'
+description: 'Type a wall clock with IClock, read systemClock for Date.now(), and pass clockSource into setup when time must be shared or fixed.'
+tags: [adapter, clock, player-core]
+draft: false
+---
+
+{/* Source: nomercy-player-core/src/adapters/clock/IClock.ts, src/adapters/clock/system.ts, src/adapters/clock/index.ts, src/types/config.ts, src/core/mixins/metrics.ts */}
+
+# IClock
+
+Use `cls IClock` when you need the current wall time as a Unix-epoch millisecond integer.
+[Adapters](/nomercy-player-core/tour/adapters) introduces that idea.
+This page is the catalog for the contract and the shipped default.
+
+`key clockSource` on `fn setup` is `() => number`.
+It is not an `cls IClock` object.
+Wrap your clock as `() => clock.now()`.
+
+```ts
+import type { IClock } from '@nomercy-entertainment/nomercy-player-core/adapters/clock';
+import { systemClock } from '@nomercy-entertainment/nomercy-player-core/adapters/clock';
+```
+
+## Built-in adapter
+
+`systemClock` is the shipped `cls IClock`.
+Its `fn now` calls `Date.now()`.
+
+| Export | Behavior |
+|---|---|
+| `systemClock` | `fn now` returns `Date.now()`. |
+
+The player does not construct or read `systemClock`.
+`fn now` on the player calls `key clockSource` when you set it.
+When you omit `key clockSource`, that method falls back to `Date.now()` itself.
+
+## Usage
+
+Read the default, or hand a custom millisecond source into `fn setup`.
+
+:::snippet{file="core-adapter-clock" live="false"}
+:::
+
+## Interface
+
+```ts
+interface IClock {
+	now(): number;
+}
+```
+
+## Custom implementation
+
+Implement `cls IClock` when a test must fix the time, or when sync needs one shared timeline.
+Pass the integer through `key clockSource` on `fn setup`.
+
+```ts
+import type { IClock } from '@nomercy-entertainment/nomercy-player-core/adapters/clock';
+
+const fixed: IClock = {
+	now: () => 1_700_000_000_000,
+};
+
+player.setup({
+	clockSource: () => fixed.now(),
+});
+```
+
+## See also
+
+- [Adapter: Cue Parser](/nomercy-player-core/plugins-adapters/adapter-cue-parser) is the next catalog entry after the clock.

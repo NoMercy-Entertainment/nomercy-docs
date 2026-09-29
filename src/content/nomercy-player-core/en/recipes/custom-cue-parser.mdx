@@ -1,31 +1,50 @@
 ---
 title: 'Recipe: Register a Custom Cue Parser'
-description: 'Wire an ICueParser into a real player via setup({ cueParsers }) alongside the built-in VTT/LRC/sprite-VTT parsers, then resolve it end to end.'
+description: 'Register an ICueParser on a player with cueParsers or registerCueParser, then resolve it by URL.'
+tags: [recipes, cue-parser, ICueParser]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/adapters/cue-parser/registry.ts, src/adapters/cue-parser/ICueParser.ts, src/core/mixins/cue-parser.ts */}
+{/* Source: nomercy-player-core/src/index.ts */}
 
 # Recipe: Register a Custom Cue Parser
 
-[Cue Parsers](/nomercy-player-core/tour/cue-parsers) demonstrated the `ICueParser` shape against a bare, empty `CueParserRegistry`, to show the extension point in isolation. This recipe is the same format wired into an actual player, alongside the built-ins a real player pre-seeds, not instead of them.
+Use this when your timed text is not one of the built-in formats.
+You write a parser, register it on the player, and resolve it by URL.
 
-## The task
+## Write the parser
 
-A media server sends chapter markers in a small proprietary text format instead of a WebVTT chapter track. `setup({ cueParsers: [...] })` registers the format for the whole player lifetime. `player.resolveCueParser(url)` proves the format resolves without disturbing `.vtt` resolution.
+Import `cls ICueParser` and `fn createCueList` from `@nomercy-entertainment/nomercy-player-core`.
+A parser needs three pieces.
 
-:::snippet{file="recipe-custom-cue-parser" live="false"}
+| Piece | Role |
+| --- | --- |
+| `key id` | Name used to unregister later |
+| `fn canParse` | Returns true when this format owns the URL |
+| `fn parse` | Turns raw text into a cue list |
+
+Returning true from `fn canParse` is a commitment.
+Nothing else is tried for that URL.
+
+## Register on the player
+
+Pass `key cueParsers` in `fn setup`.
+Player Core seeds its built-in parsers first, then yours.
+A later match wins when more than one `fn canParse` accepts the same URL.
+
+`fn registerCueParser` adds one after setup.
+Pass `prepend: true` to put it at the low-priority end.
+`fn unregisterCueParser` removes by `key id`.
+Re-registering the same `key id` replaces the old entry.
+
+## Prove the match
+
+`fn resolveCueParser` takes a URL and returns the winning parser, or `undefined`.
+Use it to confirm your format resolves without stealing a built-in extension you still need.
+
+:::snippet{file="core-recipes-custom-cue-parser" live="false"}
 :::
 
-## Registering later instead of at setup
+## Next
 
-Not every format is known upfront. `player.registerCueParser(parser, prepend?)` does the same registration at runtime, for a parser from a plugin bundle or one negotiated after the server responds.
-
-The registry resolves most-recently-registered first, so a plain call outranks everything already there, built-ins included.
-
-Pass `prepend: true` to register at the low-priority end instead. It then wins only when nothing else claims the URL.
-
-`unregisterCueParser(id)` reverses either path.
-
-## Next steps
-
-- [Recipe: Use authFetch](/nomercy-player-core/recipes/auth-fetch): the kit's auth-aware fetch pipeline, standalone, for data-layer code that isn't a plugin.
+[Provide a custom URL resolver](/nomercy-player-core/recipes/custom-url-resolver) is the next recipe.
