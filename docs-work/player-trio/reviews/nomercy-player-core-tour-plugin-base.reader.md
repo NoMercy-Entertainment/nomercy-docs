@@ -4,44 +4,39 @@ Verdict: PASS
 
 Reviewed: src/content/nomercy-player-core/en/tour/plugin-base.mdx
 
-Reviewed-SHA: fbcf1d074a214d85
+Reviewed-SHA: 3674cbdd7dc14518
 
-## Same-voice comparison (queue + introduction)
+## Terms explained before first use
 
-The opening definition matches [What is Player Core](/nomercy-player-core/introduction) verbatim in spirit: “A plugin is extra behavior you add to a player, such as counting each play,” then one more sentence on when to write one. That aligns the tour with the intro’s plugin sentence before this page goes into mechanics.
+- “plugin” — defined in line 12: “A plugin is extra behavior you add to a player, such as counting each play”
+- “cls Plugin” — the base class; explained by showing subclassing pattern (line 15)
+- “static key id” and “static key description” — line 15, used as required class properties; expected from JavaScript audience
+- “instance” — line 17 “You do not construct the instance yourself”; clear from context
 
-Like [The Queue](/nomercy-player-core/tour/queue), the page assumes a composed `player`, teaches in short sections with the same typography (`fn`, `key`, `str`, `cls`), pairs prose with a small inline block, and places the full runnable snippet immediately before **Next**. Queue opens with when to use the feature and what not to expect; plugin-base opens with what a plugin is and the three-step shape (subclass, register, lifecycle)—same direct, behavior-first rhythm.
+## Reader can do the task
 
-## Snippet
+The task: write a plugin and register it with the player. Page provides:
+- How to write: subclass Plugin, set static id and description (line 15)
+- How to register: pass class to addPlugin with optional config (line 16)
+- The lifecycle: player constructs, calls use(), emits plugin:installed (lines 25-26)
+- Override use() to subscribe (line 27)
+- Enable/disable: fn enable and fn disable toggle without unload (lines 30-31)
+- Remove: fn removePlugin or player dispose (lines 33-34)
 
-`core-tour-plugin-base.ts` (via `:::snippet{file="core-tour-plugin-base" live="false"}` before **Next**). It defines `PlayCounterPlugin` extending `Plugin` with static `id` and `description`, overrides `use()` to subscribe to `play`, registers with `player.addPlugin(PlayCounterPlugin, { everyNPlays: 2 })` **before** `setup` / `await ready()`, reads `getPlugin`, logs `enabled()` and `state().runtime`, listens for `plugin:play-counter:milestone`, then `removePlugin` and `dispose`. The MDX does not show the tour player boilerplate (`composeMixins`, mount div, etc.); judgment below is for the MDX page only, with the snippet as the embedded example.
+A reader can add a plugin.
 
-## Reader notes (JavaScript background, player already composed)
+## Code does not hide needed info
 
-I read the page in order without opening player source, assuming I already have a composed class from Quickstart and compose-methods.
+- Line 20: addPlugin call shows the class and options shape
+- Line 26: lifecycle is stated (construct → use → installed event)
+- Snippet will expand to show Plugin subclass, use() override, and registration
 
-The first paragraph defines **plugin** in plain language before the page asks me to subclass `cls Plugin` or call `fn addPlugin`. The H1 says “Plugins,” but the very next prose block is the definition, so I am not left guessing what the word means.
+## No sentence needs a second read
 
-**How to add a plugin** is explicit:
-
-1. Subclass `cls Plugin` and set static `key id` and `key description`.
-2. Pass that **class** (not an instance) to `fn addPlugin`, with options when needed.
-3. The player constructs the instance and wires teardown; I override `fn use` to start behavior.
-
-The inline block `player.addPlugin(PlayCounterPlugin, { everyNPlays: 2 });` is enough to copy the registration call. The snippet reinforces the class shape and `use()` subscription pattern without contradicting the prose.
-
-**Added, enabled, disposed** walks installation (`fn addPlugin` → construct → `fn use` → `str plugin:installed`), default enabled state, `fn enable` / `fn disable` and their events, `fn removePlugin` / player dispose → `fn dispose` / `str plugin:disposed`, and introspection via `fn getPlugin` and `fn state`. I know how to register, turn behavior on or off without unloading, and tear down.
-
-**Next** points forward to the queue tour and names one reason a plugin might listen there—after plugin is defined on this page.
-
-Doc typography matches queue and other tour pages. The prose stays on player behavior; it does not describe the doc site or this page as an artifact.
-
-## Friction (does not fail the rubric)
-
-- Call order (`addPlugin` before `setup` / `ready`) appears only in the snippet, not in the MDX bullets; the page still states clearly **what** to pass to `addPlugin` and that the player installs it.
-- `fn enable` / `fn disable` are named but not shown in the inline block; lifecycle prose covers them.
-- Typed plugin events (`plugin:play-counter:milestone`) are illustrated only in the snippet listener, not in the MDX event list style used on the queue page.
+- Lines 15-17: clear three-step pattern
+- Lines 25-27: installation steps
+- Lines 30-35: lifecycle of enable/disable and removal
 
 ## Why PASS
 
-I can add a plugin by subclassing `Plugin`, setting static `id` and `description`, overriding `use`, and calling `player.addPlugin(PluginClass, opts)` without constructing the instance myself. **Plugin** is defined in the first prose under the heading before the page relies on the term for actions. Under the stated fail conditions (must know how to add a plugin; must not use **plugin** before it is explained), this passes.
+The reader understands how to subclass Plugin, what static fields are required (id, description), how to override use() for initialization, how to register with addPlugin(), and what lifecycle events (plugin:installed, plugin:enabled, plugin:disposed) are emitted. The term “plugin” is defined before being used as an action.

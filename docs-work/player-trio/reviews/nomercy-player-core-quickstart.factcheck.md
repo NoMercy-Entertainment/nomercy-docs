@@ -1,11 +1,29 @@
 # Fact check: /nomercy-player-core/quickstart
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/quickstart.mdx
-Reviewed-SHA: 98dbd955d5a28b32
+Reviewed-SHA: 9d52cbdf5e8b9797
+
+Delta review since cc9b94c; the full review before it passed.
+
+Date: 2026-09-29. Source: nomercy-player-core `src` at `e3d2de5`. Method: `git diff cc9b94c -- src/content/nomercy-player-core/en/quickstart.mdx`; every added or changed line checked; the section around each hunk re-read. The pseudo-tags used (`fn`, `var`, `str`, `el`, `attr`, `key`, `cls`, inline `ts`) are all defined in `src/lib/mdx/rehype.ts:102-126` and `:184`.
+
+## Changed lines
+
+| Page line | Claim | Supported by | Status |
+| --- | --- | --- | --- |
+| 32, 39 | `var playerCoreMethods` is a value (const tuple) | `src/core/index.ts:103` `export const playerCoreMethods = [...] as const` | Supported |
+| 45, 47, 49 | `fn document.getElementById`, `el div` (tags only, wording unchanged) | unchanged claims, carried | Supported |
+
+## Findings
+
+None.
+
+## Carried from the full review at cc9b94c
+
 
 Source: `packages/player-web/nomercy-player-core/src` (`index.ts`, `core/compose.ts`, `core/constructor.ts`, `core/state.ts`, `core/index.ts`, `core/mixins/lifecycle.ts`, `adapters/event-bus/default.ts`). Example: `src/examples/core-quickstart.ts`. Cross-check: `nomercy-music-player/src/index.ts`, `nomercy-video-player/src/index.ts`. Method: read page, example, and source; recompute SHA; no site build. Em dash / en dash scan (U+2013, U+2014) over the page and example: none. Old library nickname: none on the page or in the example. `hls.js`: dependency of the core package (`package.json:228`), not a separate install on this page. Snippet: `live="false"` present.
 
-## Gate checks
+### Gate checks
 
 | Gate | Result |
 | --- | --- |
@@ -16,7 +34,7 @@ Source: `packages/player-web/nomercy-player-core/src` (`index.ts`, `core/compose
 | Example `dispose` typed `() => Promise<void>` | Pass (`core-quickstart.ts:44`; `lifecycle.ts:207`) |
 | Named APIs exported from package root | Pass (`index.ts:41`, `186-210`, `226`) |
 
-## Claim table
+### Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |

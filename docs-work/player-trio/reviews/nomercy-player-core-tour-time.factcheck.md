@@ -1,11 +1,30 @@
 # Fact check: /nomercy-player-core/tour/time
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/tour/time.mdx
-Reviewed-SHA: c80991f1bc2d180b
+Reviewed-SHA: 56c32d2cd7d7dee4
+
+Delta review since 2e9c15c; the full review before it passed.
+
+Date: 2026-09-29. Source: nomercy-player-core `src` at `e3d2de5`. Method: `git diff 2e9c15c -- src/content/nomercy-player-core/en/tour/time.mdx`; every added or changed line checked; the section around each hunk re-read. The pseudo-tags used (`fn`, `var`, `str`, `el`, `attr`, `key`, `cls`, inline `ts`) are all defined in `src/lib/mdx/rehype.ts:102-126` and `:184`.
+
+## Changed lines
+
+| Page line | Claim | Supported by | Status |
+| --- | --- | --- | --- |
+| 34 | `str item` names the event (tag only) | unchanged claim, carried | Supported |
+| 118 | Next: Volume page exists | `src/content/nomercy-player-core/en/tour/volume.mdx` (present) | Supported |
+| 118 | Volume is the 0 to 100 level, mute, and the curve that becomes gain | `src/core/mixins/volume.ts:114` clamps to 0..100; `src/core/volume-curve.ts:63-67` `perceptualGain` = position squared; volume page lines 12-13, 45-48 | Supported |
+
+## Findings
+
+None.
+
+## Carried from the full review at 2e9c15c
+
 
 Source: `packages/player-web/nomercy-player-core/src/core/mixins/time.ts`; cursor zeroing: `core/mixins/queue.ts`; `mediaReady`: `core/mixins/loading.ts`; `TimeState`: `types/playback.ts`. Example: `src/examples/core-tour-time.ts`. Method: read page, example, and those sources; SHA256 of page bytes, first 16 hex; no site browser gate. Em dash / en dash scan (U+2013, U+2014) over the page and example: none. Old library nickname (the old nickname): none on the page or in the example. British spelling: none (`canceled`, not `cancelled`). Snippet: `live="false"`. `key time` is stated outside the table as another name for `key position` (`TimeState.time` aliases `position`). Table lists five fields: `position`, `duration`, `buffered`, `remaining`, `percentage`.
 
-## Gate checks
+### Gate checks
 
 | Gate | Result |
 | --- | --- |
@@ -22,7 +41,7 @@ Source: `packages/player-web/nomercy-player-core/src/core/mixins/time.ts`; curso
 | Paragraph over 60 words | Pass (max prose paragraph 35) |
 | Table over 6 data rows | Pass (5 data rows) |
 
-## Claim table (prove against source)
+### Claim table (prove against source)
 
 | Claim | Supported by | Status |
 | --- | --- | --- |
@@ -41,7 +60,7 @@ Source: `packages/player-web/nomercy-player-core/src/core/mixins/time.ts`; curso
 | `itemEndingSoon` once per item; default threshold 10; payload `remaining` + `item` | `time.ts:242-264`; threshold `options?.itemEndingSoonThreshold ?? 10` | Supported |
 | `playbackRate` clamps to 0.25–2; `playbackRates` fixed `[0.5, 0.75, 1, 1.25, 1.5, 2]` | `time.ts:198-227` | Supported |
 
-## Example alignment
+### Example alignment
 
 - `core-tour-time.ts` uses `timeData()` → `snapshot.position`, `snapshot.percentage`.
 - `setup({ itemEndingSoonThreshold: 30 })`, `mediaReady` → `time()`/`duration()`, `seekByPercentage(50)`, `await time(10)`, `playbackRates()` list match the page.

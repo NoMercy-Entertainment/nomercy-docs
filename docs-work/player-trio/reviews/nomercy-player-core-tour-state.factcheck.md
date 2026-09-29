@@ -1,11 +1,29 @@
 # Fact check: /nomercy-player-core/tour/state
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/tour/state.mdx
-Reviewed-SHA: bb03d0e98d74c3aa
+Reviewed-SHA: 68fc6b409e87a926
+
+Delta review since 2e9c15c; the full review before it passed.
+
+Date: 2026-09-29. Source: nomercy-player-core `src` at `e3d2de5`. Method: `git diff 2e9c15c -- src/content/nomercy-player-core/en/tour/state.mdx`; every added or changed line checked; the section around each hunk re-read. The pseudo-tags used (`fn`, `var`, `str`, `el`, `attr`, `key`, `cls`, inline `ts`) are all defined in `src/lib/mdx/rehype.ts:102-126` and `:184`.
+
+## Changed lines
+
+| Page line | Claim | Supported by | Status |
+| --- | --- | --- | --- |
+| 93 | `fn preventDefault` is a method call (tag only) | unchanged claim, carried | Supported |
+| 108 | `str item` names the event (tag only) | unchanged claim, carried | Supported |
+
+## Findings
+
+None.
+
+## Carried from the full review at 2e9c15c
+
 
 Source: `packages/player-web/nomercy-player-core/src/core/mixins/player-state.ts`, `core/mixins/state-mutators.ts`, `core/state.ts`; cursor zeroing in `core/mixins/queue.ts`. Example: `src/examples/core-tour-state.ts`. Method: read page, example, and those sources; SHA256 of page bytes (first 16 hex); no site browser gate. Em dash / en dash scan (U+2013, U+2014) over the page and example: none. Old library nickname (the old nickname): none on the page or in the example. Snippet: `live="false"`.
 
-## Gate checks
+### Gate checks
 
 | Gate | Result |
 | --- | --- |
@@ -19,7 +37,7 @@ Source: `packages/player-web/nomercy-player-core/src/core/mixins/player-state.ts
 | Sentence ≤ 30 words; paragraph ≤ 60 words | Pass (max sentence 21; max paragraph 45) |
 | Table data rows ≤ 6 on page | Pass (4 data rows) |
 
-## Claim table
+### Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |

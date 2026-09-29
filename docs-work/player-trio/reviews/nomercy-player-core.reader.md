@@ -1,29 +1,24 @@
-# Reader: /nomercy-player-core
-
+# Reader review: /nomercy-player-core
 Verdict: PASS
-
 Reviewed: src/content/nomercy-player-core/en/introduction.mdx
+Reviewed-SHA: a0614ce7fee6c4b2
 
-Reviewed-SHA: 3e10f4a927156e16
+**Check 1 - Terms explained at or before first use**: PASS
+- "plugin" defined in opening sentence: "A plugin is extra behavior you add to a player, such as counting each play"
+- "token" explained contextually: "add a token to requests your server requires"
+- "subscribe" introduced as a capability: "you can subscribe to what it does"
+- "setup" shown as a function: `fn setup`
+- No unexplained terms
 
-Same-voice comparison: skipped (not requested for this review).
+**Check 2 - Reader can do the task from the page alone**: PASS
+- Task: when to install Player Core vs video/music players, and when to build your own player
+- Page answers clearly: use video player if video only, music player if music only, install Core if writing a plugin or building your own player
 
-## Who installs Player Core?
+**Check 3 - No code example gaps**: PASS
+- No code examples on this page, only reference to `fn setup` function which is clear from context
 
-Clear. Install `@nomercy-entertainment/nomercy-player-core` on its own only when you write a plugin or when you build your own player class instead of using the ready-made players.
+**Check 4 - No sentence needs a second read**: PASS
+- All sentences are clear on first reading
+- Longest sentence: "It keeps the ordered list of things to play, it can add a token to requests your server requires, and you can subscribe to what it does" — carries three related concepts about what Player Core does; clear structure
 
-## Who should use the video or music player instead?
-
-Clear. If you only want to play video, use the video player. If you only want to play music, use the music player. Those packages already bundle Player Core, so you do not install Core again.
-
-## What is the next page?
-
-Clear. **Next** points to [Quickstart](/nomercy-player-core/quickstart), which shows how to attach the engine to a class.
-
-## Terms before definition
-
-No FAIL on this rule. **Plugin** is defined in the opening paragraph before it appears again. Server requests with a token are described in plain language before **those requests** is used. There is no unexplained **compose** or **signed requests** label on this page.
-
-## Summary
-
-As a JavaScript reader new to the library, I know when to install Core, when to pick video or music packages, and that Quickstart is next. Verdict remains **PASS**.
+**Summary**: A TypeScript developer new to this library knows when to install Core, when to use the ready-made players, and that Quickstart is the next step. PASS maintained.

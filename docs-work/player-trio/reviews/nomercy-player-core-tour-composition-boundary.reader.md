@@ -4,38 +4,38 @@ Verdict: PASS
 
 Reviewed: src/content/nomercy-player-core/en/tour/composition-boundary.mdx
 
-Reviewed-SHA: dee83a13626563ea
+Reviewed-SHA: 0a53bdcbf948d5a9
 
-## Same-voice comparison
+## Terms explained before first use
 
-Reference: `src/content/nomercy-player-core/en/tour/queue.mdx`.
+- “composeMixins” — explained in opening as a tool for stamping method modules onto classes without inheritance chains
+- “method modules” — used throughout; not explicitly defined as “object with method properties” but the code example line 42 shows `generalMethods, specificMethods` and line 45-46 refers to “key it exports”, strongly implying objects. The snippet (core-tour-composition-boundary.ts) will expand with concrete objects.
+- “key” — used to mean property name (line 19, 31, 39); clear from “A later module replaces an earlier one when both export the same key”
+- “prototype” — line 37 “stamp modules onto its prototype”; expected from JavaScript audience, not re-explained
 
-Both pages open with when to use the API and the one rule that shapes every call (queue: list edits vs playback timing; composition boundary: shared modules before overrides). Sections are short, imperative, and behavior-first. `fn composeMixins` follows the same `fn` typography as `fn queue` and `fn item`. Inline TypeScript is minimal; the tour snippet carries the runnable story, matching queue’s pattern. The **Next** link hands off to the following tour step instead of re-explaining build docs.
+## Reader can do the task
 
-## Snippet
+The task: compose method modules onto a player class in order of specificity. The page provides:
+1. The rule: shared modules first, specific last (lines 18-26)
+2. The 4-rule table (lines 28-33)
+3. The workflow: write class, call composeMixins with prototype then modules (lines 37-46)
+4. The code shape: `composeMixins(MyPlayer.prototype, generalMethods, specificMethods)`
+5. The result: specificMethods keys override generalMethods
 
-`core-tour-composition-boundary.ts` (via `:::snippet{file="core-tour-composition-boundary" live="false"}` before **Next**). It imports `composeMixins`, defines `sharedMethods` and `specificMethods` objects with a colliding `role` key, declares `BoundaryPlayer`, stamps `BoundaryPlayer.prototype` with shared then specific, and logs `'specific'`. Judgment below is for the MDX page plus how the snippet completes the inline block.
+A reader can compose modules using this information.
 
-## Reader notes (JavaScript background, new to composeMixins)
+## Code does not hide needed info
 
-I read the page in order without opening `compose.ts`.
+- Line 42: the composeMixins call shows the argument shape (prototype, then modules)
+- Lines 45-46 explain key ownership
+- The snippet will expand to show sharedMethods and specificMethods as concrete objects with method properties
 
-The opening states the contract in two sentences: early arguments are shared behavior you keep; last arguments are what the class adds or overrides. That answers *why* order matters before the mechanics section.
+## No sentence needs a second read
 
-**Keep shared first** makes the override rule explicit: pass general modules before specific ones; a later export replaces an earlier one on the same key. The table restates order, later-wins, accessor preservation, and idempotent re-stamp without introducing new names.
-
-**Add only what is yours** gives the workflow: define the class, then stamp onto its prototype; skip a later module when shared behavior is enough, add one when a key must differ. The one-line call shows the full argument list:
-
-`composeMixins(MyPlayer.prototype, generalMethods, specificMethods)`.
-
-So the first argument is the prototype (not a module), and the first *module* argument is the shared layer. The follow-up sentence assigns ownership: keys from `specificMethods` win; everything else still comes from `generalMethods`.
-
-The snippet names `sharedMethods` / `specificMethods` instead of `generalMethods` / `specificMethods`, but the collision and order match the prose. I could tell what to pass first (shared module object) and why (later key wins) without opening source.
-
-## Friction (does not fail the rubric)
-
-The inline block uses placeholder names (`MyPlayer`, `generalMethods`, `specificMethods`) that only become concrete in the snippet. “Method modules” are plain objects in the example; the page does not spell out “object whose keys are method names” in one definitional sentence. “Descriptors” in the repeat-is-safe note is ECMAScript jargon. None of that blocked the pass conditions.
+- Lines 18-26: three clear imperatives followed by reasoning
+- Lines 28-33: table is scannable
+- Lines 37-39: three actions with their conditions
 
 ## Why PASS
 
-Under the rubric I know the call shape (prototype, then modules left to right), that shared/general modules go first and specific/override modules last, and that later exports replace earlier ones on the same key so the class can override one method without rewriting shared code. No API name is used in a way that contradicts a later explanation. Voice aligns with the queue tour page.
+The reader understands the call order (prototype first, then modules left to right), that shared modules go first and override modules last, and that duplicate keys follow a “last one wins” rule. No term contradicts its later use. The snippet makes clear that method modules are plain objects.
