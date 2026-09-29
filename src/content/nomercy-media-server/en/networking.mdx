@@ -26,25 +26,10 @@ A named tunnel wins over a port forward that works: with a subscription, your se
 
 When even the quick tunnel cannot connect out, the server stays reachable on your own network only, and keeps retrying in the background with growing gaps between attempts.
 
-## Adding the rule yourself
-
-Some routers have UPnP switched off, and some ignore the request without saying so. If your server works at home but not away from home, add the rule by hand in your router's admin page.
-
-Forward external port **7626** to internal port **7626** on the machine running the server, for **both TCP and UDP**.
-
-Both, because the server speaks HTTP/1.1 over TCP and HTTP/3 over UDP. The automatic mapping the server makes for itself creates both, so a hand-written rule should match it.
-
-A TCP-only rule still connects. Clients that could have used HTTP/3 fall back to the slower route.
-
-Give the server machine a fixed address on your network while you are in there. Your rule points at one address, and a router is free to hand that address to a different device later.
-
 ::Troubleshooting
 
 **It works at home, not away from home.**
-Nothing established an outside route. Add the port rule above.
-
-**It stopped working after a router restart or a power cut, and I added the rule by hand.**
-The router most likely gave the server machine a different local address, so your rule now points somewhere else. Give that machine a fixed address and update the rule. The server notices address changes and re-establishes its own route; a rule you wrote by hand is the part that cannot follow.
+The server could not open any outside route, not even a quick tunnel. That happens when the network blocks the server from connecting out, for example a strict firewall or a VPN. The server keeps retrying, and becomes reachable from outside by itself once it can connect out.
 
 **Nothing reaches the server at all, even at home.**
 Check the machine's firewall. On Windows the prompt appears the first time the server runs and has to be allowed.
