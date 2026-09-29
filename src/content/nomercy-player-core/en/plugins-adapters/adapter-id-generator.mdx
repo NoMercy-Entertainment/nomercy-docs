@@ -1,0 +1,53 @@
+---
+title: 'IIdGenerator'
+description: 'Mint unique string IDs with IIdGenerator, read defaultIdGenerator for a UUID, and write a counter when a test needs IDs it can predict.'
+tags: [adapter, id-generator, player-core]
+draft: false
+---
+
+{/* Source: nomercy-player-core/src/adapters/id-generator/IIdGenerator.ts, src/adapters/id-generator/default.ts, src/adapters/id-generator/index.ts, src/core/mixins/media-tracks.ts */}
+
+# IIdGenerator
+
+Use `cls IIdGenerator` when your own code needs a fresh string ID on every call.
+It decides one thing: what the next ID is.
+The player uses the default for the ID of a subtitle track added at runtime.
+There is no `key idGenerator` option in `fn setup`, so that ID always comes from the default.
+
+:::snippet{file="core-adapter-id-generator" lines="17-18" live="false"}
+:::
+
+## Built-in adapter
+
+`var defaultIdGenerator` is the shipped `cls IIdGenerator`.
+Its `fn next` returns `crypto.randomUUID()`.
+Where that call is missing, it returns the current time in base 36, a dash, and a random base 36 string.
+
+`fn addSubtitleTrack` builds the track ID as `str subtitle-runtime-` plus `fn next`.
+
+## Usage
+
+Call `fn next` each time you need an ID.
+
+:::snippet{file="core-adapter-id-generator" lines="20" live="false"}
+:::
+
+## Interface
+
+The interface has one member.
+
+| Member | Returns | Behavior |
+|---|---|---|
+| `fn next` | `string` | A new ID on every call. |
+
+## Custom implementation
+
+Write your own `cls IIdGenerator` when a test asserts on IDs.
+A counter gives the same sequence on every run.
+
+:::snippet{file="core-adapter-id-generator" lines="22-37" live="false"}
+:::
+
+## See also
+
+- [Adapter: Language Matcher](/nomercy-player-core/plugins-adapters/adapter-language-matcher) is the next catalog entry.

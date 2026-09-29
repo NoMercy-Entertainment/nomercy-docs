@@ -1,0 +1,84 @@
+---
+title: 'IMediaList'
+description: 'Keep an ordered list with a cursor that stays on the same item through every change, with IMediaList and MediaList.'
+tags: [adapter, media-list, queue, player-core]
+draft: false
+---
+
+{/* Source: nomercy-player-core/src/adapters/media-list/IMediaList.ts, src/adapters/media-list/default.ts, src/adapters/media-list/index.ts, src/core/state.ts, src/adapters/event-bus/default.ts */}
+
+# IMediaList
+
+Use `cls IMediaList` when you need an ordered list with a current position that survives inserts, moves and removals.
+The list decides where the cursor lands after each change.
+
+The player keeps its queue and its backlog in two `cls MediaList` instances.
+There is no `key mediaList` option in `fn setup`, so you build one only for lists of your own.
+
+:::snippet{file="core-adapter-media-list" lines="16-18" live="false"}
+:::
+
+## Built-in adapter
+
+`cls MediaList` is the shipped list, and it is an event emitter.
+The cursor is `-1` on an empty list and `0` once items arrive.
+Every change that shifts positions also shifts the cursor, so it stays on the same item.
+
+Each change fires its own event, then `str change` with the full `key items` array.
+`fn setCurrent` fires `str item` with `key item` and `key index`.
+
+| Event | Payload |
+|---|---|
+| `str append` | `key items`, `key from` |
+| `str prepend` | `key items` |
+| `str insert` | `key items`, `key index` |
+| `str remove` | `key id`, `key index`, `key item` |
+| `str move` | `key from`, `key to` |
+| `str clear` | `key previousLength` |
+| `str shuffle`, `str sort` | none |
+
+Removing the current item fires `str remove`, not `str item`.
+The cursor keeps its index, so the next item becomes current without an `str item` event.
+
+## Usage
+
+Listen, fill the list, then move the cursor.
+
+:::snippet{file="core-adapter-media-list" lines="20-53" live="false"}
+:::
+
+## Interface
+
+The table lists every member of `cls IMediaList`.
+
+| Member | Behavior |
+|---|---|
+| `fn get` | The items in order. The array is live, so change it only through the methods. |
+| `fn set` | Replaces the items. The cursor follows the old current item by `key id`, or resets to the first. |
+| `fn length` | The number of items. |
+| `fn current`, `fn currentIndex` | The current item and its index. |
+| `fn replaceItem` | Swaps the item with the same `key id` in place. It fires no event. |
+| `fn setCurrent` | Moves the cursor to an item, an ID, an index, or the first match of a predicate. |
+| `fn peekNext`, `fn peekPrevious` | The items beside the cursor. |
+| `fn append`, `fn prepend`, `fn insert` | Add one item or an array. `fn insert` clamps the index. |
+| `fn remove`, `fn removeAt` | Remove by `key id` or by index. |
+| `fn move` | Moves one item to a new index. |
+| `fn clear` | Empties the list. |
+| `fn shuffle`, `fn sort` | Reorder in place and keep the cursor on its item. |
+| `fn dispose` | Empties the list and removes every listener. |
+
+`fn setCurrent` treats an integer as an index and any other number as an `key id`.
+An item whose `key id` is the integer `3` is reached with the item or a predicate, not with `3`.
+
+`cls MediaList` adds `fn setShuffleStrategy`, which is not on the interface.
+
+## Custom implementation
+
+Type a helper against `cls IMediaList` so it reads any list the same way.
+
+:::snippet{file="core-adapter-media-list" lines="55-59" live="false"}
+:::
+
+## See also
+
+- [Adapter: Platform](/nomercy-player-core/plugins-adapters/adapter-platform) is the next catalog entry.

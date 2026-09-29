@@ -1,0 +1,56 @@
+---
+title: 'ILanguageMatcher'
+description: 'Turn a BCP 47 tag into the ordered list of languages to try with ILanguageMatcher, and read bcp47FallbackChain for the default chain.'
+tags: [adapter, language-matcher, i18n, player-core]
+draft: false
+---
+
+{/* Source: nomercy-player-core/src/adapters/language-matcher/ILanguageMatcher.ts, src/adapters/language-matcher/bcp47.ts, src/adapters/language-matcher/index.ts, src/adapters/translator/translator.ts, src/core/mixins/i18n.ts, src/core/plugin-translations.ts */}
+
+# ILanguageMatcher
+
+Use `cls ILanguageMatcher` when your own lookup must try a specific language, then a broader one.
+It decides the fallback order for one BCP 47 tag.
+
+The player walks the default chain when it looks up a translation, for its own strings and for plugin strings.
+There is no `key languageMatcher` option in `fn setup`, so the player always uses the default chain.
+
+:::snippet{file="core-adapter-language-matcher" lines="16-17" live="false"}
+:::
+
+## Built-in adapter
+
+`var bcp47FallbackChain` is the shipped `cls ILanguageMatcher`.
+It returns the tag, then strips one trailing subtag at a time on the `str -` separator.
+An empty tag returns an empty array.
+
+It keeps case and whitespace as given, because bundle keys are compared byte for byte.
+`str PT-br` does not match a bundle stored as `str pt-BR`.
+
+## Usage
+
+Call the matcher with a tag and walk the array in order.
+
+:::snippet{file="core-adapter-language-matcher" lines="19-21" live="false"}
+:::
+
+## Interface
+
+`cls ILanguageMatcher` has one call signature and no members.
+
+| Part | Type |
+|---|---|
+| `key tag` | `string`, a BCP 47 tag |
+| Return | `string[]`, most specific first |
+
+## Custom implementation
+
+Write your own `cls ILanguageMatcher` when your lookup needs a different chain.
+This one wraps the default and always ends on English.
+
+:::snippet{file="core-adapter-language-matcher" lines="23-27,31-39,50-51" live="false"}
+:::
+
+## See also
+
+- [Adapter: Lifecycle Registry](/nomercy-player-core/plugins-adapters/adapter-lifecycle-registry) is the next catalog entry.

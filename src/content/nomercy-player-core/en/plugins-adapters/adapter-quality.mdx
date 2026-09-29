@@ -1,0 +1,71 @@
+---
+title: 'Quality policies'
+description: 'Cap adaptive streaming to what the screen and the player size can show, with the pure HDR and size policy functions in Player Core.'
+tags: [adapter, quality, hdr, player-core]
+draft: false
+---
+
+{/* Source: nomercy-player-core/src/adapters/quality/display-range.ts, src/adapters/quality/hdr-policy.ts, src/adapters/quality/size-policy.ts, src/core/mixins/device.ts, src/types/config.ts, src/types/tracks.ts, src/index.ts; nomercy-video-player/src/adapters/video-backend/html5.ts, nomercy-video-player/src/index.ts */}
+
+# Quality policies
+
+Use the quality policies when your own backend must pick the highest rung a viewer can actually see.
+They decide two limits on a ladder of `cls QualityLevel` rungs: one from the screen's dynamic range, and one from the player's size.
+They are plain functions, not an interface, so there is nothing to register.
+Import them from the package root.
+
+:::snippet{file="core-adapter-quality" lines="16-22" live="false"}
+:::
+
+## Built-in adapter
+
+The video player's HTML5 backend calls these functions to cap adaptive streaming.
+It passes `key hdrOnSdr` from `fn setup`, which is `str play` by default.
+`fn device` on any player reports `key hdrDisplay` from `fn detectDisplayHdr`.
+
+## Usage
+
+A ladder is the subject here, so the example carries one.
+
+:::snippet{file="core-adapter-quality" lines="24-65" live="false"}
+:::
+
+## Functions
+
+The table lists every function.
+
+| Function | Returns |
+|---|---|
+| `fn detectDisplayHdr` | `true` when the screen reports HDR for video or for the page. `false` when nothing can be asked. |
+| `fn browserDisplayRangeProbe` | A probe over `matchMedia`, or `null` without one. |
+| `fn hdrAbrCeiling` | The best SDR rung, or `null` on an HDR screen or a ladder with no HDR. |
+| `fn isHdrUnplayable` | `true` when every rung is HDR and the screen is not. |
+| `fn hdrDecision` | One `cls HdrDecision`, cheapest correct answer first. |
+| `fn sizeAbrCeiling` | The smallest rung that covers the pane, or `null`. |
+| `fn panePixels` | An element's size in device pixels. |
+| `fn abrCeiling` | The lower of the HDR cap and the size cap. |
+
+`fn hdrDecision` returns one of five kinds.
+
+| Kind | When |
+|---|---|
+| `str as-is` | The screen is HDR, or there is nothing to change. |
+| `str cap-to` | An SDR rung exists. It carries that rung as `key level`. |
+| `str tone-map` | Every rung is HDR and the backend can convert. |
+| `str play-unconverted` | No SDR rung, no converter, and the fallback is `str play`. |
+| `str refuse` | No SDR rung, no converter, and the fallback is `str refuse`. |
+
+`fn sizeAbrCeiling` returns `null` for a pane of zero size, an empty ladder, or when the covering rung is already the tallest.
+A rung without a `key width` is not ruled out by width.
+
+## Custom implementation
+
+Pass a `cls DisplayRangeProbe` to `fn detectDisplayHdr` when a test must fake the screen.
+The probe has one member, `fn matches`, which answers a media query.
+
+:::snippet{file="core-adapter-quality" lines="51-56" live="false"}
+:::
+
+## See also
+
+- [Adapter: Realtime Channel](/nomercy-player-core/plugins-adapters/adapter-realtime-channel) is the next catalog entry.
