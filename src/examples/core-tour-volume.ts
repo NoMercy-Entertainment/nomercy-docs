@@ -7,7 +7,7 @@
 // -----------------------------------------------------------------------------
 
 /**
- * Handbook: volume position, mute, and perceptualGain.
+ * Tour: volume position, mute, and perceptualGain.
  *
  * `volume()` speaks in 0..100 positions. While muted the getter returns 0.
  * `perceptualGain` squares a 0..1 position into the gain a backend writes.
@@ -24,9 +24,9 @@ import {
 	type BasePlayerConfig,
 } from '@nomercy-entertainment/nomercy-player-core';
 
-const _instances = new Map<string, TimingHandbookPlayer>();
+const _instances = new Map<string, VolumeTourPlayer>();
 
-class TimingHandbookPlayer extends EventEmitter<BaseEventMap> {
+class VolumeTourPlayer extends EventEmitter<BaseEventMap> {
 	playerId = '';
 	container: HTMLElement = {} as HTMLElement;
 
@@ -50,26 +50,26 @@ class TimingHandbookPlayer extends EventEmitter<BaseEventMap> {
 
 	constructor(id?: string | number) {
 		super();
-		const resolved = resolvePlayerConstructor(id, _instances, 'TimingHandbookPlayer');
+		const resolved = resolvePlayerConstructor(id, _instances, 'VolumeTourPlayer');
 		if (resolved.kind === 'existing') {
 			return resolved.instance as unknown as this;
 		}
 
-		initPlayerCoreState(this, { className: 'TimingHandbookPlayer' });
+		initPlayerCoreState(this, { className: 'VolumeTourPlayer' });
 		this.playerId = resolved.id;
 		this.container = resolved.div;
 		_instances.set(resolved.id, this);
 	}
 }
 
-composeMixins(TimingHandbookPlayer.prototype, ...playerCoreMethods);
+composeMixins(VolumeTourPlayer.prototype, ...playerCoreMethods);
 
 const mount = document.createElement('div');
-mount.id = 'handbook-timing';
-mount.setAttribute('aria-label', 'Timing handbook player');
+mount.id = 'tour-volume';
+mount.setAttribute('aria-label', 'Volume tour player');
 document.body.appendChild(mount);
 
-const player = new TimingHandbookPlayer('handbook-timing');
+const player = new VolumeTourPlayer('tour-volume');
 player.setup({
 	logLevel: 'info',
 });
