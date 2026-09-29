@@ -28,17 +28,21 @@ function WrenchIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
  */
 export function Troubleshooting({ children }: { children: React.ReactNode }) {
   return (
+    // Amber, not the emerald accent: a Callout informs, this section is where a
+    // reader lands when something failed, so it must not read as either the body
+    // text or a Callout. Each paragraph is one problem: its bold first line is the
+    // symptom, the rest is the fix, and a rule separates one problem from the next.
     <section
       aria-label="Troubleshooting"
-      className="not-prose my-10 overflow-hidden rounded-2xl border border-zinc-900/10 bg-zinc-50 dark:border-white/10 dark:bg-white/2.5"
+      className="not-prose my-10 overflow-hidden rounded-2xl border border-amber-500/40 bg-amber-50/70 dark:border-amber-400/30 dark:bg-amber-400/[0.06]"
     >
-      <div className="flex items-center gap-2.5 border-b border-zinc-900/10 bg-zinc-900/2.5 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-        <WrenchIcon className="h-4 w-4 flex-none stroke-zinc-500 dark:stroke-zinc-400" />
-        <h2 className="m-0 text-sm font-semibold text-zinc-900 dark:text-white">
+      <div className="flex items-center gap-2.5 border-b border-amber-500/30 bg-amber-500/10 px-4 py-3 dark:border-amber-400/20 dark:bg-amber-400/10">
+        <WrenchIcon className="h-4 w-4 flex-none stroke-amber-700 dark:stroke-amber-300" />
+        <h2 className="m-0 text-sm font-semibold text-amber-950 dark:text-amber-100">
           When something is not right
         </h2>
       </div>
-      <div className="px-4 py-1 text-sm/6 text-zinc-700 [&_p]:my-3 [&_strong]:font-semibold [&_strong]:text-zinc-900 dark:text-zinc-300 dark:[&_strong]:text-white">
+      <div className="px-4 text-sm/6 text-zinc-700 dark:text-zinc-300 [&>p]:my-0 [&>p]:py-3.5 [&>p+p]:border-t [&>p+p]:border-amber-500/20 dark:[&>p+p]:border-amber-400/15 [&_strong]:font-semibold [&_strong]:text-zinc-900 dark:[&_strong]:text-white">
         {children}
       </div>
     </section>
