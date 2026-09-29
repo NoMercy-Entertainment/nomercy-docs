@@ -10,7 +10,12 @@ draft: false
 # Quality policies
 
 Use the quality policies when your own backend must pick the highest rung a viewer can actually see.
+They cap that pick to the screen's HDR (High Dynamic Range) or SDR (Standard Dynamic Range) support.
 They decide two limits on a ladder of `cls QualityLevel` rungs: one from the screen's dynamic range, and one from the player's size.
+
+A `cls QualityLevel` holds `key bitrate`, an optional `key width` and `key height`, a `key label`, its manifest `key index`, an optional `key supported` flag, and an optional `key dynamicRange` of `str sdr` or `str hdr`.
+A ladder is an array of `cls QualityLevel` rungs.
+
 They are plain functions, not an interface, so there is nothing to register.
 Import them from the package root.
 
@@ -37,7 +42,7 @@ The table lists every function.
 | Function | Returns |
 |---|---|
 | `fn detectDisplayHdr` | `true` when the screen reports HDR for video or for the page. `false` when nothing can be asked. |
-| `fn browserDisplayRangeProbe` | A probe over `matchMedia`, or `null` without one. |
+| `fn browserDisplayRangeProbe` | A probe that wraps `window.matchMedia`, or `null` without one. |
 | `fn hdrAbrCeiling` | The best SDR rung, or `null` on an HDR screen or a ladder with no HDR. |
 | `fn isHdrUnplayable` | `true` when every rung is HDR and the screen is not. |
 | `fn hdrDecision` | One `cls HdrDecision`, cheapest correct answer first. |

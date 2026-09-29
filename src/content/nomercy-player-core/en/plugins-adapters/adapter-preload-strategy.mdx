@@ -10,7 +10,7 @@ draft: false
 # IPreloadStrategy
 
 Use `cls IPreloadStrategy` when you want to change when the next queue item warms up, or which of its assets are requested.
-The strategy answers two questions on each `str time` event: is it time yet, and what should load.
+The strategy answers two questions: is it time yet, and what should load.
 Pass one to `fn setup` as `key preloadStrategy`, or swap it later with `fn setPreloadStrategy`.
 
 :::snippet{file="core-adapter-preload-strategy" lines="16-22" live="false"}
@@ -30,9 +30,9 @@ With no assets, the player emits `str preloadStart` and then `str preloadComplet
 
 ## Usage
 
-The player asks `fn shouldPreload` on every `str time` event until the first yes.
+The player asks `fn shouldPreload` on every `str time` event.
 `key nextItem` is `null` when nothing is queued, and a yes then starts nothing.
-After the first yes, it stops asking until the current item changes.
+After a yes with a next item queued, it stops asking until the current item changes.
 Then it calls `fn assetsToPreload` once and requests each asset.
 
 :::snippet{file="core-adapter-preload-strategy" lines="67-78" live="false"}
