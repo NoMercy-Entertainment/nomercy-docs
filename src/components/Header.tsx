@@ -76,10 +76,10 @@ function ChevronIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
   );
 }
 
-// The eight product links need about 480px. Below 2xl, next to the logo,
-// search and tools, they pushed the reading-settings button off the screen
-// (1024-1250px, and wider once the reader enlarges the text). There they fold
-// into one menu whose trigger names the current product.
+// The eight product links need about 480px. In a header under 90rem, next to
+// the logo, search and tools, they pushed the reading-settings button off the
+// screen (1024-1250px, and wider once the reader enlarges the text). There
+// they fold into one menu whose trigger names the current product.
 function ProductsMenu({ navigation, pathname }: { navigation: NavSection[]; pathname: string }) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
@@ -161,7 +161,7 @@ export const Header = forwardRef<
       ref={ref}
       className={clsx(
         className,
-        'fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between gap-8 px-4 transition sm:px-6 lg:gap-12 lg:px-8',
+        '@container fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between gap-8 px-4 transition sm:px-6 lg:gap-12 lg:px-8',
         !isInsideMobileNavigation && 'backdrop-blur-xs dark:backdrop-blur-sm',
         isInsideMobileNavigation
           ? 'bg-white dark:bg-zinc-900'
@@ -197,10 +197,14 @@ export const Header = forwardRef<
         </CloseButton>
       </div>
       <div className="flex shrink-0 items-center gap-5">
-        <div className="hidden md:block 2xl:hidden">
+        {/* A container query, not a 2xl media query: rem in a container
+            query follows the reader's text size, so at 150% the links wait
+            for a header 1.5 times as wide instead of pushing the reading
+            settings off the right edge. */}
+        <div className="hidden md:block @min-[90rem]:hidden">
           <ProductsMenu navigation={navigation} pathname={pathname} />
         </div>
-        <nav aria-label="Product sections" className="hidden 2xl:block">
+        <nav aria-label="Product sections" className="hidden @min-[90rem]:block">
           <ul role="list" className="flex items-center gap-5">
             {navigation.map((section) => (
               <TopLevelNavItem

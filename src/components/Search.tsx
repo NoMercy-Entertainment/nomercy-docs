@@ -582,7 +582,10 @@ export function Search() {
   }, [])
 
   return (
-    <div className="hidden lg:block lg:max-w-md lg:flex-auto">
+    // min-w-0 lets the search give way first: at an enlarged text size its
+    // nowrap label held its full width and pushed the header tools, the
+    // reading settings among them, off the right edge at 1024px.
+    <div className="@container hidden lg:block lg:max-w-md lg:min-w-0 lg:flex-auto">
       <button
         type="button"
         aria-label={
@@ -593,9 +596,9 @@ export function Search() {
         className="hidden h-8 w-full items-center gap-2 rounded-full bg-white pr-3 pl-2 text-sm text-zinc-500 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 lg:flex dark:bg-white/5 dark:text-zinc-400 dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20 whitespace-nowrap"
         {...buttonProps}
       >
-        <SearchIcon className="h-5 w-5 stroke-current" />
-        {t('nav.search.placeholder')}
-        <kbd aria-hidden="true" className="ml-auto text-2xs text-zinc-400 dark:text-zinc-500">
+        <SearchIcon className="h-5 w-5 shrink-0 stroke-current" />
+        <span className="hidden truncate @min-[140px]:block">{t('nav.search.placeholder')}</span>
+        <kbd aria-hidden="true" className="ml-auto hidden shrink-0 text-2xs @min-[180px]:inline text-zinc-400 dark:text-zinc-500">
           <kbd className="font-sans">{modifierKey}</kbd>
           <kbd className="font-sans">K</kbd>
         </kbd>

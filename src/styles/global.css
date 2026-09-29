@@ -345,7 +345,9 @@
      dense reference table still take the whole column when it needs it. */
   .prose table {
     width: auto;
-    min-width: 32rem;
+    /* rem grows with the reader's text size: at 150% a bare 32rem is 768px,
+       wider than the column beside the sidebar. */
+    min-width: min(32rem, 100%);
     max-width: 100%;
     /* The prose wrapper centers every direct child; a content-sized table
        must stay on the same left edge as the text above it. */
@@ -519,4 +521,42 @@ html[data-code-wrap='on'] pre .line {
   position: absolute;
   inset: auto 0 0 0;
   width: 100%;
+}
+
+/* Reading settings: text size, text spacing and reading width. Each is one
+   attribute on <html> set by the reading menu and by the no-flash script in
+   MarkdownLayout. Unlayered on purpose: a rule inside @layer base loses to the
+   typography plugin whatever its specificity. */
+
+/* Text size scales the root, so everything sized in rem grows together: body,
+   headings, code, navigation and spacing, the way browser zoom does. */
+html[data-text-size='large'] { font-size: 112.5%; }
+html[data-text-size='larger'] { font-size: 125%; }
+html[data-text-size='largest'] { font-size: 150%; }
+
+/* Wide spacing uses the WCAG 1.4.12 text-spacing values: letter spacing
+   0.12em, word spacing 0.16em, line height well above 1.5, paragraph spacing
+   2em. Code keeps its own spacing, since columns in a block must stay aligned. */
+html[data-spacing='wide'] .prose {
+  letter-spacing: 0.12em;
+  word-spacing: 0.16em;
+  line-height: 2;
+}
+html[data-spacing='wide'] .prose :where(p, li) {
+  line-height: 2;
+}
+html[data-spacing='wide'] .prose :where(p) {
+  margin-bottom: 2em;
+}
+html[data-spacing='wide'] .prose :where(pre, pre *, code, code *) {
+  letter-spacing: normal;
+  word-spacing: normal;
+}
+
+/* Narrow caps every block of the body at about 65 characters, the line
+   length that is easiest to track back to the start of the next line. In ch,
+   not rem: a rem cap grows with the text size setting and at 150% would be
+   wider than the normal column. */
+html[data-reading-width='narrow'] :where(.prose > *) {
+  max-width: 65ch;
 }

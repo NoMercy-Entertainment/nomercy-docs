@@ -18,6 +18,23 @@ const FONTS: Option[] = [
   { value: 'mono', label: 'Monospace', hint: 'Even letter widths throughout' },
 ];
 
+const TEXT_SIZES: Option[] = [
+  { value: 'default', label: '100%', hint: 'The site default' },
+  { value: 'large', label: '112%', hint: 'One step larger' },
+  { value: 'larger', label: '125%', hint: 'Two steps larger' },
+  { value: 'largest', label: '150%', hint: 'Half again as large' },
+];
+
+const SPACINGS: Option[] = [
+  { value: 'normal', label: 'Normal' },
+  { value: 'wide', label: 'Wide', hint: 'More room between letters, words, lines and paragraphs' },
+];
+
+const WIDTHS: Option[] = [
+  { value: 'full', label: 'Full' },
+  { value: 'narrow', label: 'Narrow', hint: 'Shorter lines, easier to follow to the next one' },
+];
+
 const THEMES: Option[] = [
   { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
@@ -78,7 +95,10 @@ function Group({
       <legend className="block px-1.5 pt-3.5 pb-2 text-[11px]/4 font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
         {label}
       </legend>
-      <div className={clsx('gap-0.5', row ? 'grid grid-cols-3' : 'flex flex-col')}>
+      <div
+        className={clsx('gap-0.5', row ? 'grid' : 'flex flex-col')}
+        style={row ? { gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` } : undefined}
+      >
         {options.map(option => (
           <button
             key={option.value}
@@ -181,8 +201,14 @@ export function A11yMenu() {
   const [syntax, setSyntax] = useState('vitesse');
   const [inline, setInline] = useState(true);
   const [wrap, setWrap] = useState(false);
+  const [size, setSize] = useState('default');
+  const [spacing, setSpacing] = useState('normal');
+  const [width, setWidth] = useState('full');
 
   useEffect(() => {
+    setSize(read('text-size', 'default'));
+    setSpacing(read('text-spacing', 'normal'));
+    setWidth(read('reading-width', 'full'));
     setFont(read('reading-font', 'system'));
     setTheme(read('theme', 'system'));
     setSyntax(read('syntax-theme', 'vitesse'));
@@ -227,10 +253,31 @@ export function A11yMenu() {
         {mounted && (
           <>
             <Group
-              label="Text"
+              label="Text size"
+              options={TEXT_SIZES}
+              row
+              value={size}
+              onChange={next => set('text-size', 'data-text-size', next, setSize)}
+            />
+            <Group
+              label="Font"
               options={FONTS}
               value={font}
               onChange={next => set('reading-font', 'data-font', next, setFont)}
+            />
+            <Group
+              label="Spacing"
+              options={SPACINGS}
+              row
+              value={spacing}
+              onChange={next => set('text-spacing', 'data-spacing', next, setSpacing)}
+            />
+            <Group
+              label="Reading width"
+              options={WIDTHS}
+              row
+              value={width}
+              onChange={next => set('reading-width', 'data-reading-width', next, setWidth)}
             />
             <Group
               label="Appearance"
