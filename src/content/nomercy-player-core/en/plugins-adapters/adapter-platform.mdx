@@ -1,95 +1,81 @@
 ---
-title: 'Adapter: Platform'
-description: 'IPlatform bundles wake lock, network, visibility, decode capabilities and the two video-only controllers. browserPlatform is the default, and a native shell replaces one field or all six in a single swap.'
+title: 'IPlatform'
+description: 'Swap the browser primitives the player reads, wake lock, network, visibility, decode checks, fullscreen and picture in picture, through one IPlatform bundle.'
+tags: [adapter, platform, player-core]
+draft: false
 ---
 
-{/* Source: packages/player-web/nomercy-player-core/src/adapters/platform/IPlatform.ts, src/adapters/platform/browser.ts, src/core/mixins/lifecycle.ts, src/core/mixins/device.ts, src/core/mixins/abr.ts */}
+{/* Source: nomercy-player-core/src/adapters/platform/IPlatform.ts, src/adapters/platform/browser.ts, src/adapters/platform/index.ts, src/core/mixins/device.ts, src/core/mixins/lifecycle.ts, src/core/mixins/abr.ts, src/core/mixins/player-state.ts, src/types/config.ts */}
 
-# Adapter: Platform
+# IPlatform
 
-`cls IPlatform` is the bundle of browser primitives the kit reads instead of calling `ts navigator` and `ts document` itself. Wake lock, network state, tab visibility and decode capability all live behind it, so a Capacitor, Tauri or Electron shell swaps one object rather than patching call sites. [Swap an Adapter](/nomercy-player-core/recipes/swap-an-adapter) walks the same idea through a different port.
+Use `cls IPlatform` when the player runs inside a native shell, or when a test must fake the browser.
+The bundle decides how the player keeps the screen awake, reads the network and tab visibility, and checks decode support.
 
-`fn setup` uses `cls browserPlatform` when `key platform` is omitted, and `player.platform()` reads back whichever object is in force.
+Pass it to `fn setup` as `key platform`.
+`fn platform` on the player returns the bundle in use, or `var browserPlatform` before `fn setup`.
 
-## The interface
+:::snippet{file="core-adapter-platform" lines="16-18" live="false"}
+:::
 
-```ts
-interface IPlatform {
-	wakeLock: IWakeLock;
-	network: INetworkMonitor;
-	visibility: IVisibilityMonitor;
-	capabilities: ICapabilitiesProbe;
-	fullscreen?: IFullscreenController;
-	pip?: IPipController;
-}
-```
+## Built-in adapter
 
-## What reads each field
+`var browserPlatform` is the default when `key platform` is not set.
+Each field wraps a browser API, and each read of a field builds a new controller.
+A spread such as `{ ...browserPlatform }` reads every field once, so the copy holds one controller per field.
 
-| Field | Methods | Who asks |
-|---|---|---|
-| `key wakeLock` | `fn acquire`, `fn release`, `fn isHeld`, `fn isSupported` | The `key wakeLock` config policy: `str never` by default, `str always` holds one for the player's life, `str auto` follows the phase. |
-| `key network` | `fn isOnline`, `fn type`, `fn downlinkMbps`, `fn rttMs`, `fn subscribe` | The `key onOffline` policy, which emits `str network:offline`, `str network:online` and `str network:slow`. |
-| `key visibility` | `fn isVisible`, `fn subscribe` | `key pauseWhenHidden`, off by default. When on, a hidden tab pauses and the player emits `str visibility:hidden`. |
-| `key capabilities` | `fn canDecode`, `fn supportedCodecs` | `player.canPlay(profile)`, which answers `key supported`, `key smooth` and `key powerEfficient`. |
-| `key fullscreen` | `fn enter`, `fn exit`, `fn isActive`, `fn isSupported`, `fn subscribe` | The video player's `fn fullscreen`, and `player.device().fullscreenSupported`. |
-| `key pip` | the same five | The video player's `fn pip`, and `player.device().pipSupported`. |
+Without `window` or `document`, `fn isOnline`, `fn isVisible` and each `fn subscribe` return safe values.
+`fn type`, `fn downlinkMbps` and `fn rttMs` read `navigator` directly and throw where it is missing.
 
-`fn canDecode` takes a `cls DecodeProfile`: a `key contentType`, plus `key width`, `key height`, `key bitrate` and `key framerate` for a video probe. Give it the content type alone for an audio probe.
+`fn acquire` on the wake lock throws `str core:policy/wakeLockUnsupported` where the browser has no wake lock API.
+`fn enter` on fullscreen and picture in picture throws the matching `str core:policy/` error where the API is missing.
 
-## Where to import it from
+The player reads each field from one place.
 
-```ts
-import { browserPlatform } from '@nomercy-entertainment/nomercy-player-core';
-import type { ICapabilitiesProbe, IFullscreenController, INetworkMonitor, IPipController, IPlatform, IVisibilityMonitor, IWakeLock } from '@nomercy-entertainment/nomercy-player-core';
-```
+| Field | What reads it |
+|---|---|
+| `key wakeLock` | The `key wakeLock` setup option, `str never` by default. |
+| `key network` | The `key onOffline` option, and `fn networkState`. |
+| `key visibility` | The `key pauseWhenHidden` option, and `fn visibilityState`. |
+| `key capabilities` | `fn canPlay`, through `fn canDecode`. |
+| `key fullscreen`, `key pip` | `fn device` for its two support flags, and the video player. |
 
-All of them are on the `./adapters/platform` subpath as well. `cls NetworkType` is the union `fn type` answers: `str wifi`, `str cellular`, `str ethernet`, `str none` or `str unknown`.
+## Usage
 
-## Rules & restrictions
+Read the default bundle directly when you need an answer before the player exists.
 
-- `cls browserPlatform` builds a fresh controller on every property access, so read the one you want into a variable and keep it. State such as a held wake lock belongs to that instance, and a second read starts a second controller that knows nothing about the first. Spreading the object once, as the example below does, gives you six stable controllers.
-- `key fullscreen` and `key pip` are the two optional fields, and the music player never reads either. Setting the video player's `fn fullscreen` or `fn pip` without the matching controller throws a `cls BrowserPolicyError` carrying `str core:policy/fullscreenUnsupported` or `str core:policy/pipUnsupported`. Reading the current state answers `str off` instead.
-- `player.platform().fullscreen.isActive()` is the browser's own answer, which is what a control icon should follow.
-- `fn acquire` throws `cls BrowserPolicyError` with `str core:policy/wakeLockUnsupported` where the Screen Wake Lock API is absent. Call `fn isSupported` first to gate the control rather than catch the throw. The kit's own wake-lock policy swallows the failure and plays on.
-- `fn downlinkMbps` and `fn rttMs` answer `ts undefined` where the Network Information API is absent, which includes Firefox and Safari. They never invent a number, so `str network:slow` simply never fires there.
-- `fn canDecode` answers `key supported` as `ts false` rather than throwing when the Media Capabilities API is missing, and `fn supportedCodecs` answers an empty array with no `cls MediaSource`.
+:::snippet{file="core-adapter-platform" lines="20-31" live="false"}
+:::
 
-## How to extend it
+## Interface
 
-Spread the default and name only the controller you are replacing. The other five stay browser-native:
+`cls IPlatform` holds four required controllers and two optional ones.
+`key fullscreen` and `key pip` are for the video player only.
 
-```ts
-import nmplayer from '@nomercy-entertainment/nomercy-video-player'; // nomercy-music-player's factory works identically
-import { browserPlatform } from '@nomercy-entertainment/nomercy-player-core';
-import type { IWakeLock } from '@nomercy-entertainment/nomercy-player-core';
+| Field | Members |
+|---|---|
+| `key wakeLock`, `cls IWakeLock` | `fn acquire`, `fn release`, `fn isHeld`, optional `fn isSupported` |
+| `key network`, `cls INetworkMonitor` | `fn isOnline`, `fn type`, `fn downlinkMbps`, `fn rttMs`, `fn subscribe` |
+| `key visibility`, `cls IVisibilityMonitor` | `fn isVisible`, `fn subscribe` |
+| `key capabilities`, `cls ICapabilitiesProbe` | `fn canDecode`, optional `fn supportedCodecs` |
+| `key fullscreen`, `cls IFullscreenController` | `fn enter`, `fn exit`, `fn isActive`, `fn isSupported`, `fn subscribe` |
+| `key pip`, `cls IPipController` | `fn enter`, `fn exit`, `fn isActive`, `fn isSupported`, `fn subscribe` |
 
-let held = false;
+Each `fn subscribe` returns a function that removes the subscription.
+`fn type` returns one of `str wifi`, `str cellular`, `str ethernet`, `str none` or `str unknown`.
 
-const shellWakeLock: IWakeLock = {
-	async acquire() {
-		await shell.keepAwake();
-		held = true;
-	},
-	async release() {
-		await shell.allowSleep();
-		held = false;
-	},
-	isHeld: () => held,
-	isSupported: () => true,
-};
+When the network monitor reports a change while online, the player emits `str network:slow` once if `fn downlinkMbps` is more than 0 and less than 1.5.
+With `key onOffline` set to `str ignore`, it never does.
+`fn networkState` returns slow on the same rule at any time.
 
-const player = nmplayer('player');
+## Custom implementation
 
-player.setup({
-	platform: { ...browserPlatform, wakeLock: shellWakeLock },
-	wakeLock: 'auto',
-});
-```
+Replace one controller and keep the rest by spreading `var browserPlatform`.
+This wake lock calls a bridge that your native shell exposes.
 
-A shell that owns every primitive passes a whole object of its own instead, and the six fields above are the entire contract it has to satisfy.
+:::snippet{file="core-adapter-platform" lines="33-68" live="false"}
+:::
 
-## Next steps
+## See also
 
-- [Recipe: Swap an Adapter](/nomercy-player-core/recipes/swap-an-adapter): a port replaced end to end, with a plugin reading through it.
-- [Adapter: Stream Source](/nomercy-player-core/plugins-adapters/adapter-stream-source): the protocol handle behind a playing media source.
+- [Adapter: Preload Strategy](/nomercy-player-core/plugins-adapters/adapter-preload-strategy) is the next catalog entry.

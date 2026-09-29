@@ -1,0 +1,70 @@
+---
+title: 'ILogger'
+description: 'Route player and plugin log lines with ILogger, build a Logger with sinks, and pass it to setup as logger.'
+tags: [adapter, logger, player-core]
+draft: false
+---
+
+{/* Source: nomercy-player-core/src/adapters/logger/ILogger.ts, src/adapters/logger/default.ts, src/adapters/logger/index.ts, src/core/mixins/lifecycle.ts, src/core/mixins/plugin-registration.ts, src/core/plugin/base.ts, src/core/mixins/auth.ts, src/types/config.ts */}
+
+# ILogger
+
+Use `cls ILogger` when player and plugin log lines must reach your own logging.
+The logger decides which lines pass the level threshold and where they go.
+Pass one to `fn setup` as `key logger`.
+Every plugin gets a child of it, prefixed with the plugin ID.
+
+:::snippet{file="core-adapter-logger" lines="16-18" live="false"}
+:::
+
+## Built-in adapter
+
+Without `key logger`, the player builds a `cls Logger` with prefix `str [nmplayer]` and your `key logLevel`.
+The default level is `str info`.
+When you pass `key logger`, the player does not apply `key logLevel` to it.
+
+`cls Logger` writes to the console while it has no sinks.
+After the first `fn addSink`, it writes only to its sinks.
+A sink that throws is skipped, and the other sinks still run.
+
+The player logs every `str error` event and every event name ending in `str Error` at error level.
+At `str debug` it also logs every event except `str time` and `str progress`.
+At `str trace` it logs those two as well.
+
+The levels, from quiet to verbose, are `str silent`, `str error`, `str warn`, `str info`, `str debug` and `str trace`.
+
+## Usage
+
+Build the logger, add a sink, then pass it to `fn setup`.
+
+:::snippet{file="core-adapter-logger" lines="20-43" live="false"}
+:::
+
+`fn child` copies the level and the sinks at the moment you call it.
+A sink added to the parent later does not reach a child that already exists.
+Plugin loggers are children, so add your sinks before `fn setup`.
+
+## Interface
+
+The table lists every member of `cls ILogger`.
+
+| Member | Behavior |
+|---|---|
+| `fn trace`, `fn debug`, `fn info`, `fn warn`, `fn error` | Log the arguments at that level. |
+| `fn level` | With no argument, returns the level. With a `cls LogLevel`, sets it. |
+| `fn addSink` | Adds a `cls LogSink` and returns a function that removes it. |
+| `fn child` | Returns a logger whose prefix gains `[suffix]`. |
+
+A `cls LogSink` is `(level, prefix, args) => void`.
+
+## Custom implementation
+
+Implement `cls ILogger` when your app already has a logging library.
+The player calls `fn child` on your logger for every plugin, so return a logger of your own type there.
+
+:::snippet{file="core-adapter-logger" lines="45-112" live="false"}
+:::
+
+## See also
+
+- [Adapter: Media Element](/nomercy-player-core/plugins-adapters/adapter-media-element) is the next catalog entry.

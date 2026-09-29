@@ -17,7 +17,8 @@ Transport, time, and volume call whatever `fn backend` returns on your instance.
 
 Add `fn backend` on your class.
 The shared methods reach it with optional chaining.
-A missing method is a safe no-op.
+`fn load` is required: without it the player throws `str core:player/backend-missing`.
+Any other missing method is a safe no-op.
 There is no setup field that installs a backend for you.
 
 ## The shared substrate
@@ -48,8 +49,9 @@ The base does not implement these methods:
 - `fn buffered`
 - `fn outputProtectionState`
 
-Add them when your medium needs them.
-A call the base does not have is a no-op from the player.
+`fn load` is required.
+Add the others when your medium needs them.
+A call to one of the others that the base does not have is a no-op from the player.
 
 Wire DOM events with `fn attachDomBridges`, or a custom set that still fills the handler list for teardown.
 Override `fn play`, `fn volume`, or `fn mute` only when your medium needs extra work first.
@@ -60,7 +62,7 @@ Override `fn play`, `fn volume`, or `fn mute` only when your medium needs extra 
 DOM bridges map loadstart, loadedmetadata, play, pause, ended, and error onto those values.
 A pause bridge leaves `str idle` and `str error` alone.
 
-`fn bridgeBackendPlayState` copies play, playing, and pause onto your player's play flag.
+`fn bridgeBackendPlayState` copies play and pause onto your player's play flag, and calls `key onPlaying` on each playing event.
 By default, `str loadstart` resets that flag.
 Pass `key resetEvents` or `key pauseGuard` when your medium needs different gating.
 
@@ -79,6 +81,8 @@ Pass your own hls config.
 The helper does not merge defaults.
 `fn resolveOrCreateMediaElement` finds or creates the tag.
 `fn resetMediaElement` clears a previous source before a new one.
+
+The host in the sample stands for your own API.
 
 :::snippet{file="core-build-backend-contract" live="false"}
 :::

@@ -1,0 +1,78 @@
+---
+title: 'MediaElementBackend'
+description: 'Build a backend on an HTML media element by extending MediaElementBackend, which already forwards transport, time, volume, loader and device calls.'
+tags: [adapter, media-element, backend, player-core]
+draft: false
+---
+
+{/* Source: nomercy-player-core/src/adapters/media-element/MediaElementBackend.ts, src/adapters/media-element/index.ts, src/adapters/media-element/backend-state.ts, src/adapters/media-element/helpers.ts, src/core/volume-curve.ts, src/errors/code.ts, src/index.ts */}
+
+# MediaElementBackend
+
+Use `cls MediaElementBackend` when you write a backend that plays through an `<audio>` or `<video>` element.
+It is an abstract class, not an interface.
+It decides how the shared calls reach the element, so your subclass writes only what is different.
+The video and music players build their own backends on it.
+
+:::snippet{file="core-adapter-media-element" lines="17-24" live="false"}
+:::
+
+## Built-in adapter
+
+The base class implements these calls.
+
+| Group | Members |
+|---|---|
+| Transport | `fn play`, `fn pause`, `fn stop` |
+| Time | `fn currentTime`, `fn duration`, `fn bufferedRanges`, `fn seekable`, `fn playbackRate` |
+| Volume | `fn volume`, `fn mute`, `fn unmute` |
+| Loader | `fn pauseLoader`, `fn resumeLoader`, `fn loaderState` |
+| Devices | `fn captureStream`, `fn setSinkId`, `fn getSinkId`, `fn mediaKeys`, `fn setMediaKeys`, `fn mediaElement` |
+| Auth | `fn setAuthHeaderProvider` |
+
+`fn play` always returns a promise.
+`fn stop` pauses and seeks to 0.
+`fn duration` returns 0 until the element knows the length.
+
+`fn volume` with a value clamps it to 0 to 1 and writes its square to the element.
+`fn volume` with no value returns the element value, so it reads back the squared number.
+
+:::snippet{file="core-adapter-media-element" lines="65-66" live="false"}
+:::
+
+`fn pauseLoader` and `fn resumeLoader` stop and start the HLS loader when one is attached.
+
+## Usage
+
+Extend the class and pass three things to `super`: the element, whether the backend owns it, and a backend ID.
+The ID is one of `str audio-element`, `str webaudio`, `str video`, `str html5`, `str mse` or `str webcodecs`.
+Then call `fn attachDomBridges` to turn element events into backend events and state.
+
+:::snippet{file="core-adapter-media-element" lines="26-38" live="false"}
+:::
+
+The state is one of `str idle`, `str loading`, `str ready`, `str playing`, `str paused` or `str error`.
+
+## Interface
+
+A subclass writes what the base leaves out.
+
+| Member | Why |
+|---|---|
+| `fn load`, `fn unload`, `fn state`, `fn dispose` | The base has none of them. |
+| The rest of its own backend interface | The base implements no player backend interface. |
+| `fn play`, `fn volume`, `fn mute` | Override these when extra work comes first. |
+
+`fn detachDomBridges` removes the listeners `fn attachDomBridges` added.
+Call it in `fn dispose`, and pass the old element when you swap elements.
+
+## Custom implementation
+
+This subclass loads a URL, reports its state, and cleans up on dispose.
+
+:::snippet{file="core-adapter-media-element" lines="26,40-57" live="false"}
+:::
+
+## See also
+
+- [Adapter: Media List](/nomercy-player-core/plugins-adapters/adapter-media-list) is the next catalog entry.

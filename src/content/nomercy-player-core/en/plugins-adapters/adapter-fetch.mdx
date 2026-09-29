@@ -1,0 +1,56 @@
+---
+title: 'IFetch'
+description: 'Type an HTTP transport with IFetch, and call defaultFetch when you want the browser fetch behind that type.'
+tags: [adapter, fetch, player-core]
+draft: false
+---
+
+{/* Source: nomercy-player-core/src/adapters/fetch/IFetch.ts, src/adapters/fetch/default.ts, src/adapters/fetch/index.ts, src/core/auth-fetch/attempt.ts, src/types/config.ts */}
+
+# IFetch
+
+Use `cls IFetch` when a helper of yours sends HTTP requests and a test must swap the transport.
+It is a call signature with the shape of the global `fn fetch`, taking a string URL.
+
+There is no `key fetch` option in `fn setup`.
+The player and `fn authFetch` call the global `fn fetch` directly, so this type never reaches the player.
+
+:::snippet{file="core-adapter-fetch" lines="17-18" live="false"}
+:::
+
+## Built-in adapter
+
+`var defaultFetch` is the shipped `cls IFetch`.
+It forwards the URL and the options to the global `fn fetch` and returns its promise.
+Nothing inside the package calls it.
+
+## Usage
+
+Type the transport parameter as `cls IFetch`, and pass `var defaultFetch` in the app.
+
+:::snippet{file="core-adapter-fetch" lines="20-32" live="false"}
+:::
+
+The host in the sample stands for your own API.
+
+## Interface
+
+`cls IFetch` has one call signature and no members.
+
+| Part | Type |
+|---|---|
+| `key url` | `string` |
+| `key opts` | `RequestInit`, optional |
+| Return | `Promise<Response>` |
+
+## Custom implementation
+
+Write your own `cls IFetch` when a test must answer without a network.
+The helper above takes it unchanged.
+
+:::snippet{file="core-adapter-fetch" lines="34-49" live="false"}
+:::
+
+## See also
+
+- [Adapter: ID Generator](/nomercy-player-core/plugins-adapters/adapter-id-generator) is the next catalog entry.
