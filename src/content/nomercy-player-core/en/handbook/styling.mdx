@@ -16,7 +16,7 @@ Your CSS enters the page through plugin helpers, and the player stamps state cla
 
 From a `cls Plugin` subclass, call `fn appendStyles` or `fn appendInlineStyles` in `fn use`.
 Both write into `var document.head`.
-Both take a `key styleId` you choose.
+Both take a `var styleId` you choose.
 
 `fn appendStyles` adds a stylesheet link for a URL.
 When the class sets `key moduleUrl`, a relative URL resolves against it.
@@ -37,7 +37,7 @@ If `var document` is missing, both calls return without writing.
 
 ## One id wins
 
-Before writing, each helper looks up `key styleId` in the document.
+Before writing, each helper looks up `var styleId` in the document.
 When that id already exists, the call does nothing.
 The first call wins, even if a later call passes different CSS or a different URL.
 
@@ -55,7 +55,7 @@ Emitted player events keep further classes in sync, so your CSS can follow state
 | Class | Meaning |
 | --- | --- |
 | `str playing` `str paused` `str stopped` `str ended` `str loading` `str buffering` | Play and load presentation |
-| `str active` `str inactive` | User activity; exactly one is present |
+| `str active` `str inactive` | User activity; exactly one is present once `str activity` has fired, which setup does unless `key inactivityMs` is `0` |
 | `str muted` | Mute is on |
 | `str fullscreen` `str pip` `str theater` | Display mode is on |
 

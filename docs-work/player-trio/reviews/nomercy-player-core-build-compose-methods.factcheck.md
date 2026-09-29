@@ -1,11 +1,30 @@
 # Fact check: /nomercy-player-core/build/compose-methods
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/build/compose-methods.mdx
-Reviewed-SHA: a807aaf9a3c8cf11
+Reviewed-SHA: ca05645c9c4f748c
+
+Delta review since cc9b94c; the full review before it passed.
+
+Date: 2026-09-29. Source: nomercy-player-core `src` at `e3d2de5`. Method: `git diff cc9b94c -- src/content/nomercy-player-core/en/build/compose-methods.mdx`; every added or changed line checked; the section around each hunk re-read. The pseudo-tags used (`fn`, `var`, `str`, `el`, `attr`, `key`, `cls`, inline `ts`) are all defined in `src/lib/mdx/rehype.ts:102-126` and `:184`.
+
+## Changed lines
+
+| Page line | Claim | Supported by | Status |
+| --- | --- | --- | --- |
+| 12, 46, 48, 54 | `el div`, `fn document.getElementById` (tags only) | unchanged claims, carried | Supported |
+| 51 | `var document` (tag only) | unchanged claim, carried | Supported |
+| 59 | `var playerCoreMethods` is a value | `src/core/index.ts:103` | Supported |
+
+## Findings
+
+None.
+
+## Carried from the full review at cc9b94c
+
 
 Source: `packages/player-web/nomercy-player-core/src` (`core/compose.ts`, `core/constructor.ts`, `core/index.ts` `playerCoreMethods`, `core/state.ts` `initPlayerCoreState`). Example: `src/examples/core-build-compose.ts`. Cross-check: music/video players pass the same `className` string to `resolvePlayerConstructor` and `initPlayerCoreState`. Method: read page, example, and source; no site build. Em dash / en dash scan (U+2013, U+2014) over the page and example: none. Old library nickname: none on the page or in the example.
 
-## Gate checks
+### Gate checks
 
 | Gate | Result |
 | --- | --- |
@@ -16,7 +35,7 @@ Source: `packages/player-web/nomercy-player-core/src` (`core/compose.ts`, `core/
 | No em dash / en dash on page or example | Pass |
 | Example `dispose` typed `() => Promise<void>` | Pass (`core-build-compose.ts:44`) |
 
-## Claim table
+### Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |

@@ -13,7 +13,7 @@ Use an adapter when Player Core needs a capability it should not own.
 The clock is the smallest one: what time is it right now.
 
 `cls IClock` answers that with one method, `fn now`.
-It returns a Unix-epoch millisecond integer.
+It returns the time in milliseconds, counted the same way as `fn Date.now`.
 The shipped default is `var systemClock`, which calls `Date.now()`.
 
 ## Import the clock
@@ -37,8 +37,8 @@ systemClock.now();
 
 Implement `cls IClock` when a test must fix the time, or when sync needs one shared timeline.
 `fn setup` is the call that hands config to your player.
-Pass that millisecond value through `key clockSource` on that call.
-`key clockSource` is a function that returns the integer, so wrap your clock as `() => clock.now()`.
+Its `key clockSource` option takes a function that returns that number.
+Wrap your clock as `() => clock.now()` and pass it there.
 
 :::snippet{file="core-tour-adapters" lines="31-33,74,76-79" live="false"}
 :::

@@ -1,11 +1,31 @@
 # Fact check: /nomercy-player-core/plugins-adapters/adapter-event-bus
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/plugins-adapters/adapter-event-bus.mdx
-Reviewed-SHA: d8cf097eaf7cef80
+Reviewed-SHA: 374bdddaa6b8aaa5
+
+Delta review since cc9b94c; the full review before it passed.
+
+Date: 2026-09-29. Source: nomercy-player-core `src` at `e3d2de5`. Method: `git diff cc9b94c -- src/content/nomercy-player-core/en/plugins-adapters/adapter-event-bus.mdx`; every added or changed line checked; the section around each hunk re-read. The pseudo-tags used (`fn`, `var`, `str`, `el`, `attr`, `key`, `cls`, inline `ts`) are all defined in `src/lib/mdx/rehype.ts:102-126` and `:184`.
+
+## Changed lines
+
+| Page line | Claim | Supported by | Status |
+| --- | --- | --- | --- |
+| 14, 83 | No `key eventBus` option in `fn setup` (tag only) | unchanged claim, carried | Supported |
+| 24 | `str adapters/event-bus` path | `package.json` exports key `./adapters/event-bus` | Supported |
+| 40 | `fn on` with a function it already holds adds nothing: handlers for one event are a set | `src/adapters/event-bus/default.ts:69` (`Map<string, Set<AnyHandler>>`), `:118-124` (`set.add(fn)`) | Supported |
+| 38-42 | Nearby sentences (snapshot before iterate, `once` wrapper) not contradicted | page lines 36-43 re-read | Supported |
+
+## Findings
+
+None.
+
+## Carried from the full review at cc9b94c
+
 
 Source: `nomercy-player-core/src/adapters/event-bus` (`IEventBus.ts`, `default.ts`, `index.ts`), root `src/index.ts`, `package.json` exports. Example: `src/examples/core-adapter-event-bus.ts`. Method: read page, example, and adapter source; SHA via the prescribed python one-liner; no site build. Em dash / en dash on the page: none. Old library nickname on the page: none.
 
-## Claim table
+### Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |
@@ -28,7 +48,7 @@ Source: `nomercy-player-core/src/adapters/event-bus` (`IEventBus.ts`, `default.t
 | Example: root `EventEmitter`, subpath `IEventBus`, standalone bus, no setup slot | `core-adapter-event-bus.ts:14-15,28-48` | Supported |
 | See also: Testing uses `listenerCount` for leftover subscriptions | `testing/leak-harness.ts` uses `listenerCount` | Supported |
 
-## Notes (settled, not failures)
+### Notes (settled, not failures)
 
 - `EventEmitter` also exposes `listenersOf` for plugin internals. The page correctly limits class-only extras to the three named behaviors; it does not claim that list is every class-only member.
 - Interface `off(event: 'all')` matches `IEventBus`. Runtime `EventEmitter.off('all', fn)` can drop one firehose listener; that is class surface beyond the interface block.

@@ -1,18 +1,35 @@
 # Fact check: /nomercy-player-core
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/introduction.mdx
-Reviewed-SHA: 3e10f4a927156e16
+Reviewed-SHA: a0614ce7fee6c4b2
+
+Delta review since 06df60f; the full review before it passed.
+
+Date: 2026-09-29. Source: nomercy-player-core `src` at `e3d2de5`. Method: `git diff 06df60f -- src/content/nomercy-player-core/en/introduction.mdx`; every added or changed line checked; the section around each hunk re-read. The pseudo-tags used (`fn`, `var`, `str`, `el`, `attr`, `key`, `cls`, inline `ts`) are all defined in `src/lib/mdx/rehype.ts:102-126` and `:184`.
+
+## Changed lines
+
+| Page line | Claim | Supported by | Status |
+| --- | --- | --- | --- |
+| 30 | Storage or logger go into `fn setup` (tag only; `setup` is a method) | `src/core/mixins/lifecycle.ts:348` (`setup` stores `self.options = { ...config }`) | Supported |
+
+## Findings
+
+None.
+
+## Carried from the full review at 06df60f
+
 
 Source: `packages/player-web/nomercy-player-core` (`package.json`, `README.md`, `src/index.ts`, `src/base-player.ts`, auth/plugin/lifecycle surfaces named below). Method: read the rewritten page and those sources; recompute SHA; no site build. Byte scan of the page for U+2013, U+2014, and the old library nickname: none.
 
-## Gate checks
+### Gate checks
 
 | Gate | Result |
 | --- | --- |
 | Old library nickname on page | none |
 | No em dash or en dash on page | Pass |
 
-## Claim table
+### Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |

@@ -4,51 +4,38 @@ Verdict: PASS
 
 Reviewed: src/content/nomercy-player-core/en/tour/state.mdx
 
-Reviewed-SHA: bb03d0e98d74c3aa
+Reviewed-SHA: 68fc6b409e87a926
 
-## Same-voice comparison
+## Terms explained before first use
 
-Reference: `src/content/nomercy-player-core/en/tour/queue.mdx`. Both pages open with behavior you need before API detail, use `fn` / `key` / `str` / `cls` the same way, split read vs write paths in dedicated sections, call out cancellable listener hooks in prose, warn about timing surprises before media switches, and place a non-live snippet before **Next**. State matches that direct, player-first tone and does not describe the doc site.
+- “snapshot” — line 19 “Each call is a snapshot at that moment”; line 20 explains why: pair with events to know when to read again
+- “reactive” — line 18 “No reader is reactive”; readers return snapshots, not updates
+- “token” — line 12 “typed tokens for how the player is playing”; enum values (idle, playing, etc.)
+- “enum” — line 15 “exported enum”; readers return these
+- “mutation” — line 92 “beforeMutation guard”; used to mean write/state change
 
-## Snippet
+## Reader can do the task
 
-`core-tour-state.ts` (via `:::snippet{file="core-tour-state" live="false"}` before **Next**). It logs every reader named on the page, registers a `beforeMutation` handler that blocks `method === 'current'`, and awaits `repeatState(RepeatState.ALL)`. The file comment states that repeat/shuffle writes return a promise because they run the cancellable `before*` cycle. It does not subscribe to the playback or volume events the page lists, does not demonstrate `beforeRepeat` / `beforeShuffle` listeners, and does not call `qualityMode` or `audioTrackMode` writes. Judgment below is for the MDX page only.
+The task: read and write player state, know which writes are cancellable. Page provides:
+- Read playback: playState() returns idle|loading|playing|paused|stopped|error (line 26)
+- Read volume: volumeState() returns unmuted|muted (line 30)
+- Write repeat: await repeatState(mode) with beforeRepeat/repeatPrevented (lines 40-42)
+- Write shuffle: await shuffleState(mode) with beforeShuffle/shufflePrevented (lines 40-42)
+- Write quality/audio: qualityMode() and audioTrackMode() apply immediately, not cancellable (lines 87-88)
+- Guard mutations: register beforeMutation listener to call preventDefault (lines 92-96)
 
-## Reader notes (JavaScript background, player already composed)
+A reader can read all state and write repeat/shuffle with cancellation support; quality/audio writes are immediate.
 
-I read the page in order without opening player source, assuming a composed class from Quick Start.
+## Code does not hide needed info
 
-The opening states that Core exposes typed tokens, reads are non-reactive snapshots, and I should pair each read with the event that changed it. That matches the example header comment and sets expectations before the API tour.
+- Line 45-47: repeatState import and write example
+- Table (lines 63-68): all readers with return types and defaults
+- Snippet will expand to show concrete usage
 
-**Playback and volume** names `playState` and `volumeState`, their token sets, fresh defaults, and which events to subscribe to when the UI must stay current. Both are clearly read-only here.
+## No sentence needs a second read
 
-**Repeat and shuffle** is where dedicated write cancellation lives: no argument reads; with an argument, a promise runs `beforeRepeat` / `beforeShuffle`, `repeatPrevented` / `shufflePrevented` when blocked, then storage and `repeat` / `shuffle` events. Defaults and shuffle on/off semantics (including leaving order in place when turning off) are spelled out.
-
-**Coarse readers** table lists `bufferState`, `networkState`, `streamState`, and `visibilityState` with return tokens and safe fallbacks when nothing is wired. The intro already flagged `streamState` as a raw string exception.
-
-**Selection mode** covers `qualityMode` and `audioTrackMode` as reads of *how* choice was made, plus writes (level index or `'auto'`; track index with no path back to `default`). Emitted events are named. The closing lines state explicitly that those two writes apply immediately and do not emit a before-event I can cancel.
-
-**Cancel a mutation** describes the shared `beforeMutation` guard, `preventDefault`, `mutationPrevented`, `mutationGuards` on `setup`, hot-method skips, and cursor `method` as `current`. That is general mutation plumbing for other methods on the player, separate from repeat/shuffle’s dedicated before-events and separate from the immediate selection-mode writers.
-
-**Snapshots that surprise** cross-links to Playback Time for item-change timing, consistent with queue’s cursor section.
-
-## Writable modes and cancellation (rubric)
-
-From this page alone I can classify every write it teaches:
-
-| Write | Cancellable? | Mechanism on this page |
-| --- | --- | --- |
-| `repeatState(state)` | Yes | `beforeRepeat` → `repeatPrevented` |
-| `shuffleState(state \| boolean)` | Yes | `beforeShuffle` → `shufflePrevented` |
-| `qualityMode(...)` | No | Applies immediately; no before-event |
-| `audioTrackMode(...)` | No | Applies immediately; no before-event |
-
-Other player methods may use `beforeMutation` (described in **Cancel a mutation**), but the page does not claim that guard for quality or audio track mode, and it explicitly excludes cancellation for those two.
-
-## Friction (does not fail the rubric)
-
-Enum import in the repeat example assumes I know `@nomercy-entertainment/nomercy-player-core` exports. Plugin advisories (`info`, `warning`, `error`) during the mutation pass are mentioned once without a listener example. `fn delay` is named only to say it has no effect on the synchronous guard. The snippet illustrates `beforeMutation` on `current`, not repeat/shuffle prevention, so I rely on prose for the dedicated before-events.
+Lines 18-20 state the snapshot pattern clearly. Lines 40-42 distinguish repeat/shuffle writes from immediate writes. Lines 87-88 explicitly state that quality/audio writes apply immediately.
 
 ## Why PASS
 
-I can list every state reader the page teaches and which events to pair with snapshots. For writes taught on this page, repeat and shuffle are cancellable via their before-events; quality and audio track mode are explicitly non-cancellable immediate writes. The rubric ask (“which writes can be cancelled”) is satisfied.
+The reader understands which state methods are readable, which events to subscribe to for updates, which writes are cancellable (repeat/shuffle via beforeRepeat/beforeShuffle), and which writes are immediate (quality/audio). Snapshots and the reason to pair them with events is explained up front.

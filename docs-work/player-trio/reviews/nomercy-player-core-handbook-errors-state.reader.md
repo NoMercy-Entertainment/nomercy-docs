@@ -1,58 +1,36 @@
 # Reader: /nomercy-player-core/handbook/errors-state
-
 Verdict: PASS
 
 Reviewed: src/content/nomercy-player-core/en/handbook/errors-state.mdx
 
-Reviewed-SHA: 993d15b2ae56df1b
+Reviewed-SHA: 50b05ce3747bdca1
 
-## Same-voice comparison (queue)
+## Task clarity: escalate a fault, pause its work, or expose a snapshot
 
-Reference: `src/content/nomercy-player-core/en/tour/queue.mdx`. Both pages open with when to use the API, keep sections short and behavior-first, and use the same typography (`fn`, `key`, `str`, `cls`). Read vs write paths are split where it matters (`fn options` with no argument vs partial merge). Side effects are named as event strings with payload shape. A non-live snippet sits before **Next**; **Next** links to the next handbook page with one reason to read it.
+The page covers three plugin jobs:
 
-This page matches that rhythm and does not meta-describe the doc site.
+**Escalating faults:** Lines 16-46 explain `fn throw` (halts and throws) vs `fn report` (surfaces but continues). The code example shows both, with realistic payloads: `{ code: 'plugin:spectrum/bad-config', message: '...', suggestion: '...' }`. A developer understands which to call and how to populate the payload.
 
-## Snippet
+**Pausing work:** Lines 63-76 explain `fn enable` and `fn disable` with no arguments. "A new plugin starts enabled" (line 66). "Disable may pass a reason" (line 70). The flow is clear: call enable/disable to flip the flag, check `fn enabled` inside handlers to skip work.
 
-`core-handbook-errors-state.ts` (via `:::snippet{file="core-handbook-errors-state" live="false"}` before **Next**). Judgment below is for the MDX page; the snippet is supplementary end-to-end example (`SpectrumPlugin`, `onError`, `throw`/`report`, listeners, enable/options/state).
+**Exposing state:** Lines 78-96 show `fn state` returns a PluginState snapshot, and `fn options` reads/writes plugin options with change notification. Code example on lines 85-90 shows the override pattern for getRuntimeState.
 
-## Reader notes (JavaScript background, plugin author)
+## Payload and type fields
 
-Read in order without opening player source, assuming I already subclass `Plugin` and register with `addPlugin`.
+`ThrowPayload` is described (not formally typed, but lines 27-28 list the fields: "Fill `key code`, and optionally `key message`, `key cause`, `key context`, `key suggestion`, `key severity`, and `key id`"). The examples show usage. A developer can construct these without a schema.
 
-Opening: use these helpers to escalate, pause work, or expose a snapshot; faults are stamped with plugin scope and my id; catching typed `PlayerError` is on the [Errors](/nomercy-player-core/tour/errors) tour.
+## Enable/disable context
 
-### How a plugin reports a failure (rubric)
+Line 73 states "Listeners from `fn on` stay subscribed either way." This refers to event listeners attached with the player's event bus (from the Errors and State chapter assuming the prior handbook page, Building DOM). The note is that disable does not unsubscribe listeners — the plugin remains subscribed but should check `fn enabled` to stop doing work. This is clearly stated for the player-scope, though the mechanics of plugin handlers could be clearer for a reader unfamiliar with the prior tour.
 
-| Goal | Call | Outcome |
-| --- | --- | --- |
-| Stop the current operation | `this.throw({ code, ... })` | Builds `PlayerError`, surfaces the fault, throws. Default severity `error`. |
-| Continue after a fault | `this.report({ code, ... })` | Surfaces the fault and returns. Default severity `warning`. |
+## Scope and automatic fields
 
-Both use a payload: required `code`; optional `message`, `cause`, `context`, `suggestion`, `severity`, `id`. Inline examples use `plugin:spectrum/...` codes.
+Line 13 mentions "They stamp `var scope.kind` as `str plugin` with your id." The word `scope` appears without introduction, but the action is automatic — the developer does not manage it. This is a detail, not a gap in capability.
 
-Player emits the severity channel (`error`, `warning`, `info`, `fatal`); for `error` and `warning` also `plugin:error` or `plugin:warning` with `{ error, severity, scope, timestamp }`. Raw `throw new Error(...)` skips stamp and events.
+## Code examples
 
-### Runtime snapshot sample
-
-**Snapshot and options** includes a small inline class `PlayCounter extends Plugin` overriding `getRuntimeState()` to return `{ framesRendered: this.framesRendered }`. That shows where `key runtime` on `PluginState` comes from without opening the snippet.
-
-### Recovery, enablement, state, options, logger
-
-**Recover with `onError`**: map fault `code` to `ignore`, `disable`, `retry-once`, or `fallback` (table says what runs). Map runs after surfacing; I own optional `retryLastOperation` / `activateFallback` bodies.
-
-**Enable and disable**: `enabled`, `enable`, `disable`, events, listeners stay subscribed, check `enabled` in handlers, `dep-failed:<id>` disable reason.
-
-**Snapshot and options**: `PluginState` fields; `getRuntimeState` default `{}`; frozen shallow `options()` read; partial merge write with events; hand-mutating `this.opts` skips events.
-
-**Logger and storage**: id-prefixed child logger and storage before `use`, following player adapters.
-
-## Friction (does not fail rubric)
-
-- `PluginRecoveryAction` is a type label; values come from the Action column.
-- `onError` placement as a static map on the class is shown in the snippet, not spelled in prose.
-- `bare and id-namespaced` for events is handbook shorthand; exact names are inferable from registration-style wording elsewhere.
+First block (throw and report) — complete and realistic. Second block (getRuntimeState) — shows the override pattern. Both align with the sections they illustrate.
 
 ## Why PASS
 
-I can report failures with `this.throw` or `this.report`, use the documented payload fields, and listen on the documented channels. The inline `PlayCounter` sample explains overriding runtime snapshot on a `Plugin` subclass. No name required for reporting or recovery is left undefined under the stated fail conditions.
+A plugin developer can read this page and understand when to throw vs report, how to populate the payload, when to enable/disable, and how to snapshot state and options. The examples are concrete. Automatic behaviors (scope stamping) are noted without requiring the reader to set them up.

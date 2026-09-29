@@ -1,39 +1,42 @@
 # Reader: /nomercy-player-core/handbook/i18n
-
-Verdict: PASS
+Verdict: FAIL
 
 Reviewed: src/content/nomercy-player-core/en/handbook/i18n.mdx
 
-Reviewed-SHA: 6ce865e30c5159d1
+Reviewed-SHA: 4e50554521c85520
 
-## Same-voice comparison (reference: tour/queue)
+## Undefined key terms
 
-Like [The Queue](/nomercy-player-core/tour/queue), the page is behavior-first and imperative: short `##` sections, the same `fn` / `key` / `cls` typography, and a non-live snippet immediately before **Next**. Queue teaches list edits versus playback with inline ` ```ts ` blocks; this handbook page orients plugin authors on package-root exports, static bundles, instance lookup, and async loading, and it defers day-to-day `fn language`, `fn t`, and `fn addTranslations` to the [i18n tour](/nomercy-player-core/tour/i18n). The opening matches other handbook pages (plugin defined in plain language before mechanics). The main voice difference is a root export table instead of queue’s step-by-step inline calls—appropriate for a handbook slice, still in the same direct tone as queue.
+The page uses several terms without introduction:
 
-## Snippet
+1. **"tag"** — Used repeatedly ("active tag" line 39, "per-tag modules" line 23, "one tag per bundle" implied) but never defined. Is it a language code? A locale?
 
-`core-handbook-i18n.ts` (via `:::snippet{file="core-handbook-i18n" live="false"}` before **Next**). It imports `Plugin`, `Translations`, `bcp47FallbackChain`, `createNetworkTranslationLoader`, and `defaultTranslations` from `@nomercy-entertainment/nomercy-player-core`, defines `LyricsPanelPlugin` with static `translations` (full `plugin.<id>.*` keys), uses `this.t` with bare keys and a vars map, overrides `loadTranslations` for French bare keys, logs `bcp47FallbackChain` and `defaultTranslations`, builds a `createNetworkTranslationLoader` instance, composes a minimal player with `playerCoreMethods`, registers the plugin, switches `en` → `nl` → `fr`, and disposes. It does not assign `translationsFromGlob` to a static field or pass `createNetworkTranslationLoader` into `setup({ loadTranslations })`; judgment below is for the MDX page plus how the snippet supports the paths the prose emphasizes.
+2. **"BCP-47"** — Line 27 mentions "`fn bcp47FallbackChain` returns parent tags for a BCP-47 value" with no explanation of what BCP-47 is. (Standard: language tags like "en", "en-US", "pt-BR".)
 
-## Reader notes (JavaScript background, player already composed)
+3. **"namespace"** — Line 34 says "Keys inside the bundle must already use the `plugin.<id>.` prefix" and line 50 says "the player namespaces them". What is namespacing? Why is it needed?
 
-I read the page in order without opening player source, assuming I already know how to compose a player and that plugin basics come from the tour or [registration](/nomercy-player-core/handbook/registration).
+4. **"placeholders"** — Line 44 says "when the stored string has `{name}` placeholders" but doesn't explain what placeholders are or how they work.
 
-The first paragraph defines **plugin** before the page relies on `cls Plugin`, static bundles, and `this.t`. It points me at the i18n tour for player-level APIs so this page can stay on shipping plugin strings.
+## Code example gap
 
-**Names on the package root** states the import path once—`@nomercy-entertainment/nomercy-player-core`—and the table gives each export a one-line role. For **bundles**, I know to import `cls Translations` (type) for inline maps, `fn translationsFromGlob` for per-tag modules, and the built-in `key enTranslations`, `key defaultTranslations`, and `key nlTranslations` when I need those maps. For **loaders**, I know to import `fn createNetworkTranslationLoader` for player-wide CDN JSON and that plugin-side loading is `fn loadTranslations` on the subclass, not a separate package export. Supporting types (`cls ITranslator`, `cls TranslationLoader`) and `key i18nMethods` are named with enough context that I know they are types or compose-time mixins, not mystery symbols.
+Line 57 states "The host in the sample stands for your own API" but the sample (referenced in line 54 as a snippet) is not rendered on this page. The reader encounters a forward reference to an example they cannot yet see, breaking the reading flow.
 
-**Static bundles on the class** explains `key translations` on a `cls Plugin` subclass: keys must already include `plugin.<id>.`, ancestor merge at registration, and dispose scoping. `fn translationsFromGlob` is tied to lazy fetch on registration and language switch.
+## Task clarity
 
-**Look up from the instance** covers plugin `fn t`, optional vars, and miss behavior via `key onMissingTranslation` then the namespaced key.
+The opening task is "Ship plugin strings with the public i18n exports." But the page does not state upfront what steps are needed. Instead, it lists exports (lines 16-29), then sections on bundles, lookup, and loading (lines 31-52). A reader must infer the workflow: create a Translations object, assign it to a Plugin subclass, look it up with `fn t`. No step-by-step task description is given.
 
-**Load after use** covers overriding `fn loadTranslations` (bare keys, `undefined` when empty) and wiring `fn createNetworkTranslationLoader` as setup `key loadTranslations` for player-wide fetches.
+## Density and reference style
 
-## Friction (does not fail the rubric)
+Lines 20-29 present a reference table with names and roles. Line 27 is particularly dense:
 
-- `key onMissingTranslation` appears only in the miss chain; the page does not say it lives on setup config (reference/config names the shape). I still understand it as an optional fallback hook, not an unexplained export.
-- `fn translationsFromGlob` and setup `loadTranslations` are named in prose and the table but not shown in an inline import or assignment block in the MDX; the snippet demonstrates static literals, override `loadTranslations`, and constructing a network loader without passing it to `setup`.
-- `cls DefaultTranslator` and the built-in locale keys are listed for completeness; the snippet only touches `defaultTranslations` and not `enTranslations` / `nlTranslations`.
+> `fn bcp47FallbackChain` returns parent tags for a BCP-47 value, most specific first. `cls ITranslator`, `cls Translations`, and `cls TranslationLoader` type those shapes. `key i18nMethods` is the mixin chunk you compose onto a player class.
 
-## Why PASS
+Three unrelated concepts in three sentences. BCP-47 is undefined; the type names are listed without context.
 
-I can tell what to import from the package root for inline static bundles (`Translations`), glob-backed bundles (`translationsFromGlob`), built-in maps (`enTranslations`, `defaultTranslations`, `nlTranslations`), and the network loader (`createNetworkTranslationLoader`), with plugin async loading documented as an override rather than an import. Named exports in the table and sections are given roles before the page asks me to use them, and **plugin** is defined in the opening. Under the stated fail conditions (unexplained names; unclear imports for bundles and loaders), this passes.
+## Dependency on tour page
+
+Line 14 redirects: "Day-to-day `fn language`, `fn t`, and `fn addTranslations` stay on the [i18n tour]." This suggests the page is an advanced reference, but it does not state that upfront. The opening does not position this as "for advanced use" or "see the tour first."
+
+## Why FAIL
+
+A reader cannot ship plugin strings from this page alone. Key terms (tag, BCP-47, namespace, placeholders) are undefined. The code example is referenced but not shown. The task steps are not stated; only sections and API names are listed. A developer would need to read the tour page, understand the snippet when it finally appears, and infer the workflow.

@@ -1,11 +1,28 @@
 # Fact check: /nomercy-player-core/tour/queue
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/tour/queue.mdx
-Reviewed-SHA: 7b4069ed042d2b1d
+Reviewed-SHA: 8c3237cd6c3d8e6d
+
+Delta review since cc9b94c; the full review before it passed.
+
+Date: 2026-09-29. Source: nomercy-player-core `src` at `e3d2de5`. Method: `git diff cc9b94c -- src/content/nomercy-player-core/en/tour/queue.mdx`; every added or changed line checked; the section around each hunk re-read. The pseudo-tags used (`fn`, `var`, `str`, `el`, `attr`, `key`, `cls`, inline `ts`) are all defined in `src/lib/mdx/rehype.ts:102-126` and `:184`.
+
+## Changed lines
+
+| Page line | Claim | Supported by | Status |
+| --- | --- | --- | --- |
+| 60 | `str item` names the event (tag only) | unchanged claim, carried | Supported |
+
+## Findings
+
+None.
+
+## Carried from the full review at cc9b94c
+
 
 Source: `packages/player-web/nomercy-player-core/src/core/mixins/queue.ts`, `play-queue.ts`; `playerCoreMethods` includes both (`core/index.ts:114-115`). Example: `src/examples/core-tour-queue.ts` with `baseUrl: FILMS_BASE` and relative `films` urls from `src/examples/media.ts`. Method: read page, example, and mixin source; no site build. Em dash / en dash scan (U+2013, U+2014) over the page and example: none. Old library nickname: none on the page or in the example.
 
-## Gate checks
+### Gate checks
 
 | Gate | Result |
 | --- | --- |
@@ -19,7 +36,7 @@ Source: `packages/player-web/nomercy-player-core/src/core/mixins/queue.ts`, `pla
 | No em dash / en dash on page or example | Pass |
 | Example uses `baseUrl` + relative paths from `media.ts` | Pass (`baseUrl: FILMS_BASE`; `films` urls like `/Sintel...`) |
 
-## Claim table
+### Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |

@@ -1,13 +1,31 @@
 # Fact check: /nomercy-player-core/tour/transport
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/tour/transport.mdx
-Reviewed-SHA: 61132511ba8f36d6
+Reviewed-SHA: b3333e8d6ceb96c6
+
+Delta review since 2e9c15c; the full review before it passed.
+
+Date: 2026-09-29. Source: nomercy-player-core `src` at `e3d2de5`. Method: `git diff 2e9c15c -- src/content/nomercy-player-core/en/tour/transport.mdx`; every added or changed line checked; the section around each hunk re-read. The pseudo-tags used (`fn`, `var`, `str`, `el`, `attr`, `key`, `cls`, inline `ts`) are all defined in `src/lib/mdx/rehype.ts:102-126` and `:184`.
+
+## Changed lines
+
+| Page line | Claim | Supported by | Status |
+| --- | --- | --- | --- |
+| 46 | Backend `fn play` (tag only) | unchanged claim, carried | Supported |
+| 132 | `fn preventDefault` (tag only) | unchanged claim, carried | Supported |
+
+## Findings
+
+None.
+
+## Carried from the full review at 2e9c15c
+
 
 Source: `packages/player-web/nomercy-player-core/src/core/mixins/transport.ts`, `core/mixins/loading.ts`, `core/mixins/player-state.ts` (`_assertReady`, `_dispatchBefore`); MediaList `setCurrent` → `item` in `adapters/media-list/default.ts` wired via `core/mixins/queue.ts`; `RepeatState` in types/state. Example: `src/examples/core-tour-transport.ts`. Method: read page, example, and those sources; SHA256 of page bytes (first 16 hex); no site browser gate. Em dash / en dash scan (U+2013, U+2014) over the page and example: none. Old library nickname (the old nickname): none on the page or in the example. Snippet: `live="false"`. Page does not name `repeatState`; `next` is described by repeat mode tokens `one` / `all` / `off`.
 
 Shared-shape scope: only table calls claim a `before*` announce. Table has five data rows (play/pause/stop/load/seek); `next`/`previous` are outside the table and named in a separate sentence that they announce `beforeNext` / `beforePrevious` (`transport.ts:244`, `307`). `togglePlayback` is outside the table and “announces nothing of its own” (`transport.ts:224-228`). `loadQueue` is outside the table; it emits `playlistResolving` then `playlistReady` (and errors on failure), not a `before*` (`loading.ts:305-327`). Page success line names `playlistReady` only — true, not a false claim.
 
-## Gate checks
+### Gate checks
 
 | Gate | Result |
 | --- | --- |
@@ -21,7 +39,7 @@ Shared-shape scope: only table calls claim a `before*` announce. Table has five 
 | Sentence ≤ 30 words; paragraph ≤ 60 words | Pass (max sentence 23; max paragraph 41) |
 | Table data rows ≤ 6 | Pass (5 data rows; next/previous not in table) |
 
-## Claim table
+### Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |
@@ -48,7 +66,7 @@ Shared-shape scope: only table calls claim a `before*` announce. Table has five 
 | Cancel via `preventDefault`; `*Prevented` + reason/cause | `_dispatchBefore` + transport prevent branches | Supported |
 | `source` stamped when passed; omitted stays empty; `seek` has source, `seeked` does not | `transport.ts:55-61` | Supported |
 
-## Example alignment
+### Example alignment
 
 - Single import line from `@nomercy-entertainment/nomercy-player-core` immediately before `./media` (`core-tour-transport.ts:17-18`).
 - Stub backend + compose seed; `load` then `play`; forward/rewind/pause/toggle/stop; listens `mediaReady` / `playPrevented`.
