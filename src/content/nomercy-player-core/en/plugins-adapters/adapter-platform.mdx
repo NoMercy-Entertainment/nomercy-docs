@@ -28,7 +28,7 @@ Without `window` or `document`, `fn isOnline`, `fn isVisible` and each `fn subsc
 `fn type`, `fn downlinkMbps` and `fn rttMs` read `navigator` directly and throw where it is missing.
 
 `fn acquire` on the wake lock throws `str core:policy/wakeLockUnsupported` where the browser has no wake lock API.
-`fn enter` on fullscreen and picture in picture throws the matching `str core:policy/` error where the API is missing.
+`fn enter` on fullscreen and picture in picture (PiP, the browser feature that floats a video in a small window while the user browses elsewhere) throws the matching `str core:policy/` error where the API is missing.
 
 The player reads each field from one place.
 
@@ -66,7 +66,8 @@ Each `fn subscribe` returns a function that removes the subscription.
 
 When the network monitor reports a change while online, the player emits `str network:slow` once if `fn downlinkMbps` is more than 0 and less than 1.5.
 With `key onOffline` set to `str ignore`, it never does.
-`fn networkState` returns slow on the same rule at any time.
+After `fn setup`, `fn networkState` returns slow on the same rule whenever you call it.
+Before `fn setup` it always returns online.
 
 ## Custom implementation
 

@@ -23,13 +23,14 @@ There is no `key lifecycleRegistry` option in `fn setup`.
 ## Built-in adapter
 
 `fn dispose` removes DOM listeners first.
-Then it clears timeouts, intervals and frame loops, disconnects observers, and aborts controllers.
+Then it clears `setTimeout` and `setInterval` timers and `requestAnimationFrame` loops, disconnects observers such as `ResizeObserver` or `MutationObserver`, and aborts `AbortController` instances.
 The `fn addCleanup` callbacks run last, most recent first.
 
 A callback that throws is caught and logged, and the teardown goes on.
 A throw inside a `fn timeout`, `fn interval` or `fn frame` body is caught and logged the same way.
 
 Every method stays safe after `fn dispose`, so you never check `fn isDisposed` first.
+The player itself uses `fn isDisposed` as a guard against tearing a plugin down twice, so a repeated removal is a no-op instead of a second dispose.
 
 | Call after dispose | Result |
 |---|---|

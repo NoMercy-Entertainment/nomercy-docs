@@ -1,52 +1,47 @@
 # Fact check: /nomercy-player-core/plugins-adapters/adapter-preload-strategy
 Verdict: FAIL
 Reviewed: src/content/nomercy-player-core/en/plugins-adapters/adapter-preload-strategy.mdx
-Reviewed-SHA: b627493f2b572807
+Reviewed-SHA: bfb55a42638bd8c5
+Previous verdict: FAIL; fixes verified: finding 1 (`shouldPreload` is now asked on every `time` event and `nextItem` can be `null`, page lines 33-34; true per `lifecycle.ts:828-837`), finding 2 (`mode` is now stated as unread, with a link to #18, page line 65; `lifecycle.ts:1014-1039` reads only `url` and `category`)
 
-Source (nomercy-player-core `e3d2de5`): `src/adapters/preload/default.ts`, `index.ts`; `src/core/mixins/preload-strategy-mixin.ts`, `lifecycle.ts`; `src/core/index.ts`; `src/types/config.ts`, `events.ts`; `package.json` exports. Example: `src/examples/core-adapter-preload-strategy.ts`. Issue #18 (read with `gh issue view 18`).
+Source: nomercy-player-core `src` at `e3d2de5`. Example `src/examples/core-adapter-preload-strategy.ts` (unchanged since the previous review).
 
-Method: read the page, the example and the sources above. Type check of the example against the package SOURCE (scratch tsconfig outside the repo, `paths` mapped to `packages/player-web/*/src`): exit 0, 0 errors. Example `:26-30` traced by hand: `95 >= 100 - 10` is `true` (`default.ts:236`). Orchestration traced in `lifecycle.ts:798-855,1010-1062`; not run. No URLs.
+Method: re-read the whole page and `src/core/mixins/lifecycle.ts:798-855,1010-1064`, `src/adapters/preload/default.ts`. Type-checked the example against the package SOURCE (scratch tsconfig outside the repo): `tsc` exit 0. Snippet ranges `16-22`, `24-30`, `32-44`, `46-59`, `67-78` match the lock and the example (5 of 5 OK). Orchestration traced, not run.
 
 ## Findings
 
-1. **Page line 33: "The player asks `fn shouldPreload` on every `str time` event while a next item is queued." The code asks it on every `time` event, with or without a next item.**
-   `lifecycle.ts:830-839`: `nextItem` is `self._queueList.peekNext() ?? null`, and the condition is `!self._preloadFired && self._preloadStrategy.shouldPreload(context) && nextItem !== null`, so `shouldPreload` runs before the null check and receives `nextItem: null` when nothing is queued. (The interface comment at `default.ts:101-102` says "while a next item is queued"; the code is the truth.)
-   Fix: "The player asks `fn shouldPreload` on every `str time` event until the first yes. `key nextItem` is `null` when nothing is queued, and a yes then starts nothing."
-
-2. **Page line 63: "a `cls PreloadAsset` holds ... an optional `key mode`." The player never reads `mode`.**
-   `default.ts:85` declares `mode?: 'metadata' | 'auto'` (doc: "Default 'metadata'"), but `_runPreload` sends every asset as `new Request(asset.url, { method: 'HEAD', mode: 'no-cors' })` and uses only `url` and `category` (`lifecycle.ts:1014-1020,1035-1039`). A grep for `.mode` reads in `src/` (excluding tests and stream/ABR code) finds no reader. This is known issue #18, point 1; the page may state it, but it must not list the field as if it had an effect.
-   Fix: "A `cls PreloadAsset` holds a `key url`, a `key category` string, and an optional `key mode`. The player does not read `key mode` yet ([#18](https://github.com/NoMercy-Entertainment/nomercy-player-core/issues/18))."
+| # | Page line | Source | What is wrong | Fix |
+| --- | --- | --- | --- | --- |
+| 1 | 13 | `src/core/mixins/lifecycle.ts:837-839` (`shouldPreload` per `time` event, then `_runPreload` once); `lifecycle.ts:1011` (`assetsToPreload` called once, inside `_runPreload`) | "The strategy answers two questions on each `str time` event." Only `fn shouldPreload` is asked per `time` event, and not at all after a yes that started a preload. `fn assetsToPreload` is asked once per preload. Page line 36 says so itself, so line 13 contradicts it. | Replace line 13 with: "The strategy answers two questions: is it time yet, and what should load." |
+| 2 | 34-35 | `lifecycle.ts:837-838` (`if (!self._preloadFired && self._preloadStrategy.shouldPreload(context) && nextItem !== null) { self._preloadFired = true; ...`) | Line 33 says "until the first yes" and line 35 "After the first yes, it stops asking". When `nextItem` is `null`, a yes does not set `_preloadFired`, so the player keeps asking on every `time` event. Only a yes with a next item queued stops the asking. A custom strategy that says yes without a next item hits this; the default never does (`default.ts:231-232`). | Replace lines 33-35 with: "The player asks `fn shouldPreload` on every `str time` event. `key nextItem` is `null` when nothing is queued, and a yes then starts nothing. After a yes with a next item queued, it stops asking until the current item changes." |
 
 ## Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |
-| L12 strategy decides when the next item warms and which assets | `default.ts:99-122` | Supported |
-| L13 two questions: is it time, what should load | `default.ts:107,114`; note: only `shouldPreload` is asked per `time` event, `assetsToPreload` once (page L35 says so) | Supported |
-| L14 `setup({ preloadStrategy })` or `setPreloadStrategy` | `config.ts:455`; `lifecycle.ts:799-801`; `preload-strategy-mixin.ts:42-46`; mixed in `core/index.ts:128` | Supported |
-| L16 snippet imports | `package.json` exports `"./adapters/preload"`; `preload/index.ts:9-15` | Supported |
-| L21 default is `DefaultPreloadStrategy(preloadLeadSeconds)`, 10 by default | `lifecycle.ts:806-808`; `config.ts:410` | Supported |
-| L22 yes once within lead seconds of the end | `default.ts:236` | Supported |
-| L23 no when no next item or duration unknown | `default.ts:231-234`; `default.ts:38` (`0` when not known) | Supported |
-| L25 default `assetsToPreload` returns `[]` | `default.ts:239-241` | Supported |
-| L26 no assets: `preloadStart` then `preloadComplete` at once | `lifecycle.ts:1014-1028` | Supported |
-| L28 example `true` | `default.ts:236` | Supported |
-| L33 asked on every `time` event while a next item is queued | see Finding 1 | **Unsupported** |
-| L34 after first yes, stops asking until current item changes | `lifecycle.ts:811-816,837-838` (`_preloadFired` reset on `item`) | Supported |
-| L35 `assetsToPreload` once, then request each asset | `lifecycle.ts:1010-1062` | Supported |
-| L42-47 event payloads | `types/events.ts:490-499`; emits `lifecycle.ts:1014-1020,1026,1046-1053,1059` | Supported |
-| L49 `HEAD`, `no-cors`, global `fetch` | `lifecycle.ts:1035-1039` (known #19: fetch not injectable) | Supported |
-| L50 on item change: `cancel` and drop in-flight results | `lifecycle.ts:811-816` (`cancel`, `_preloadEpoch += 1`), epoch checks `:1031,1043,1057` | Supported |
-| L54 every member of the interface | `default.ts:99-122` (3 members) | Supported |
-| L58-59 `shouldPreload(PreloadContext)`, `assetsToPreload(item)` | `default.ts:107,114` | Supported |
-| L60 `cancel` on item change and on strategy replace | `lifecycle.ts:814`; `preload-strategy-mixin.ts:43` | Supported |
-| L62 `PreloadContext` fields, seconds, `nextItem` or `null` | `default.ts:35-42` | Supported |
-| L63 `PreloadAsset` fields | `default.ts:67-86`; see Finding 2 | **`mode` unsupported as an effect** |
-| L67-68 extend default; constructor takes lead seconds | `default.ts:221-226` | Supported |
-| L70 `PosterPreload` overrides `assetsToPreload` | type check exit 0 | Supported |
-| L75 `LastTenPercent implements IPreloadStrategy` | type check exit 0 | Supported |
+| L12 strategy decides when the next item warms and which assets | `src/adapters/preload/default.ts` `IPreloadStrategy` (`shouldPreload`, `assetsToPreload`, `cancel`) | Supported |
+| L13 two questions on each `time` event | see finding 1 | FAIL |
+| L14 `setup({ preloadStrategy })` or `setPreloadStrategy` | `src/types/config.ts:455`; `lifecycle.ts:799-801`; `src/core/mixins/preload-strategy-mixin.ts:42-46` | Supported |
+| L16 imports | `package.json:84` `./adapters/preload`; `adapters/preload/index.ts` | Supported |
+| L21 default `DefaultPreloadStrategy(preloadLeadSeconds)`, 10 by default | `lifecycle.ts:806-808`; `config.ts:410` | Supported |
+| L22-23 yes within lead seconds; no without next item or duration | `default.ts` `shouldPreload` (`nextItem === null` false, `duration <= 0` false, `currentTime >= duration - lead`) | Supported |
+| L25-26 empty assets; `preloadStart` then `preloadComplete` at once | `default.ts` `assetsToPreload` returns `[]`; `lifecycle.ts:1013-1028` | Supported |
+| L33 asked on every `time` event | `lifecycle.ts:828-837,851` | Supported (fix verified) |
+| L34 `nextItem` is `null` when nothing queued, a yes starts nothing | `lifecycle.ts:830,837` | Supported (fix verified) |
+| L33 "until the first yes" / L35 "After the first yes, it stops asking" | see finding 2 | FAIL |
+| L35 asking resumes when the current item changes | `lifecycle.ts:811-812,823` (`_preloadFired = false` on `item`) | Supported |
+| L36 `assetsToPreload` once, then request each asset | `lifecycle.ts:1011,1030-1064` | Supported |
+| Event table (4 rows) | `src/types/events.ts:490-499` | Supported |
+| L50 `HEAD`, `no-cors`, global `fetch` | `lifecycle.ts:1035-1039` (issue #19) | Supported |
+| L51 on item change: `cancel`, in-flight results dropped | `lifecycle.ts:811-816` (epoch bump); epoch checks `:1031,1043,1057` | Supported |
+| Interface table (3 members); `cancel` on item change and on replace | `default.ts` `IPreloadStrategy`; `lifecycle.ts:814`; `preload-strategy-mixin.ts:43` | Supported |
+| L63 `PreloadContext` fields | `default.ts` `PreloadContext` (`currentTime`, `duration`, `nextItem: BasePlaylistItem | null`) | Supported |
+| L64 `PreloadAsset` `url`, `category` string, optional `mode` | `default.ts` `PreloadAsset` (`category` is a string union with `string & {}`) | Supported |
+| L65 player does not read `mode` yet (#18) | `lifecycle.ts:1014-1020,1035-1038`; issue #18 exists (`gh issue list`: "fix(preload): asset fetch skips auth and urlResolver, ...") | Supported (fix verified) |
+| L69-70 extend the default; constructor takes the lead in seconds | `default.ts` `constructor(private readonly _leadSeconds: number = 10)` | Supported |
+| L75-77 implement the interface | example `:46-59`; type check exit 0 | Supported |
+| See also: Quality | `src/content/nomercy-player-core/en/plugins-adapters/adapter-quality.mdx` exists (`ls`) | Supported |
 
 ## Notes
 
-- Example `:69` has `// ...` inside the `setup` call. No complete `setup` call appears earlier on this page; reported per the role, for the reader reviewer to judge.
-- Not on the page, seen while tracing: `fetch(request).catch(() => {})` (`lifecycle.ts:1039`) swallows fetch failures, so a failed asset still counts as loaded and `preloadError` fires only when `new Request` throws. The page makes no claim about when `preloadError` fires, so this is not a page finding. Issue #18 does not mention it; worth adding to #18.
+- Carried: example `:69` has `// ...` inside the `setup` call, no complete `setup` earlier on this page; for the reader reviewer.
