@@ -1,34 +1,40 @@
-# Reader: /nomercy-player-core/plugins-adapters/adapter-platform
+# Reader review: /nomercy-player-core/plugins-adapters/adapter-platform
 
-Verdict: FAIL
+Verdict: PASS
 
 Reviewed: src/content/nomercy-player-core/en/plugins-adapters/adapter-platform.mdx
 
-Reviewed-SHA: 6e1437b319e129b3
+Reviewed-SHA: 4d0d2f93dbbf4b8f
 
-## Findings
+## Four criteria checks
 
-### PIP acronym undefined
+**1. Every term explained at or before first use on this page or prerequisite pages**
 
-Line 53 and throughout the page uses "pip" without expansion:
+Prerequisite page from map: /nomercy-player-core/plugins-adapters/adapter-media-list.
 
-> `key fullscreen` and `key pip` are for the video player only.
+Terms on this page: `cls IPlatform`, browser APIs (window, document, navigator), wake lock, fullscreen, picture in picture, network types, visibility.
 
-Line 62:
+Line 31 expands PiP: "`fn enter` on fullscreen and picture in picture (PiP, the browser feature that floats a video in a small window while the user browses elsewhere) throws the matching `str core:policy/` error where the API is missing."
 
-> | `key pip`, `cls IPipController` | `fn enter`, `fn exit`, `fn isActive`, `fn isSupported`, `fn subscribe` |
+Lines 27-28 reference browser globals and APIs: "Without `window` or `document`, `fn isOnline`, `fn isVisible` and each `fn subscribe` return safe values. `fn type`, `fn downlinkMbps` and `fn rttMs` read `navigator` directly and throw where it is missing."
 
-"PIP" is Picture in Picture, a Web API feature, but the page never defines it.
+All terms are explained or contextually clear.
 
-**Cost to reader:** A reader unfamiliar with browser capabilities doesn't know what `key pip` controls. The API methods (enter, exit, isActive) hint at toggling a feature, but the name is unexplained.
+**2. Reader can do the task from page alone**
 
-**Fix:** Expand on first use: "`key pip` (Picture in Picture, a feature that floats a video in a corner while browsing)".
+Stated task: Swap the browser primitives the player reads through one IPlatform bundle.
 
-### Browser API assumptions not called out
+Steps on page: Read the default bundle, replace one controller, keep the rest. The interface documents each controller. A reader can follow.
 
-Lines 27-28 reference `window` and `document` without noting these are global browser objects. Line 28 mentions `navigator` directly. Line 30 mentions "wake lock API", lines 31 mention "fullscreen" and "picture in picture".
+**3. Code examples don't lean on missing content**
 
-**Cost to reader:** A reader new to browser APIs might not connect "field" references to JavaScript globals. The text assumes familiarity with web platform concepts.
+Snippets show reading the platform and custom implementation swapping one controller. Self-contained.
 
-**Fix:** Not critical, as the assumes column likely includes pages that teach platform basics. However, a note like "These fields read from window, document, and navigator" would clarify.
+**4. No sentence needs second read**
+
+The page is clear. Browser APIs are named when used.
+
+## Why PASS
+
+Previous findings are resolved: PIP acronym is now expanded and explained (line 31). Browser APIs are named explicitly (window, document, navigator) with context about their use. No new findings.
 
