@@ -6,16 +6,34 @@ Reviewed: src/content/nomercy-player-core/en/plugins-adapters/adapter-cue-parser
 
 Reviewed-SHA: b604a5d785d9692a
 
-## Review summary
+## Four criteria checks
 
-Catalog page for ICueParser adapter. Opens: use ICueParser when timed text arrives in a format you need to claim. Each parser has id, canParse gate, and synchronous parse returning cue list. Imports shown (CueParserRegistry, createCueList, parseLrc).
+**1. Every term explained at or before first use**
 
-States that CueParserRegistry and parse helpers also live on adapters/cue-parser path; ICueParser on root and that path. Clear import guidance.
+Prerequisite: /nomercy-player-core/plugins-adapters/adapter-clock. New terms: `cls ICueParser`, `fn canParse`, `fn parse`, `cls CueParserRegistry`, `fn register`, `key id`, `key prepend`, `fn unregisterCueParser`, `fn registerCueParser`, `fn resolveCueParser`, `key cueParsers`.
 
-**Built-in Adapter**: CueParserRegistry is the ordered list you construct or player owns. Resolution walks newest first. fn register with same id replaces. Pass prepend: true for low-priority. During setup, Player Core seeds three parsers by id (not imported directly, addressed by id). Table: lrc (claims .lrc, three content types), vtt (.vtt, text/vtt, not sprite), sprite-vtt (ends in sprite.vtt or sprites.vtt, query may follow). Exports listed: parseLrc, parseVttSubtitles, parseVttSprite, parseVtt. Player wraps registry in registerCueParser, unregisterCueParser, resolveCueParser. Pass cueParsers at setup or call registerCueParser at runtime to outrank seeded parser.
+Each explained: canParse(url) returns true when format owns URL, parse(raw) returns cue list, registry walks newest first.
 
-**Usage**: Register on registry or reuse exported reader. Snippet provided.
+Built-in adapters table shows three seeded parsers with their claimed extensions.
 
-**Interface**: Snippet line window shown, type definition below.
+**2. Reader can do the task from page alone**
 
-Voice matches adapter-clock. All terms named. Density acceptable. Snippet partial (expected for interface).
+Task: Implement a cue-parser adapter and register it.
+
+Steps: 1) Implement ICueParser with id, canParse(), parse() methods, 2) Pass in cueParsers on setup, or call registerCueParser() at runtime, 3) Use prepend: true for low priority, 4) Call resolveCueParser() to test.
+
+Reader can build and register a format from this page. Exported helpers (parseLrc, parseVtt variants) are named for reuse.
+
+**3. Code examples don't lean on missing content**
+
+Custom implementation shows complete beats parser example with createCueList call. No scaffolding beyond the parser.
+
+Snippet shows usage. Code is self-contained.
+
+**4. No sentence needs second read**
+
+Clear language. "Fetching is the caller's job" clearly states separation of concerns for parse() method.
+
+## Findings
+
+None. Page passes all criteria.

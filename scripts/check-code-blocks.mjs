@@ -28,7 +28,7 @@ const COLLECTIONS = ['nomercy-player-core', 'nomercy-video-player', 'nomercy-mus
 
 // Measured on master 2026-09-29 (423); lowered to 420 after the Timing
 // and Volume pages moved their blocks into compiled snippets.
-const BUDGET = 420;
+const BUDGET = 419;
 
 const FENCE = /^```(?:ts|typescript|tsx|js|javascript|jsx)\b/;
 

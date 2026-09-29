@@ -6,14 +6,30 @@ Reviewed: src/content/nomercy-player-core/en/build/add-i18n.mdx
 
 Reviewed-SHA: e82914203ba6724b
 
-## Review summary
+## Four criteria checks
 
-Page opens with two use cases: status text after compose, and plugin-shipped labels. First paragraph names the English strings and points to the i18n tour for day-to-day lookups.
+**1. Every term explained at or before first use**
 
-**English That Ships**: Defines enTranslations and defaultTranslations, names the key shape (core.<feature>.<message>), and explains passing language/translations into setup. Clear table with roles.
+Prerequisite: /nomercy-player-core/build/add-a-plugin. All new terminology is explained.
 
-**Plugin Strings**: Short explanation of placing translations on the plugin class, with keys pre-using the plugin.<id>. prefix, then merging at registration. Table with clear roles. The fn t helper is explained with the caveat that it prepends the prefix.
+Terms: `enTranslations` ("flat English map"), `defaultTranslations` (wraps as `{ en: ... }`), `language` (setup option), `translations` (setup or plugin property), `fn t` ("prepends plugin.<id>. for you"). All clear on first use.
 
-Voice and density match add-a-plugin (prerequisite). No repetition of plugin structure—this page adds translation scoping and merging on top of the prior plugin shipping shape.
+**2. Reader can do the task from page alone**
 
-Snippet provided via directive, not elided. No undefined terms.
+Task: Ship plugin labels with static translations on the plugin class.
+
+Steps: 1) Import defaultTranslations if needed, 2) Add static translations property to plugin subclass with keys using plugin.<id>.* format, 3) Registration merges it, 4) Use fn t(shortKey) in plugin code.
+
+Reader can complete all steps from this page.
+
+**3. Code examples don't lean on missing content**
+
+Snippet shows plugin translations example. No code scaffolding beyond what's needed for the lesson.
+
+**4. No sentence needs second read**
+
+Clear direct language throughout. "Registration merges that map into the live table" is cause-then-effect.
+
+## Findings
+
+None. Page passes all criteria.

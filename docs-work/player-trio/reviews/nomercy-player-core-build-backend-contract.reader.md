@@ -6,20 +6,34 @@ Reviewed: src/content/nomercy-player-core/en/build/backend-contract.mdx
 
 Reviewed-SHA: 14df2fd5fa331270
 
-## Review summary
+## Four criteria checks
 
-Opens with context: write your own media backend or understand the shared surface. States the boundary: Player Core does not decode, it calls backend methods.
+**1. Every term explained at or before first use**
 
-**How the Player Finds It**: States fn backend is required, lists what the optional chaining pattern means, names the exception (core:player/backend-missing) for missing load. Clear. No setup field installs a backend—this is explicit.
+Prerequisite: /nomercy-player-core/build/add-i18n. Terms introduced: `fn backend`, `cls MediaElementBackend`, `fn load`, `fn play`, `fn pause`, `fn stop`, `fn currentTime`, `fn duration`, `fn volume`, `fn mute`, `fn unmute`, `fn attachDomBridges`, `fn bridgeBackendPlayState`, `cls AuthHeaderProvider`, `key onPlaying`, `fn isHls`, `fn supportsNativeHls`, `fn attachHlsOrFallback`, `fn resolveOrCreateMediaElement`, `fn resetMediaElement`.
 
-**The Shared Substrate**: Explains MediaElementBackend is exported but not constructed by core. Table lists what the base covers by area. Straightforward.
+All are explained with their role or behavior before code examples use them.
 
-**What You Still Supply**: Lists six required/optional methods. Text states which is required (load) and which are safe to omit. Advises on overriding play/volume/mute and DOM bridges. Concrete and testable.
+**2. Reader can do the task from page alone**
 
-**Backend State**: Names BACKEND_STATE constants, explains DOM bridges and their mapping, then bridgeBackendPlayState with options for gating.
+Task: Write a custom media backend implementing MediaElementBackend.
 
-**Auth for Each Request**: AuthHeaderProvider type, synchronicity requirement, and the caveat about not fetching inside it.
+Steps: 1) Extend MediaElementBackend, 2) Call super() with element, ownership flag, backend id, 3) Implement required fn load, 4) Implement optional methods (unload, dispose, state, buffered, outputProtectionState) when needed, 5) Wire DOM events or use attachDomBridges, 6) Override play/volume/mute if medium needs extra work.
 
-**Helpers You Can Reuse**: Five helpers listed with their purpose. Mentions "the host in the sample stands for your own API" to frame the example.
+Helpers section shows five tools: isHls, supportsNativeHls, attachHlsOrFallback, resolveOrCreateMediaElement, resetMediaElement.
 
-Voice consistent with prior pages. Density acceptable (sections 1-2 sentences each). Snippet terminal. No undefined terms; all needed types and methods named.
+AuthHeaderProvider section explains sync-only requirement.
+
+Reader can build a backend from this page alone.
+
+**3. Code examples don't lean on missing content**
+
+Snippet shows backend implementation. No scaffolding beyond what teaches the contract.
+
+**4. No sentence needs second read**
+
+Language is direct. "Any other missing method is a safe no-op" clearly states behavior.
+
+## Findings
+
+None. Page passes all criteria.

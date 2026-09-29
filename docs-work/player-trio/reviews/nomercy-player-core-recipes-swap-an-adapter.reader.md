@@ -6,14 +6,34 @@ Reviewed: src/content/nomercy-player-core/en/recipes/swap-an-adapter.mdx
 
 Reviewed-SHA: 14398b6046120f37
 
-## Review summary
+## Four criteria checks
 
-Opens with context: use this to change one built-in adapter for the whole player at setup. Names field pattern and example (storage → IndexedDBBackend).
+**1. Every term explained at or before first use**
 
-**What You Import**: Imports from package root. Table with three backends: LocalStorageBackend (default, sync, fallback), IndexedDBBackend (opt-in, async, first-call open), MemoryStorageBackend (in-memory, lost on reload). Omit and you get the default. Clear.
+Prerequisite: /nomercy-player-core/recipes/custom-url-resolver. New terms: `cls IndexedDBBackend`, `cls LocalStorageBackend`, `cls MemoryStorageBackend`, `key storage` on setup.
 
-**Make the Swap**: Pass storage on setup with new IndexedDBBackend(…). Plugins use this.storage methods, unaware of which backend. Namespaced wrapper keeps keys separate. Five methods listed: get, set, remove, getJSON, setJSON. Sync backends resolve at once under await. Snippet follows.
+Each backend's role is clear in export table: "Default. Sync. Falls back to memory when blocked" etc.
 
-**Error Handling**: When IndexedDB missing, IndexedDBBackend rejects with core:policy/indexedDBUnsupported error. Use alternatives in that environment. Concrete failure mode.
+Methods (get, set, remove, getJSON, setJSON) are stated and explained as shared across all three.
 
-Voice is recipe (setup, behavior, example). Consistent with custom-url-resolver (prerequisite). All types and methods named. Density acceptable. Snippet is complete code, not elided.
+**2. Reader can do the task from page alone**
+
+Task: Replace default storage adapter at setup with IndexedDB.
+
+Steps: 1) Import IndexedDBBackend, 2) Pass new IndexedDBBackend(...) on key storage in setup, 3) Plugins use this.storage methods without knowing which backend is active.
+
+Reader can complete this recipe from the page. The caveat "When IndexedDB is missing, reject with core:policy/indexedDBUnsupported" teaches fallback thinking.
+
+**3. Code examples don't lean on missing content**
+
+Snippet shows sample plugin writing/reading JSON through storage surface. The code is self-contained; no unneeded scaffolding.
+
+"The sample plugin writes and reads JSON through that same surface" clarifies the code.
+
+**4. No sentence needs second read**
+
+Clear language. "Sync backends resolve at once under `await`" clearly states behavior.
+
+## Findings
+
+None. Page passes all criteria.
