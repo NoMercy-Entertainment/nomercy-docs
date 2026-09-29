@@ -34,7 +34,7 @@ Other `4xx` statuses throw a matching network code with no retry.
 A `5xx` status becomes a retry outcome and stashes the matching server code.
 Success hands the response to the decoder.
 
-Once the request is built, every failure ends with one of these codes:
+Most failures end with one of these codes:
 
 | Cause | Code | Retried |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ Once the request is built, every failure ends with one of these codes:
 | Any other `5xx` | `str core:network/server-error-other` | While attempts remain |
 | No response within `key timeoutMs` | `str core:network/timeout` | While attempts remain |
 | The network request failed | `str core:network/offline` | While attempts remain |
-| The abort signal fired | `str core:network/aborted` | No |
+| The abort signal fired before the response arrived, or during a retry wait | `str core:network/aborted` | No |
 | The body could not be decoded | `str core:network/parse-failed` | No |
 
 A retried failure throws its code once the attempts run out.
@@ -93,7 +93,13 @@ Otherwise the default is `str player`.
 ## Narrow a failure
 
 Thrown values are `cls AuthError` or `cls NetworkError`.
-The exception is building the request: a malformed URL, or a `key transformUrl`, `key bearerToken`, header or `key signRequest` callback that throws, leaves `fn authFetch` as the raw error ([#24](https://github.com/NoMercy-Entertainment/nomercy-player-core/issues/24)).
+Some failures leave `fn authFetch` as the raw error instead ([#24](https://github.com/NoMercy-Entertainment/nomercy-player-core/issues/24)):
+
+- Building the request: a malformed URL, a `str GET` or `str HEAD` call with a `key body`, or a `key transformUrl`, `key bearerToken`, header or `key signRequest` callback that throws.
+- A body that fails while it is read on the text or `str arrayBuffer` path: a dropped connection, or the abort signal firing mid-body.
+- An `key emit` callback that throws.
+
+On the `str json` path a body read failure surfaces as `str core:network/parse-failed`.
 `fn isAuthError` and `fn isNetworkError` are the type guards.
 Check auth first when you need to tell the two apart.
 
