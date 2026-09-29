@@ -26,8 +26,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const COLLECTIONS = ['nomercy-player-core', 'nomercy-video-player', 'nomercy-music-player'];
 
-// Measured on master 2026-09-29.
-const BUDGET = 423;
+// Measured on master 2026-09-29 (423); lowered to 420 after the Timing
+// and Volume pages moved their blocks into compiled snippets.
+const BUDGET = 420;
 
 const FENCE = /^```(?:ts|typescript|tsx|js|javascript|jsx)\b/;
 
