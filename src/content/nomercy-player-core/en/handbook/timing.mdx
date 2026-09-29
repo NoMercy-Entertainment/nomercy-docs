@@ -1,93 +1,109 @@
 ---
 title: 'Timing'
-description: 'Volume is a 0 to 100 slider position, mute keeps that level, and a square-law curve turns the position into gain.'
-tags: [handbook, timing, volume]
+description: 'Schedule plugin work with timeout, interval, frame, abortable, and lifecycle.observe so dispose cancels every timer, loop, signal, and observer.'
+tags: [handbook, timing, Plugin, timeout, interval, frame]
 draft: false
 ---
 
-{/* Source: nomercy-player-core/src/core/mixins/volume.ts, nomercy-player-core/src/core/volume-curve.ts */}
+{/* Source: nomercy-player-core/src/core/plugin/base.ts (timeout, interval, frame, abortable, lifecycle); src/adapters/lifecycle-registry/default.ts; teardown order: src/core/mixins/plugin-registration.ts; fetch signal: src/core/plugin/fetch.ts */}
 
 # Timing
 
-Playback seconds live on [Time](/nomercy-player-core/tour/time).
-Here, timing means when the level changes: the position you set, mute, and the curve that becomes gain.
+Inside a plugin, schedule work with helpers that clean up on dispose.
+Each helper records its timer, loop, signal, or observer in the plugin's lifecycle registry.
+The player builds one registry for every plugin it registers.
+Dispose cancels everything in it, whether or not your code remembers.
 
-## Read and set the level
+## One-shot delay
 
-`fn volume` with no argument returns the current position on a 0 to 100 scale.
-While muted, that read is `0`, even when a level is stored for unmute.
+`fn timeout` takes a callback and a delay in milliseconds, like `fn setTimeout`.
+Dispose cancels it if it has not fired yet.
+A callback that throws is caught and logged to the console, so it cannot stop the player.
 
-Pass a number to set the position.
-The value clamps to 0 through 100.
-The setter returns a `Promise` you can await for the full cycle.
+`fn timeout` returns a numeric handle.
+Most plugins ignore it.
+To cancel one timer before dispose, pass the handle to `fn clearTimeout`.
 
-```ts
-player.volume();
-await player.volume(50);
-```
+:::snippet{file="core-handbook-timers" lines="31-40" live="false"}
+:::
 
-`fn volumeUp` and `fn volumeDown` move by five points by default.
-Pass your own step when you need a different size.
-Neither returns a promise to await.
+## Repeat on a schedule
 
-```ts
-player.volumeUp(10);
-player.volumeDown();
-```
+`fn interval` takes a callback and a period in milliseconds, like `fn setInterval`.
+Dispose cancels it.
+A tick that throws is caught and logged, and the next tick still runs.
 
-A listener can cancel through `str beforeVolume`.
-Then `str volumePrevented` fires and the level stays put.
-Otherwise the player emits `str volume` with `key level`, and hands the backend the position divided by 100.
+:::snippet{file="core-handbook-timers" lines="42-45" live="false"}
+:::
 
-## The curve into gain
+It returns a numeric handle as well.
+Pass it to `fn clearInterval` to stop that one interval early.
 
-`fn perceptualGain` maps a linear 0 to 1 position to a 0 to 1 gain by squaring it.
-Values outside that range clamp first.
+## Animation frames
 
-```
-gain = position²
-```
+`fn frame` runs a callback on every animation frame.
+The callback receives `(deltaMs, time)`.
+`key deltaMs` is the milliseconds since the previous frame, so motion keeps one speed at any refresh rate.
+The first delta counts from the `fn frame` call.
 
-| Position | Gain |
+`fn frame` returns a stop function for that one loop.
+Other loops keep running, and dispose still stops every loop.
+A frame that throws is caught and logged, and the loop goes on.
+
+:::snippet{file="core-handbook-timers" lines="47-53" live="false"}
+:::
+
+Where `fn requestAnimationFrame` is missing, such as Node or server rendering, `fn frame` starts nothing.
+
+## Abort signals
+
+`fn abortable` returns a new `cls AbortController`.
+Dispose aborts it.
+Pass its `key signal` to any API that accepts one.
+
+The plugin's own `fn fetch` already does this for each request.
+Reach for `fn abortable` when you call another signal-aware API yourself.
+
+:::snippet{file="core-handbook-timers" lines="55-63" live="false"}
+:::
+
+## Observers
+
+Observers go through `fn this.lifecycle.observe`, the registry itself.
+The plugin has no `fn observe` helper of its own.
+It takes a `cls ResizeObserver`, `cls MutationObserver`, `cls IntersectionObserver`, or any object with a `fn disconnect` method.
+
+Dispose disconnects it.
+`fn observe` returns the observer unchanged, so the call chains straight into its own `fn observe`.
+
+:::snippet{file="core-handbook-timers" lines="65-70" live="false"}
+:::
+
+## When to use which
+
+Pick the helper by the kind of work, not by the delay.
+Each row cleans up on dispose.
+
+| Work | Helper |
 | --- | --- |
-| 1 | 1 |
-| 0.5 | 0.25 |
-| 0.3 | 0.09 |
-| 0.1 | 0.01 |
-| 0 | 0 |
+| Run once after a delay | `fn timeout` |
+| Run every period, such as a save | `fn interval` |
+| Draw or animate every frame | `fn frame` |
+| Hand a cancel signal to an API | `fn abortable` |
+| Watch size, DOM changes, or visibility | `fn this.lifecycle.observe` |
 
-Loudness is heard on a log scale.
-A straight map packs most of the audible change into the bottom of the slider.
-The square-law taper spreads that change across the travel.
+Raw `fn setTimeout`, `fn setInterval`, and `fn requestAnimationFrame` are not in the registry.
+Dispose will not cancel them, so they keep running after the plugin is gone.
 
-The public `fn volume` API always speaks in positions.
-The curve runs where a backend writes gain, not inside the getter.
-So a control bound to `fn volume` stays on the 0 to 100 scale.
+## Around dispose
 
-## Mute without losing the level
+The player calls your plugin's `fn dispose` first, then the registry's.
+Your timers, loops, signals, and observers are still live inside your own `fn dispose`.
+You do not cancel them there.
 
-`fn mute` silences output and keeps the stored position.
-`fn unmute` restores that stored level and writes it to the backend again.
-`fn toggleMute` picks mute or unmute from the current state.
-It does not return a promise.
-
-```ts
-await player.mute();
-await player.unmute();
-player.toggleMute();
-```
-
-A listener can cancel through `str beforeMute`.
-Then `str mutePrevented` fires and nothing changes.
-Otherwise `str mute` fires with `key muted` set to the new flag.
-
-Calling mute when already muted is a no-op.
-The same holds for unmute when already unmuted.
-No dispatch and no event in those cases.
-
-Set a level above 0 while muted and the player unmutes itself.
-That matches a slider drag that means turn the sound back on.
+A helper called after dispose schedules nothing and returns a safe value.
+[ILifecycleRegistry](/nomercy-player-core/plugins-adapters/adapter-lifecycle-registry) lists what each call returns then.
 
 ## Next
 
-[Add a plugin](/nomercy-player-core/build/add-a-plugin) is where you register extra behavior on top of these methods.
+[Add a plugin](/nomercy-player-core/build/add-a-plugin) is where you register a plugin that uses these helpers.
