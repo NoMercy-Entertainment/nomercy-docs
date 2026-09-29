@@ -4,7 +4,7 @@ import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 
-// Reading settings, owned the same way ThemeToggle owns `theme`: each Astro
+// Reading settings, light and dark included: each Astro
 // island is its own React root, so a provider in one never reaches a button in
 // another. Every setting is one attribute on <html> plus one localStorage key,
 // and the no-flash script in MarkdownLayout applies them before first paint.
@@ -130,10 +130,14 @@ function Toggle({
             on ? 'bg-(--color-accent)' : 'bg-zinc-300 dark:bg-zinc-600',
           )}
         >
+          {/* The dark theme's accent is a pale mint, and a white knob on it
+              all but vanished, so the "on" state was hard to read. On that
+              track the knob turns dark; on the light theme's deep green it
+              stays white. */}
           <span
             className={clsx(
-              'block h-4 w-4 rounded-full bg-white transition',
-              on && 'translate-x-4',
+              'block h-4 w-4 rounded-full bg-white shadow-sm transition',
+              on && 'translate-x-4 dark:bg-zinc-900',
             )}
           />
         </span>
@@ -176,12 +180,14 @@ export function A11yMenu() {
   const [theme, setTheme] = useState('system');
   const [syntax, setSyntax] = useState('vitesse');
   const [inline, setInline] = useState(true);
+  const [wrap, setWrap] = useState(false);
 
   useEffect(() => {
     setFont(read('reading-font', 'system'));
     setTheme(read('theme', 'system'));
     setSyntax(read('syntax-theme', 'vitesse'));
     setInline(read('inline-syntax', 'on') !== 'off');
+    setWrap(read('code-wrap', 'off') === 'on');
     setMounted(true);
   }, []);
 
@@ -251,6 +257,17 @@ export function A11yMenu() {
                 const value = next ? 'on' : 'off';
                 document.documentElement.setAttribute('data-inline-syntax', value);
                 write('inline-syntax', value);
+              }}
+            />
+            <Toggle
+              label="Wrap long code lines"
+              hint="Off keeps each line whole and scrolls sideways"
+              on={wrap}
+              onChange={(next) => {
+                setWrap(next);
+                const value = next ? 'on' : 'off';
+                document.documentElement.setAttribute('data-code-wrap', value);
+                write('code-wrap', value);
               }}
             />
           </>

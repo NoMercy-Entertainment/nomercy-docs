@@ -119,7 +119,7 @@ function MobileNavigationDialog({
                         className={
                           isActive
                             ? 'text-sm font-medium text-emerald-700 dark:text-emerald-400'
-                            : 'text-sm text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+                            : 'text-sm text-zinc-700 transition hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white'
                         }
                       >
                         {section.title}

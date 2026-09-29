@@ -124,48 +124,22 @@ const getPercentFromEvent = (event: MouseEvent | TouchEvent): number => {
 };
 ```
 
-## Click to seek
+## Drag to scrub
 
+A finger on the bar must drag it, not scroll the page, so the bar sets `touch-action: none`.
+`mousedown`/`touchstart` arm the drag and `mousemove`/`touchmove` paint it, without seeking yet:
+
+:::snippet{file="video-build-3-progress-bar" lines="366-387" live="false"}
+:::
+
+## Seek where the finger lifts, and don't fight the clock
+
+A touch drag fires no `click`, so the seek runs on `mouseup` and `touchend`.
+`mouseup` listens on the document, so a drag released past the bar's edge still lands.
 The player exposes `seekByPercentage()` for exactly this, no `duration() * percent / 100` math at the call site:
 
-{/* partial */}
-
-```ts
-this.listen(this.sliderBar, 'click', (event) => {
-  this.isMouseDown = false;
-  const percent = getPercentFromEvent(event as MouseEvent);
-  this.player.seekByPercentage(percent);
-  sliderNipple.style.left = `${percent}%`;
-});
-```
-
-## Drag to scrub, and don't fight the clock
-
-`mousedown`/`touchstart` arm the drag, `mousemove`/`touchmove` paint it without seeking yet, and leaving the bar cancels it:
-
-{/* partial */}
-
-```ts
-for (const eventName of ['mousedown', 'touchstart']) {
-  this.listen(this.sliderBar, eventName, () => {
-    this.isMouseDown = true;
-  }, { passive: true });
-}
-
-for (const eventName of ['mousemove', 'touchmove']) {
-  this.listen(this.sliderBar, eventName, (event) => {
-    if (!this.isMouseDown)
-      return;
-    const percent = getPercentFromEvent(event as MouseEvent | TouchEvent);
-    sliderNipple.style.left = `${percent}%`;
-    sliderProgress.style.width = `${percent}%`;
-  }, { passive: true });
-}
-
-this.listen(this.sliderBar, 'mouseleave', () => {
-  this.isMouseDown = false;
-}, { passive: true });
-```
+:::snippet{file="video-build-3-progress-bar" lines="392-404" live="false"}
+:::
 
 While `isMouseDown` is true, the `time` listener that keeps the bar in sync during normal playback skips its updates. Otherwise every tick would yank the nipple back to the playhead mid-drag:
 

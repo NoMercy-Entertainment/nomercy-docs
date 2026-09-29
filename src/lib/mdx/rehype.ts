@@ -4,7 +4,7 @@ import { fromHtml } from 'hast-util-from-html';
 import { toString } from 'hast-util-to-string';
 import { mdxAnnotations } from 'mdx-annotations';
 import * as shiki from 'shiki';
-import { visit } from 'unist-util-visit';
+import { SKIP, visit } from 'unist-util-visit';
 import type { Root, Element, ElementContent } from 'hast';
 
 function rehypeParseCodeBlocks() {
@@ -69,6 +69,7 @@ const LANGS = [
   'html', 'xml', 'css', 'scss', 'md', 'mdx',
   'python', 'rust', 'go', 'csharp', 'cs', 'java', 'kotlin', 'swift',
   'php', 'ruby', 'sql', 'astro', 'svelte', 'vue', 'dockerfile', 'diff', 'ini',
+  'http',
 ]
 
 const HIGHLIGHTER_KEY = Symbol.for('nomercy-docs.shiki-highlighter')
@@ -99,7 +100,18 @@ function getHighlighter(): HighlighterPromise {
  * value in the right token position, and the scaffolding is cut afterwards so
  * only the value is shown.
  */
-const PSEUDO_TAGS: Record<string, { before: string; after: string }> = {
+const PSEUDO_TAGS: Record<string, { before: string; after: string; lang?: string }> = {
+  // An HTML element name, in the theme's tag color. Only markup earns that
+  // color, so the name is wrapped as a self-closing JSX element and the
+  // brackets are cut.
+  el: { before: '<', after: ' />', lang: 'tsx' },
+  // A value or constant, in the theme's variable color. A bare name inside
+  // parentheses is an expression, which is where a variable gets its color.
+  var: { before: '(', after: ')' },
+  // An HTML attribute name (`aria-label`, `viewBox`), in the theme's
+  // attribute color: the name sits on a JSX element, and the element and the
+  // empty value are cut.
+  attr: { before: '<a ', after: '="" />', lang: 'tsx' },
   // A string, without the quotes a reader would have to look past.
   str: { before: '\'', after: '\'' },
   // A class or type name, in the theme's class color. A type annotation is
@@ -141,11 +153,38 @@ function stripWrapper(nodes: ElementContent[], before: number, after: number): v
     t.value = t.value.slice(0, t.value.length - cut)
     right -= cut
   }
+
+  // The wrapper's tokens leave empty spans behind. The browser can break a
+  // line at an empty span, so a tag split in two: its left edge stayed at the
+  // end of one line and the word moved to the next. Drop them.
+  const prune = (list: ElementContent[]): void => {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const n = list[i]!
+      if (n.type === 'element') prune(n.children as ElementContent[])
+      if ((n.type === 'text' && n.value === '') || (n.type === 'element' && n.children.length === 0)) list.splice(i, 1)
+    }
+  }
+  prune(nodes)
 }
 
 function rehypeShiki() {
   return async (tree: Root) => {
     const highlighter = await getHighlighter()
+
+    // A heading names its subject in the heading's own face. A code badge in a
+    // title reads as a pill stuck on the line, so code inside a heading becomes
+    // plain text: the pseudo-tag or language tag is dropped and the name stays.
+    // The text is what the badge showed, so the heading's anchor id is the same.
+    visit(tree, 'element', (heading: Element) => {
+      if (!/^h[1-6]$/.test(heading.tagName)) return
+      visit(heading, 'element', (node: Element, index, parent) => {
+        if (node.tagName !== 'code' || !parent || index === undefined) return
+        const raw = toString(node).trim()
+        const tagged = /^([a-z]+)[ \t]+([\s\S]+)$/.exec(raw)
+        const text = tagged && (PSEUDO_TAGS[tagged[1]] || LANGS.includes(tagged[1])) ? tagged[2] : raw
+        ;(parent as Element).children.splice(index, 1, { type: 'text', value: text })
+      })
+    })
 
     // Inline `code` spans get the same two themes as a fence. A page names
     // `await player.ready()` in prose far more often than it shows a block, and
@@ -179,15 +218,58 @@ function rehypeShiki() {
       // tags. Highlighting those as TS tokenizes `.m3u8` into punctuation plus
       // a red identifier, which is noise wearing the colors of meaning. A call,
       // an arrow, an object literal or a generic is code; a bare word is not.
-      const isCode = taggedLang !== null || /\(\)|\(.*\)|=>|[{};]|<[A-Za-z]/.test(text)
+      // A bare value is code too: `0`, `-1`, `false`, `undefined`. A fence
+      // colors these as number and keyword, so leaving them plain inline made
+      // the same value two different colors on one page.
+      const isLiteral = /^-?\d[\d_]*(\.\d+)?$|^(true|false|null|undefined|this)$/.test(text)
+      // An HTTP header line (`Authorization: Bearer <token>`) is not
+      // TypeScript: read as TS its value turned into a run of red tokens. The
+      // http grammar colors the name and gives the value the string color. A
+      // header name has a hyphen or is a well-known one; an all-caps word
+      // (`KIT: 1`, `WARNING: ...`) is not a header.
+      const isHeader = !pseudo && !taggedLang
+        && /^[A-Za-z][A-Za-z0-9]*(-[A-Za-z0-9]+)*:\s+\S/.test(text)
+        && /[a-z]/.test(text.split(':')[0])
+        && (text.split(':')[0].includes('-') || /^(Authorization|Accept|Cookie|Origin|Range|Referer|Host|Location)$/i.test(text.split(':')[0]))
+      const isKeyValue = !isHeader && /^[A-Za-z_$][\w$]*\??:\s+\S/.test(text) && !/[;{}]/.test(text)
+      // Three more shapes are code without a tag. A capitalized name is a class
+      // or type in TypeScript (`IPlayer`, `Promise`), so it takes the class
+      // color; an all-caps name is a constant and is left alone. A keyword
+      // (`instanceof`, `as const`) highlights as itself. An expression with a
+      // spaced operator or an array literal (`duration - position`,
+      // `[0.5, 1]`) is code; the spaces keep `text/vtt` and `H:M:S` out.
+      // A scoped package name (`@nomercy-entertainment/nomercy-player-core`,
+      // with or without a subpath) is what an import statement quotes, so it
+      // takes the string color it has in a fence's `from '...'`.
+      const isPackage = !pseudo && !taggedLang && /^@[a-z0-9-]+\/[a-z0-9._-]+(\/[a-z0-9._/-]+)?$/.test(text)
+      // A generic or array type (`PluginTestContext<C>`, `Track[]`) is a type
+      // too; wrapped as an expression its name came out in the variable color.
+      const typeName = text.replace(/<[\s\S]*>$/, '').replace(/(\[\])+$/, '')
+      const isType = !pseudo && !taggedLang && (/^[A-Z][A-Za-z0-9_$]*$/.test(typeName) && /[a-z]/.test(typeName) || /^[A-Z]$/.test(typeName))
+      const isKeyword = /^as\s+\S/.test(text) || /^(instanceof|typeof|keyof|try|catch|finally|await|async|new|return|throw|const|let|type|interface|extends|implements|import|export)$/.test(text)
+      const isExpression = /^\[.*\]$/.test(text) || /^[\w$.'"]+\s+(\?\?|\|\||&&|===?|!==?|[-+*/%]|<=?|>=?)\s+[\w$.'"]+/.test(text)
+      const isCode = taggedLang !== null || isHeader || isLiteral || isKeyValue || isPackage || isType || isKeyword || isExpression || /\(\)|\(.*\)|=>|[{};]|<[A-Za-z]/.test(text)
       if (!isCode) return
+
+      // TypeScript reads a bare `{ autoplay: true }` as a block with a label,
+      // which colors the key as something else, and `autoplay: false` alone
+      // the same way. Parentheses put both in expression position, where the
+      // key gets the property color; the wrapper is cut after highlighting.
+      const objectWrap = !pseudo && !taggedLang
+        ? (/^\{[\s\S]*\}$/.test(text)
+            ? { before: '(', after: ')' }
+            : isKeyValue
+              ? { before: '({', after: '})' }
+              : undefined)
+        : undefined
+      const wrap = pseudo ?? (isPackage ? PSEUDO_TAGS.str : isType ? PSEUDO_TAGS.cls : objectWrap)
 
       node.properties = node.properties || {}
       node.properties['data-inline-highlighted'] = 'true'
 
-      const source = pseudo ? `${pseudo.before}${text}${pseudo.after}` : text
+      const source = wrap ? `${wrap.before}${text}${wrap.after}` : text
       const html = highlighter.codeToHtml(source, {
-        lang: pseudo ? 'ts' : (taggedLang ?? 'ts'),
+        lang: pseudo ? (pseudo.lang ?? 'ts') : isHeader ? 'http' : (taggedLang ?? 'ts'),
         themes: {
           light: 'one-light',
           dark: 'one-dark-pro',
@@ -227,7 +309,7 @@ function rehypeShiki() {
       // prose. Drop the alpha on the inline path and leave blocks alone.
       const opaque = html.replace(/(#[0-9a-fA-F]{6})[0-9a-fA-F]{2}/g, '$1')
       const parsed = fromHtml(opaque, { fragment: true }).children as ElementContent[]
-      if (pseudo) stripWrapper(parsed, pseudo.before.length, pseudo.after.length)
+      if (wrap) stripWrapper(parsed, wrap.before.length, wrap.after.length)
       node.children = parsed
     })
 
@@ -623,10 +705,140 @@ function rehypeSnippetPlayerImport() {
 // pass-through (Code.tsx) so the chrome is emitted exactly once — no box-in-box.
 // It skips pre's inside a <CodeGroup> (guard above), which renders its own tabs.
 
+// Inline code may wrap at its spaces, but a browser also breaks after a
+// hyphen or a slash, which split `nomercy-music-player` across two lines.
+// Each word gets `data-word` (nowrap in global.css) so it stays whole, and a
+// token's edge spaces move out of its colored span so the line can break
+// there. A word longer than a phone line is left breakable: a whole URL
+// pushed past the screen is worse than a URL split at a slash.
+const WORD_MAX = 30
+
+function rehypeInlineWords() {
+  return (tree: Root) => {
+    visit(tree, 'element', (code: Element, _index, parent) => {
+      if (code.tagName !== 'code' || (parent as Element | undefined)?.tagName === 'pre') return
+      const text = toString(code)
+      if (!/\s/.test(text.trim())) {
+        if (text.trim().length <= WORD_MAX) code.properties = { ...code.properties, dataWord: '' }
+        return
+      }
+      const out: ElementContent[] = []
+      for (const child of code.children as ElementContent[]) {
+        const only = child.type === 'element' && child.children.length === 1 ? child.children[0] : undefined
+        if (child.type !== 'element' || only?.type !== 'text') {
+          out.push(child)
+          continue
+        }
+        const inner = only.value
+        const lead = /^\s*/.exec(inner)![0]
+        const trail = inner.length > lead.length ? /\s*$/.exec(inner)![0] : ''
+        const core = inner.slice(lead.length, inner.length - trail.length)
+        if (lead) out.push({ type: 'text', value: lead })
+        if (core) {
+          only.value = core
+          if (!/\s/.test(core) && core.length <= WORD_MAX) child.properties = { ...child.properties, dataWord: '' }
+          out.push(child)
+        }
+        if (trail) out.push({ type: 'text', value: trail })
+      }
+      code.children = out
+    })
+  }
+}
+
+// A step sequence in prose (`beforeSeek` → `seek` → `seeked`, or a menu path
+// like Settings → Privacy) was a bare arrow glyph in body text, set in the
+// text face and sitting off the code tags' baseline. Each prose arrow becomes
+// one small chevron in the muted color, and a screen reader hears "then".
+const SEQ_ARROW = /\s*(?:→|->)\s*/
+
+function sequenceSeparator(): Element {
+  return {
+    type: 'element',
+    tagName: 'span',
+    properties: { className: ['seq-sep'] },
+    children: [
+      {
+        type: 'element',
+        tagName: 'svg',
+        properties: { viewBox: '0 0 16 16', ariaHidden: 'true', fill: 'none' },
+        children: [{
+          type: 'element',
+          tagName: 'path',
+          properties: { d: 'M6 3.5 10.5 8 6 12.5', stroke: 'currentColor', strokeWidth: '1.75', strokeLinecap: 'round', strokeLinejoin: 'round' },
+          children: [],
+        }],
+      },
+      { type: 'element', tagName: 'span', properties: { className: ['sr-only'] }, children: [{ type: 'text', value: ' then ' }] },
+    ],
+  }
+}
+
+function rehypeSequences() {
+  return (tree: Root) => {
+    visit(tree, (node, index, parent) => {
+      // Only prose: an arrow inside code, a code block or a heading stays as written.
+      if (node.type === 'element' && /^(code|pre|h[1-6])$/.test((node as Element).tagName)) return SKIP
+      if (node.type !== 'text' || !parent || index === undefined || !SEQ_ARROW.test(node.value)) return
+      if (!('tagName' in parent)) return
+      const parts = node.value.split(SEQ_ARROW)
+      const out: ElementContent[] = []
+      parts.forEach((part, i) => {
+        if (i > 0) out.push(sequenceSeparator())
+        if (part) out.push({ type: 'text', value: part })
+      })
+      ;(parent as Element).children.splice(index, 1, ...out)
+      return index + out.length
+    })
+  }
+}
+
+// With the reader's "Wrap long code lines" on, a wrapped line started again at
+// the left edge, so `player.duration());` looked like a new statement outside
+// its block. Each line becomes one `span.line` carrying its indent width, and
+// global.css hangs the wrapped part two columns past that indent. With wrap off
+// the spans are plain inline boxes and change nothing.
+const TAB_WIDTH = 4
+
+function rehypeCodeLines() {
+  return (tree: Root) => {
+    visit(tree, 'element', (pre: Element) => {
+      if (pre.tagName !== 'pre') return
+      const code = pre.children.find((c): c is Element => c.type === 'element' && c.tagName === 'code')
+      if (!code) return
+      // Shiki's inline structure ends each line with a <br>.
+      const lines: ElementContent[][] = [[]]
+      for (const child of code.children as ElementContent[]) {
+        if (child.type === 'element' && child.tagName === 'br') lines.push([])
+        else lines[lines.length - 1]!.push(child)
+      }
+      if (lines.length === 1) return
+      const out: ElementContent[] = []
+      lines.forEach((line, i) => {
+        if (i > 0) out.push({ type: 'element', tagName: 'br', properties: {}, children: [] })
+        if (line.length === 0) return
+        const text = line.map(n => toString(n as Element)).join('')
+        const lead = /^[ \t]*/.exec(text)![0]
+        const indent = [...lead].reduce((n, ch) => n + (ch === '\t' ? TAB_WIDTH : 1), 0)
+        out.push({
+          type: 'element',
+          tagName: 'span',
+          properties: { className: ['line'], style: `--indent:${indent}` },
+          children: line,
+        })
+      })
+      code.children = out
+    })
+  }
+}
+
 export const rehypePlugins = [
   mdxAnnotations.rehype,
   rehypeParseCodeBlocks,
   rehypeShiki,
+  rehypeCodeLines,
+  rehypeInlineWords,
+  rehypeSequences,
   rehypeWrapCodeBlocks,
   rehypeTableLabels,
   rehypeSlugify,

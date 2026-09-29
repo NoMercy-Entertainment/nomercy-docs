@@ -34,16 +34,29 @@ Other `4xx` statuses throw a matching network code with no retry.
 A `5xx` status becomes a retry outcome and stashes the matching server code.
 Success hands the response to the decoder.
 
-These are the fixed `4xx` codes other than auth:
+Every failure ends with one of these codes:
 
-| Status | Code |
-| --- | --- |
-| `404` | `str core:network/not-found` |
-| `408` | `str core:network/request-timeout` |
-| `410` | `str core:network/gone` |
-| `429` | `str core:network/rate-limited` |
+| Cause | Code | Retried |
+| --- | --- | --- |
+| `401`, and the refresh hook threw | `str core:auth/refresh-failed` | No |
+| `401`, no refresh left | `str core:auth/unauthenticated` | No |
+| `403` | `str core:auth/forbidden` | No |
+| `404` | `str core:network/not-found` | No |
+| `408` | `str core:network/request-timeout` | No |
+| `410` | `str core:network/gone` | No |
+| `429` | `str core:network/rate-limited` | No |
+| Any other `4xx` | `str core:network/client-error` | No |
+| `500` | `str core:network/server-error` | While attempts remain |
+| `502` | `str core:network/bad-gateway` | While attempts remain |
+| `503` | `str core:network/service-unavailable` | While attempts remain |
+| `504` | `str core:network/gateway-timeout` | While attempts remain |
+| Any other `5xx` | `str core:network/server-error-other` | While attempts remain |
+| No response within `key timeoutMs` | `str core:network/timeout` | While attempts remain |
+| The network request failed | `str core:network/offline` | While attempts remain |
+| The abort signal fired | `str core:network/aborted` | No |
+| The body could not be decoded | `str core:network/parse-failed` | No |
 
-Any other client error uses `str core:network/client-error`.
+A retried failure throws its code once the attempts run out.
 
 ## How the body is decoded
 
@@ -58,7 +71,7 @@ A thrown `key parser` or invalid JSON surfaces as `str core:network/parse-failed
 ## How the retry loop spends its budget
 
 The retry loop keeps calling until a value returns, a throw ends the call, or the attempt budget is gone.
-`cls RetryConfig` defaults to `{ attempts: 0 }`, so `maxAttempts` is `1`.
+`cls RetryConfig` defaults to `{ attempts: 0 }`, so `key maxAttempts` is `1`.
 With that default, a retryable failure still waits the backoff, then throws the stashed error.
 
 Backoff is linear unless you set `key backoff` to `str exponential`.

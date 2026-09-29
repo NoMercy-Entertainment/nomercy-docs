@@ -14,7 +14,24 @@
  * `addTranslations` merges your own keys before the first lookup.
  */
 
-import { type BaseEventMap, type BasePlayerConfig, type Translations, composeMixins, EventEmitter, initPlayerCoreState, playerCoreMethods, resolvePlayerConstructor } from '@nomercy-entertainment/nomercy-player-core';
+import { type BaseEventMap, type BasePlayerConfig, type IPlayer, type PluginCtorWithId, type Translations, composeMixins, EventEmitter, initPlayerCoreState, Plugin, playerCoreMethods, resolvePlayerConstructor } from '@nomercy-entertainment/nomercy-player-core';
+
+class LyricsPlugin extends Plugin<IPlayer<BaseEventMap>> {
+	static override readonly id = 'lyrics';
+	static override readonly version = '1.0.0';
+	static override readonly description = 'Ships its own strings.';
+
+	// Static keys carry the namespace themselves.
+	static override readonly translations: Translations = {
+		en: { 'plugin.lyrics.empty': 'No lyrics available' },
+		nl: { 'plugin.lyrics.empty': 'Geen songtekst beschikbaar' },
+	};
+
+	// Hook keys are namespaced for you: 'empty' lands as 'plugin.lyrics.empty'.
+	protected override async loadTranslations(lang: string): Promise<Record<string, string> | undefined> {
+		return this.fetch<Record<string, string>>(`/i18n/lyrics/${lang}.json`, { responseType: 'json' });
+	}
+}
 
 const _instances = new Map<string, I18nTourPlayer>();
 
@@ -36,6 +53,10 @@ class I18nTourPlayer extends EventEmitter<BaseEventMap> {
 		(lang: string): Promise<void>;
 	};
 	declare addTranslations: (bundle: Translations) => void;
+	declare addPlugin: <P extends Plugin<any, any, any>>(
+		PluginClass: PluginCtorWithId & (new () => P),
+		opts?: P['opts'],
+	) => this;
 
 	constructor(id?: string | number) {
 		super();
@@ -59,6 +80,7 @@ mount.setAttribute('aria-label', 'i18n tour player');
 document.body.appendChild(mount);
 
 const player = new I18nTourPlayer('i18n-tour');
+player.addPlugin(LyricsPlugin);
 player.setup({
 	logLevel: 'info',
 	language: 'en',

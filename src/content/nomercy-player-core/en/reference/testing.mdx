@@ -27,67 +27,67 @@ import {
 } from '@nomercy-entertainment/nomercy-player-core/testing';
 ```
 
-`describePlugin`, `describePluginAgainst`, and `runIPlayerContract` read Vitest globals (`describe`, `it`, `beforeEach`, `afterEach`, and for the contract also `expect`) from `globalThis` at runtime.
+`fn describePlugin`, `fn describePluginAgainst`, and `fn runIPlayerContract` read Vitest globals (`fn describe`, `fn it`, `fn beforeEach`, `fn afterEach`, and for the contract also `fn expect`) from `var globalThis` at runtime.
 A project that calls them needs `test.globals: true` in its Vitest config.
 
 ## StubPlayer
 
 `StubPlayer` is a lightweight `IPlayer` test double for plugin and unit tests.
 It drives plugin lifecycles and event subscriptions without a browser media element or a network stack.
-`createStubPlayer` is the factory form of the same constructor.
+`fn createStubPlayer` is the factory form of the same constructor.
 
 These exports construct that double.
 
 | Export | Signature | One job |
 |---|---|---|
 | `StubPlayer` | `class StubPlayer extends EventEmitter<BaseEventMap> implements IPlayer<BaseEventMap>` with `constructor(opts?: { id?: string; container?: HTMLElement; phase?: PlayerPhase; translations?: Translations })` | In-process `IPlayer` stand-in with a real event emitter, phase, i18n, cue parsers, and experimental overrides. |
-| `createStubPlayer` | `(opts?: ConstructorParameters<typeof StubPlayer>[0]) => StubPlayer` | Same as `new StubPlayer(opts)`. |
+| `fn createStubPlayer` | `(opts?: ConstructorParameters<typeof StubPlayer>[0]) => StubPlayer` | Same as `new StubPlayer(opts)`. |
 
 These methods exist on the stub for tests and are not part of everyday `IPlayer` usage.
 
 | Method | Signature | One job |
 |---|---|---|
-| `setPhase` | `(next: PlayerPhase) => void` | Force a phase change and emit `phase`. |
-| `pushDispatch` | `(name: string) => void` | Push a name onto the dispatch stack. |
-| `popDispatch` | `() => string \| undefined` | Pop the innermost dispatch name. |
-| `setAudioContext` | `(ctx: AudioContext \| undefined) => void` | Inject a mock `AudioContext`. |
-| `cueParsers` | `() => ReadonlyArray<ICueParser>` | List registered cue parsers. |
-| `reset` | `() => void` | Restore constructed defaults and clear listeners. |
+| `fn setPhase` | `(next: PlayerPhase) => void` | Force a phase change and emit `str phase`. |
+| `fn pushDispatch` | `(name: string) => void` | Push a name onto the dispatch stack. |
+| `fn popDispatch` | `() => string \| undefined` | Pop the innermost dispatch name. |
+| `fn setAudioContext` | `(ctx: AudioContext \| undefined) => void` | Inject a mock `AudioContext`. |
+| `key cueParsers` | `() => ReadonlyArray<ICueParser>` | List registered cue parsers. |
+| `fn reset` | `() => void` | Restore constructed defaults and clear listeners. |
 
 The stub does not track plugin registration.
-`getPlugin` and `getPluginById` always return `undefined`.
-`addPlugin` is a no-op that returns `this`.
-`describePlugin` wires the plugin itself; override or mock registration only when a plugin calls `addPlugin` or `getPlugin` inside `use()`.
+`fn getPlugin` and `fn getPluginById` always return `undefined`.
+`fn addPlugin` is a no-op that returns `this`.
+`fn describePlugin` wires the plugin itself; override or mock registration only when a plugin calls `fn addPlugin` or `fn getPlugin` inside `use()`.
 
 ## describePlugin
 
-`describePlugin` runs an author suite against a fresh `StubPlayer` and a fresh plugin instance per test.
-It calls `initialize`, loads static translations the way production registration does, awaits `use()`, then on teardown calls `dispose` and asserts no listener leak unless skipped.
+`fn describePlugin` runs an author suite against a fresh `StubPlayer` and a fresh plugin instance per test.
+It calls `fn initialize`, loads static translations the way production registration does, awaits `use()`, then on teardown calls `fn dispose` and asserts no listener leak unless skipped.
 
 This table is the author-facing API for that harness.
 
 | Export | Signature | One job |
 |---|---|---|
-| `describePlugin` | `<C extends typeof Plugin<any, any, any>>(PluginClass: C, fn: (ctx: PluginTestContext<C>) => void, opts?: DescribePluginOptions<C>) => void` | Wrap a plugin suite on `StubPlayer` with per-test setup, teardown, and leak assertion. |
-| `PluginTestContext<C>` | `{ player: StubPlayer; plugin: InstanceType<C> }` | Values handed to `fn`, reset between tests. |
-| `DescribePluginOptions<C>` | `{ opts?; skipLeakAssertion?: boolean; createPlayer?: () => StubPlayer }` | Plugin options for `initialize`, optional leak skip, optional custom stub factory. |
+| `fn describePlugin` | `<C extends typeof Plugin<any, any, any>>(PluginClass: C, fn: (ctx: PluginTestContext<C>) => void, opts?: DescribePluginOptions<C>) => void` | Wrap a plugin suite on `StubPlayer` with per-test setup, teardown, and leak assertion. |
+| `PluginTestContext<C>` | `{ player: StubPlayer; plugin: InstanceType<C> }` | Values handed to `var fn`, reset between tests. |
+| `DescribePluginOptions<C>` | `{ opts?; skipLeakAssertion?: boolean; createPlayer?: () => StubPlayer }` | Plugin options for `fn initialize`, optional leak skip, optional custom stub factory. |
 
 ## describePluginAgainst
 
-`describePluginAgainst` runs the same style of author suite against a real `IPlayer` from a required factory, not `StubPlayer`.
-It registers through the player's `addPlugin`, reads the instance back with `getPlugin`, removes the plugin on teardown, then disposes unless a custom `teardown` is supplied.
+`fn describePluginAgainst` runs the same style of author suite against a real `IPlayer` from a required factory, not `StubPlayer`.
+It registers through the player's `fn addPlugin`, reads the instance back with `fn getPlugin`, removes the plugin on teardown, then disposes unless a custom `fn teardown` is supplied.
 
 This table is the author-facing API for the real-player harness.
 
 | Export | Signature | One job |
 |---|---|---|
-| `describePluginAgainst` | `<C extends typeof Plugin<any, any, any>, P extends IPlayer>(PluginClass: C, fn: (ctx: PluginAgainstTestContext<C, P>) => void, opts: DescribePluginAgainstOptions<C, P>) => void` | Wrap a plugin suite on a real player factory with leak assertion. |
-| `PluginAgainstTestContext<C, P>` | `{ player: P; plugin: InstanceType<C> }` | Values handed to `fn` for the real player type `P`. |
+| `fn describePluginAgainst` | `<C extends typeof Plugin<any, any, any>, P extends IPlayer>(PluginClass: C, fn: (ctx: PluginAgainstTestContext<C, P>) => void, opts: DescribePluginAgainstOptions<C, P>) => void` | Wrap a plugin suite on a real player factory with leak assertion. |
+| `PluginAgainstTestContext<C, P>` | `{ player: P; plugin: InstanceType<C> }` | Values handed to `var fn` for the real player type `P`. |
 | `DescribePluginAgainstOptions<C, P>` | `{ player: () => P \| Promise<P>; teardown?: (player: P) => void \| Promise<void>; opts?; skipLeakAssertion?: boolean }` | Required player factory plus optional teardown, plugin options, and leak skip. |
 
 ## runIPlayerContract
 
-`runIPlayerContract` registers a shared behavioral suite for one concrete `IPlayer` implementation.
+`fn runIPlayerContract` registers a shared behavioral suite for one concrete `IPlayer` implementation.
 Every test calls a method and asserts the effect, not only the shape.
 
 Pass a label, a create factory, and an optional teardown.
@@ -96,9 +96,9 @@ This table is the function that registers that suite.
 
 | Export | Signature | One job |
 |---|---|---|
-| `runIPlayerContract` | `<P extends IPlayer<BaseEventMap>>(opts: { create: () => P \| Promise<P>; label: string; teardown?: (player: P) => void \| Promise<void> }) => void` | Prove one player satisfies the shared `IPlayer` behavior contract. |
+| `fn runIPlayerContract` | `<P extends IPlayer<BaseEventMap>>(opts: { create: () => P \| Promise<P>; label: string; teardown?: (player: P) => void \| Promise<void> }) => void` | Prove one player satisfies the shared `IPlayer` behavior contract. |
 
-The suite covers identity, the event surface, phase and `dispatching`, `baseUrl`, `audioContext`, experimental overrides, i18n, and the cue parser registry.
+The suite covers identity, the event surface, phase and `key dispatching`, `key baseUrl`, `key audioContext`, experimental overrides, i18n, and the cue parser registry.
 Library-specific transport, queue, fullscreen, and similar behavior stay in each library's own tests.
 
 ## Listener-leak harness
@@ -111,21 +111,21 @@ These exports measure and assert listener cleanup.
 
 | Export | Signature | One job |
 |---|---|---|
-| `countAllListeners` | `(player: IPlayer) => number` | Return `player.listenerCount()`, or throw `TypeError` if that method is missing. |
-| `assertNoListenerLeak` | `(opts: { subjectId: string; player: IPlayer; setup: () => void \| Promise<void>; exercise?: () => void \| Promise<void>; teardown: () => void \| Promise<void> }) => Promise<LeakAssertionResult>` | Run setup, optional exercise, and teardown; throw when listeners remain. |
-| `assertNoListenerLeakOverCycles` | `(opts: { subjectId: string; player: IPlayer; setup: () => void \| Promise<void>; exercise?: () => void \| Promise<void>; teardown: () => void \| Promise<void>; cycles?: number }) => Promise<LeakAssertionResult[]>` | Repeat `assertNoListenerLeak` for `cycles` iterations (default `5`). |
+| `fn countAllListeners` | `(player: IPlayer) => number` | Return `player.listenerCount()`, or throw `TypeError` if that method is missing. |
+| `fn assertNoListenerLeak` | `(opts: { subjectId: string; player: IPlayer; setup: () => void \| Promise<void>; exercise?: () => void \| Promise<void>; teardown: () => void \| Promise<void> }) => Promise<LeakAssertionResult>` | Run setup, optional exercise, and teardown; throw when listeners remain. |
+| `fn assertNoListenerLeakOverCycles` | `(opts: { subjectId: string; player: IPlayer; setup: () => void \| Promise<void>; exercise?: () => void \| Promise<void>; teardown: () => void \| Promise<void>; cycles?: number }) => Promise<LeakAssertionResult[]>` | Repeat `fn assertNoListenerLeak` for `key cycles` iterations (default `5`). |
 | `LeakAssertionResult` | `{ subjectId: string; listenersBefore: number; listenersAfterSetup: number; listenersAfterTeardown: number; leaked: number }` | Numbers from one assertion pass; `leaked > 0` means retention after teardown. |
 
 ## mockFetch
 
-`mockFetch` builds a drop-in replacement for `Plugin.fetch` that records calls and returns queued bodies without hitting the network.
-Assign `mock.fetch` onto the plugin under test.
+`fn mockFetch` builds a drop-in replacement for `fn Plugin.fetch` that records calls and returns queued bodies without hitting the network.
+Assign `fn mock.fetch` onto the plugin under test.
 
 These types describe that mock.
 
 | Export | Signature | One job |
 |---|---|---|
-| `mockFetch` | `() => MockFetch` | Create a fresh mock with empty call history and an empty response queue. |
+| `fn mockFetch` | `() => MockFetch` | Create a fresh mock with empty call history and an empty response queue. |
 | `MockFetch` | `{ fetch: <T = string>(url: string, options?: FetchOptions<T>) => Promise<T>; calls: MockFetchCall[]; respondWith(body: unknown): void; reset(): void }` | Recorded fetch stand-in with FIFO responses and reset. |
 | `MockFetchCall` | `{ url: string; options: FetchOptions<unknown> \| undefined }` | One recorded call, in order. |
 | `MockFetchResponse` | `{ body: unknown }` | Shape of a queued response body carrier. |
@@ -136,7 +136,7 @@ An exhausted response queue resolves `undefined` cast to `T`.
 
 `PlayerTestInternals` is a cast for tests that need the phase and the cue list the public player type does not expose.
 Everyday calls stay on the normal player.
-Use the cast only for `_phase`, the cue list, `pushDispatch`, and `popDispatch`.
+Use the cast only for `key _phase`, the cue list, `fn pushDispatch`, and `fn popDispatch`.
 
 Cast with `as unknown as PlayerTestInternals`, never `as any`.
 

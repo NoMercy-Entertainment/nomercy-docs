@@ -47,6 +47,7 @@ const root = path.resolve(__dirname, '..');
 // partials were reported as broken programs.
 const distDir = path.join(root, 'dist-e2e');
 const contentDir = path.join(root, 'src', 'content');
+const examplesDir = path.join(root, 'src', 'examples');
 
 const TRIO_COLLECTIONS = ['nomercy-player-core', 'nomercy-video-player', 'nomercy-music-player'];
 
@@ -82,6 +83,17 @@ function partialFlagsForSource(sourcePath) {
   const lines = source.split('\n');
   const flags = [];
   for (let i = 0; i < lines.length; i++) {
+    // A `:::snippet` directive also renders one ts/tsx block, so it takes a
+    // position too, or every block after it is matched to the wrong flag. A
+    // `lines` snippet is a fragment by design and counts as partial.
+    const snippet = /^:::snippet\{file="([^"]+)"([^}]*)\}/.exec(lines[i].trim());
+    if (snippet) {
+      const [, file, rest] = snippet;
+      if (['ts', 'tsx'].some((ext) => existsSync(path.join(examplesDir, `${file}.${ext}`)))) {
+        flags.push(/\blines="/.test(rest));
+      }
+      continue;
+    }
     if (!/^```(ts|tsx)\s*$/.test(lines[i].trim())) continue;
     let j = i - 1;
     while (j >= 0 && lines[j].trim() === '') j--;

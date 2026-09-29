@@ -259,60 +259,18 @@ function parsePreviewVtt(raw: string, vttUrl: string): PreviewCue[] {
 
 ## Hover maps X to a cue and a chapter
 
-`mousemove` over the step-3 slider bar does four things on every move:
+A mouse move over the step-3 slider bar, or a finger dragging along it, does five things on every move:
 
 1. Converts the pointer position to a time, with the same math the scrubber uses.
 2. Finds the covering cue.
 3. Paints the tooltip by shifting the sprite's `background-position`.
-4. Looks up the covering chapter for the title line.
+4. Caps the frame at 40% of the bar with `zoom`, so the card fits a phone-sized player.
+5. Looks up the covering chapter for the title line.
 
-Clamping measures the card's real `offsetWidth`, so the tooltip stays inside the bar at both ends. Leaving the bar fades it out:
+Clamping measures the card's real `offsetWidth`, so the tooltip stays inside the bar at both ends. Leaving the bar, or lifting the finger, fades it out:
 
-{/* partial */}
-
-```ts
-this.listen(this.sliderBar, 'mousemove', (event) => {
-  if (this.previewCues.length === 0)
-    return;
-
-  const rect = this.sliderBar.getBoundingClientRect();
-  const x = Math.max(0, Math.min((event as MouseEvent).clientX - rect.left, rect.width));
-  const percent = x / rect.width;
-  const scrubTime = percent * this.player.duration();
-
-  const preview = this.previewCues.find(
-    cue => scrubTime >= cue.start && scrubTime < cue.end,
-  ) ?? this.previewCues.at(-1);
-
-  if (preview) {
-    this.sliderPopImage.style.backgroundImage = `url('${preview.imageUrl}')`;
-    this.sliderPopImage.style.backgroundPosition = `-${preview.x}px -${preview.y}px`;
-    this.sliderPopImage.style.width = `${preview.w}px`;
-    this.sliderPopImage.style.height = `${preview.h}px`;
-
-    const popWidth = this.sliderPop.offsetWidth || preview.w;
-    const minLeft = popWidth / 2;
-    const maxLeft = rect.width - popWidth / 2;
-    const clampedX = Math.max(minLeft, Math.min(x, maxLeft));
-    this.sliderPop.style.left = `${clampedX}px`;
-    this.sliderPop.style.transform = 'translateX(-50%)';
-
-    const chapterTitle = this.player.chapters()
-      .find(chapter => scrubTime >= chapter.start && scrubTime <= chapter.end)
-      ?.title ?? '';
-    this.sliderPopChapter.textContent = chapterTitle;
-    this.sliderPopChapter.style.display = chapterTitle ? '' : 'none';
-
-    this.sliderPopText.textContent = formatSeconds(scrubTime);
-  }
-
-  this.sliderPop.style.opacity = '1';
-}, { passive: true });
-
-this.listen(this.sliderBar, 'mouseleave', () => {
-  this.sliderPop.style.opacity = '0';
-}, { passive: true });
-```
+:::snippet{file="video-build-9-seek-preview" lines="1213-1264" live="false"}
+:::
 
 Cues load at `ready` and reload on `item` (after clearing, so a playlist jump never shows the previous film's thumbnails):
 
@@ -328,7 +286,7 @@ this.on('item', () => {
 
 ## See it running
 
-Hover along the scrubber and Big Buck Bunny's chapter ticks mark each act, from "Opening" through "The Bullies" to "End Credits". The demo item ships chapters but no sprite manifest, so those ticks are what you see. Give an item a `previewSpriteUrl`, and the same hover fills the card with sprite frames, the covering chapter's title, and the timestamp underneath.
+Hover along the scrubber, or drag it with a finger. The card shows Big Buck Bunny's sprite frame, the covering chapter's title, and the timestamp. The chapter ticks on the bar mark each act, from "Opening" through "The Bullies" to "End Credits".
 
 :::snippet{file="video-build-9-seek-preview"}
 :::

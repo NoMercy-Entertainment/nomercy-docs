@@ -25,7 +25,7 @@ class MyScrobbler implements IScrobbler<MusicPlaylistItem> {
   async nowPlaying(item: MusicPlaylistItem): Promise<void> {
     await fetch('/api/scrobble/now-playing', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.authToken()}` },
+      headers: { 'Content-Type': 'application/json', authorization: `Bearer ${this.authToken()}` },
       body: JSON.stringify({ track: item.name, artist: item.artist, album: item.album }),
     });
   }
@@ -33,7 +33,7 @@ class MyScrobbler implements IScrobbler<MusicPlaylistItem> {
   async scrobble(item: MusicPlaylistItem, context: ScrobbleContext): Promise<void> {
     await fetch('/api/scrobble', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.authToken()}` },
+      headers: { 'Content-Type': 'application/json', authorization: `Bearer ${this.authToken()}` },
       body: JSON.stringify({
         track: item.name,
         artist: item.artist,
@@ -62,6 +62,7 @@ player.addPlugin(ScrobblePlugin, {
   thresholdSeconds: 240,    // Last.fm's 4-minute cap, the default
   minDurationSeconds: 30,   // never scrobble anything shorter than this
 });
+
 player.setup({
   baseUrl: 'https://raw.githubusercontent.com/NoMercy-Entertainment/nomercy-media/master/Music',
   playlist: [

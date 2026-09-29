@@ -282,7 +282,7 @@ Progress, buffered and hover reuse the same function on different layers. Clicki
 
 The sprite URL resolves from the playlist item: the typed `key previewSpriteUrl` field first, then a `key tracks` entry whose `key kind` is `str thumbnails`. The manifest is a VTT whose cue bodies read `image.webp#xywh=x,y,w,h`, and parsing hands off to core's `fn parseVttSprite`.
 
-Both requests go through the plugin's authenticated `fn fetch`: the VTT as text, the image as an `cls ArrayBuffer` turned into a `str blob:` object URL. The detour exists because a bare `str img` source cannot carry an `str Authorization` header. The image is preloaded, so the first hover paints at once.
+Both requests go through the plugin's authenticated `fn fetch`: the VTT as text, the image as an `cls ArrayBuffer` turned into a `str blob:` object URL. The detour exists because a bare `str img` source cannot carry an `key authorization` header. The image is preloaded, so the first hover paints at once.
 
 Loads are guarded with an incrementing token. A playlist jump mid-load discards the stale result and revokes its object URL rather than painting the previous film's thumbnails. Painting is a `str background-position` on a fixed-size div, and the object URL is revoked on the next item and on dispose.
 

@@ -166,12 +166,14 @@ for (const eventName of ['mousedown', 'touchstart']) {
     volDragging = true;
   }, { passive: true });
 }
+
 this.listen(this.volumeSlider, 'click', (event) => {
   volDragging = false;
   const vol = getVolFromEvent(event as MouseEvent);
   this.player.volume(vol);
   updateVolSliderUi(vol);
 });
+
 for (const eventName of ['mousemove', 'touchmove']) {
   this.listen(this.volumeSlider, eventName, (event) => {
     if (!volDragging)
@@ -181,6 +183,7 @@ for (const eventName of ['mousemove', 'touchmove']) {
     updateVolSliderUi(vol);
   }, { passive: true });
 }
+
 this.listen(this.volumeSlider, 'mouseleave', () => {
   volDragging = false;
 }, { passive: true });
@@ -195,7 +198,7 @@ Volume level and mute state are separate concerns in the player, each with its o
 | `volume` | `{ level }` |
 | `mute` | `{ muted }` |
 
-The icon depends on both, so the plugin tracks the mute flag and re-derives the icon on either event, seeded from `volume()` and `volumeState()` at build time:
+The icon depends on both, so the plugin tracks the mute flag and re-derives the icon on either event, seeded from `volumeState()` and `volume()` at build time:
 
 {/* partial */}
 

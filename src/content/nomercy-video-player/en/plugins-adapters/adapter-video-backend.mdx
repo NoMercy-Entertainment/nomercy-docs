@@ -127,7 +127,7 @@ interface BackendEventPayload {
 
 A source whose URL is HLS plays natively where `fn canPlayType` reports support, which is Safari. Everywhere else the backend imports hls.js dynamically and hands it the manifest. The library is fetched only on the browsers that need it, and `player.play()` never branches on any of this.
 
-`fn setAuthHeaderProvider` is what puts an `str Authorization` header on hls.js's own manifest and segment requests. `cls NMVideoPlayer` wires it at backend construction, from `key mediaAuthorization` on the `setup({ auth })` config. The provider is asked again on every request, so a token that changes mid-session is never answered from a stale closure. [Recipe: Auth Tokens](/nomercy-video-player/recipes/auth-tokens) covers the config side.
+`fn setAuthHeaderProvider` is what puts an `key authorization` header on hls.js's own manifest and segment requests. `cls NMVideoPlayer` wires it at backend construction, from `key mediaAuthorization` on the `setup({ auth })` config. The provider is asked again on every request, so a token that changes mid-session is never answered from a stale closure. [Recipe: Auth Tokens](/nomercy-video-player/recipes/auth-tokens) covers the config side.
 
 Two things a reader might expect here live elsewhere and work the same under any backend. Bandwidth is the kit's `abrMethods` mixin reading `fn bandwidthEstimate`, and the dropped-frame count is `cls NMVideoPlayer` polling `getVideoPlaybackQuality()` on the element.
 

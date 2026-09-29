@@ -400,6 +400,9 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 				'rounded-full',
 				'cursor-pointer',
 				'group/slider',
+				'before:absolute',
+				'before:inset-x-0',
+				'before:-inset-y-3',
 				'hover:h-2',
 				'transition-all',
 				'duration-150',
@@ -448,6 +451,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 				'bg-white',
 				'hidden',
 				'group-hover/slider:flex',
+				'group-active/slider:flex',
 				'pointer-events-none',
 				'left-0',
 				'z-20',
@@ -467,30 +471,43 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			return (x / rect.width) * 100;
 		};
 
+		// A finger on the bar drags it, not the page.
+		this.sliderBar.style.touchAction = 'none';
+
+		const paintScrub = (percent: number): void => {
+			sliderNipple.style.left = `${percent}%`;
+			sliderProgress.style.width = `${percent}%`;
+		};
+
 		for (const eventName of ['mousedown', 'touchstart']) {
-			this.listen(this.sliderBar, eventName, () => {
+			this.listen(this.sliderBar, eventName, (event) => {
 				this.isMouseDown = true;
+				paintScrub(getPercentFromEvent(event as MouseEvent | TouchEvent));
 			}, { passive: true });
 		}
-
-		this.listen(this.sliderBar, 'click', (event) => {
-			this.isMouseDown = false;
-			const percent = getPercentFromEvent(event as MouseEvent);
-			this.player.seekByPercentage(percent);
-			sliderNipple.style.left = `${percent}%`;
-		});
 
 		for (const eventName of ['mousemove', 'touchmove']) {
 			this.listen(this.sliderBar, eventName, (event) => {
 				if (!this.isMouseDown)
 					return;
-				const percent = getPercentFromEvent(event as MouseEvent | TouchEvent);
-				sliderNipple.style.left = `${percent}%`;
-				sliderProgress.style.width = `${percent}%`;
+				paintScrub(getPercentFromEvent(event as MouseEvent | TouchEvent));
 			}, { passive: true });
 		}
 
-		this.listen(this.sliderBar, 'mouseleave', () => {
+		// Seek where the button or finger lifts. A touch drag fires no
+		// `click`, so the seek cannot wait for one. `mouseup` listens on the
+		// document so a drag released past the bar's edge still lands.
+		const endScrub = (event: Event): void => {
+			if (!this.isMouseDown)
+				return;
+			this.isMouseDown = false;
+			const percent = getPercentFromEvent(event as MouseEvent | TouchEvent);
+			paintScrub(percent);
+			this.player.seekByPercentage(percent);
+		};
+		this.listen(document, 'mouseup', endScrub);
+		this.listen(this.sliderBar, 'touchend', endScrub);
+		this.listen(this.sliderBar, 'touchcancel', () => {
 			this.isMouseDown = false;
 		}, { passive: true });
 
@@ -1163,12 +1180,16 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			void this.fetchPreviewCues();
 		});
 
-		this.listen(this.sliderBar, 'mousemove', (event) => {
+		// A mouse shows the preview on hover; a finger shows it while it drags.
+		const showPreview = (event: Event): void => {
 			if (this.previewCues.length === 0)
 				return;
 
 			const rect = this.sliderBar.getBoundingClientRect();
-			const x = Math.max(0, Math.min((event as MouseEvent).clientX - rect.left, rect.width));
+			const clientX = 'touches' in event
+				? (event as TouchEvent).touches[0]?.clientX ?? 0
+				: (event as MouseEvent).clientX;
+			const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
 			const percent = x / rect.width;
 			const scrubTime = percent * this.player.duration();
 
@@ -1181,6 +1202,9 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 				this.sliderPopImage.style.backgroundPosition = `-${preview.x}px -${preview.y}px`;
 				this.sliderPopImage.style.width = `${preview.w}px`;
 				this.sliderPopImage.style.height = `${preview.h}px`;
+				// A 320 px frame would cover a phone-sized player: cap it at
+				// 40% of the bar. `zoom` scales the sprite offsets with it.
+				this.sliderPopImage.style.setProperty('zoom', String(Math.min(1, (rect.width * 0.4) / preview.w)));
 
 				const popWidth = this.sliderPop.offsetWidth || preview.w;
 				const minLeft = popWidth / 2;
@@ -1199,11 +1223,15 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			}
 
 			this.sliderPop.style.opacity = '1';
-		}, { passive: true });
-
-		this.listen(this.sliderBar, 'mouseleave', () => {
+		};
+		const hidePreview = (): void => {
 			this.sliderPop.style.opacity = '0';
-		}, { passive: true });
+		};
+
+		for (const eventName of ['mousemove', 'touchstart', 'touchmove'])
+			this.listen(this.sliderBar, eventName, showPreview, { passive: true });
+		for (const eventName of ['mouseleave', 'touchend', 'touchcancel'])
+			this.listen(this.sliderBar, eventName, hidePreview, { passive: true });
 	}
 
 	private async fetchPreviewCues(): Promise<void> {

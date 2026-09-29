@@ -81,7 +81,7 @@ function TopLevelNavItem({
       <CloseButton
         as={Link}
         href={href}
-        className="block py-1 text-sm text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+        className="block py-1 text-sm text-zinc-700 transition hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white"
       >
         {children}
       </CloseButton>
@@ -136,7 +136,7 @@ function NavLinkItem({
           ? isAnchorLink
             ? 'font-medium text-(--color-accent)'
             : 'bg-(--color-accent-soft) font-semibold text-(--color-accent)'
-          : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
+          : 'text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white',
       )}
     >
       <span className="truncate">{children}</span>

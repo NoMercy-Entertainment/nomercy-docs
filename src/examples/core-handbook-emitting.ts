@@ -74,9 +74,9 @@ const blocked = await runDispatchBefore<ActionOptions>(player, 'beforePlay', { s
 console.log(blocked.prevented, blocked.reason);
 
 player.emit('play');
-console.log(player.container.classList.contains('playing'));
+console.log(player.container.classList.contains('playing')); // true
 
 player.emit('fatal');
-console.log(player.playState());
+console.log(player.playState()); // 'error', already set when fatal listeners run
 
 await player.dispose();

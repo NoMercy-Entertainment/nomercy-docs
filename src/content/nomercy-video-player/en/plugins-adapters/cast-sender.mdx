@@ -26,7 +26,7 @@ await player.ready();
 await player.getPlugin(CastSenderPlugin)?.connect();
 ```
 
-`fn connect` needs `ts cast.framework` already on the page, and the receiver app id is set on the SDK's own `ts CastContext` before you call it. The receiver is not a plugin option. The core page covers both, along with the separate `fn transferTo` route.
+`fn connect` needs `ts cast.framework` already on the page, and the receiver app id is set on the SDK's own `cls CastContext` before you call it. The receiver is not a plugin option. The core page covers both, along with the separate `fn transferTo` route.
 
 ## The default content type
 
@@ -39,12 +39,12 @@ await player.getPlugin(CastSenderPlugin)?.connect();
 | Item field | What it becomes |
 |---|---|
 | `key title` | `key title`, or an empty string when the item has none |
-| `key show`, set to a non-empty string | `ts TvShowMediaMetadata` if the SDK build carries that constructor, otherwise `ts GenericMediaMetadata`, with `key seriesTitle` taken from `key show` |
+| `key show`, set to a non-empty string | `cls TvShowMediaMetadata` if the SDK build carries that constructor, otherwise `cls GenericMediaMetadata`, with `key seriesTitle` taken from `key show` |
 | `key season` | `key season`, coerced with `fn Number`, and only on the show path |
 | `key episode` | `key episode`, coerced with `fn Number`, and only on the show path |
 | `key poster` | resolved through `fn resolveUrl` under the `str poster` category, then written as a one-entry `key images` array |
 
-An item with no `key show` gets a plain `ts GenericMediaMetadata` carrying the title and the poster. An item carrying your own fields needs your own override, because the list above is fixed.
+An item with no `key show` gets a plain `cls GenericMediaMetadata` carrying the title and the poster. An item carrying your own fields needs your own override, because the list above is fixed.
 
 ## How to extend it
 

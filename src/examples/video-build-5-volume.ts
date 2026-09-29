@@ -321,6 +321,9 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 				'rounded-full',
 				'cursor-pointer',
 				'group/slider',
+				'before:absolute',
+				'before:inset-x-0',
+				'before:-inset-y-3',
 				'hover:h-2',
 				'transition-all',
 				'duration-150',
@@ -369,6 +372,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 				'bg-white',
 				'hidden',
 				'group-hover/slider:flex',
+				'group-active/slider:flex',
 				'pointer-events-none',
 				'left-0',
 				'z-20',
@@ -388,30 +392,43 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			return (x / rect.width) * 100;
 		};
 
+		// A finger on the bar drags it, not the page.
+		this.sliderBar.style.touchAction = 'none';
+
+		const paintScrub = (percent: number): void => {
+			sliderNipple.style.left = `${percent}%`;
+			sliderProgress.style.width = `${percent}%`;
+		};
+
 		for (const eventName of ['mousedown', 'touchstart']) {
-			this.listen(this.sliderBar, eventName, () => {
+			this.listen(this.sliderBar, eventName, (event) => {
 				this.isMouseDown = true;
+				paintScrub(getPercentFromEvent(event as MouseEvent | TouchEvent));
 			}, { passive: true });
 		}
-
-		this.listen(this.sliderBar, 'click', (event) => {
-			this.isMouseDown = false;
-			const percent = getPercentFromEvent(event as MouseEvent);
-			this.player.seekByPercentage(percent);
-			sliderNipple.style.left = `${percent}%`;
-		});
 
 		for (const eventName of ['mousemove', 'touchmove']) {
 			this.listen(this.sliderBar, eventName, (event) => {
 				if (!this.isMouseDown)
 					return;
-				const percent = getPercentFromEvent(event as MouseEvent | TouchEvent);
-				sliderNipple.style.left = `${percent}%`;
-				sliderProgress.style.width = `${percent}%`;
+				paintScrub(getPercentFromEvent(event as MouseEvent | TouchEvent));
 			}, { passive: true });
 		}
 
-		this.listen(this.sliderBar, 'mouseleave', () => {
+		// Seek where the button or finger lifts. A touch drag fires no
+		// `click`, so the seek cannot wait for one. `mouseup` listens on the
+		// document so a drag released past the bar's edge still lands.
+		const endScrub = (event: Event): void => {
+			if (!this.isMouseDown)
+				return;
+			this.isMouseDown = false;
+			const percent = getPercentFromEvent(event as MouseEvent | TouchEvent);
+			paintScrub(percent);
+			this.player.seekByPercentage(percent);
+		};
+		this.listen(document, 'mouseup', endScrub);
+		this.listen(this.sliderBar, 'touchend', endScrub);
+		this.listen(this.sliderBar, 'touchcancel', () => {
 			this.isMouseDown = false;
 		}, { passive: true });
 

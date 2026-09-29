@@ -83,6 +83,7 @@ class ListeningHandbookPlayer extends EventEmitter<BaseEventMap> {
 	declare setup: (config: BasePlayerConfig) => this;
 	declare ready: () => Promise<void>;
 	declare dispose: () => Promise<void>;
+	declare enabledPlugins: () => ReadonlyArray<Plugin>;
 	declare addPlugin: <P extends Plugin<any, any, any>>(
 		PluginClass: PluginCtorWithId & (new () => P),
 		opts?: P['opts'],
@@ -128,6 +129,8 @@ player.setup({
 	baseUrl: FILMS_BASE,
 });
 await player.ready();
+
+player.enabledPlugins(); // BeatLightPlugin (5) before plugins at the default 0
 
 player.queue(films);
 player.item(0, { autoplay: false });

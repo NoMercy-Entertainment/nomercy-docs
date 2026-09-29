@@ -41,7 +41,7 @@ export default {
           // zinc-700 at 15% is barely a fill on the dark ground, so a code tag
           // read as a ring around nothing. A light tint at the same opacity
           // gives the tag a body to sit in.
-          '--tw-prose-invert-code-bg': 'color-mix(in oklab, oklch(0.74 0.03 285.86) 15%, transparent)',
+          '--tw-prose-invert-code-bg': 'color-mix(in oklab, oklch(0.74 0.03 285.86) 8%, transparent)',
           '--tw-prose-invert-code-ring': theme('colors.white / 0.1'),
           '--tw-prose-invert-th-borders': theme('colors.zinc.600'),
           '--tw-prose-invert-td-borders': theme('colors.zinc.700'),
@@ -316,17 +316,27 @@ export default {
           ':is(a, blockquote, thead th) strong': {
             color: 'inherit',
           },
+          // Inline code is a word inside a sentence, so it stays quiet: a faint
+          // fill and no ring. The ring plus the fill plus tall padding made each
+          // tag a box that pulled the eye off the line and pushed lines apart.
           code: {
             color: 'var(--tw-prose-code)',
-            borderRadius: theme('borderRadius.lg'),
-            paddingTop: theme('padding.1'),
-            paddingRight: theme('padding[1.5]'),
-            paddingBottom: theme('padding.1'),
-            paddingLeft: theme('padding[1.5]'),
-            boxShadow: 'inset 0 0 0 1px var(--tw-prose-code-ring)',
+            borderRadius: theme('borderRadius.md'),
+            paddingTop: '0.0625rem',
+            paddingRight: '0.3125rem',
+            paddingBottom: '0.0625rem',
+            paddingLeft: '0.3125rem',
+            boxShadow: 'none',
             backgroundColor: 'var(--tw-prose-code-bg)',
             fontSize: theme('fontSize.2xs')[0],
-            whiteSpace: 'nowrap',
+            // Breaks at its spaces, and inside a token only when that token is
+            // wider than the line. nowrap pushed long signatures and package
+            // names out past the column on a phone. `clone` repeats the fill
+            // and padding on each line of a broken tag.
+            whiteSpace: 'normal',
+            overflowWrap: 'anywhere',
+            WebkitBoxDecorationBreak: 'clone',
+            boxDecorationBreak: 'clone',
           },
           ':is(a, h1, h2, h3, blockquote, thead th) code': {
             color: 'inherit',

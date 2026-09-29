@@ -15,12 +15,12 @@ Your CSS enters the page through plugin helpers, and the player stamps state cla
 ## Put CSS in the document
 
 From a `cls Plugin` subclass, call `fn appendStyles` or `fn appendInlineStyles` in `fn use`.
-Both write into `document.head`.
+Both write into `var document.head`.
 Both take a `key styleId` you choose.
 
 `fn appendStyles` adds a stylesheet link for a URL.
 When the class sets `key moduleUrl`, a relative URL resolves against it.
-Otherwise it resolves against `document.baseURI`.
+Otherwise it resolves against `var document.baseURI`.
 
 `fn appendInlineStyles` writes a style element whose text is the CSS you pass.
 The rules are in the document as soon as the call returns.
@@ -33,7 +33,7 @@ this.appendInlineStyles(
 );
 ```
 
-If `document` is missing, both calls return without writing.
+If `var document` is missing, both calls return without writing.
 
 ## One id wins
 
@@ -49,20 +49,20 @@ A later registration finds the id already present and skips the write.
 
 ## Classes on the container
 
-After `fn setup`, the container carries `nomercyplayer`.
+After `fn setup`, the container carries `str nomercyplayer`.
 Emitted player events keep further classes in sync, so your CSS can follow state without script.
 
 | Class | Meaning |
 | --- | --- |
-| `playing` `paused` `stopped` `ended` `loading` `buffering` | Play and load presentation |
-| `active` `inactive` | User activity; exactly one is present |
-| `muted` | Mute is on |
-| `fullscreen` `pip` `theater` | Display mode is on |
+| `str playing` `str paused` `str stopped` `str ended` `str loading` `str buffering` | Play and load presentation |
+| `str active` `str inactive` | User activity; exactly one is present |
+| `str muted` | Mute is on |
+| `str fullscreen` `str pip` `str theater` | Display mode is on |
 
-`buffering` arrives from `waiting` or `stalled`.
-`canplay` or an advancing `time` clears it.
-The first time the phase becomes `loading`, the container can gain that class.
-After the first `ready`, a later `loading` phase leaves the classes alone.
+`str buffering` arrives from `str waiting` or `str stalled`.
+`str canplay` or an advancing `str time` clears it.
+The first time the phase becomes `str loading`, the container can gain that class.
+After the first `str ready`, a later `str loading` phase leaves the classes alone.
 
 ```css
 .nomercyplayer.inactive .nmplayer-badge-root {
@@ -83,8 +83,8 @@ Pass a partial object to merge fields and emit `str subtitleStyle` with the resu
 The event carries that merged object.
 
 ```ts
-player.subtitleStyle({ fontSize: 120 });
 player.subtitleStyle();
+player.subtitleStyle({ fontSize: 120 });
 ```
 
 :::snippet{file="core-handbook-styling" live="false"}
