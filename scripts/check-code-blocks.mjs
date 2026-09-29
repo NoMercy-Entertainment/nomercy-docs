@@ -27,7 +27,8 @@ const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const COLLECTIONS = ['nomercy-player-core', 'nomercy-video-player', 'nomercy-music-player'];
 
 // Measured on master 2026-09-29 (423); lowered to 420 after the Timing
-// and Volume pages moved their blocks into compiled snippets.
+// and Volume pages moved their blocks into compiled snippets, then to 419
+// when add-a-plugin did the same.
 const BUDGET = 419;
 
 const FENCE = /^```(?:ts|typescript|tsx|js|javascript|jsx)\b/;

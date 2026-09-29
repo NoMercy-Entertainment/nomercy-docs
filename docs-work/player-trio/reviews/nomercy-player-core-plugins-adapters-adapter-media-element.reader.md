@@ -1,40 +1,43 @@
-# Reader: /nomercy-player-core/plugins-adapters/adapter-media-element
+# Reader review: /nomercy-player-core/plugins-adapters/adapter-media-element
 
-Verdict: FAIL
+Verdict: PASS
 
 Reviewed: src/content/nomercy-player-core/en/plugins-adapters/adapter-media-element.mdx
 
-Reviewed-SHA: c7ebb979a7cb0770
+Reviewed-SHA: 706d5c66572bb389
 
-## Findings
+## Four criteria checks
 
-### Backend IDs used without full explanation
+**1. Every term explained at or before first use on this page or prerequisite pages**
 
-Line 48 names backend IDs:
+Prerequisite page from map: /nomercy-player-core/plugins-adapters/adapter-logger.
 
-> The ID is one of `str audio-element`, `str webaudio`, `str video`, `str html5`, `str mse` or `str webcodecs`.
+Terms on this page: `cls MediaElementBackend`, backend IDs, HLS.
 
-"mse", "webaudio", and "webcodecs" are technical acronyms not explained.
+Lines 51-54 explain backend IDs:
+"It is one of `str audio-element`, `str webaudio`, `str video`, `str html5`, `str mse` or `str webcodecs`.
+The built-in backends use `str html5` (the video player's `<video>` backend), `str audio-element` (the music player's `<audio>` backend) and `str webaudio` (the music player's Web Audio backend).
+`str mse` (Media Source Extensions) and `str webcodecs` (the WebCodecs API) have no built-in backend, and no built-in backend uses `str video`."
 
-**Cost to reader:** A reader implementing a backend doesn't know what these mean or when to pick each one. MSE is "Media Source Extensions", webaudio is "Web Audio API", webcodecs is "WebCodecs API" — these are different playback technologies but the page doesn't explain when to use which.
+Line 43: "`fn pauseLoader` and `fn resumeLoader` stop and start the HLS (HTTP Live Streaming) loader when one is attached."
 
-**Fix:** Expand each acronym and add a brief note on what each backend kind does:
-- `str audio-element`: plays audio via `<audio>` element
-- `str webaudio`: plays audio via Web Audio API
-- `str video`: plays video via `<video>` element
-- `str html5`: (legacy? clarify what this means vs video)
-- `str mse`: Media Source Extensions for advanced streaming
-- `str webcodecs`: WebCodecs API for custom decode handling
+All terms are explained.
 
-### HLS mentioned without explanation
+**2. Reader can do the task from page alone**
 
-Line 43 states:
+Stated task: Build a backend on an HTML media element by extending MediaElementBackend.
 
-> `fn pauseLoader` and `fn resumeLoader` stop and start the HLS loader when one is attached.
+Steps on page: Extend the class, pass three things to super (element, ownership, backend ID), call attachDomBridges. The interface shows what to override. A reader can follow.
 
-"HLS loader" is never defined on this page. HLS = HTTP Live Streaming, but a reader unfamiliar with streaming protocols doesn't know this.
+**3. Code examples don't lean on missing content**
 
-**Cost to reader:** The purpose of pauseLoader/resumeLoader is unclear. Is HLS a specific feature? Is it needed?
+Snippets show extending the class and implementing required methods. Self-contained.
 
-**Fix:** Define HLS on first use: "`fn pauseLoader` and `fn resumeLoader` stop and start the HLS (HTTP Live Streaming) loader when one is attached."
+**4. No sentence needs second read**
+
+The page is clear. Backend IDs and their purposes are named explicitly.
+
+## Why PASS
+
+Previous findings are resolved: Backend IDs are now expanded with explanations (Media Source Extensions, WebCodecs API named and described). HLS is expanded to HTTP Live Streaming with context about the loader. No new findings.
 

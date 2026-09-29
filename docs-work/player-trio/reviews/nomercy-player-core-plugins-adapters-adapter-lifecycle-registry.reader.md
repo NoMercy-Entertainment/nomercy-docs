@@ -1,38 +1,38 @@
-# Reader: /nomercy-player-core/plugins-adapters/adapter-lifecycle-registry
+# Reader review: /nomercy-player-core/plugins-adapters/adapter-lifecycle-registry
 
-Verdict: FAIL
+Verdict: PASS
 
 Reviewed: src/content/nomercy-player-core/en/plugins-adapters/adapter-lifecycle-registry.mdx
 
-Reviewed-SHA: 8cdb78625e5d4a9f
+Reviewed-SHA: aa9bcbec4018e590
 
-## Findings
+## Four criteria checks
 
-### Contradiction about isDisposed
+**1. Every term explained at or before first use on this page or prerequisite pages**
 
-The page states on line 32:
+Prerequisite page from map: /nomercy-player-core/plugins-adapters/adapter-language-matcher.
 
-> Every method stays safe after `fn dispose`, so you never check `fn isDisposed` first.
+Terms on this page: `cls ILifecycleRegistry`, `fn dispose`, `fn isDisposed`, `fn listen`, `fn timeout`, `fn interval`, `fn observe`, `fn abortable`, `fn frame`, `fn addCleanup`.
 
-Then on line 69 in the Interface section:
+All terms are explained in the "Built-in adapter" and "Interface" sections. Line 32-33 clarifies the previous finding about `fn isDisposed`: "Every method stays safe after `fn dispose`, so you never check `fn isDisposed` first. The player itself uses `fn isDisposed` as a guard against tearing a plugin down twice, so a repeated removal is a no-op instead of a second dispose."
 
-> | `fn isDisposed` | Whether `fn dispose` has run. |
+Line 26 names browser APIs being cleaned up: "DOM listeners first. Then it clears `setTimeout` and `setInterval` timers and `requestAnimationFrame` loops, disconnects observers such as `ResizeObserver` or `MutationObserver`, and aborts `AbortController` instances."
 
-**Cost to reader:** This creates confusion. If I "never check isDisposed first", why does the interface document it as a member? Is there a use case for isDisposed that the text doesn't explain? The page tells me not to use it, but then documents it as part of the public interface.
+**2. Reader can do the task from page alone**
 
-**Fix:** Either:
-1. Explain when isDisposed *is* useful (e.g., "You may check isDisposed before logging or in defensive code, though it's rarely needed since methods stay safe after dispose")
-2. Or clarify that isDisposed is documented for reference but the intended pattern is to rely on dispose making methods no-op safe
+Stated task: Record work on a registry, then dispose it once.
 
-### Undefined browser API references in the "Built-in adapter" section
+Steps on page show the usage pattern with a code example. The interface section documents each method. A reader can understand how to record cleanup and when dispose runs.
 
-The section mentions:
-- "DOM listeners"
-- "timeouts, intervals and frame loops"
-- "observers"
-- "controllers"
+**3. Code examples don't lean on missing content**
 
-These reference browser/Web APIs (addEventListener, setTimeout, setInterval, requestAnimationFrame, ResizeObserver/MutationObserver/IntersectionObserver, AbortController) but don't name them explicitly. A reader unfamiliar with these might not connect the dots.
+The usage snippet shows recording listeners, timers, and cleanup on a registry, then calling dispose. Self-contained.
 
-**Cost to reader:** A reader new to these browser APIs might not understand what "observer" or "controller" means. The page should say "ResizeObserver, MutationObserver, etc." to make the connection clear.
+**4. No sentence needs second read**
+
+The page is clear. The table showing behavior after dispose is well-structured.
+
+## Why PASS
+
+Previous findings are resolved: isDisposed is now explained with context about internal player use. Browser APIs being managed are named explicitly (DOM listeners, setTimeout, setInterval, requestAnimationFrame, ResizeObserver, MutationObserver, AbortController). No new findings.
 

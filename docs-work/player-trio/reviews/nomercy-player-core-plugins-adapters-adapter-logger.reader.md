@@ -1,36 +1,40 @@
-# Reader: /nomercy-player-core/plugins-adapters/adapter-logger
+# Reader review: /nomercy-player-core/plugins-adapters/adapter-logger
 
-Verdict: FAIL
+Verdict: PASS
 
 Reviewed: src/content/nomercy-player-core/en/plugins-adapters/adapter-logger.mdx
 
-Reviewed-SHA: b3405f91b87e94be
+Reviewed-SHA: 52b5c19e403af58b
 
-## Findings
+## Four criteria checks
 
-### LogLevel referenced before definition
+**1. Every term explained at or before first use on this page or prerequisite pages**
 
-Line 54 in the Interface section states:
+Prerequisite page from map: /nomercy-player-core/plugins-adapters/adapter-lifecycle-registry.
 
-> | `fn level` | With no argument, returns the level. With a `cls LogLevel`, sets it. |
+Terms on this page: `cls ILogger`, `cls Logger`, `cls LogLevel`, `cls LogSink`, `fn trace`, `fn debug`, `fn info`, `fn warn`, `fn error`, `fn level`, `fn addSink`, `fn child`.
 
-`LogLevel` is used as a type here but is not defined in the Interface table or in the section before it. 
+Line 34 lists log levels: "The levels, from quiet to verbose, are `str silent`, `str error`, `str warn`, `str info`, `str debug` and `str trace`."
 
-**Cost to reader:** A reader doesn't know what values LogLevel can hold. The text mentions levels (line 34) as "silent, error, warn, info, debug, trace" but doesn't name them as a type or enum.
+Line 58 defines LogLevel: "`cls LogLevel` is one of `str silent`, `str error`, `str warn`, `str info`, `str debug` or `str trace`, ordered from quiet to verbose."
 
-**Fix:** Add a row to the interface table defining LogLevel, or add text after the table: "LogLevel is one of: 'silent', 'error', 'warn', 'info', 'debug', 'trace'."
+Line 59 defines LogSink: "A `cls LogSink` is `(level: LogLevel, prefix: string, args: unknown[]) => void`."
 
-### LogSink type not fully defined in Interface
+**2. Reader can do the task from page alone**
 
-Line 55 introduces LogSink:
+Stated task: Route player and plugin log lines with ILogger, build a Logger with sinks, and pass it to setup as logger.
 
-> | `fn addSink` | Adds a `cls LogSink` and returns a function that removes it. |
+Steps on page show building a logger, adding a sink, and passing it to setup. The interface documents each method. A reader can follow this pattern.
 
-Then line 58 gives a partial definition:
+**3. Code examples don't lean on missing content**
 
-> A `cls LogSink` is `(level, prefix, args) => void`.
+Usage snippet shows creating a Logger, defining a sink, adding it, and passing to setup. Self-contained.
 
-**Cost to reader:** The LogSink type appears in the interface row but isn't expanded there. While the definition comes right after the table, it's awkward for a reader scanning the interface section. The table should clarify what LogSink is.
+**4. No sentence needs second read**
 
-**Fix:** Move the LogSink definition into the Interface section as a note immediately after the table, or expand the table row to include the type signature inline.
+The page is clear. The interface is well-structured.
+
+## Why PASS
+
+Previous findings are resolved: LogLevel is now explicitly defined with all values listed (line 58). LogSink signature is defined with full type information (line 59). No new findings.
 
