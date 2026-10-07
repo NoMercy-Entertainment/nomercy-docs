@@ -1,25 +1,43 @@
 # Fact check: /nomercy-player-core/build/add-a-plugin
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/build/add-a-plugin.mdx
-Reviewed-SHA: 3d0049e98dc518c1
+Reviewed-SHA: 11f9850518c03ec9
+
+Delta review since 26055e2; the full review before it passed.
+
+Date: 2026-09-29. Source: nomercy-player-core `src` at `e3d2de5`. Method: `git diff 26055e2 -- src/content/nomercy-player-core/en/build/add-a-plugin.mdx`; every added or changed line checked; the section around each hunk re-read. The pseudo-tags used (`fn`, `var`, `str`, `el`, `attr`, `key`, `cls`, inline `ts`) are all defined in `src/lib/mdx/rehype.ts:102-126` and `:184`.
+
+## Changed lines
+
+| Page line | Claim | Supported by | Status |
+| --- | --- | --- | --- |
+| 16 | Registration covers when `fn addPlugin` runs, the checks that throw, and removal | `handbook/registration.mdx` headings: line 16 "When the call runs", line 25 "Checks that throw", line 65 "Look up and remove" | Supported |
+| 17 | Timing covers the timer helpers a plugin can use | `handbook/timing.mdx` sections lines 17-98; helpers are `protected` on `Plugin`: `src/core/plugin/base.ts:997,1005,1019,1029` | Supported |
+
+## Findings
+
+None.
+
+## Carried from the full review at 26055e2
+
 Previous verdict: PASS (Reviewed-SHA 412420972b88e283), with a note that page lines 43-46 were a hand-written block; fixes verified: the hand-written `setup` block is now `:::snippet lines="98-102"` (page line 48), and a new `:::snippet lines="36-44"` (page line 40) shows `use`. Both ranges show exactly what the sentence above them says (see the range table). The fresh review of the whole page found no new gap.
 
 Source: nomercy-player-core `src` at `e3d2de5` (working tree clean; same `src` as the pinned `5ed4538`). Example `src/examples/core-build-add-a-plugin.ts` (last changed in `e5fe1a9`; `26055e2` did not touch it).
 
 Method: re-read the whole page; `git diff 26055e2~1 26055e2` for the page; read `src/core/plugin/base.ts:152-170,296-326,420-436,490-500`, `src/core/mixins/plugin-registration.ts:585-630`, `src/core/mixins/lifecycle.ts:155-177,321-328,352-369`, `src/types/plugin.ts:87-89`, `src/types/config.ts:346-349`; `grep -rn "\.description\b"` over `src` (tests excluded): no reader. Type-checked the example against the package SOURCE with a scratch tsconfig outside the repo (same `paths` as `tsconfig.examples.json`): `tsc` exit 0. Snippet ranges `36-44` and `98-102` match `src/examples/snippet-ranges.lock.json` (read-only script: "ranges ok=2 bad=0"). Hand-written ts/js blocks on the page: 0. URL: `FILMS_BASE` + `/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8` (the first `films` item, `src/examples/media.ts:30-31,41`), plain GET: `200`. The example was traced, not run.
 
-## Snippet range check
+### Snippet range check
 
 | Page line | Range | Sentence above it | What the range holds | Status |
 | --- | --- | --- | --- | --- |
 | 40 | `36-44` | L38 "Here `fn use` counts plays with `fn on` and reports every second one with `fn emit`" | the whole `override use()` body: `every = this.opts.everyNPlays ?? 2`; `this.on('play', ...)` increments `plays`; `this.emit('milestone', ...)` when `plays % every === 0`. Starts on the method, ends on its closing brace. "Every second one" holds for the default `2` shown on line 37 and for the `everyNPlays: 2` the page registers at line 98. | Matches |
 | 48 | `98-102` | L45 "Call `fn addPlugin` before `fn setup`" | `player.addPlugin(PlayCounterPlugin, { everyNPlays: 2 });` then the full `player.setup({ logLevel, baseUrl })` call, ending on its closing `});`. No other statement. | Matches |
 
-## Findings
+### Findings
 
 None.
 
-## Claim table
+### Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |
@@ -45,6 +63,6 @@ None.
 | L60 full example (a `build/` page may show a complete program) | example `:1-118`; tsc exit 0 | Supported |
 | Links: `tour/plugin-base`, `handbook/registration`, `build/add-i18n` | the three `.mdx` files exist under `src/content/nomercy-player-core/en/` | Supported |
 
-## Notes
+### Notes
 
 - `base.ts:166` comments that `description` is "used in error messages"; no code in `src` reads it. The page follows the code. Comment drift for the package owner; not filed by this review.

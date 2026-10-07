@@ -1,35 +1,38 @@
 # Reader: /nomercy-player-core/handbook/anatomy
-
-Verdict: PASS
+Verdict: FAIL
 
 Reviewed: src/content/nomercy-player-core/en/handbook/anatomy.mdx
 
-Reviewed-SHA: 199a60e4e07f5d35
+Reviewed-SHA: 794b98394979af23
 
-## Same-voice comparison
+## Terms explained before first use
 
-Compared to `src/content/nomercy-player-core/en/tour/queue.mdx`. Anatomy matches the tour voice: a short opening that states when to use the page, sections that name APIs with `fn` typography before showing calls, small inline TypeScript blocks, a non-live snippet before **Next**, and a single handbook link for what comes after. Sentences stay imperative and behavior-first rather than describing the doc site.
+The page uses three critical terms without definition:
 
-## Snippet
+1. **`composeMixins` function** - Line 19 says "Spread it into `fn composeMixins` on your prototype" and the code block shows `composeMixins(MyPlayer.prototype, ...playerCoreMethods);` but the function is never defined or explained. What does it do? Does it mutate the prototype? Does it return anything? The reader has no answer on this page.
 
-`core-handbook-anatomy.ts` (via `:::snippet{file="core-handbook-anatomy" live="false"}` before **Next**). It builds `AnatomyPlayer` with `resolvePlayerConstructor`, `initPlayerCoreState`, `composeMixins(...playerCoreMethods)`, then `setup`, `ready`, `baseUrl` read/write, and `audioContext()` (still `undefined` because nothing calls `setPlayerAudioContext`). Judgment below is for the MDX page only; the snippet fills in constructor and lifecycle wiring the prose does not re-teach.
+2. **`mixin` term** - Appears three times ("every shared mixin in one as const list", "Adding a new shared mixin means appending it to that same list", "each mixin on its own") but is never defined. The page assumes you already know what a mixin is.
 
-## Reader notes (JavaScript background, new to this handbook)
+3. **`MyPlayer` class** - The code example references `MyPlayer.prototype` but never introduces or explains what MyPlayer is. A reader cannot run this example without knowing what class they are composing.
 
-I read the page in order without opening player source, assuming I already have a class and only need the shared method tuple and two early accessors.
+## Task completeness
 
-The opening ties the page to a **composed class** and names the tuple plus URL prefix and shared audio context. That matches the frontmatter description and tells me this is about shape after composition, not how to mount DOM or write plugins end to end.
+The page title states "Use this page when you need the shape of Player Core under a composed class." The opening task is to understand how to compose these methods into your class. But the page does not explain what composing accomplishes or what the result looks like. The code block shows an example call but not what happens after, or how the methods are now available.
 
-**The shared tuple** introduces `playerCoreMethods` as one ordered `as const` list, then tells me to spread it with `composeMixins` on the prototype. Video and music using the same list is orientation, not a second task. The inline block is enough to copy the one line I need. Notes about tuple order, appending new shared mixins, and core re-exports are catalog color; they do not block the main action.
+## Code example gaps
 
-**Base URL and audio context** gives a table for `baseUrl` (read vs store) and `audioContext` (read-only). The prose says `baseUrl` does not need another `setup`, that a string replaces the stored prefix, and that something else must call `setPlayerAudioContext` before the getter returns anything other than `undefined`. Plugin authors get a clear read path instead of creating their own graph. The second inline block shows the three calls in order.
+The code block `composeMixins(MyPlayer.prototype, ...playerCoreMethods);` appears without explanation of:
+- What class MyPlayer is (is it a subclass? A constructor?)
+- What this call does to MyPlayer
+- How the methods are now accessible on instances of MyPlayer
+- Why you need `...playerCoreMethods` (the spread operator is used without context)
 
-Doc typography (`fn`, table roles) matches the tour pages. The page stays on instance behavior; it does not talk about itself as documentation.
+## Sentence clarity
 
-## Friction (does not fail the rubric)
+Line 20: "Video and music players take the same list." - This is true but does not help the reader who is trying to compose their own player. It assumes comparison with something already known.
 
-`Lifecycle` in the tuple-order sentence is not mapped to method names on this page. `setup` is mentioned only to contrast with `baseUrl`; I am expected to know lifecycle from an earlier build or tour page. The re-export sentence names “constructor helper, state seed, error helpers” without tying them to exports I would import. This handbook page does not show how or when to call `setPlayerAudioContext` if I want a defined `audioContext` in my own app—that write path lives elsewhere. The snippet imports and declares several symbols the MDX never names; that is fine for a full example but not required to follow the two sections.
+Line 26: "Lifecycle and the base URL accessors come early in that list." - "Lifecycle" is named but never explained on this page, leaving the sentence incomplete for a reader new to the API.
 
-## Why PASS
+## Why FAIL
 
-I can tell what to do on the page: spread `playerCoreMethods` with `composeMixins` on my prototype, then read or set `baseUrl` and read `audioContext` on the instance, knowing the context stays undefined until another part of the stack sets it. Every API the prose asks me to use (`playerCoreMethods`, `composeMixins`, `baseUrl`, `audioContext`, `setPlayerAudioContext` as the writer hook) is introduced in the same section or the sentence before it is needed. Under the stated fail conditions, this passes.
+To complete the task stated on the opening ("use this page when you need the shape of Player Core under a composed class"), a reader needs to know: (1) what composeMixins does; (2) what a mixin is; (3) what MyPlayer should be. None of these are explained on the page. The baseUrl and audioContext sections pass (they explain these accessors clearly), but the primary action — composing the methods — cannot be understood from this page alone.

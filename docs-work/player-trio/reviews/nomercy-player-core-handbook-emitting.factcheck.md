@@ -1,11 +1,31 @@
 # Fact check: /nomercy-player-core/handbook/emitting
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/handbook/emitting.mdx
-Reviewed-SHA: 7a936914d00cc123
+Reviewed-SHA: 518851e4414ed8fa
+
+Delta review since 0b063c4; the full review before it passed.
+
+Date: 2026-09-29. Source: nomercy-player-core `src` at `e3d2de5`. Method: `git diff 0b063c4 -- src/content/nomercy-player-core/en/handbook/emitting.mdx`; every added or changed line checked; the section around each hunk re-read. The pseudo-tags used (`fn`, `var`, `str`, `el`, `attr`, `key`, `cls`, inline `ts`) are all defined in `src/lib/mdx/rehype.ts:102-126` and `:184`.
+
+Snippet type-check: `tsc -p` on a scratch tsconfig outside the repo (paths to the core package SOURCE, as in `tsconfig.examples.json`) over `core-tour-adapters.ts`, `core-tour-i18n.ts`, `core-tour-plugin-base.ts`, `core-handbook-emitting.ts`: `EXIT 0`. Ranges match `src/examples/snippet-ranges.lock.json` (read).
+
+## Changed lines
+
+| Page line | Claim | Supported by | Status |
+| --- | --- | --- | --- |
+| 76 | Snippet `lines="76-80"`: `emit('play')` adds class `playing`; `emit('fatal')` leaves `playState()` at `error` before fatal listeners run | example `core-handbook-emitting.ts:76-80`; `src/core/mixins/container-class-emit.ts:45-48` (`play` adds `playing`), `:233-241` (`fatal` sets `PlayState.ERROR` before `EventEmitter.prototype.emit`); `src/types/state.ts:134` `ERROR = 'error'` | Supported |
+| 55-75 | Range shows what the section "What emit updates first" explains | page lines 55-75 re-read | Supported |
+
+## Findings
+
+None.
+
+## Carried from the full review at 0b063c4
+
 
 Source: `packages/player-web/nomercy-player-core/src/core/dispatch.ts` (`runDispatchBefore`); `core/mixins/container-class-emit.ts` (`containerClassEmitMethods.emit`, `CONTAINER_CLASS_RULES`); `Plugin.dispatchBefore` → `runDispatchBefore` in `core/plugin/base.ts`; transport mixins via `_dispatchBefore` in `core/mixins/player-state.ts`. Example: `src/examples/core-handbook-emitting.ts`. Method: read page, example, and those sources; SHA256 of the mdx bytes (first 16 hex); no site browser gate. Em dash / en dash scan (U+2013, U+2014) over the page and example: none. Old library nickname (the old nickname): none on the page or in the example. Snippet: `live="false"`. Sentence and paragraph word gates: all sentences ≤30 words, all paragraphs ≤60 words. Table: 4 non-separator lines (header + 3 data). British spelling: none.
 
-## Gate checks
+### Gate checks
 
 | Gate | Result |
 | --- | --- |
@@ -19,7 +39,7 @@ Source: `packages/player-web/nomercy-player-core/src/core/dispatch.ts` (`runDisp
 | British spelling | none |
 | Example imports from package root | Pass (`index.ts` exports named imports) |
 
-## Claim table
+### Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |
@@ -39,7 +59,7 @@ Source: `packages/player-web/nomercy-player-core/src/core/dispatch.ts` (`runDisp
 | Example: reshape via `runDispatchBefore`, then `preventDefault`, `emit('play')` class, `emit('fatal')` → `playState()` | `core-handbook-emitting.ts:62-80` | Supported |
 | Next: Errors and State path | `/nomercy-player-core/handbook/errors-state` exists | Supported |
 
-## Example alignment
+### Example alignment
 
 - Package-root imports including `runDispatchBefore`; compose seed; `beforePlay` reshape then prevent; `emit('play')` / `emit('fatal')` side effects.
 - Matches handbook: cancel/reshape shared pass, then emit container class and fatal play-state sync.

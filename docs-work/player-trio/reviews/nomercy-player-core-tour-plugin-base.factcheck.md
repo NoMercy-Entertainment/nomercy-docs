@@ -1,11 +1,31 @@
 # Fact check: /nomercy-player-core/tour/plugin-base
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/tour/plugin-base.mdx
-Reviewed-SHA: fbcf1d074a214d85
+Reviewed-SHA: 3674cbdd7dc14518
+
+Delta review since 2e9c15c; the full review before it passed.
+
+Date: 2026-09-29. Source: nomercy-player-core `src` at `e3d2de5`. Method: `git diff 2e9c15c -- src/content/nomercy-player-core/en/tour/plugin-base.mdx`; every added or changed line checked; the section around each hunk re-read. The pseudo-tags used (`fn`, `var`, `str`, `el`, `attr`, `key`, `cls`, inline `ts`) are all defined in `src/lib/mdx/rehype.ts:102-126` and `:184`.
+
+Snippet type-check: `tsc -p` on a scratch tsconfig outside the repo (paths to the core package SOURCE, as in `tsconfig.examples.json`) over `core-tour-adapters.ts`, `core-tour-i18n.ts`, `core-tour-plugin-base.ts`, `core-handbook-emitting.ts`: `EXIT 0`. Ranges match `src/examples/snippet-ranges.lock.json` (read).
+
+## Changed lines
+
+| Page line | Claim | Supported by | Status |
+| --- | --- | --- | --- |
+| 40 | Snippet `lines="37-60,107,111-113,119-120"`: class with static `id`/`description`, `use`, `getRuntimeState`; `addPlugin` with options; `getPlugin`, `enabled()` true, `state().runtime` `{ plays: 0 }`; `removePlugin` then `getPlugin` is `undefined` | example `core-tour-plugin-base.ts:37-60,107,111-113,119-120`; `src/core/plugin/base.ts:331` `enabled()`, `:365-372` `state()` with `runtime: this.getRuntimeState()`, `:377` hook | Supported |
+| 25-38 | Range shows exactly the section subjects (add, enabled, remove, getPlugin, state) | page lines 25-38 re-read against the ranges | Supported |
+
+## Findings
+
+None.
+
+## Carried from the full review at 2e9c15c
+
 
 Source: `packages/player-web/nomercy-player-core/src/core/plugin/base.ts`, `lifecycle.ts`, `index.ts`; `core/mixins/plugin-registration.ts`; `core/mixins/lifecycle.ts` (`_disposeAllPlugins`). Example: `src/examples/core-tour-plugin-base.ts`. Method: read page, example, plugin class, and registration mixin; SHA256 of page bytes (first 16 hex); no site build. Em dash / en dash scan (U+2013, U+2014) over the page and example: none. Old library nickname: none on the page or in the example. Snippet: `live="false"`.
 
-## Gate checks
+### Gate checks
 
 | Gate | Result |
 | --- | --- |
@@ -18,7 +38,7 @@ Source: `packages/player-web/nomercy-player-core/src/core/plugin/base.ts`, `life
 | Table data rows ≤ 6 on page | Pass (no tables) |
 | Example imports match package root exports | Pass (`index.ts` Plugin, composeMixins, EventEmitter, initPlayerCoreState, playerCoreMethods, resolvePlayerConstructor, types) |
 
-## Claim table
+### Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |

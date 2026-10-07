@@ -25,10 +25,11 @@ const CONTENT = join(ROOT, 'src', 'content');
 // Measured 2026-09-04 after the density pass. Was 157 / 355 across the trio
 // before it. Zero long paragraphs is the floor: it can only be held, not beaten.
 // Lowered 2026-09-22 after splitting the plugin pages' over-budget paragraphs
-// and sentences: was 0 / 148.
+// and sentences: was 0 / 148. Lowered 2026-09-29 to 0 / 140 (master plus
+// pending edits in another checkout measured 140).
 const BUDGET = {
   longParagraphs: 0,
-  longSentences: 147,
+  longSentences: 140,
 };
 
 const MAX_PARAGRAPH_WORDS = 60;

@@ -1,39 +1,41 @@
 # Reader: /nomercy-player-core/handbook/building-dom
-
 Verdict: PASS
 
 Reviewed: src/content/nomercy-player-core/en/handbook/building-dom.mdx
 
-Reviewed-SHA: 73b71f4842b192a1
+Reviewed-SHA: 247435078b961ca5
 
-## Same-voice comparison
+## Comparison with prior handbook page (anatomy)
 
-Compared to [The Queue](/nomercy-player-core/tour/queue) (`tour/queue.mdx`).
+Like anatomy, this page teaches a specific API: five helpers (`createElement`, `createButton`, `createSVG`, `addClasses`, `removeClasses`). Unlike anatomy, it explains each function's behavior, shows the fluent chaining pattern through examples, and provides a complete code snippet that demonstrates all five helpers in sequence.
 
-Both open with a short goal statement, then split behavior into `##` sections with one primary API group each. They use the same doc typography (`fn`, `key`, `str`) and end with a non-live snippet and a **Next** link. Queue assumes a composed `player` and never shows imports; Building DOM names a module path up front because these helpers sit outside the player instance. Prose density and imperative tone match: what each call returns, what is chainable versus terminal, and one inline block plus a table for scanability.
+## Terms explained
 
-## Snippet
+Each function is named and its return type is stated: "It returns a fluent builder" for `createElement` (with usage examples showing the chain), "returns a ready `<button>`" for `createButton`, "returns an `<svg>` in the SVG namespace" for `createSVG`. The table at the end clarifies what each returns, distinguishing between fluent builders (which support chaining) and direct elements (which don't).
 
-`core-handbook-building-dom.ts` (via `:::snippet{file="core-handbook-building-dom" live="false"}` before **Next**). It imports all five helpers from `@nomercy-entertainment/nomercy-player-core/adapters/element-factory`, mounts a `root` div, builds a labeled span with `createElement`, adds an SVG with `createSVG`, wires `createButton` to `removeClasses`, toggles visibility with standalone `addClasses`, and demonstrates `unique: true` reuse. It does not show `setProperty`, `prependTo`, or chained `removeClasses`. Judgment below is for the MDX page only.
+"CSS-escaped id" appears once in "The lookup uses `fn document.querySelector` with a CSS-escaped id" (line 29), named but not explained. For a web developer audience, this is an implementation detail; the reader does not need to understand CSS escaping to call the function with a string id.
 
-## Reader notes (JavaScript background, DOM familiar)
+## Reader task: Build UI nodes
 
-I read the page in order without opening player source or the utilities reference.
+The opening states "Build UI nodes with five helpers from Player Core." The page then explains each helper's role, shows a small example of `createElement` in a chain, and provides a large snippet showing all five helpers together. The snippet imports all five, creates a span, button, and SVG, chains methods, and toggles classes. A reader can copy this pattern and adapt it to their own nodes.
 
-The opening states the job: five helpers create elements, set attributes, and toggle classes, and I choose where nodes sit in the tree. The import line points at `adapters/element-factory` (the snippet supplies the full package path).
+Code example in the snippet:
+```ts
+const label = createElement('span', 'badge-label')
+  .addClasses(['badge-label'])
+  .setAttribute('data-state', 'live')
+  .appendTo(root)
+  .get();
+```
 
-**createElement** names the tag, `key id`, and optional `key unique`, then lists the fluent methods through `fn get`. `setProperty`, `appendTo`, and `prependTo` behavior and return shapes are spelled out. `unique: true` reuses via `document.querySelector` with a CSS-escaped id without clobbering an existing id on the found node. The inline example is enough to build and mount a span in one chain.
+The `root` variable is defined in the snippet (not here), and the reader sees how `.get()` terminates the chain and returns the node.
 
-**Buttons and SVG** separates ready-made nodes from the builder. `createButton` sets `type`, copies `label` to `aria-label` and `title`, and attaches the click handler. `createSVG` sets `id`, `viewBox`, and `xmlns` in the SVG namespace; I append children myself. The page states there is no fluent builder on SVG returns.
+## Sentence clarity
 
-**Classes** distinguishes chainable `addClasses` from terminal `removeClasses`. The summary table lists all five helpers and what each returns.
+"Pass `true` as the third argument to reuse an existing node with that id instead of creating another" (line 28) — clear and actionable.
 
-I can build a node by importing the helpers, calling `createElement(tag, id)` (optionally `unique`), chaining through `appendTo(parent).get()`, or using `createButton` / `createSVG` and attaching with DOM APIs I already know.
-
-## Friction (does not fail the rubric)
-
-The MDX does not show a full `import` statement; only the submodule path. `createButton` argument order and its `id` parameter are implied by the snippet, not listed in prose like `createElement` parameters. `setProperty` and `prependTo` have no inline example. `root` in the page example is my mount parent, not defined on the page (the snippet creates one). Standalone `addClasses(element, names)` appears only in the snippet, not in the inline block.
+"Removal is terminal: there is no builder after it" (line 55) — describes why `removeClasses` returns the element instead of a builder. Slightly terse, but in context (contrasting with `addClasses`), it is clear.
 
 ## Why PASS
 
-Every helper name the page introduces is tied to behavior or return type, and the createElement section plus table give a complete build-and-mount path without reading source. The page does not talk about itself as documentation. Under the stated fail conditions (unexplained names, or not knowing how to build a node), this passes.
+A reader can build DOM nodes with these five helpers after reading this page. Each function's behavior is shown, the chaining pattern (fluent builder) is demonstrated, and the complete code snippet proves the functions work together. The page does not require knowledge beyond what it teaches.

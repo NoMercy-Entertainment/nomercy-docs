@@ -1,11 +1,30 @@
 # Fact check: /nomercy-player-core/handbook/errors-state
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/handbook/errors-state.mdx
-Reviewed-SHA: 993d15b2ae56df1b
+Reviewed-SHA: 50b05ce3747bdca1
+
+Delta review since 0b063c4; the full review before it passed.
+
+Date: 2026-09-29. Source: nomercy-player-core `src` at `e3d2de5`. Method: `git diff 0b063c4 -- src/content/nomercy-player-core/en/handbook/errors-state.mdx`; every added or changed line checked; the section around each hunk re-read. The pseudo-tags used (`fn`, `var`, `str`, `el`, `attr`, `key`, `cls`, inline `ts`) are all defined in `src/lib/mdx/rehype.ts:102-126` and `:184`.
+
+## Changed lines
+
+| Page line | Claim | Supported by | Status |
+| --- | --- | --- | --- |
+| 13 | `var scope.kind` stamped `str plugin` (tag only) | unchanged claim, carried | Supported |
+| 48 | Heading "Recover with onError" drops its code span | wording only | Supported |
+| 96 | `var this.opts` (tag only) | unchanged claim, carried | Supported |
+
+## Findings
+
+None.
+
+## Carried from the full review at 0b063c4
+
 
 Source: `packages/player-web/nomercy-player-core/src/core/plugin/base.ts` (`throw`, `report`, `buildError`, `surfaceError`, `_applyRecoveryAction`, `enable`/`disable`, `state`/`options`, logger/storage init); `core/plugin/throw.ts` (`ThrowPayload`, `PluginRecoveryAction`; `PluginThrow` exported but unused by `throw()`); `adapters/logger/default.ts` (`child`); `core/mixins/plugin-registration.ts` (`dep-failed:<id>` cascade). Example: `src/examples/core-handbook-errors-state.ts`. Method: read page, example, and plugin base; SHA256 of page bytes (first 16 hex); no site browser gate. Em dash / en dash scan (U+2013, U+2014) over the page and example: none. Old library nickname (the old nickname): none on the page or in the example. British spelling: none. Snippet: `live="false"`. `getRuntimeState` sample is a `Plugin` subclass (valid TypeScript).
 
-## Gate checks
+### Gate checks
 
 | Gate | Result |
 | --- | --- |
@@ -20,7 +39,7 @@ Source: `packages/player-web/nomercy-player-core/src/core/plugin/base.ts` (`thro
 | Sentence ≤30 words / paragraph ≤60 words | Pass (prose counted with typography tokens) |
 | Table ≤6 non-separator lines | Pass (1 header + 4 action rows = 5) |
 
-## Claim table
+### Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |
@@ -47,7 +66,7 @@ Source: `packages/player-web/nomercy-player-core/src/core/plugin/base.ts` (`thro
 | Example: throw/report/onError disable/state/options/storage | `core-handbook-errors-state.ts:37-139` | Supported |
 | Next: i18n handbook path | Path as written: `/nomercy-player-core/handbook/i18n` | Supported |
 
-## Notes (settled, not failures)
+### Notes (settled, not failures)
 
 - `PluginThrow` still exists and is exported, and its JSDoc claims `this.throw(...)` raises it, but runtime `throw()` builds and throws `PlayerError`. The page matches runtime.
 - Page source comment points at `src/index.ts`; behavior lives in `core/plugin/base.ts`. Not a false API claim.

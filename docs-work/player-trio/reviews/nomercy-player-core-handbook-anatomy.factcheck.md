@@ -1,11 +1,29 @@
 # Fact check: /nomercy-player-core/handbook/anatomy
 Verdict: PASS
 Reviewed: src/content/nomercy-player-core/en/handbook/anatomy.mdx
-Reviewed-SHA: 199a60e4e07f5d35
+Reviewed-SHA: 794b98394979af23
+
+Delta review since 0b063c4; the full review before it passed.
+
+Date: 2026-09-29. Source: nomercy-player-core `src` at `e3d2de5`. Method: `git diff 0b063c4 -- src/content/nomercy-player-core/en/handbook/anatomy.mdx`; every added or changed line checked; the section around each hunk re-read. The pseudo-tags used (`fn`, `var`, `str`, `el`, `attr`, `key`, `cls`, inline `ts`) are all defined in `src/lib/mdx/rehype.ts:102-126` and `:184`.
+
+## Changed lines
+
+| Page line | Claim | Supported by | Status |
+| --- | --- | --- | --- |
+| 18 | `var playerCoreMethods` is a value | `src/core/index.ts:103` | Supported |
+| 30-53 | Removed whole-file snippet; the section still stands on its table and block | page lines 30-53 re-read; `fn baseUrl`/`fn audioContext` claims unchanged and carried | Supported |
+
+## Findings
+
+None.
+
+## Carried from the full review at 0b063c4
+
 
 Source: `packages/player-web/nomercy-player-core/src` (`core/index.ts` `playerCoreMethods`, `core/mixins/base-url-audio-context.ts`, `core/state.ts` `setPlayerAudioContext`). Example: `src/examples/core-handbook-anatomy.ts`. Cross-check: music/video `composeMixins(..., ...playerCoreMethods)`. Method: read page, example, and source; SHA via python `hashlib.sha256` of page bytes (first 16 hex); no site browser gate. Em dash / en dash scan (U+2013, U+2014) over the page and example: none. Old library nickname (the old nickname): none on the page or in the example. Snippet: `live="false"`. Focus re-check: video/music spread `playerCoreMethods`; `setPlayerAudioContext` writes `_audioContext`; page `baseUrl` sample uses `https://api.example.com/files`.
 
-## Gate checks
+### Gate checks
 
 | Gate | Result |
 | --- | --- |
@@ -20,7 +38,7 @@ Source: `packages/player-web/nomercy-player-core/src` (`core/index.ts` `playerCo
 | Table data rows ≤ 6 non-separator lines | Pass (4: header + 3 rows) |
 | Example imports match package exports | Pass (`index.ts` EventEmitter, types, `initPlayerCoreState`, `playerCoreMethods`, `resolvePlayerConstructor`, `composeMixins`) |
 
-## Claim table
+### Claim table
 
 | Claim | Supported by | Status |
 | --- | --- | --- |
@@ -43,7 +61,7 @@ Source: `packages/player-web/nomercy-player-core/src` (`core/index.ts` `playerCo
 | Inline sample uses `https://api.example.com/files` | Page `:51`; example `:70` | Supported |
 | Next link Building DOM path | Path as written: `/nomercy-player-core/handbook/building-dom` | Supported (path as written) |
 
-## Notes (not failures)
+### Notes (not failures)
 
 - Example also sets `player.baseUrl(FILMS_BASE)` before the `api.example.com` write (`core-handbook-anatomy.ts:66-70`); the page’s illustrated host remains `api.example.com`.
 - `setup({ baseUrl })` can seed `_baseUrl` in lifecycle; the page documents the runtime accessor, which still does not require a second `setup` to change the prefix.
