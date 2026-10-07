@@ -1,0 +1,86 @@
+---
+title: 'Pages of rows (NMLolomo)'
+description: 'The one response shape for a page made of carousel rows, and how to ask for it.'
+draft: false
+---
+
+# Pages of rows (NMLolomo)
+
+Some pages are a stack of horizontal rows: home, a library, a genre. The server sends these as one `NMLolomo` component. It holds the rows and nothing else.
+
+## Asking for it
+
+Add `version=lolomo` to the request.
+
+```bash {{ title: 'A genre page as rows' }}
+curl -G https://{server-address}:7626/api/v1/genres/{id} \
+  -H "authorization: Bearer {token}" \
+  -d version=lolomo
+```
+
+Without `version=lolomo`, the genre page answers a grid instead. Each endpoint page says what that endpoint returns.
+
+## The shape
+
+```json
+{
+  "component": "NMLolomo",
+  "id": "genre-carousels",
+  "props": {
+    "id": "genre-carousels",
+    "hero": "focus",
+    "items": [
+      {
+        "component": "NMCarousel",
+        "id": "A",
+        "props": { "id": "A", "title": "A", "next_id": "B", "items": [ /* ... */ ] }
+      },
+      // ... more NMCarousel rows
+      {
+        "component": "NMCarousel",
+        "id": "Z",
+        "props": { "id": "Z", "title": "Z", "previous_id": "Y", "items": [ /* ... */ ] }
+      }
+    ]
+  }
+}
+```
+
+::properties
+
+::property {{ name: 'id', type: 'string' }}
+
+The id of the page.
+
+::property {{ name: 'hero', type: '"focus" | "none"' }}
+
+`focus` means the hero area shows the card that has focus. `none` means no hero. Any other value reads as `focus`.
+
+::property {{ name: 'items', type: 'NMCarousel[]' }}
+
+The rows, in the order to draw them.
+
+::
+
+## What the rows hold
+
+- Only [NMCarousel](/nm-components/components/carousel) rows. Nothing else is in the list.
+- The list is flat. A row is never nested inside another row.
+- A row with no cards is not sent.
+- `next_id` is the `id` of the next row that is sent. The last row has none.
+- `previous_id` is the `id` of the previous row that is sent. The first row has none.
+
+A client can follow `next_id` and `previous_id` without checking that the row exists. Both always name a row in the same response.
+
+## How clients draw it
+
+The server sends the rows. The client decides how they look.
+
+- The Android TV app draws the whole `NMLolomo` as the screen: a hero on top, the rows below. The hero shows the focused card.
+- The Android phone app draws the rows stacked, one under the other.
+
+The shape of a card inside a row is also the client's choice. The web app, for example, shows the backdrop or the poster of each card from the "show backdrops" setting.
+
+## Nesting
+
+`NMLolomo` is a container component, so it can hold children the way `NMGrid` and `NMCarousel` do. See [Building a dashboard](/nm-components/dashboards) for how a component tree is built.

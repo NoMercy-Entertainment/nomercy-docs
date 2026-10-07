@@ -27,7 +27,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
   // cannot enter it and leave its page out of the sidebar.
   'nomercy-plugins': [
     { group: "Getting Started", pages: ['overview'] },
-    { group: "Handbook", pages: ['handbook/runtime-and-isolation'] },
+    { group: "Handbook", pages: ['handbook/runtime-and-isolation', 'handbook/identifiers'] },
     ...pluginCapabilityNav,
   ],
 
@@ -111,7 +111,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Getting Started", pages: ['overview'] },
     { group: "Media", pages: ['rest/home', 'rest/libraries', 'rest/movies', 'rest/tv-shows', 'rest/collections', 'rest/people', 'rest/genres', 'rest/search', 'rest/user-data', 'rest/specials', 'rest/content-segments'] },
     { group: "Reference", pages: ['kitchen-sink'] },
-    { group: "Guides", pages: ['authentication', 'pagination', 'errors'] },
+    { group: "Guides", pages: ['authentication', 'pagination', 'lolomo', 'errors'] },
     { group: "Music", pages: ['rest/music', 'rest/artists', 'rest/albums', 'rest/tracks', 'rest/playlists', 'rest/music-genres'] },
     { group: "Dashboard", pages: ['rest/server', 'rest/config', 'rest/libraries-admin', 'rest/users-admin', 'rest/devices', 'rest/encoder-profiles', 'rest/encoder-bundles', 'rest/encoding-history', 'rest/encoding-presets', 'rest/hardware-benchmark', 'rest/optical-media', 'rest/plugins-api', 'rest/recommendations', 'rest/server-activity', 'rest/storage-browser', 'rest/tasks', 'rest/workers', 'rest/logs-api'] },
     { group: "Streaming", pages: ['rest/streaming'] },

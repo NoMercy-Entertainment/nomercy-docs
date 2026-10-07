@@ -1,0 +1,34 @@
+---
+title: Identifiers in URLs
+description: Keep the id type of the provider your data comes from. Do not remap identity schemas.
+tags: [identifiers, urls, conventions]
+---
+
+# Identifiers in URLs
+
+This is a courtesy, not a hard rule. Nothing checks it. Following it keeps every plugin and client speaking the same language.
+
+## Keep the provider's id
+
+When a URL carries a unique identifier, use the id exactly as the provider you take the data from issues it. Do not map it to an id schema of your own.
+
+NoMercy does the same:
+
+| Provider | Id type | Example id |
+| --- | --- | --- |
+| TMDB | integer | `603` |
+| TVDB | integer | `81189` |
+| MusicBrainz | GUID | `a74b1b7f-71a5-4011-9441-d0b5e4122711` |
+| NoMercy itself | ULID | `01J9Z3K8Q4V6X2M1N7P5R8T0WB` |
+
+A ULID is only for things NoMercy creates itself, like a special. Anything that already has an id at its provider keeps that id.
+
+## Why
+
+- A link from one plugin opens in another plugin, a client, or a bookmark, without a lookup table in between.
+- The same title has the same id everywhere, so two plugins never disagree about what it is.
+- When a remap table is lost or out of date, every link that went through it breaks. An id that was never remapped cannot break that way.
+
+## When you have no provider
+
+When your plugin creates its own items and no provider issues an id, use a ULID, like NoMercy does for specials.
