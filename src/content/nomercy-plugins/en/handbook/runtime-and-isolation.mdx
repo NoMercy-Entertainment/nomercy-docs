@@ -18,7 +18,9 @@ This is the default. It is the fastest path and the one every facade supports.
 
 The server starts a host process, hands it the plugin, and talks to it over a channel. The plugin holds the same `IPluginContext`. Each facade turns a call into one named message instead of a method call on an object in the same heap.
 
-If the install cannot run the plugin there, the plugin is refused. That happens when no plugin host is installed beside the server, or when the host fails to start. The plugin is not loaded, its status is `Malfunctioned` with the reason, and the owner gets a plugin-error notification. The server never runs it in its own process instead: an owner who chose the boundary keeps it.
+If the install cannot run the plugin there, the plugin is refused. That happens when no plugin host is installed beside the server, or when the host fails to start.
+
+A refused plugin is not loaded. Its status is `Malfunctioned` with the reason, and the owner gets a plugin-error notification. The server never runs it in its own process instead: an owner who chose the boundary keeps it.
 
 Three things stay local to the plugin's process, because a round trip for them would make every plugin pay for the boundary on its first line:
 
