@@ -39,11 +39,19 @@ MiniPlayer(state = chrome.state, commands = chrome.commands)
 
 ## iOS and tvOS
 
-Add the Swift package and take the drop-in product.
+The Swift package manifest lives in the `apple/NoMercyMusicPlayer` folder of the
+repository, not at its root, so SwiftPM cannot resolve it from the repository
+URL. Add that folder as a local package. Its engine framework is a binary target
+at `build/XCFrameworks/release/NoMercyMusicPlayer.xcframework`, which you
+assemble from the repository first, because no Apple binary is published yet.
 
 ```swift
-.package(url: "https://github.com/NoMercy-Entertainment/nomercy-music-player-kmp.git", from: "2.0.0")
+.package(path: "../nomercy-music-player-kmp/apple/NoMercyMusicPlayer")
 ```
+
+Link `NoMercyMusicPlayerUI`, the drop-in product, to your target. An application
+that draws its own chrome links `NoMercyMusicPlayer`, the headless engine,
+instead.
 
 The SwiftUI half mirrors the Compose one name for name: `MiniPlayer` and
 `FullPlayerScreen` over the same state. `MusicScrubber` and `QueueList` are the

@@ -60,11 +60,18 @@ skipped.
 
 ## iOS and tvOS
 
-Add the Swift package and take the drop-in product.
+The Swift package manifest lives in the `apple/NoMercyPlayer` folder of the
+repository, not at its root, so SwiftPM cannot resolve it from the repository
+URL. Check out a release tag, then add that folder as a local package. Setting
+`NOMERCY_SPM_RELEASE=1` makes the manifest download the checksummed engine
+framework published with the tag instead of looking for a local build.
 
 ```swift
-.package(url: "https://github.com/NoMercy-Entertainment/nomercy-video-player-kmp.git", from: "2.0.0")
+.package(path: "../nomercy-video-player-kmp/apple/NoMercyPlayer")
 ```
+
+Link `NoMercyPlayer`, the drop-in product, to your target. An application that
+draws its own chrome links `NoMercyVideoPlayer`, the headless engine, instead.
 
 `NMVideoChromeView` draws the controls and reads everything it shows off the
 object you hand it. `EngineVideoPlayer` is the projection it observes, and it
