@@ -10,7 +10,7 @@ draft: false
 wss://{server-address}:7626/deviceHub?access_token={token}
 ```
 
-This hub answers "what can I send this to". It lists your own devices only.
+This hub answers "what can I send this to". It lists your own devices, and the Cast devices the server finds on your network.
 
 ## Saying what a device can do
 
@@ -42,6 +42,21 @@ WakeForVideo(deviceId)
 ```
 
 Asks a device to come forward and be ready to play. The result says whether it worked, so a client can say something useful when the TV does not answer.
+
+## Casting to a nearby device
+
+```text
+CastToNearby(deviceId, request)
+```
+
+The device list also holds Cast devices the server found on your network that never ran NoMercy.
+They have `is_registered_client` set to false.
+
+This call starts a title on one of them.
+The server opens the NoMercy receiver on that device and tells it what to play.
+The request names the media type and the media id, and optionally where to resume and which audio and subtitle to use.
+
+The result is `cast_sent`, or a status that says why not: `not_found` when the device is no longer seen, `no_route` when the server cannot reach it, `forbidden` when your account has no media access.
 
 ## Notices
 
