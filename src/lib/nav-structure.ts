@@ -8,7 +8,7 @@
 // Page titles come from each page's frontmatter `title`. This file owns ONLY structure —
 // pages no longer need `category`/`order` in frontmatter. Slugs are the path under
 // <collection>/en/ without the .mdx extension. A non-draft page missing here, or a slug
-// here with no matching file, fails `npm run check:nav` (runs in the build).
+// here with no matching file, fails `yarn check:nav` (runs in the build).
 
 export interface NavGroupDef {
   group: string;

@@ -338,7 +338,7 @@ function runLint() {
 
 function runSnippetGate() {
   console.log('\nContract lint passed — running the Playwright snippet gate...');
-  const result = spawnSync('npx', ['playwright', 'test', 'e2e/snippets.spec.ts'], {
+  const result = spawnSync('yarn', ['playwright', 'test', 'e2e/snippets.spec.ts'], {
     cwd: root,
     stdio: 'inherit',
     shell: process.platform === 'win32',
@@ -352,7 +352,7 @@ function runSnippetGate() {
 
 /**
  * Runs after the Playwright gate (not before) — that gate's own `webServer`
- * (`npm run preview`) is what produces the `dist/` this reads, so `dist/` is
+ * (`yarn preview`) is what produces the `dist/` this reads, so `dist/` is
  * only guaranteed fresh once it has finished. Catches the syntax-error class
  * the Playwright gate itself can't see: `waitForPlayerExample` only proves
  * the ONE snippet each page mounts live actually runs, it says nothing about

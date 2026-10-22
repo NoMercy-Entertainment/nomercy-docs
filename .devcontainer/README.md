@@ -17,12 +17,12 @@ This project includes a development container configuration for consistent devel
    - VS Code will build and start the container
 
 2. **Automatic Setup**:
-   - The container will automatically run `npm install`
+   - The container will automatically run `yarn install`
    - All VS Code extensions will be installed
    - The dev server will be ready to use
 
 3. **Start Development**:
-   - Run `npm run dev` in the terminal
+   - Run `yarn dev` in the terminal
    - Access the site at `http://localhost:4321`
 
 ## Manual Docker Compose Setup
@@ -48,10 +48,10 @@ docker-compose -f .devcontainer/docker-compose.yml down
 Inside the dev container:
 
 ```bash
-npm run dev      # Start development server on port 4321
-npm run build    # Build for production
-npm run preview  # Preview production build
-npm run astro    # Run Astro CLI commands
+yarn dev      # Start development server on port 4321
+yarn build    # Build for production
+yarn preview  # Preview production build
+yarn astro    # Run Astro CLI commands
 ```
 
 ## Port Forwarding
@@ -83,9 +83,9 @@ The dev container runs with `NODE_ENV=development` by default.
 - Kill existing process: `lsof -ti :4321 | xargs kill -9` (macOS/Linux)
 - Or change port in `devcontainer.json`
 
-### npm install failures
-- Clear npm cache: `npm cache clean --force`
-- Delete `node_modules` and `package-lock.json`
+### yarn install failures
+- Clear the yarn cache: `yarn cache clean`
+- Delete `node_modules`
 - Rebuild container
 
 ## Notes

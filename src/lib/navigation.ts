@@ -104,7 +104,7 @@ function stripLocalePrefix(id: string): string {
 // Group order and page order are the array order in the manifest — frontmatter `order`
 // and `category` are not consulted. Titles come from each entry's frontmatter `title`.
 // Any non-draft page not listed in the manifest is surfaced under "Other" so it never
-// vanishes silently; `npm run check:nav` turns that case into a build failure.
+// vanishes silently; `yarn check:nav` turns that case into a build failure.
 function buildGroups(
   collection: string,
   docs: Array<{ id: string; data: { title: string } }>,

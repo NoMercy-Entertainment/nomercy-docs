@@ -2,7 +2,7 @@
 // in src/examples/snippet-ranges.lock.json. The snippet plugin fails the build
 // when a range's lines no longer match, so an edit to an example file can never
 // quietly shift what a page shows. Run this after checking the page shows the
-// right lines: `npm run snippets:lock`.
+// right lines: `yarn snippets:lock`.
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';

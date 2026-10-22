@@ -76,8 +76,8 @@ result of that step alone, not the finished player early.
 
 ## Enforcement
 
-`scripts/check-docs.mjs` runs first in `npm run build` (also directly as
-`npm run check:docs`) and checks, per trio collection:
+`scripts/check-docs.mjs` runs first in `yarn build` (also directly as
+`yarn check:docs`) and checks, per trio collection:
 
 - Every page has a `title` and resolves an `order` — either an explicit frontmatter
   `order` or a listing in `src/lib/nav-structure.ts`. A page with neither has no defined

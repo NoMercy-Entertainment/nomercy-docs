@@ -9,11 +9,11 @@ A static documentation site built with **Astro 7**, **React 18** (islands), **Ta
 ## Commands
 
 ```bash
-npm run dev          # dev server at http://localhost:4321
-npm run build        # check:links -> build:search -> astro build
-npm run check:links  # validate every internal link resolves (fails on dangling)
-npm run build:search # regenerate public/searchIndex.json
-npm run preview      # build + preview
+yarn dev          # dev server at http://localhost:4321
+yarn build        # check:links -> build:search -> astro build
+yarn check:links  # validate every internal link resolves (fails on dangling)
+yarn build:search # regenerate public/searchIndex.json
+yarn preview      # build + preview
 ```
 
 `build` runs `check:links` first — a dangling internal link fails the build, by design (see Organization below).
@@ -54,7 +54,7 @@ The sidebar structure lives in **`src/lib/nav-structure.ts`** — one ordered li
 
 **To reorganize:** edit `nav-structure.ts` only. Move a slug to reorder it; move it to another group to recategorise; move a `{ group, pages }` block to reorder sections. Reordering never touches page files, and never changes a URL (URLs come from file paths).
 
-`npm run check:nav` (runs first in `build`) fails if any non-draft page is missing from the manifest or any manifest slug has no file — so a new page must be placed, it can't silently vanish into an "Other" bucket.
+`yarn check:nav` (runs first in `build`) fails if any non-draft page is missing from the manifest or any manifest slug has no file — so a new page must be placed, it can't silently vanish into an "Other" bucket.
 
 ### Custom MDX dialect
 
@@ -107,7 +107,7 @@ Code examples must use real, resolvable media — never invented hosts. See the 
 
 Stoney's rule (2026-09-29). An example teaches the thing the text above it explains, in the context where it is used. Nothing else.
 
-- **Truncate, from the real example file.** Never hand-write the block. Show the lines the section is about with `:::snippet{file="x" lines="12-18,40-42" live="false"}`: only those line ranges of `src/examples/x.ts` render, and each gap between ranges shows as `// ...`. The example file stays one compiled program. After adding or changing a range, run `npm run snippets:lock` and read the first and last line it prints for every range. If an edit to an example file moves a range, the build fails with the page and range; fix the numbers and lock again.
+- **Truncate, from the real example file.** Never hand-write the block. Show the lines the section is about with `:::snippet{file="x" lines="12-18,40-42" live="false"}`: only those line ranges of `src/examples/x.ts` render, and each gap between ranges shows as `// ...`. The example file stays one compiled program. After adding or changing a range, run `yarn snippets:lock` and read the first and last line it prints for every range. If an edit to an example file moves a range, the build fails with the page and range; fix the numbers and lock again.
 - **No scaffolding.** Core pages never build a player class to host the lesson. Core has no media backend of its own; a plugin lives on whatever player the reader already has.
 - **Data only when it is the subject.** Show a playlist, subtitles, chapters or artwork only when the section talks about them. Everywhere else a playlist is `// ...` or one short item.
 - **Complete, copy-paste-ready programs belong on the tutorial and recipe pages** (the `build/` series, the quickstarts and `recipes/`): a reader applies those straight away, so the code must run as pasted. Handbook, tour and reference pages do not end with a full program. The real-media rule above applies to those complete programs.

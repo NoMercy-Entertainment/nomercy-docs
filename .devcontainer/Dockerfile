@@ -12,13 +12,13 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /workspace
 
 # Copy package files
-COPY package*.json ./
+COPY package.json yarn.lock .yarnrc.yml ./
 
 # Install dependencies
-RUN npm ci
+RUN corepack enable && yarn install --immutable
 
 # Expose Astro dev server port
 EXPOSE 4321
 
 # Default command
-CMD ["npm", "run", "dev"]
+CMD ["yarn", "dev"]

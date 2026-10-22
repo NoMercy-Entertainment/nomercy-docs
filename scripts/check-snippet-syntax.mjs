@@ -30,7 +30,7 @@
 // `data-language="ts"` block on that route). Undocumented, unmarked fences
 // are all expected to parse as valid, standalone TypeScript.
 //
-// Run after `astro build` — `npm run build` already sequences this after
+// Run after `astro build` — `yarn build` already sequences this after
 // `check:docs` (which itself triggers a build via the Playwright webServer),
 // so `dist/` is guaranteed fresh by the time this runs.
 

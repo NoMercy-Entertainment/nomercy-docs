@@ -501,7 +501,7 @@ async function toDisplaySource(source: string, runnable: boolean, lang: SnippetL
 // quietly show the wrong code. `snippet-ranges.lock.json` records the first and
 // last line of every range; a range whose lines no longer match fails the
 // build. After checking that the page shows the right lines, refresh the
-// lock with `npm run snippets:lock`.
+// lock with `yarn snippets:lock`.
 export const RANGES_LOCK_PATH = path.join(examplesDir, 'snippet-ranges.lock.json');
 
 type RangeLock = Record<string, { first: string; last: string }>;
@@ -553,12 +553,12 @@ function extractLines(source: string, spec: string, file: string): string {
       throw new Error(`:::snippet range ${key} starts or ends on an empty line. Check the line numbers against the example file.`);
     }
     if (!locked) {
-      throw new Error(`:::snippet range ${key} is not in snippet-ranges.lock.json. Check the page shows the right lines, then run npm run snippets:lock.`);
+      throw new Error(`:::snippet range ${key} is not in snippet-ranges.lock.json. Check the page shows the right lines, then run yarn snippets:lock.`);
     }
     if (locked.first !== first || locked.last !== last) {
       throw new Error(
         `:::snippet range ${key} moved: expected it to start with "${locked.first}" and end with "${locked.last}", ` +
-          `found "${first}" … "${last}". Fix the line numbers on the page, then run npm run snippets:lock.`,
+          `found "${first}" … "${last}". Fix the line numbers on the page, then run yarn snippets:lock.`,
       );
     }
     if (i > 0) {

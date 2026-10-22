@@ -43,15 +43,15 @@ const TYPES = {
 };
 
 function run(command, args) {
-	// shell: true so this resolves npm/npx the way a terminal does; without it
-	// Windows finds neither and the wrapper dies before the build starts.
+	// shell: true so this resolves yarn the way a terminal does; without it
+	// Windows does not find it and the wrapper dies before the build starts.
 	const result = spawnSync(command, args, { stdio: 'inherit', shell: true });
 	if (result.status !== 0)
 		process.exit(result.status ?? 1);
 }
 
-run('npm', ['run', 'build:search']);
-run('npx', ['astro', 'build', '--outDir', OUT_DIR]);
+run('yarn', ['build:search']);
+run('yarn', ['astro', 'build', '--outDir', OUT_DIR]);
 
 // Astro writes `/page/index.html`, so a request for `/page` or `/page/` has to
 // find it the same way the deployed host does.

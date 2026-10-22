@@ -23,7 +23,7 @@ const CONCURRENCY = 5;
 
 /**
  * `dist/**\/*.html` is the build this suite's `playwright.config.ts` webServer
- * just produced (`npm run preview` runs `astro build` first) — reading it
+ * just produced (`yarn preview` runs `astro build` first) — reading it
  * directly is the one enumeration that can never drift from what's actually
  * served, unlike a route list re-derived from content collections (which
  * would also have to reimplement every redirect/slug rule already baked into

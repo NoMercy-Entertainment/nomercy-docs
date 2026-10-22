@@ -40,22 +40,26 @@ jobs:
             .player-contract
           echo "PLAYER_CONTRACT=$PWD/.player-contract/contract/contract.json" >> "$GITHUB_ENV"
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
+          cache: yarn
 
       - name: Install dependencies
-        run: npm install && npm install @rollup/rollup-linux-x64-gnu --save-dev
+        run: yarn install --immutable
 
       - name: Install Playwright Chromium
         # The build runs the live snippet gate (e2e/snippets.spec.ts), which
         # launches headless Chromium. Without this the runner has no browser
         # and the gate fails.
-        run: npx playwright install --with-deps chromium
+        run: yarn playwright install --with-deps chromium
 
       - name: Build
-        run: npm run build
+        run: yarn build
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
@@ -67,7 +71,7 @@ jobs:
 
   # The Kotlin snippets, compiled against the real coordinates.
   #
-  # A separate job rather than a step in `npm run build`, and that is a decision
+  # A separate job rather than a step in `yarn build`, and that is a decision
   # rather than an oversight. `check:examples` is tsc and needs only node; this
   # needs a JDK, the Android SDK and the three player libraries resolvable.
   # Putting all of that in the command a docs writer runs to see their page is
