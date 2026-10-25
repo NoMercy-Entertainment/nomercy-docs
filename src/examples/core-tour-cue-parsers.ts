@@ -48,7 +48,7 @@ interface ChapterMarkerPayload {
 }
 
 const chapterMarkerParser: ICueParser<ChapterMarkerPayload> = {
-	id: 'demo:chapter-markers',
+	id: 'chapter-markers',
 	canParse: url => url.endsWith('.chapters.json'),
 	parse: (raw) => {
 		const marks = JSON.parse(raw) as { at: number; label: string }[];
@@ -65,5 +65,5 @@ const chapterMarkerParser: ICueParser<ChapterMarkerPayload> = {
 const registry = new CueParserRegistry();
 registry.register(chapterMarkerParser);
 
-console.log(registry.resolve('movie.chapters.json')?.id); // 'demo:chapter-markers'
+console.log(registry.resolve('movie.chapters.json')?.id); // 'chapter-markers'
 console.log(registry.resolve('captions.vtt')); // undefined; bare registry has no VTT parser

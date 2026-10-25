@@ -26,7 +26,7 @@ interface ChapterMarkerPayload {
 
 // A small proprietary chapter-marker format: one "seconds\tlabel" pair per line.
 const chapterMarkerParser: ICueParser<ChapterMarkerPayload> = {
-	id: 'demo:chapter-markers',
+	id: 'chapter-markers',
 	canParse: url => url.endsWith('.chapters.txt'),
 	parse: (raw) => {
 		const marks = raw
@@ -49,13 +49,13 @@ player.setup({
 await player.ready();
 
 // The custom format resolves for its own extension...
-console.log(player.resolveCueParser('movie.chapters.txt')?.id); // 'demo:chapter-markers'
+console.log(player.resolveCueParser('movie.chapters.txt')?.id); // 'chapter-markers'
 // ...while .vtt still resolves to the kit's built-in parser, unaffected.
 console.log(player.resolveCueParser('captions.vtt')?.id); // 'vtt'
 
 // registerCueParser/unregisterCueParser are the runtime-facing equivalent of
 // the setup()-time cueParsers list, for formats that aren't known upfront.
-player.unregisterCueParser('demo:chapter-markers');
+player.unregisterCueParser('chapter-markers');
 console.log(player.resolveCueParser('movie.chapters.txt')); // undefined — unregistered
 
 await player.dispose();

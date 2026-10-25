@@ -24,7 +24,7 @@ interface ChapterMarkerPayload {
 
 // One "seconds\tlabel" pair per line.
 const chapterMarkerParser: ICueParser<ChapterMarkerPayload> = {
-	id: 'demo:chapter-markers',
+	id: 'chapter-markers',
 	canParse: url => url.endsWith('.chapters.txt'),
 	parse: (raw) => {
 		const marks = raw
@@ -50,10 +50,10 @@ player.setup({
 });
 await player.ready();
 
-console.log(player.resolveCueParser('movie.chapters.txt')?.id); // 'demo:chapter-markers'
+console.log(player.resolveCueParser('movie.chapters.txt')?.id); // 'chapter-markers'
 console.log(player.resolveCueParser('captions.vtt')?.id); // 'vtt'
 
-player.unregisterCueParser('demo:chapter-markers');
+player.unregisterCueParser('chapter-markers');
 console.log(player.resolveCueParser('movie.chapters.txt')); // undefined
 
 await player.dispose();

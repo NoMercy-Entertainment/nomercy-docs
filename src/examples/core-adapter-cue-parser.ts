@@ -19,7 +19,7 @@ import {
 import type { ICueParser, LrcPayload } from '@nomercy-entertainment/nomercy-player-core';
 
 const beats: ICueParser<{ label: string }> = {
-	id: 'demo:beats',
+	id: 'beats',
 	canParse: (url, contentType) =>
 		url.endsWith('.beats') || contentType === 'application/x-beats',
 	parse: (raw) => {
@@ -39,7 +39,7 @@ const beats: ICueParser<{ label: string }> = {
 };
 
 const plainAsLrc: ICueParser<LrcPayload> = {
-	id: 'demo:plain-as-lrc',
+	id: 'plain-as-lrc',
 	canParse: url => url.endsWith('.lyrics.txt'),
 	parse: (raw) => {
 		const asLrc = raw
@@ -60,8 +60,8 @@ const registry = new CueParserRegistry();
 registry.register(beats);
 registry.register(plainAsLrc);
 
-console.log(registry.resolve('track.beats')?.id); // 'demo:beats'
-console.log(registry.resolve('song.lyrics.txt')?.id); // 'demo:plain-as-lrc'
+console.log(registry.resolve('track.beats')?.id); // 'beats'
+console.log(registry.resolve('song.lyrics.txt')?.id); // 'plain-as-lrc'
 console.log(registry.resolve('captions.vtt')); // undefined
 
 const beatCues = beats.parse('12.5 Drop\n24 Chorus\n');
