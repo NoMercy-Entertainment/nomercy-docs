@@ -344,14 +344,19 @@
      pixels past the last word in the row. Size to content instead, and let a
      dense reference table still take the whole column when it needs it. */
   .prose table {
-    width: auto;
+    width: fit-content;
     /* rem grows with the reader's text size: at 150% a bare 32rem is 768px,
        wider than the column beside the sidebar. */
     min-width: min(32rem, 100%);
-    max-width: 100%;
-    /* The prose wrapper centers every direct child; a content-sized table
-       must stay on the same left edge as the text above it. */
-    margin-inline: 0;
+    /* Same cap as every other child (Prose.tsx: lg max-w-5xl). */
+    max-width: min(100%, var(--container-5xl));
+    /* Siblings are centred at that cap, so their left edge sits at
+       (column - cap) / 2. A content-sized table starts on that same edge
+       instead of the column's own left edge. */
+    margin-inline: max(0px, calc((100% - var(--container-5xl)) / 2)) auto;
+    /* Too wide for the cap: scroll inside the table, not past the text. */
+    display: block;
+    overflow-x: auto;
   }
 }
 
