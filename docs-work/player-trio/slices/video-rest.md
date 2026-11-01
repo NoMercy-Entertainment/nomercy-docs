@@ -175,8 +175,6 @@ Core-composed methods on `NMVideoPlayer` (`setup`, `play`, `load`, `queue`, `sub
 | `KeyHandlerPlugin` speed ladder fallback | `[0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]` | `addSpeedKeys` when `playbackRates()` missing | nomercy-video-player/src/plugins/key-handler/index.ts:213 |
 | frame advance | `1 / 30` seconds | `addFrameAdvanceKey` | nomercy-video-player/src/plugins/key-handler/index.ts:236 |
 | `LiveTranscodingPlugin.waitFor` timeout | `this.opts?.seekTimeoutMs ?? 10_000` | `beforeSeek` / `beforeLoad` gate | nomercy-video-player/src/plugins/live-transcoding/index.ts:164 |
-| `OctopusOptions.renderMode` | `'wasm-blend'` | `load()` constructor opts | nomercy-video-player/src/plugins/octopus/index.ts:419 |
-| `OctopusOptions.renderAhead` | `10` | `load()` constructor opts | nomercy-video-player/src/plugins/octopus/index.ts:422 |
 | `TouchZonesOptions.doubleTapThreshold` | `300` | `doubleTap` delay | nomercy-video-player/src/plugins/touch-zones/index.ts:267 |
 | `TouchZonesOptions.seekSeconds` | `10` | seek zones + indicator label | nomercy-video-player/src/plugins/touch-zones/index.ts:323 |
 | v1 `doubleTap` threshold | `300` | `V1VideoCompatPlugin.doubleTap` | nomercy-video-player/src/plugins/v1-compat.ts:638 |

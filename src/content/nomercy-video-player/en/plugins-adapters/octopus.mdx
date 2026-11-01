@@ -25,12 +25,8 @@ Every option below is passed straight through to the renderer at construction.
 | `key legacyWorkerUrl` | `ts string` | the fork's own bundled URL | The worker for a browser without WebAssembly. |
 | `key fallbackFont` | `ts string` | the fork's own default | The font used when a cue names one the resolved set does not carry. |
 | `key fonts` | `ts string[]` | none | Font file URLs the plugin supplies itself, on top of whatever the item carries. |
-| `key targetFps` | `ts number` | the fork's own default | The renderer's target frame rate. |
-| `key renderMode` | `ts OctopusOptions['renderMode']` | `str wasm-blend` | The rendering strategy. |
 | `key lazyFileLoading` | `ts boolean` | the fork's own default | Loads the subtitle file in chunks, which is worth it for a very large ASS file. |
-| `key prescaleFactor` | `ts number` | the fork's own default | The internal scaler ratio. |
-| `key renderAhead` | `ts number` | `ts 10` | Frames precomputed ahead of the playhead. Higher smooths heavy effects and costs memory. |
-| `key debug` | `ts boolean` | the fork's own default | Debug logging inside the worker. |
+| `key debug` | `ts boolean` | `ts false` | Turns on the render probe: per-frame render time, dropped requests and the skew between the video frame clock and `key currentTime`. |
 
 ## What selects a track
 
@@ -44,7 +40,7 @@ import { OctopusPlugin } from '@nomercy-entertainment/nomercy-video-player/plugi
 
 const player = nmplayer('player');
 
-player.addPlugin(OctopusPlugin, { renderAhead: 15 });
+player.addPlugin(OctopusPlugin, { debug: true });
 
 player.setup({
   playlist: [
