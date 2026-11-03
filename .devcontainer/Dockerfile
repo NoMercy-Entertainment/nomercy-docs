@@ -1,5 +1,5 @@
 # Start with Node.js 20 LTS
-FROM mcr.microsoft.com/devcontainers/javascript-node:20-bullseye
+FROM mcr.microsoft.com/devcontainers/javascript-node:22-bullseye
 
 # Install additional tools
 RUN apt-get update && apt-get install -y \
