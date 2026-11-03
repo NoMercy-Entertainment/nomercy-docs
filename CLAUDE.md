@@ -10,13 +10,13 @@ A static documentation site built with **Astro 7**, **React 18** (islands), **Ta
 
 ```bash
 yarn dev          # dev server at http://localhost:4321
-yarn build        # check:links -> build:search -> astro build
+yarn build        # native reference, checks, search index, then Astro build
 yarn check:links  # validate every internal link resolves (fails on dangling)
 yarn build:search # regenerate public/searchIndex.json
 yarn preview      # build + preview
 ```
 
-`build` runs `check:links` first — a dangling internal link fails the build, by design (see Organization below).
+`build` starts by generating the native reference from a player contract, then runs the checks, search index, and Astro build. For a standalone checkout, set `PLAYER_CONTRACT` to the `contract.json` file from `nomercy-player-conformance` before building. A dangling internal link fails the link gate by design (see Organization below).
 
 ## Architecture
 
