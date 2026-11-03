@@ -15,6 +15,7 @@ const contentDirs = [
   { dir: './src/content/nomercy-media-server',  baseUrl: '/nomercy-media-server',  product: 'nomercy-media-server' },
   { dir: './src/content/nomercy-app-web',       baseUrl: '/nomercy-app-web',       product: 'nomercy-app-web' },
   { dir: './src/content/nomercy-api',           baseUrl: '/nomercy-api',           product: 'nomercy-api' },
+  { dir: './src/content/nm-components',          baseUrl: '/nm-components',          product: 'nm-components' },
 ];
 
 // Trio collections whose 'introduction' page renders at the section base
@@ -29,6 +30,7 @@ const productLabels = {
   'nomercy-media-server': 'Media Server',
   'nomercy-app-web':      'Web App',
   'nomercy-api':          'API',
+  'nm-components':        'NM Components',
 };
 
 const outputPath = './public/searchIndex.json';
