@@ -54,7 +54,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "The CLI", pages: ['cli/overview', 'cli/start-stop', 'cli/logs', 'cli/config', 'cli/plugins-cli', 'cli/queue', 'cli/update', 'cli/autostart'] },
     { group: "Plugins", pages: ['plugins/overview', 'plugins/installing', 'plugins/repository-index', 'plugins/trusted-publishers', 'plugins/developing'] },
     { group: "Maintenance", pages: ['maintenance/backups', 'maintenance/upgrade', 'maintenance/migrate'] },
-    { group: "Troubleshooting", pages: ['troubleshooting/logs', 'troubleshooting/common-issues', 'troubleshooting/diagnostics', 'troubleshooting/error-codes'] },
+    { group: "Troubleshooting", pages: ['troubleshooting/logs', 'troubleshooting/common-issues', 'troubleshooting/android-tv-sound', 'troubleshooting/diagnostics', 'troubleshooting/error-codes'] },
   ],
   'nomercy-app-web': [
     { group: "Getting Started", pages: ['overview', 'platforms', 'connecting'] },
