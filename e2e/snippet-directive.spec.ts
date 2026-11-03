@@ -43,13 +43,13 @@ test.describe('remark snippet directive', () => {
         "title: 'E2E Snippet Directive Fixture'",
         '---',
         '',
-        ':::snippet{file="quickstart"}',
+        ':::snippet{file="quickstart" runnable="false"}',
         '',
       ].join('\n'),
       'utf8',
     );
     try {
-      execSync('npx astro build', { cwd: root, stdio: 'inherit' });
+      execSync('npx astro build --outDir dist-e2e', { cwd: root, stdio: 'inherit' });
     } finally {
       rmSync(fixtureContentPath, { force: true });
     }
@@ -63,16 +63,13 @@ test.describe('remark snippet directive', () => {
     const realSource = readFileSync(quickstartSourcePath, 'utf8');
     await page.goto(pathToFileURL(fixtureHtmlPath).href);
 
-    // The fenced code block: rehype stores the untouched source (pre-Shiki)
-    // on `data-code-raw`, so this is an exact-equality proof, not a fuzzy
-    // substring match against tokenized spans. mdast-to-hast appends exactly
-    // one trailing newline to every code block's text (its own long-standing
-    // convention, independent of this directive), which is why remark-snippet
-    // strips exactly one from the source before building the `code` node —
-    // the two cancel out and this compares against the file's real bytes.
+    // The directive strips the license header before displaying the raw
+    // example. Rehype stores that display source before highlighting.
     const codeBlock = page.locator('pre[data-code-raw]');
     await expect(codeBlock).toHaveCount(1);
-    expect(await codeBlock.getAttribute('data-code-raw')).toBe(realSource);
+    expect(await codeBlock.getAttribute('data-code-raw')).toBe(
+      realSource.slice(realSource.indexOf('import type { VideoPlayerConfig }')),
+    );
 
     // Also prove the source is genuinely visible in the rendered page, not
     // just carried in a hidden attribute.
