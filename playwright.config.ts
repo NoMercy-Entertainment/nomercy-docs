@@ -19,9 +19,9 @@ const BASE_URL = `http://localhost:${PORT}`;
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
-  // `e2e/snippet-directive.spec.ts` rebuilds `dist/` itself (its own
+  // `e2e/snippet-directive.spec.ts` rebuilds `dist-e2e/` itself (its own
   // `astro build`, independent of the webServer's) and `e2e/snippets.spec.ts`
-  // reads `dist/` directly — running spec files in parallel workers races
+  // reads `dist-e2e/` directly — running spec files in parallel workers races
   // one file's rebuild against the other's read of the same directory
   // (ENOENT on a file astro's build deletes mid-rewrite). Every spec here
   // already bottlenecks on one shared, expensive build anyway, so forcing
