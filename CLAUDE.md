@@ -10,13 +10,14 @@ A static documentation site built with **Astro 7**, **React 18** (islands), **Ta
 
 ```bash
 yarn dev          # dev server at http://localhost:4321
-yarn build        # check:links -> build:search -> astro build
+yarn build        # native reference and docs checks -> build:search -> astro build
 yarn check:links  # validate every internal link resolves (fails on dangling)
 yarn build:search # regenerate public/searchIndex.json
 yarn preview      # build + preview
 ```
 
-`build` runs `check:links` first — a dangling internal link fails the build, by design (see Organization below).
+`build` includes `check:links` before the search index and Astro build; a dangling internal link fails the build (see Organization below).
+In a standalone docs checkout, set `PLAYER_CONTRACT` to a local copy of the player conformance `contract.json` before building. The native reference generator reads that file at the start of `yarn build`.
 
 ## Architecture
 
@@ -54,7 +55,7 @@ The sidebar structure lives in **`src/lib/nav-structure.ts`** — one ordered li
 
 **To reorganize:** edit `nav-structure.ts` only. Move a slug to reorder it; move it to another group to recategorise; move a `{ group, pages }` block to reorder sections. Reordering never touches page files, and never changes a URL (URLs come from file paths).
 
-`yarn check:nav` (runs first in `build`) fails if any non-draft page is missing from the manifest or any manifest slug has no file — so a new page must be placed, it can't silently vanish into an "Other" bucket.
+`yarn check:nav` (included in `build`) fails if any non-draft page is missing from the manifest or any manifest slug has no file — so a new page must be placed, it can't silently vanish into an "Other" bucket.
 
 ### Custom MDX dialect
 
@@ -77,7 +78,7 @@ Rules, in priority order:
 1. **Reorganize via `nav-structure.ts`, not file moves.** Structure is one manifest; reordering there changes nothing about URLs and costs zero file edits.
 2. **If a URL genuinely must change, add ONE redirect** in `astro.config.mjs` (`"/old/url": "/new/url"`) instead of editing every referencing file. Old links — internal, external, and bookmarked — keep working.
 3. **Never link to a `draft: true` page.** Draft pages are excluded from the build, so any link to one is dead on arrival.
-4. **`check:nav` + `check:links` are the guardrails.** Both run first in `build`: a page missing from the manifest, a phantom manifest slug, or a dangling internal link all fail the build.
+4. **`check:nav` + `check:links` are the guardrails.** Both run before the site is built: a page missing from the manifest, a phantom manifest slug, or a dangling internal link all fail the build.
 
 ## Content authoring
 

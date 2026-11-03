@@ -91,6 +91,7 @@ function findContract() {
   if (!found) {
     console.error('no contract.json found. Looked in:');
     for (const candidate of CONTRACT_CANDIDATES) console.error(`  ${candidate}`);
+    console.error('Set PLAYER_CONTRACT to the contract.json path in a standalone docs checkout.');
     process.exit(2);
   }
   return JSON.parse(readFileSync(found, 'utf8'));
