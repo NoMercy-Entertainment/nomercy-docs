@@ -14,6 +14,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { slugifyWithCounter } from '@sindresorhus/slugify';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -26,6 +27,8 @@ const COLLECTIONS = [
   'nomercy-media-server',
   'nomercy-app-web',
   'nomercy-api',
+  'nm-components',
+  'nomercy-plugins',
 ];
 
 function walk(dir) {
@@ -78,6 +81,22 @@ function readRedirects() {
 const valid = new Set();
 const drafts = new Set();
 const files = [];
+const pages = new Map();
+
+function anchors(raw) {
+  const found = new Set();
+  const slugify = slugifyWithCounter();
+  for (const line of raw.split(/\r?\n/)) {
+    const heading = line.match(/^##\s+(.+?)\s*#*\s*$/);
+    if (heading) {
+      found.add(slugify(heading[1].replace(/<[^>]*>/g, '').replace(/`/g, '')));
+    }
+    for (const match of line.matchAll(/\bid=["']([^"']+)["']|\bid:\s*["']?([a-z0-9-]+)/gi)) {
+      found.add(match[1] ?? match[2]);
+    }
+  }
+  return found;
+}
 
 for (const collection of COLLECTIONS) {
   const dir = path.join(contentDir, collection);
@@ -91,12 +110,15 @@ for (const collection of COLLECTIONS) {
     files.push({ collection, file });
     const url = urlFor(collection, file);
     if (frontmatterDraft(readFileSync(file, 'utf8'))) drafts.add(url);
-    else valid.add(url);
+    else {
+      valid.add(url);
+      pages.set(url, anchors(readFileSync(file, 'utf8')));
+    }
   }
 }
 
 const redirects = readRedirects();
-const linkRe = /\]\((\/(?:nomercy-[a-z-]+)[^)\s#]*)(?:#[^)\s]*)?\)/g;
+const linkRe = /\]\((\/(?:nomercy-[a-z-]+|nm-components)[^)\s#]*)(?:#([^)\s]*))?\)/g;
 
 let broken = 0;
 for (const { file } of files) {
@@ -104,7 +126,13 @@ for (const { file } of files) {
   let match;
   while ((match = linkRe.exec(raw)) !== null) {
     const target = match[1].replace(/\/$/, '');
-    if (valid.has(target) || redirects.has(target)) continue;
+    if (valid.has(target) || redirects.has(target)) {
+      if (match[2] && pages.has(target) && !pages.get(target).has(decodeURIComponent(match[2]))) {
+        console.error(`BROKEN ANCHOR  ${path.relative(root, file)}  ->  ${target}#${match[2]}`);
+        broken += 1;
+      }
+      continue;
+    }
     const hint = drafts.has(target) ? ' (target is draft:true — excluded from build)' : '';
     console.error(`BROKEN  ${path.relative(root, file)}  ->  ${target}${hint}`);
     broken += 1;
