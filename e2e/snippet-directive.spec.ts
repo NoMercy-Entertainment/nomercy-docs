@@ -49,7 +49,7 @@ test.describe('remark snippet directive', () => {
       'utf8',
     );
     try {
-      execSync('npx astro build', { cwd: root, stdio: 'inherit' });
+      execSync('npx astro build --outDir dist-e2e', { cwd: root, stdio: 'inherit' });
     } finally {
       rmSync(fixtureContentPath, { force: true });
     }
