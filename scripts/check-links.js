@@ -26,6 +26,7 @@ const COLLECTIONS = [
   'nomercy-media-server',
   'nomercy-app-web',
   'nomercy-api',
+  'nomercy-plugins',
 ];
 
 function walk(dir) {
@@ -78,6 +79,25 @@ function readRedirects() {
 const valid = new Set();
 const drafts = new Set();
 const files = [];
+const headings = new Map();
+
+function headingSlugs(raw) {
+  const slugs = new Set();
+  const counts = new Map();
+  let fenced = false;
+  for (const line of raw.split(/\r?\n/)) {
+    if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; continue; }
+    if (fenced) continue;
+    const heading = line.match(/^#{1,6}\s+(.+?)\s*#*\s*$/);
+    if (!heading) continue;
+    const slug = heading[1].replace(/<[^>]*>/g, '').replace(/[\[\]`*_~]/g, '')
+      .toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/\s/g, '-');
+    const count = counts.get(slug) ?? 0;
+    counts.set(slug, count + 1);
+    slugs.add(count ? `${slug}-${count}` : slug);
+  }
+  return slugs;
+}
 
 for (const collection of COLLECTIONS) {
   const dir = path.join(contentDir, collection);
@@ -90,13 +110,14 @@ for (const collection of COLLECTIONS) {
   for (const file of entries) {
     files.push({ collection, file });
     const url = urlFor(collection, file);
-    if (frontmatterDraft(readFileSync(file, 'utf8'))) drafts.add(url);
-    else valid.add(url);
+    const raw = readFileSync(file, 'utf8');
+    if (frontmatterDraft(raw)) drafts.add(url);
+    else { valid.add(url); headings.set(url, headingSlugs(raw)); }
   }
 }
 
 const redirects = readRedirects();
-const linkRe = /\]\((\/(?:nomercy-[a-z-]+)[^)\s#]*)(?:#[^)\s]*)?\)/g;
+const linkRe = /\]\((\/(?:nomercy-[a-z-]+)[^)\s#]*)(?:#([^)\s]*))?\)/g;
 
 let broken = 0;
 for (const { file } of files) {
@@ -104,9 +125,10 @@ for (const { file } of files) {
   let match;
   while ((match = linkRe.exec(raw)) !== null) {
     const target = match[1].replace(/\/$/, '');
-    if (valid.has(target) || redirects.has(target)) continue;
+    const fragment = match[2] ? decodeURIComponent(match[2]) : '';
+    if ((valid.has(target) && (!fragment || headings.get(target)?.has(fragment))) || (redirects.has(target) && !fragment)) continue;
     const hint = drafts.has(target) ? ' (target is draft:true — excluded from build)' : '';
-    console.error(`BROKEN  ${path.relative(root, file)}  ->  ${target}${hint}`);
+    console.error(`BROKEN  ${path.relative(root, file)}  ->  ${target}${fragment ? `#${fragment}` : ''}${hint}`);
     broken += 1;
   }
 }
