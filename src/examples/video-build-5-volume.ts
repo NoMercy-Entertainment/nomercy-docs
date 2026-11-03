@@ -438,7 +438,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 			sliderProgress.style.width = `${percentage}%`;
 			sliderNipple.style.left = `${percentage}%`;
 			if (duration > 0)
-				sliderBuffer.style.width = `${Math.min(100, ((position + buffered) / duration) * 100)}%`;
+				sliderBuffer.style.width = `${Math.min(100, (buffered / duration) * 100)}%`;
 		});
 
 		this.on('item', () => {
