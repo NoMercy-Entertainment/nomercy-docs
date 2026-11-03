@@ -54,10 +54,6 @@ export function useMusicPlayer(containerId: string, config: MusicPlayerConfig) {
     instance.on('time', ({ time }) => { currentTime.value = time; });
     instance.on('duration', ({ duration: total }) => { duration.value = total; });
     instance.on('volume', ({ level }) => { volume.value = level; });
-
-    // Music has no `autoPlay` config — load the first track once setup's
-    // async pipeline actually resolves the playlist, not before.
-    void instance.ready().then(() => instance.item(0));
   });
 
   onUnmounted(() => {
@@ -294,9 +290,6 @@ export const useMusicPlayerStore = defineStore('musicPlayer', {
       player.on('duration', ({ duration }) => { this.duration = duration; });
 
       this.player = player;
-      // music has no autoPlay config — load the first track once setup's
-      // async pipeline actually resolves the playlist, not before
-      void player.ready().then(() => player.item(0));
     },
 
     togglePlayback() {

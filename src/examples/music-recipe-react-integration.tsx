@@ -44,9 +44,6 @@ export function useMusicPlayer(containerId: string, config: MusicPlayerConfig) {
 		const player = nmplayer(containerId);
 		if (player.setupState() === SetupState.NOT_SETUP) {
 			player.setup(config);
-			// music has no autoPlay config — load the first track once setup's
-			// async pipeline actually resolves the playlist, not before
-			void player.ready().then(() => player.item(0));
 		}
 		playerRef.current = player;
 
