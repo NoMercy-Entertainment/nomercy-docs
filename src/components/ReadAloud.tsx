@@ -196,8 +196,7 @@ export const useReadAloud = create<ReadAloudState>()((set, get) => {
         /* the new rate still applies to this visit */
       }
       set({ rate });
-      // The rate is fixed per utterance: restart the sentence at the new one.
-      if (get().status === 'playing') speak();
+      // The current utterance keeps its rate; the next sentence uses this value.
     },
   };
 });
