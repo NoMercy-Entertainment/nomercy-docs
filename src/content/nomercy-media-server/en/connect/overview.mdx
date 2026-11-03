@@ -14,6 +14,16 @@ At any moment one of your devices is the active one. It is the device actually p
 
 The server decides which device is active, rather than the devices negotiating between themselves. That is what keeps two clients from both believing they are in charge, and it is why the controls on your phone match the TV rather than drifting from it.
 
+## What passes through nomercy.tv
+
+The NoMercy account service gives signed-in clients their server list, connection addresses, and the `nomercyConnect` feature flag. A server reports its current public address to that service, including a quick tunnel address when it has one. This lets a client find the server when its route changes.
+
+Once the client has a server address, Connect commands and playback state go to that server's MusicHub or VideoHub. The server chooses the active device and broadcasts state to the other devices. The account service is not the Connect command hub.
+
+If the server's address uses a Cloudflare tunnel, that tunnel carries the connection to the server. The account service does not handle playback commands.
+
+Your library media is requested from your server's address. The account service's server-list response contains connection and account metadata, not your music or video files.
+
 ## Choosing a device
 
 The device picker lists what you can play on. It shows devices that are connected right now, and it also shows devices the server knows about that are currently asleep, so a TV that is off is still something you can send playback to.
