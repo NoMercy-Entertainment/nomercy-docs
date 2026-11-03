@@ -17,9 +17,7 @@ const port = Number(
 // The gate builds into its own directory rather than into `dist/`. Anything
 // else in this worktree running `astro build` at the same time writes the same
 // prerender chunks, and the loser fails on a write error that names a file
-// rather than a page. `workers: 1` in playwright.config already closes that
-// race between this gate's own spec files; this closes it against the rest of
-// the tree.
+// rather than a page. The directive fixture uses its own output directory.
 const OUT_DIR = 'dist-e2e';
 // fileURLToPath decodes %20. A pathname left encoded misses dist-e2e when the
 // checkout path contains spaces, and every request 404s.
@@ -52,6 +50,8 @@ function run(command, args) {
 
 run('yarn', ['build:search']);
 run('yarn', ['astro', 'build', '--outDir', OUT_DIR]);
+if (!existsSync(join(root, 'index.html')))
+	throw new Error(`Preview build produced no index page under ${root}`);
 
 // Astro writes `/page/index.html`, so a request for `/page` or `/page/` has to
 // find it the same way the deployed host does.

@@ -19,13 +19,7 @@ const BASE_URL = `http://localhost:${PORT}`;
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
-  // `e2e/snippet-directive.spec.ts` rebuilds `dist-e2e/` itself (its own
-  // `astro build`, independent of the webServer's) and `e2e/snippets.spec.ts`
-  // reads `dist-e2e/` directly — running spec files in parallel workers races
-  // one file's rebuild against the other's read of the same directory
-  // (ENOENT on a file astro's build deletes mid-rewrite). Every spec here
-  // already bottlenecks on one shared, expensive build anyway, so forcing
-  // one worker costs nothing real and makes that race impossible.
+  // Keep tests sequential when the full suite runs in one Playwright process.
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -46,7 +40,8 @@ export default defineConfig({
   webServer: {
     command: `node scripts/preview-foreground.mjs --port ${PORT}`,
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    // A leftover server can make the gate skip its build and read stale output.
+    reuseExistingServer: false,
     // The web server builds the site before it serves it, and a cold build on
     // a CI runner takes longer than five minutes - the gate was timing out
     // waiting for a build that was still going.
