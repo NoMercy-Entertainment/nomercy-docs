@@ -6,8 +6,11 @@ const failures = [];
 
 const media = read('src/examples/media.ts');
 const shell = read('src/content/nomercy-video-player/en/build/shell.mdx');
+const shellExample = read('src/examples/video-build-1-shell.ts');
 const item = media.match(/export const bigBuckBunnyItem: VideoPlaylistItem = (\{[\s\S]*?\n\});/)?.[1];
-if (!item || !shell.includes(`const bigBuckBunnyItem: VideoPlaylistItem = ${item}`))
+if (!item || !shell.includes(`const bigBuckBunnyItem: VideoPlaylistItem = ${item}`) ||
+    !shellExample.includes("import { bigBuckBunnyItem") ||
+    !shellExample.includes('playlist: [bigBuckBunnyItem]'))
   failures.push('Build step 1 playlist item differs from the example source');
 
 const progress = read('src/content/nomercy-video-player/en/build/progress-bar.mdx');
