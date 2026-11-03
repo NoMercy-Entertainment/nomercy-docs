@@ -14,7 +14,7 @@ import NoMercyPlayer
 //
 // NMVideoChromeView draws the controls. EngineVideoPlayer is the projection it
 // observes, and it forwards everything to whatever conforms to VideoEngine.
-// That last protocol is seven members, which is the whole surface a player has
+// That last protocol has eight members, which is the whole surface a player has
 // to answer for a full chrome to work over it.
 struct QuickstartScreen: View {
 
