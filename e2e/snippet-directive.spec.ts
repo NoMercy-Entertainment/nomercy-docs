@@ -14,6 +14,9 @@ import { expect, test } from '@playwright/test';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(currentDir, '..');
+// Keep the fixture build separate from the live snippet gate's dist-e2e.
+// Both Playwright commands can run at the same time in this worktree.
+const fixtureOutDir = 'dist-e2e-directive';
 
 // A real content-collection entry, built through the exact same
 // `[...slug].astro` -> `<Content components={mdxComponents} />` pipeline
@@ -30,12 +33,12 @@ const fixtureContentPath = path.join(
   'en',
   `${FIXTURE_SLUG}.mdx`,
 );
-const fixtureHtmlPath = path.join(root, 'dist-e2e', 'nomercy-video-player', FIXTURE_SLUG, 'index.html');
+const fixtureHtmlPath = path.join(root, fixtureOutDir, 'nomercy-video-player', FIXTURE_SLUG, 'index.html');
 const quickstartSourcePath = path.join(root, 'src', 'examples', 'quickstart.ts');
 
 test.describe('remark snippet directive', () => {
   test.beforeAll(() => {
-    test.setTimeout(300_000);
+    test.setTimeout(600_000);
     writeFileSync(
       fixtureContentPath,
       [
@@ -49,7 +52,7 @@ test.describe('remark snippet directive', () => {
       'utf8',
     );
     try {
-      execSync('npx astro build --outDir dist-e2e', { cwd: root, stdio: 'inherit' });
+      execSync(`npx astro build --outDir ${fixtureOutDir}`, { cwd: root, stdio: 'inherit' });
     } finally {
       rmSync(fixtureContentPath, { force: true });
     }

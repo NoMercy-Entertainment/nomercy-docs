@@ -30,9 +30,9 @@
 // `data-language="ts"` block on that route). Undocumented, unmarked fences
 // are all expected to parse as valid, standalone TypeScript.
 //
-// Run after `astro build` — `yarn build` already sequences this after
+// Run after the Playwright preview build — `yarn build` already sequences this after
 // `check:docs` (which itself triggers a build via the Playwright webServer),
-// so `dist/` is guaranteed fresh by the time this runs.
+// so `dist-e2e/` is guaranteed fresh by the time this runs.
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
