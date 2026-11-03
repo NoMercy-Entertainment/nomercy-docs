@@ -110,7 +110,6 @@ export const navStructure: Record<string, NavGroupDef[]> = {
   'nomercy-api': [
     { group: "Getting Started", pages: ['overview'] },
     { group: "Media", pages: ['rest/home', 'rest/libraries', 'rest/movies', 'rest/tv-shows', 'rest/collections', 'rest/people', 'rest/genres', 'rest/search', 'rest/user-data', 'rest/specials', 'rest/content-segments'] },
-    { group: "Reference", pages: ['kitchen-sink'] },
     { group: "Guides", pages: ['authentication', 'pagination', 'lolomo', 'errors'] },
     { group: "Music", pages: ['rest/music', 'rest/artists', 'rest/albums', 'rest/tracks', 'rest/playlists', 'rest/music-genres'] },
     { group: "Dashboard", pages: ['rest/server', 'rest/config', 'rest/libraries-admin', 'rest/users-admin', 'rest/devices', 'rest/encoder-profiles', 'rest/encoder-bundles', 'rest/encoding-history', 'rest/encoding-presets', 'rest/hardware-benchmark', 'rest/optical-media', 'rest/plugins-api', 'rest/recommendations', 'rest/server-activity', 'rest/storage-browser', 'rest/tasks', 'rest/workers', 'rest/logs-api'] },
