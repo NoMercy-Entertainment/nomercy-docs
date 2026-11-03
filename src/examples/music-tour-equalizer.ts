@@ -8,8 +8,8 @@
 
 /**
  * Equalizer: AudioGraphPlugin + EqualizerPlugin, both shared kit plugins, not
- * anything music-specific. This tour registers both in `configure()` before
- * `setup()`; post-setup `addPlugin()` also registers inline. Then two
+ * anything music-specific. This tour calls `player.addPlugin()` in
+ * `configure()` before `setup()`; post-setup calls also register inline. Two
  * buttons swap between two of the plugin's 19 built-in presets.
  *
  * DOM construction (`createElement`/`createButton`) lives on the plugin, not

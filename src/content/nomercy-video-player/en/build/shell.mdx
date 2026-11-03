@@ -164,12 +164,14 @@ So the bars already fade in when you move the pointer and fade out when you leav
 
 ## The playlist item
 
-The tutorial plays Big Buck Bunny, declared in the example. Its item carries the stream URL and two fields later steps read:
+The tutorial plays Big Buck Bunny, declared in the example. Alongside the stream URL, its item carries fields that later steps read:
 
 | Field | Used by |
 | --- | --- |
 | `chapters` | Step 9's scrubber ticks and tooltip titles |
 | `previewSpriteUrl` | Step 9's seek thumbnails |
+
+This item has no `subtitles`, so Step 8's subtitle button stays hidden.
 
 Media paths are relative. `baseUrl` resolves them, and `baseImageUrl` resolves the poster:
 
@@ -177,20 +179,25 @@ Media paths are relative. `baseUrl` resolves them, and `baseImageUrl` resolves t
 const bigBuckBunnyItem: VideoPlaylistItem = {
   id: 'big-buck-bunny',
   title: 'Big Buck Bunny',
+  description: 'A giant rabbit with a heart bigger than himself.',
   url: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8',
   image: '/w780/xtdybjRRZ15mCrPOvEld305myys.jpg',
   duration: 596,
   year: 2008,
+  previewSpriteUrl: '/Big.Buck.Bunny.(2008)/thumbs_320x178.vtt',
+  // Real chapter marks from the fixture's own `chapters.vtt`, in seconds.
   chapters: [
     { index: 0, start: 0, end: 65, title: 'Opening' },
-    // ...four middle chapters
+    { index: 1, start: 65, end: 162, title: 'A Beautiful Day' },
+    { index: 2, start: 162, end: 250, title: 'The Bullies' },
+    { index: 3, start: 250, end: 350, title: 'Plotting Revenge' },
+    { index: 4, start: 350, end: 495, title: 'The Traps' },
     { index: 5, start: 495, end: 596, title: 'End Credits' },
   ],
-  previewSpriteUrl: '/Big.Buck.Bunny.(2008)/thumbs_320x178.vtt',
 };
 ```
 
-Nothing reads `chapters` or `previewSpriteUrl` yet. The full example below uses the complete item from `src/examples/media.ts`. This film has no subtitle tracks, so the subtitle control stays hidden in step 8.
+Nothing reads `chapters` or `previewSpriteUrl` yet. The later steps light up those fields, while the subtitle control stays hidden because this film has no subtitle tracks. The full example below uses this item from `src/examples/media.ts`.
 
 ## Register it
 
@@ -201,7 +208,7 @@ const player = nmplayer('my-container')
   .addPlugin(StepPlugin)
   .setup({
     baseUrl,
-    playlist: [sintel],
+    playlist: [bigBuckBunnyItem],
   });
 await player.ready();
 ```
