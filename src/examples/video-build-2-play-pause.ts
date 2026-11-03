@@ -268,10 +268,12 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 		});
 
 		this.on('pause', () => {
+			this.playbackButton.ariaLabel = 'Play';
 			pauseIcon.style.display = 'none';
 			playIcon.style.display = 'flex';
 		});
 		this.on('play', () => {
+			this.playbackButton.ariaLabel = 'Pause';
 			playIcon.style.display = 'none';
 			pauseIcon.style.display = 'flex';
 		});

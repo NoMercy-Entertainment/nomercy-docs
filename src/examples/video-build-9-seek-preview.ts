@@ -410,10 +410,12 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 		});
 
 		this.on('pause', () => {
+			this.playbackButton.ariaLabel = 'Play';
 			pauseIcon.style.display = 'none';
 			playIcon.style.display = 'flex';
 		});
 		this.on('play', () => {
+			this.playbackButton.ariaLabel = 'Pause';
 			playIcon.style.display = 'none';
 			pauseIcon.style.display = 'flex';
 		});
@@ -759,6 +761,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 		let muted = this.player.volumeState() === VolumeState.MUTED;
 
 		const updateVolumeIcon = (volume: number): void => {
+			volumeButton.ariaLabel = muted ? 'Unmute' : 'Mute';
 			volHigh.style.display = 'none';
 			volLow.style.display = 'none';
 			volMuted.style.display = 'none';
