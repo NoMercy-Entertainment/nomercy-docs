@@ -35,6 +35,7 @@ class OutputDevicesTourPlugin extends Plugin<IMusicPlayer> {
 	static override readonly description = 'Audio output device list for the Audio Output Devices tour page.';
 
 	private list!: HTMLDivElement;
+	private pickerStatus!: HTMLDivElement;
 
 	override use(): void {
 		const bar = this.createElement('div', 'nm-tour-output-bar').appendTo(this.mount('root')).get();
@@ -51,7 +52,7 @@ class OutputDevicesTourPlugin extends Plugin<IMusicPlayer> {
 						void this.player.audioOutput(device.deviceId);
 				})
 				.catch(() => {
-					this.list.textContent = 'This browser has no output picker — choose from the list instead.';
+					this.pickerStatus.textContent = 'This browser has no output picker. Choose from the list instead.';
 					void this.renderDeviceList();
 				});
 		});
@@ -62,8 +63,10 @@ class OutputDevicesTourPlugin extends Plugin<IMusicPlayer> {
 
 		this.list = this.createElement('div', 'nm-tour-output-list').appendTo(bar).get();
 		this.list.style.cssText = 'display:flex;gap:.4rem;flex-wrap:wrap;font-size:.8rem;opacity:.9;';
+		this.pickerStatus = this.createElement('div', 'nm-tour-output-status').appendTo(bar).get();
+		this.pickerStatus.setAttribute('role', 'status');
 
-		bar.append(pickerButton, this.list);
+		bar.append(pickerButton, this.list, this.pickerStatus);
 		void this.renderDeviceList();
 	}
 
