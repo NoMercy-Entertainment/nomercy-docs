@@ -31,13 +31,13 @@ and a television player with different hands on it.
 :::snippet{file="kotlin-quickstart"}
 :::
 
-The engine is `ExoPlayerVideoBackend` on Android and `VlcjVideoBackend` on the
+The engine is `ExoPlayerVideoBackend` on Android and `MpvVideoBackend` on the
 desktop. Both implement the same `VideoBackend`, so everything above the seam is
 identical and the only per-platform line is the one that constructs the engine.
 
 ## What the desktop needs installed
 
-Nothing. The desktop engine decodes through libVLC. libVLC arrives with the
+Nothing. The desktop engine decodes through libmpv. libmpv arrives with the
 dependency rather than from the machine.
 
 The first time a player is constructed, the library does three things:
@@ -48,13 +48,13 @@ The first time a player is constructed, the library does three things:
 
 Later runs read the unpacked copy.
 
-A VLC that happens to be installed is used only when there is no payload for the
+A libmpv installed on the machine is used only when there is no payload for the
 platform yet.
 
 That way one build behaves the same on every machine, rather than inheriting
 whichever version somebody had lying around.
 
-To supply your own, point `nomercy.player.natives.libvlc.dir` at a directory
+To supply your own, point `nomercy.player.natives.libmpv.dir` at a directory
 holding it. That one is taken instead, with the digest check and download
 skipped.
 
@@ -75,7 +75,7 @@ draws its own chrome links `NoMercyVideoPlayer`, the headless engine, instead.
 
 `NMVideoChromeView` draws the controls and reads everything it shows off the
 object you hand it. `EngineVideoPlayer` is the projection it observes, and it
-forwards to anything conforming to `VideoEngine`, which is seven members.
+forwards to anything conforming to `VideoEngine`, which has eight members.
 
 :::snippet{file="swift-quickstart"}
 :::
