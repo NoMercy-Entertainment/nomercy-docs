@@ -61,6 +61,9 @@ jobs:
       - name: Build
         run: yarn build
 
+      - name: Test snippet directive
+        run: yarn playwright test e2e/snippet-directive.spec.ts
+
       - name: Setup Pages
         uses: actions/configure-pages@v6
 
@@ -115,7 +118,7 @@ jobs:
 
   deploy:
     timeout-minutes: 7200
-    needs: build
+    needs: [build, native-snippets]
     runs-on: [self-hosted, Linux, X64, beast-unit]
     environment:
       name: github-pages

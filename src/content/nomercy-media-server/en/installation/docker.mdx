@@ -70,11 +70,11 @@ The container needs the LAN address of the machine it runs on, in `HOST_IP`. Wit
 | `TZ` | `UTC` | You want timestamps in local time |
 | `PUID` / `PGID` | `1000` | Your media is owned by a different user |
 | `NOMERCY_EXTERNAL_IP` | detected | Detection picks the wrong public address |
-| `NOMERCY_INTERNAL_PORT` | `7626` | Port 7626 is taken; also change the `7626:7626` ports mapping in `docker-compose.yml` to publish the new port |
+| `NOMERCY_INTERNAL_PORT` | `7626` | You also override the container command and published port |
 | `NOMERCY_EXTERNAL_PORT` | `7626` | Your router maps a different outside port |
 | `NOMERCY_LOG_LEVEL` | `Information` | You are chasing a problem and want more detail |
 
-The last four ship commented out. Uncomment the ones you need.
+The last four ship commented out. Uncomment the ones you need. If port 7626 is taken on the host, change the compose `ports` entry to `8765:7626` (or another free host port) and browse to that port. The image's command fixes the internal port at 7626, so changing `NOMERCY_INTERNAL_PORT` alone does not move it.
 
 A `nomercy-data` volume holds the server's own database and settings. Leave it alone; it is what makes your server keep its identity across restarts.
 
