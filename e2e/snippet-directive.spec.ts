@@ -43,7 +43,7 @@ test.describe('remark snippet directive', () => {
         "title: 'E2E Snippet Directive Fixture'",
         '---',
         '',
-        ':::snippet{file="quickstart"}',
+        ':::snippet{file="quickstart" runnable="false"}',
         '',
       ].join('\n'),
       'utf8',
