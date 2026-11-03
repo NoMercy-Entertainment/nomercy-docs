@@ -164,45 +164,40 @@ So the bars already fade in when you move the pointer and fade out when you leav
 
 ## The playlist item
 
-The tutorial plays one real film, declared in the example, because the item is where half of this tutorial's data lives. Alongside the stream URL, the item carries three fields that later steps read:
+The tutorial plays one real film, declared in the example, because the item is where half of this tutorial's data lives. Alongside the stream URL, the item carries fields that later steps read:
 
 | Field | Used by |
 | --- | --- |
-| `subtitles` | Step 8's subtitle menu |
 | `chapters` | Step 9's scrubber ticks and tooltip titles |
 | `previewSpriteUrl` | Step 9's seek thumbnails |
+
+This item has no `subtitles`, so Step 8's subtitle button stays hidden.
 
 Media paths are relative. `baseUrl` resolves them, and `baseImageUrl` resolves the poster:
 
 ```ts
-const sintel: VideoPlaylistItem = {
-  id: 'sintel',
-  title: 'Sintel',
-  description: 'A short fantasy film by the Blender Foundation. Sintel searches for a baby dragon she calls Scales.',
-  url: '/Sintel.(2010)/Sintel.(2010).NoMercy.m3u8',
-  image: '/w780/q2bVM5z90tCGbmXYtq2J38T5hSX.jpg',
-  duration: 888,
-  year: 2010,
-  subtitles: [
-    {
-      id: 'eng',
-      label: 'English',
-      language: 'eng',
-      kind: 'subtitles',
-      url: '/Sintel.(2010)/subtitles/Sintel.(2010).NoMercy.eng.full.vtt',
-    },
-    // ...Dutch, French, and German entries, same shape
-  ],
+const bigBuckBunnyItem: VideoPlaylistItem = {
+  id: 'big-buck-bunny',
+  title: 'Big Buck Bunny',
+  description: 'A giant rabbit with a heart bigger than himself.',
+  url: '/Big.Buck.Bunny.(2008)/Big.Buck.Bunny.(2008).NoMercy.m3u8',
+  image: '/w780/xtdybjRRZ15mCrPOvEld305myys.jpg',
+  duration: 596,
+  year: 2008,
+  previewSpriteUrl: '/Big.Buck.Bunny.(2008)/thumbs_320x178.vtt',
+  // Real chapter marks from the fixture's own `chapters.vtt`, in seconds.
   chapters: [
-    { index: 0, start: 0, end: 107, title: 'Opening' },
-    { index: 1, start: 107, end: 207, title: 'A Dangerous Quest' },
-    // ...six more, through 'End Credits'
+    { index: 0, start: 0, end: 65, title: 'Opening' },
+    { index: 1, start: 65, end: 162, title: 'A Beautiful Day' },
+    { index: 2, start: 162, end: 250, title: 'The Bullies' },
+    { index: 3, start: 250, end: 350, title: 'Plotting Revenge' },
+    { index: 4, start: 350, end: 495, title: 'The Traps' },
+    { index: 5, start: 495, end: 596, title: 'End Credits' },
   ],
-  previewSpriteUrl: '/Sintel.(2010)/thumbs_256x109.vtt',
 };
 ```
 
-Nothing reads `subtitles`, `chapters`, or `previewSpriteUrl` yet, the item just declares what the film has, and each later step lights up the part it needs. The full example below carries every entry.
+Nothing reads `chapters` or `previewSpriteUrl` yet. The later steps light up those fields, while the subtitle control stays hidden because this film has no subtitle tracks. The full example below uses this item.
 
 ## Register it
 
