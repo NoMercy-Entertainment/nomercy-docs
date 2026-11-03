@@ -76,7 +76,8 @@ result of that step alone, not the finished player early.
 
 ## Enforcement
 
-`scripts/check-docs.mjs` runs first in `yarn build` (also directly as
+`scripts/check-docs.mjs` runs after the native reference, directive, import, symbol,
+example, and API coverage checks in `yarn build` (also directly as
 `yarn check:docs`) and checks, per trio collection:
 
 - Every page has a `title` and resolves an `order` — either an explicit frontmatter
