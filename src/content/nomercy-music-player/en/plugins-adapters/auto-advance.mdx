@@ -10,7 +10,7 @@ description: 'Play the next track when one ends, with a strategy of your own dec
 Reach for `cls AutoAdvancePlugin` when you want a queue that keeps playing.
 It listens for a track ending and moves to the next one.
 
-Without it the player stops at the end of every track and waits for your own code to call `fn next`.
+The music player's default transition strategy already advances the queue. Register this plugin when you need its queue generator or its own end and preload handlers.
 
 It also does the one thing that has to happen slightly before a track ends, which is handing the change to `fn crossfadeTo`.
 That is off by default, because a fade costs bandwidth a listener may not want spent.
@@ -41,7 +41,7 @@ Every option is optional, and the defaults give you plain sequential playback.
 | `key crossfadeDuration` | `ts number` | `ts 0` | Seconds of overlap. At `ts 0` the change is a hard cut rather than a fade. |
 | `key generator` | `cls IPlaylistGenerator` | the queue's own order | An object that decides which track is next. Covered below. |
 
-**This plugin is the only thing that fades one track into the next on its own.** With `key crossfade` off, a track reaching its end is a plain change from one source to the other.
+The music player's default transition strategy can also start a fade automatically. With this plugin's `key crossfade` off, the plugin itself advances with `fn next` at the end of a track.
 
 Turning it on hands the change to [`fn crossfadeTo`](/nomercy-music-player/tour/crossfade), which is the same call you would make yourself.
 
