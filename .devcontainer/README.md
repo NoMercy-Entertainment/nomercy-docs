@@ -92,4 +92,4 @@ The dev container runs with `NODE_ENV=development` by default.
 
 - `node_modules` is isolated in the container to prevent conflicts
 - All file changes are synced between host and container
-- The container uses Node.js 20 LTS (latest stable)
+- The container uses Node.js 22, matching the project's Node requirement.

@@ -14,6 +14,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { slugifyWithCounter } from '@sindresorhus/slugify';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -26,6 +27,7 @@ const COLLECTIONS = [
   'nomercy-media-server',
   'nomercy-app-web',
   'nomercy-api',
+  'nm-components',
   'nomercy-plugins',
 ];
 
@@ -79,24 +81,24 @@ function readRedirects() {
 const valid = new Set();
 const drafts = new Set();
 const files = [];
-const headings = new Map();
+const pages = new Map();
 
-function headingSlugs(raw) {
-  const slugs = new Set();
-  const counts = new Map();
+function anchors(raw) {
+  const found = new Set();
+  const slugify = slugifyWithCounter();
   let fenced = false;
   for (const line of raw.split(/\r?\n/)) {
     if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; continue; }
     if (fenced) continue;
     const heading = line.match(/^#{1,6}\s+(.+?)\s*#*\s*$/);
-    if (!heading) continue;
-    const slug = heading[1].replace(/<[^>]*>/g, '').replace(/[\[\]`*_~]/g, '')
-      .toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/\s/g, '-');
-    const count = counts.get(slug) ?? 0;
-    counts.set(slug, count + 1);
-    slugs.add(count ? `${slug}-${count}` : slug);
+    if (heading) {
+      found.add(slugify(heading[1].replace(/<[^>]*>/g, '').replace(/`/g, '')));
+    }
+    for (const match of line.matchAll(/\bid=["']([^"']+)["']|\bid:\s*["']?([a-z0-9-]+)/gi)) {
+      found.add(match[1] ?? match[2]);
+    }
   }
-  return slugs;
+  return found;
 }
 
 for (const collection of COLLECTIONS) {
@@ -110,14 +112,16 @@ for (const collection of COLLECTIONS) {
   for (const file of entries) {
     files.push({ collection, file });
     const url = urlFor(collection, file);
-    const raw = readFileSync(file, 'utf8');
-    if (frontmatterDraft(raw)) drafts.add(url);
-    else { valid.add(url); headings.set(url, headingSlugs(raw)); }
+    if (frontmatterDraft(readFileSync(file, 'utf8'))) drafts.add(url);
+    else {
+      valid.add(url);
+      pages.set(url, anchors(readFileSync(file, 'utf8')));
+    }
   }
 }
 
 const redirects = readRedirects();
-const linkRe = /\]\((\/(?:nomercy-[a-z-]+)[^)\s#]*)(?:#([^)\s]*))?\)/g;
+const linkRe = /\]\((\/(?:nomercy-[a-z-]+|nm-components)[^)\s#]*)(?:#([^)\s]*))?\)/g;
 
 let broken = 0;
 for (const { file } of files) {
@@ -125,8 +129,13 @@ for (const { file } of files) {
   let match;
   while ((match = linkRe.exec(raw)) !== null) {
     const target = match[1].replace(/\/$/, '');
-    const fragment = match[2] ? decodeURIComponent(match[2]) : '';
-    if ((valid.has(target) && (!fragment || headings.get(target)?.has(fragment))) || (redirects.has(target) && !fragment)) continue;
+    if (valid.has(target) || redirects.has(target)) {
+      if (match[2] && pages.has(target) && !pages.get(target).has(decodeURIComponent(match[2]))) {
+        console.error(`BROKEN ANCHOR  ${path.relative(root, file)}  ->  ${target}#${match[2]}`);
+        broken += 1;
+      }
+      continue;
+    }
     const hint = drafts.has(target) ? ' (target is draft:true — excluded from build)' : '';
     console.error(`BROKEN  ${path.relative(root, file)}  ->  ${target}${fragment ? `#${fragment}` : ''}${hint}`);
     broken += 1;

@@ -352,8 +352,8 @@ function runSnippetGate() {
 
 /**
  * Runs after the Playwright gate (not before) — that gate's own `webServer`
- * (`yarn preview`) is what produces the `dist/` this reads, so `dist/` is
- * only guaranteed fresh once it has finished. Catches the syntax-error class
+ * (`preview-foreground.mjs`) produces the `dist-e2e/` this reads, so that
+ * output is only guaranteed fresh once it has finished. Catches the syntax-error class
  * the Playwright gate itself can't see: `waitForPlayerExample` only proves
  * the ONE snippet each page mounts live actually runs, it says nothing about
  * every OTHER `ts`/`tsx` fenced block on that page (`live="false"` snippets,

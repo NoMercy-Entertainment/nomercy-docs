@@ -2,6 +2,7 @@
 
 import { Tab, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import clsx from 'clsx';
+import { parseEntities } from 'parse-entities';
 import {
   Children,
   createContext,
@@ -79,6 +80,7 @@ function CopyButton({ code }: { code: string; }) {
   return (
     <button
       type="button"
+      data-code={code}
       aria-label={copied ? 'Code copied to clipboard' : 'Copy code to clipboard'}
       className={clsx(
         'group/button absolute top-3.5 right-4 overflow-hidden rounded-full py-1 pr-3 pl-2 text-2xs font-medium opacity-0 backdrop-blur-sm transition group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-emerald-500',
@@ -461,7 +463,7 @@ export function CodeGroup({
                 cleanedHTML = tempDiv.innerHTML;
               }
             } else {
-              code = preHTML.replace(/<[^>]*>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+              code = parseEntities(preHTML.replace(/<[^>]*>/g, ''));
 
               // Server-side: Use regex to clean up the HTML (only the pre tag)
               cleanedHTML = preHTML

@@ -54,7 +54,7 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "The CLI", pages: ['cli/overview', 'cli/start-stop', 'cli/logs', 'cli/config', 'cli/plugins-cli', 'cli/queue', 'cli/update', 'cli/autostart'] },
     { group: "Plugins", pages: ['plugins/overview', 'plugins/installing', 'plugins/repository-index', 'plugins/trusted-publishers', 'plugins/developing'] },
     { group: "Maintenance", pages: ['maintenance/backups', 'maintenance/upgrade', 'maintenance/migrate'] },
-    { group: "Troubleshooting", pages: ['troubleshooting/logs', 'troubleshooting/common-issues', 'troubleshooting/diagnostics', 'troubleshooting/error-codes'] },
+    { group: "Troubleshooting", pages: ['troubleshooting/logs', 'troubleshooting/common-issues', 'troubleshooting/android-tv-sound', 'troubleshooting/diagnostics', 'troubleshooting/error-codes'] },
   ],
   'nomercy-app-web': [
     { group: "Getting Started", pages: ['overview', 'platforms', 'connecting'] },
@@ -110,7 +110,6 @@ export const navStructure: Record<string, NavGroupDef[]> = {
   'nomercy-api': [
     { group: "Getting Started", pages: ['overview'] },
     { group: "Media", pages: ['rest/home', 'rest/libraries', 'rest/movies', 'rest/tv-shows', 'rest/collections', 'rest/people', 'rest/genres', 'rest/search', 'rest/user-data', 'rest/specials', 'rest/content-segments'] },
-    { group: "Reference", pages: ['kitchen-sink'] },
     { group: "Guides", pages: ['authentication', 'pagination', 'lolomo', 'errors'] },
     { group: "Music", pages: ['rest/music', 'rest/artists', 'rest/albums', 'rest/tracks', 'rest/playlists', 'rest/music-genres'] },
     { group: "Dashboard", pages: ['rest/server', 'rest/config', 'rest/libraries-admin', 'rest/users-admin', 'rest/devices', 'rest/encoder-profiles', 'rest/encoder-bundles', 'rest/encoding-history', 'rest/encoding-presets', 'rest/hardware-benchmark', 'rest/optical-media', 'rest/plugins-api', 'rest/recommendations', 'rest/server-activity', 'rest/storage-browser', 'rest/tasks', 'rest/workers', 'rest/logs-api'] },

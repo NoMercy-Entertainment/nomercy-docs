@@ -674,6 +674,7 @@ class StepPlugin extends Plugin<NMVideoPlayer> {
 		});
 		this.on('mute', (payload) => {
 			muted = payload.muted;
+			volumeButton.ariaLabel = muted ? 'Unmute' : 'Mute';
 			updateVolumeIcon(this.player.volume());
 		});
 
