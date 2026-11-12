@@ -61,12 +61,9 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     { group: "Setup", pages: ['setup/name-device', 'setup/select-server', 'setup/first-run', 'setup/server-offline'] },
     { group: "Browsing", pages: ['home', 'libraries', 'library', 'search', 'info', 'person'] },
     { group: "Watching & Listening", pages: ['watch', 'music/home', 'music/artist', 'music/album', 'music/playlist', 'subtitles', 'chromecast', 'quality'] },
-    // preferences/controls is drafted out: the route renders a placeholder, so
-    // there is no screen to document. Restore it here when one ships.
+    // A Controls page comes back when app-web ships that screen (nomercy-app-web#79).
     { group: "Preferences", pages: ['preferences/profile', 'preferences/display', 'preferences/subtitles', 'preferences/devices'] },
-    // Drafted out, all for the same reason — the app has no screen to document:
-    // dashboard/dlna (no DLNA anywhere in the server or clients), and
-    // dashboard/schedule + dashboard/metadata (routes that render a placeholder).
+    // No dashboard/dlna page: there is no DLNA anywhere in the server or clients.
     { group: "Dashboard (Admin)", pages: ['dashboard/overview', 'dashboard/libraries', 'dashboard/storage', 'dashboard/users', 'dashboard/devices', 'dashboard/specials', 'dashboard/recommendations', 'dashboard/ripper', 'dashboard/encoder-profiles', 'dashboard/hardware', 'dashboard/content-analysis', 'dashboard/distribution', 'dashboard/plugins', 'dashboard/activity', 'dashboard/logs', 'dashboard/live-sessions', 'dashboard/notifications'] },
     { group: "Troubleshooting", pages: ['troubleshooting'] },
   ],
