@@ -1,4 +1,4 @@
-# Start with Node.js 20 LTS
+# Node.js 22, the same major as .nvmrc and package.json engines (>=22.12.0)
 FROM mcr.microsoft.com/devcontainers/javascript-node:22-bullseye
 
 # Install additional tools
