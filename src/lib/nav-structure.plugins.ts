@@ -1,4 +1,4 @@
-// Generated from server/plugin-contract/contract/capabilities.json. Do not edit.
+// Generated from server/nomercy-media-server/tools/plugin-contract/contract/capabilities.json. Do not edit.
 //
 // A capability page without a manifest entry fails `yarn check:nav`, so this
 // is generated beside the pages rather than kept by hand.
@@ -38,6 +38,7 @@ export const pluginCapabilityNav: NavGroupDef[] = [
       'capabilities/audio-tools',
       'capabilities/music-analysis-read',
       'capabilities/music-analysis-write',
+      'capabilities/lyrics-write',
       'capabilities/player-source',
       'capabilities/player-control',
       'capabilities/player-state',
