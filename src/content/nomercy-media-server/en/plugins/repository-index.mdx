@@ -75,7 +75,7 @@ below every one that does rather than breaking the entry.
 | Field | Required | What it is |
 |---|---|---|
 | `version` | yes | Dotted numeric, for example `1.2.0`. This is what gets compared. |
-| `downloadUrl` | yes | A direct link to the package, a `.zip` carrying the manifest and assembly, or a bare `.dll` for something trivial. The server fetches this; a browser never sees it. |
+| `downloadUrl` | yes | A direct link to the package: a `.zip` carrying the manifest and assembly. The server fetches this; a browser never sees it. A link to anything else, such as a bare `.dll`, is refused before anything is downloaded. |
 | `targetAbi` | no | The plugin platform version this build targets. |
 | `checksum` | no | SHA-256 of the `.zip` at `downloadUrl`, lowercase hex. See below. |
 | `changelog` | no | What changed. |
@@ -90,9 +90,8 @@ A checksum has one subject: the `.zip` package, byte for byte as you uploaded it
 file, whichever route an owner installs through, so one catalog entry gives the same answer
 everywhere.
 
-A checksum published for a bare `.dll` is refused. The refusal names the file the server
-saw and the file it wanted. It also names the two ways out: release the version as a `.zip`
-and hash that, or publish the version without a checksum.
+A version whose `downloadUrl` is not a `.zip` cannot be installed from a repository. The
+owner sees why in the install response. Release the version as a `.zip` and hash that.
 
 A version without a checksum still installs. The catalog marks it unverified and the
 owner is told, in the confirmation prompt, that nothing can be checked before it lands. That
