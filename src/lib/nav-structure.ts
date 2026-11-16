@@ -48,12 +48,12 @@ export const navStructure: Record<string, NavGroupDef[]> = {
     // encoding/model follows profiles for the same reason: pick one first, then
     // read what a profile actually is and how a run is put together.
     { group: "Encoding", pages: ['encoding/overview', 'encoding/profiles', 'encoding/model', 'encoding/hardware', 'encoding/formats', 'encoding/history'] },
-    // connect/watch-parties is drafted out: no watch-party feature exists in the
-    // server or any client. Restore it here when one ships.
+    // No connect/watch-parties page: no watch-party feature exists in the
+    // server or any client. Add one here when it ships.
     { group: "Remote Access & Sync", pages: ['connect/overview'] },
     { group: "The CLI", pages: ['cli/overview', 'cli/start-stop', 'cli/logs', 'cli/config', 'cli/plugins-cli', 'cli/queue', 'cli/update', 'cli/autostart'] },
     { group: "Plugins", pages: ['plugins/overview', 'plugins/installing', 'plugins/repository-index', 'plugins/trusted-publishers', 'plugins/developing'] },
-    { group: "Maintenance", pages: ['maintenance/backups', 'maintenance/upgrade', 'maintenance/migrate'] },
+    { group: "Maintenance", pages: ['maintenance/backups', 'maintenance/upgrade', 'maintenance/migrate', 'maintenance/from-another-server'] },
     { group: "Troubleshooting", pages: ['troubleshooting/logs', 'troubleshooting/common-issues', 'troubleshooting/android-tv-sound', 'troubleshooting/diagnostics', 'troubleshooting/error-codes'] },
   ],
   'nomercy-app-web': [
